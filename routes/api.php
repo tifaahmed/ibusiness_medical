@@ -1,0 +1,85 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Auth\LoginController as ApiLoginController;
+use App\Http\Controllers\Api\ContactMessageController;
+use App\Http\Controllers\Api\MembershipNumberController;
+use App\Http\Controllers\Api\V1\Guest\AboutController as V1AboutController;
+use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
+use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
+use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
+use App\Http\Controllers\Api\V1\Guest\HomeController as V1HomeController;
+use App\Http\Controllers\Api\V1\Guest\MembershipCardController as V1MembershipCardController;
+use App\Http\Controllers\Api\V1\Guest\MembershipController as V1MembershipController;
+use App\Http\Controllers\Api\V1\Guest\MembershipUsageController as V1MembershipUsageController;
+use App\Http\Controllers\Api\V1\Guest\NewsTickerController as V1NewsTickerController;
+use App\Http\Controllers\Api\V1\Guest\OfferController as V1OfferController;
+use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
+use App\Http\Controllers\Api\V1\Guest\PartnerCompanyController as V1PartnerCompanyController;
+use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+use App\Http\Controllers\Api\V1\Guest\PartnerOfferController as V1PartnerOfferController;
+use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
+use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1PartnerOfferRequestController;
+
+Route::post('/auth/login', ApiLoginController::class)->name('api.auth.login');
+Route::post('/v1/auth/login', [V1AuthController::class, 'login'])->name('api.v1.auth.login');
+
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+
+// Public Contact Form API
+Route::post('/contact-messages', [ContactMessageController::class, 'store'])
+    ->name('api.contact.store');
+
+// Note: /api/membership-number/{generate,check} are registered in routes/web.php
+// so they share the admin session/auth stack.
+
+// v1: Public JSON API consumed by the mobile app (membership-app-mobile).
+// Same data as the Inertia guest pages, returned as JSON.
+Route::prefix('v1')
+    ->middleware(\App\Http\Middleware\SetApiLocale::class)
+    ->name('api.v1.')
+    ->group(function () {
+        Route::get('/home', V1HomeController::class)->name('home');
+        Route::get('/services', [V1ServiceController::class, 'index'])->name('services.index');
+        Route::get('/services/{service:slug}', [V1ServiceController::class, 'show'])->name('services.show');
+
+        Route::get('/offers', V1OfferController::class)->name('offers.index');
+        Route::get('/news-tickers', V1NewsTickerController::class)->name('news-tickers');
+        Route::get('/about', V1AboutController::class)->name('about');
+        Route::get('/contact', V1ContactController::class)->name('contact.show');
+
+        Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
+        Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');
+
+        Route::post('/membership/lookup', [V1MembershipController::class, 'lookup'])->name('membership.lookup');
+        Route::get('/memberships/{membership}', [V1MembershipController::class, 'show'])->name('membership.show');
+        Route::get('/memberships/{membership}/card', [V1MembershipCardController::class, 'show'])->name('membership.card.show');
+        Route::get('/memberships/{membership}/card/url', [V1MembershipCardController::class, 'url'])->name('membership.card.url');
+
+        Route::get('/memberships/{membership}/usage/options', [V1MembershipUsageController::class, 'options'])->name('membership.usage.options');
+        Route::post('/memberships/{membership}/usage', [V1MembershipUsageController::class, 'store'])->name('membership.usage.store');
+
+        Route::post('/contact-messages', [ContactMessageController::class, 'store'])->name('contact-messages.store');
+
+        Route::post('/client-errors', [V1ClientErrorController::class, 'store'])->name('client-errors.store');
+
+        Route::get('/partner-companies', [V1PartnerCompanyController::class, 'index'])->name('partner-companies.index');
+        Route::get('/partner-companies/{partner}', [V1PartnerCompanyController::class, 'show'])->name('partner-companies.show');
+        Route::get('/partner-companies/{partner}/offers', [V1PartnerCompanyController::class, 'offers'])->name('partner-companies.offers');
+
+        Route::get('/partner-offers', [V1PartnerOfferController::class, 'index'])->name('partner-offers.index');
+        Route::get('/partner-offers/{id}', [V1PartnerOfferController::class, 'show'])->name('partner-offers.show');
+        Route::post('/partner-offer-requests', [V1PartnerOfferRequestController::class, 'store'])->name('partner-offer-requests.store');
+
+        Route::post('/auth/login', [V1AuthController::class, 'login'])->name('auth.login');
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::post('/auth/logout', [V1AuthController::class, 'logout'])->name('auth.logout');
+            Route::get('/profile', [V1AuthController::class, 'profile'])->name('profile.show');
+            Route::put('/profile', [V1AuthController::class, 'updateProfile'])->name('profile.update');
+            Route::put('/profile/password', [V1AuthController::class, 'changePassword'])->name('profile.password');
+            Route::post('/profile/avatar', [V1AuthController::class, 'updateAvatar'])->name('profile.avatar');
+        });
+    });

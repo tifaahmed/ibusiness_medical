@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASH Health Care Card Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&family=Cinzel:wght@500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Tajawal,Arial,sans-serif;background:#1a1a2e;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:30px 20px}
+.container{display:flex;gap:32px;width:100%;max-width:1150px;flex-wrap:wrap;justify-content:center}
+.form-panel{background:#0f3460;border-radius:16px;padding:28px;width:330px;flex-shrink:0;border:1px solid rgba(184,148,90,0.3)}
+.form-panel h2{color:#D4AF6E;font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:20px;font-family:Cinzel,serif}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:#9BA4B5;margin-bottom:5px}
+.field input{width:100%;background:#162447;border:1px solid rgba(184,148,90,0.25);border-radius:8px;padding:9px 12px;font-size:14px;font-family:Tajawal,Arial,sans-serif;color:#e0e0e0;outline:none;transition:border .2s}
+.field input:focus{border-color:#D4AF6E}
+.field input[dir=rtl]{text-align:right}
+.photo-wrap{display:flex;align-items:center;gap:12px}
+.photo-preview{width:60px;height:60px;border-radius:8px;background:#162447;border:1px solid rgba(184,148,90,0.25);overflow:hidden;display:flex;align-items:center;justify-content:center;color:#555;font-size:22px;flex-shrink:0}
+.photo-preview img{width:100%;height:100%;object-fit:cover}
+.upload-label{display:inline-block;padding:8px 14px;background:rgba(184,148,90,0.15);border:1px solid rgba(184,148,90,0.4);color:#D4AF6E;border-radius:8px;cursor:pointer;font-size:13px}
+.btn{width:100%;margin-top:20px;padding:12px;background:linear-gradient(135deg,#C4A058,#8a6f35);color:#fff;border:none;border-radius:10px;font-size:15px;font-family:Tajawal,Arial,sans-serif;cursor:pointer}
+.btn-dl{width:100%;margin-top:10px;padding:12px;background:rgba(184,148,90,0.15);border:1px solid rgba(184,148,90,0.4);color:#D4AF6E;border-radius:10px;font-size:15px;font-family:Tajawal,Arial,sans-serif;cursor:pointer;display:none}
+.btn-back{width:100%;margin-top:10px;padding:12px;background:rgba(155,164,181,0.1);border:1px solid rgba(155,164,181,0.3);color:#9BA4B5;border-radius:10px;font-size:15px;font-family:Tajawal,Arial,sans-serif;cursor:pointer}
+.lang-btn{padding:2px 8px;font-size:11px;border-radius:5px;border:1px solid rgba(184,148,90,0.4);background:rgba(184,148,90,0.1);color:#9BA4B5;cursor:pointer;font-family:Tajawal,Arial,sans-serif}
+.lang-btn.active-lang{background:rgba(184,148,90,0.3);color:#D4AF6E;border-color:#D4AF6E}
+.field select{width:100%;background:#162447;border:1px solid rgba(184,148,90,0.25);border-radius:8px;padding:9px 12px;font-size:14px;font-family:Tajawal,Arial,sans-serif;color:#e0e0e0;outline:none;transition:border .2s;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D4AF6E'><path d='M7 10l5 5 5-5z'/></svg>");background-repeat:no-repeat;background-position:right 8px center;background-size:18px;padding-right:32px}
+.field select:focus{border-color:#D4AF6E}
+.card-panel{flex:1;min-width:300px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.card-panel h2{color:#D4AF6E;font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:Cinzel,serif}
+#cardCanvas{border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6);max-width:100%;height:auto;display:block}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="form-panel">
+    <h2>Card Details</h2>
+    <div class="field">
+      <label>Partner</label>
+      <select id="fPartner" onchange="onPartnerChange()">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="field"><label>Full Name (Arabic)</label><input type="text" id="fName" dir="rtl" placeholder="رضا عبده منصور"></div>
+    <div class="field"><label>Policy No</label><input type="text" id="fPolicy" placeholder="P 1181"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;justify-content:space-between">
+        <span>Member / عضو</span>
+        <span id="memberLangToggle" style="display:none;gap:4px;display:none">
+          <button type="button" onclick="setLang('member','ar')" id="memberBtnAr" class="lang-btn active-lang">AR</button>
+          <button type="button" onclick="setLang('member','en')" id="memberBtnEn" class="lang-btn">EN</button>
+        </span>
+      </label>
+      <input type="text" id="fMember" dir="rtl" placeholder="أخصائية مشتريات">
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;justify-content:space-between">
+        <span>Status / الحالة</span>
+        <span id="statusLangToggle" style="display:none;gap:4px;display:none">
+          <button type="button" onclick="setLang('status','ar')" id="statusBtnAr" class="lang-btn active-lang">AR</button>
+          <button type="button" onclick="setLang('status','en')" id="statusBtnEn" class="lang-btn">EN</button>
+        </span>
+      </label>
+      <input type="text" id="fStatus" dir="rtl" placeholder="تاون فيو للمقولات العامة">
+    </div>
+    <div class="field"><label>Valid to</label><input type="text" id="fValid" placeholder="1 / 2027"></div>
+    <div class="field"><label>URL for QR Code</label><input type="text" id="fUrl" placeholder="https://ash-healthcare.com/member/P1181"></div>
+    <div class="field">
+      <label>Photo</label>
+      <div class="photo-wrap">
+        <div class="photo-preview" id="photoPreview">+</div>
+        <div>
+          <label class="upload-label" for="photoInput">Choose Photo</label>
+          <input type="file" id="photoInput" accept="image/*" style="display:none">
+          <div style="font-size:11px;color:#666;margin-top:4px">JPG, PNG supported</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn" onclick="generateCard()">&#9654; Generate Card</button>
+    <button class="btn-dl" id="dlBtn" onclick="downloadCard()">&#11015; Download Card Image</button>
+    <button class="btn-back" onclick="resetLayout()" style="margin-top:10px">&#8634; Reset Layout</button>
+    <div style="font-size:11px;color:#9BA4B5;margin-top:8px;text-align:center;line-height:1.5">Click any element on the card to select.<br>Drag to move &middot; scroll wheel to resize</div>
+    <button class="btn-back" onclick="history.back()">&#8592; Back</button>
+  </div>
+  <div class="card-panel">
+    <h2>Preview</h2>
+    <canvas id="cardCanvas" width="1063" height="661"></canvas>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// Language translations store
+var langData={member:{ar:'',en:''},status:{ar:'',en:''}};
+
+function setLang(field,lang){
+  var inputId=field==='member'?'fMember':'fStatus';
+  var val=langData[field][lang]||'';
+  document.getElementById(inputId).value=val;
+  document.getElementById(inputId).dir=lang==='ar'?'rtl':'ltr';
+  ['ar','en'].forEach(function(l){
+    var btn=document.getElementById(field+'Btn'+l.charAt(0).toUpperCase()+l.slice(1));
+    if(btn) btn.classList.toggle('active-lang',l===lang);
+  });
+}
+
+// Pre-fill from URL query params
+(function(){
+  var p=new URLSearchParams(window.location.search);
+  var map={name:'fName',policy:'fPolicy',member:'fMember',status:'fStatus',valid:'fValid',url:'fUrl'};
+  Object.keys(map).forEach(function(k){
+    if(p.get(k)){
+      var el=document.getElementById(map[k]);
+      if(el) el.value=decodeURIComponent(p.get(k));
+    }
+  });
+
+  // Handle member (job title) AR/EN
+  var memberAr=p.get('member_ar')||'';
+  var memberEn=p.get('member_en')||'';
+  if(memberAr||memberEn){
+    langData.member.ar=memberAr;
+    langData.member.en=memberEn;
+    var toggle=document.getElementById('memberLangToggle');
+    if(toggle){toggle.style.display='flex';}
+    // Set default to AR if available, else EN
+    setLang('member', memberAr?'ar':'en');
+  }
+
+  // Handle status (company) AR/EN
+  var statusAr=p.get('status_ar')||'';
+  var statusEn=p.get('status_en')||'';
+  if(statusAr||statusEn){
+    langData.status.ar=statusAr;
+    langData.status.en=statusEn;
+    var stoggle=document.getElementById('statusLangToggle');
+    if(stoggle){stoggle.style.display='flex';}
+    setLang('status', statusAr?'ar':'en');
+  }
+  var avatarUrl=p.get('avatar');
+  if(avatarUrl){
+    var img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=function(){
+      photoImg=img;
+      var prev=document.getElementById('photoPreview');
+      prev.innerHTML='<img src="'+avatarUrl+'">';
+      if(bgReady) generateCard();
+    };
+    img.onerror=function(){
+      photoImg=null;
+      if(bgReady) generateCard();
+    };
+    img.src=avatarUrl;
+  } else {
+    avatarUrl=null;
+  }
+  window._autoGenerate=(p.get('name')||p.get('policy'));
+  window._hasAvatar=!!avatarUrl;
+})();
+
+var CW=1063,CH=661,photoImg=null,partnerImg=null,bgReady=false;
+var bgImgPure=new Image();
+bgImgPure.onload=function(){bgReady=true;drawBase();if(window._autoGenerate&&!window._hasAvatar)generateCard();};
+bgImgPure.onerror=function(){console.error("Failed to load /card-template_pure.jpg");bgReady=true;drawBase();};
+bgImgPure.src="/card-template_pure.jpg";
+
+var partnersList=[];
+function loadPartners(){
+  fetch("/api/partners",{headers:{Accept:"application/json"},credentials:"same-origin"})
+    .then(function(r){return r.ok?r.json():{partners:[]};})
+    .then(function(d){
+      partnersList=(d&&d.partners)||[];
+      var sel=document.getElementById("fPartner");
+      partnersList.forEach(function(p){
+        var opt=document.createElement("option");
+        opt.value=String(p.id);
+        opt.textContent=p.title;
+        sel.appendChild(opt);
+      });
+      var qp=new URLSearchParams(window.location.search).get("partner");
+      if(qp){sel.value=qp;onPartnerChange();}
+    })
+    .catch(function(){});
+}
+loadPartners();
+
+function onPartnerChange(){
+  var sel=document.getElementById("fPartner");
+  var id=sel.value;
+  if(!id){
+    partnerImg=null;
+    if(bgReady) paintCard();
+    return;
+  }
+  var p=partnersList.find(function(x){return String(x.id)===String(id);});
+  if(!p||!p.image){
+    partnerImg=null;
+    if(bgReady) paintCard();
+    return;
+  }
+  var img=new Image();
+  img.crossOrigin="anonymous";
+  img.onload=function(){partnerImg=img;if(bgReady) paintCard();};
+  img.onerror=function(){partnerImg=null;if(bgReady) paintCard();};
+  img.src=p.image;
+}
+
+function getCtx(){
+  return document.getElementById("cardCanvas").getContext("2d",{colorSpace:"srgb",willReadFrequently:false});
+}
+function drawCardBg(ctx){
+  ctx.drawImage(bgImgPure,0,0,CW,CH);
+}
+function drawBase(){
+  drawCardBg(getCtx());
+}
+
+document.getElementById("photoInput").addEventListener("change",function(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var img=new Image();
+    img.onload=function(){
+      photoImg=img;
+      var prev=document.getElementById("photoPreview");
+      prev.innerHTML="<img src=\""+ev.target.result+"\">";
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+var defaultLayoutFull={
+  name:    {x:782, y:340, scale:1},
+  photo:   {x:687, y:99,  scale:1},
+  fields:  {x:617, y:425, scale:1},
+  qr:      {x:340, y:405, scale:1},
+  partner: {x:60,  y:480, scale:1}
+};
+var defaultLayoutEmpty={
+  name:    {x:782, y:325, scale:1},
+  photo:   {x:687, y:99,  scale:1},
+  fields:  {x:782, y:425, scale:1},
+  qr:      {x:340, y:405, scale:1},
+  partner: {x:60,  y:480, scale:1}
+};
+function getDefaultFor(key){
+  var em=!state.member&&!state.status;
+  var d=em?defaultLayoutEmpty:defaultLayoutFull;
+  return {x:d[key].x,y:d[key].y,scale:d[key].scale};
+}
+function getLayoutFor(key){
+  return state.overrides[key]||getDefaultFor(key);
+}
+function ensureOverride(key){
+  if(!state.overrides[key]) state.overrides[key]=getDefaultFor(key);
+  return state.overrides[key];
+}
+var state={name:'',policy:'',member:'',status:'',valid:'',url:'',qrCanvas:null,
+  overrides:{name:null,photo:null,fields:null,qr:null,partner:null},
+  selected:null};
+var bounds={};
+
+function readForm(){
+  state.name=document.getElementById("fName").value.trim();
+  state.policy=document.getElementById("fPolicy").value.trim();
+  state.member=document.getElementById("fMember").value.trim();
+  state.status=document.getElementById("fStatus").value.trim();
+  state.valid=document.getElementById("fValid").value.trim();
+  state.url=document.getElementById("fUrl").value.trim();
+}
+
+function paintCard(){
+  var ctx=getCtx();
+  drawCardBg(ctx);
+  bounds={};
+
+  var emptyMode=!state.member&&!state.status;
+
+  if(partnerImg){
+    var prl=getLayoutFor('partner');
+    var maxW=170*prl.scale, maxH=170*prl.scale;
+    var ar=partnerImg.width/partnerImg.height;
+    var dw=maxW, dh=maxH;
+    if(ar>1){dh=dw/ar;} else {dw=dh*ar;}
+    var prx=prl.x, pry=prl.y;
+    ctx.drawImage(partnerImg,prx,pry,dw,dh);
+    bounds.partner={x1:prx,y1:pry,x2:prx+dw,y2:pry+dh};
+  }
+
+  var pl=getLayoutFor('photo');
+  var pw=178*pl.scale, ph=178*pl.scale;
+  var px=pl.x, py=pl.y;
+  if(photoImg){
+    ctx.save();
+    var r=10*pl.scale;
+    ctx.beginPath();
+    ctx.moveTo(px+r,py);ctx.lineTo(px+pw-r,py);
+    ctx.quadraticCurveTo(px+pw,py,px+pw,py+r);
+    ctx.lineTo(px+pw,py+ph-r);
+    ctx.quadraticCurveTo(px+pw,py+ph,px+pw-r,py+ph);
+    ctx.lineTo(px+r,py+ph);
+    ctx.quadraticCurveTo(px,py+ph,px,py+ph-r);
+    ctx.lineTo(px,py+r);
+    ctx.quadraticCurveTo(px,py,px+r,py);
+    ctx.closePath();ctx.clip();
+    var ar=photoImg.width/photoImg.height,tar=pw/ph;
+    var sx=0,sy=0,sw=photoImg.width,sh=photoImg.height;
+    if(ar>tar){sw=sh*tar;sx=(photoImg.width-sw)/2;}
+    else{sh=sw/tar;sy=(photoImg.height-sh)/2;}
+    ctx.drawImage(photoImg,sx,sy,sw,sh,px,py,pw,ph);
+    ctx.restore();
+    ctx.strokeStyle="rgba(196,160,88,0.75)";ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(px+r,py);ctx.lineTo(px+pw-r,py);
+    ctx.quadraticCurveTo(px+pw,py,px+pw,py+r);
+    ctx.lineTo(px+pw,py+ph-r);
+    ctx.quadraticCurveTo(px+pw,py+ph,px+pw-r,py+ph);
+    ctx.lineTo(px+r,py+ph);
+    ctx.quadraticCurveTo(px,py+ph,px,py+ph-r);
+    ctx.lineTo(px,py+r);
+    ctx.quadraticCurveTo(px,py,px+r,py);
+    ctx.closePath();ctx.stroke();
+    bounds.photo={x1:px,y1:py,x2:px+pw,y2:py+ph};
+  }
+
+  // Name
+  var nl=getLayoutFor('name');
+  var nameFontSize=(emptyMode?46:34)*nl.scale;
+  var lineYOffset=(emptyMode?15:30)*nl.scale;
+  var nx=nl.x, ny=nl.y;
+  if(state.name){
+    ctx.textAlign="center";ctx.direction="rtl";
+    ctx.font="bold "+nameFontSize+"px Tajawal,Arial";
+    ctx.fillStyle="#000000";
+    ctx.fillText(state.name,nx,ny);
+    var nw=ctx.measureText(state.name).width;
+    ctx.strokeStyle="rgba(196,160,88,0.4)";ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(nx-175*nl.scale,ny+lineYOffset);
+    ctx.lineTo(nx+175*nl.scale,ny+lineYOffset);
+    ctx.stroke();
+    bounds.name={x1:nx-nw/2-12,y1:ny-nameFontSize-4,x2:nx+nw/2+12,y2:ny+lineYOffset+8};
+  }
+
+  // Fields
+  var fl=getLayoutFor('fields');
+  if(emptyMode){
+    var centeredFields=[
+      {label:"Policy no / ",val:state.policy},
+      {label:"Valid to / ",val:state.valid}
+    ].filter(function(f){return !!f.val;});
+    var fSize=34*fl.scale;
+    ctx.font="bold "+fSize+"px Tajawal,Arial";
+    ctx.fillStyle="#000000";
+    ctx.textAlign="center";
+    ctx.direction="ltr";
+    var lineH=75*fl.scale;
+    var fx=fl.x, fy=fl.y;
+    var bx1=Infinity,bx2=-Infinity,by1=Infinity,by2=-Infinity;
+    centeredFields.forEach(function(f,i){
+      var full=f.label+f.val,y=fy+i*lineH;
+      ctx.fillText(full,fx,y);
+      var w=ctx.measureText(full).width;
+      bx1=Math.min(bx1,fx-w/2);bx2=Math.max(bx2,fx+w/2);
+      by1=Math.min(by1,y-fSize);by2=Math.max(by2,y+8);
+    });
+    if(centeredFields.length) bounds.fields={x1:bx1-8,y1:by1-4,x2:bx2+8,y2:by2+4};
+  } else {
+    var allFields=[
+      {label:"Policy no / ",val:state.policy},
+      {label:"Member / ",val:state.member},
+      {label:"Status / ",val:state.status},
+      {label:"Valid to / ",val:state.valid}
+    ].filter(function(f){return !!f.val;});
+    var fSize=32*fl.scale;
+    ctx.font=fSize+"px Tajawal,Arial";
+    ctx.fillStyle="#000000";
+    ctx.textAlign="left";
+    ctx.direction="ltr";
+    var lineH=47*fl.scale;
+    var fx=fl.x, fy=fl.y, maxW=0;
+    allFields.forEach(function(f,i){
+      var t=f.label+f.val;
+      ctx.fillText(t,fx,fy+i*lineH);
+      var w=ctx.measureText(t).width;
+      if(w>maxW) maxW=w;
+    });
+    if(allFields.length) bounds.fields={x1:fx-4,y1:fy-fSize-4,x2:fx+maxW+8,y2:fy+(allFields.length-1)*lineH+8};
+  }
+
+  if(state.qrCanvas){
+    var ql=getLayoutFor('qr');
+    var qs=190*ql.scale, pad=14*ql.scale;
+    var qx=ql.x, qy=ql.y;
+    ctx.fillStyle="#fff";
+    ctx.fillRect(qx-pad,qy-pad,qs+pad*2,qs+pad*2);
+    ctx.drawImage(state.qrCanvas,qx,qy,qs,qs);
+    bounds.qr={x1:qx-pad,y1:qy-pad,x2:qx+qs+pad,y2:qy+qs+pad};
+  }
+
+  if(state.selected && bounds[state.selected]){
+    var b=bounds[state.selected];
+    ctx.save();
+    ctx.strokeStyle="#D4AF6E";ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.strokeRect(b.x1,b.y1,b.x2-b.x1,b.y2-b.y1);
+    ctx.restore();
+  }
+}
+
+function generateCard(){
+  readForm();
+  var qrData=state.url||[state.policy,state.name,state.member,state.status,state.valid].filter(Boolean).join(" | ")||"ASH Health Care";
+  var qrDiv=document.createElement("div");
+  qrDiv.style.cssText="position:fixed;top:-9999px;left:-9999px;width:172px;height:172px";
+  document.body.appendChild(qrDiv);
+  try{
+    new QRCode(qrDiv,{text:qrData,width:172,height:172,colorDark:"#000",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.M});
+    setTimeout(function(){
+      var el=qrDiv.querySelector("canvas")||qrDiv.querySelector("img");
+      if(el){
+        var off=document.createElement("canvas");
+        off.width=172;off.height=172;
+        off.getContext("2d").drawImage(el,0,0,172,172);
+        state.qrCanvas=off;
+      }
+      qrDiv.parentNode.removeChild(qrDiv);
+      paintCard();
+      document.getElementById("dlBtn").style.display="block";
+    },350);
+  }catch(e){
+    qrDiv.parentNode.removeChild(qrDiv);
+    paintCard();
+    document.getElementById("dlBtn").style.display="block";
+  }
+  paintCard();
+}
+
+function resetLayout(){
+  state.overrides={name:null,photo:null,fields:null,qr:null,partner:null};
+  state.selected=null;
+  paintCard();
+}
+
+// Drag + resize for all elements
+(function setupDrag(){
+  var c=document.getElementById("cardCanvas");
+  var dragging=false,offX=0,offY=0,target=null;
+  function coords(e){
+    var rect=c.getBoundingClientRect();
+    var cx=e.clientX!=null?e.clientX:(e.touches&&e.touches[0]&&e.touches[0].clientX);
+    var cy=e.clientY!=null?e.clientY:(e.touches&&e.touches[0]&&e.touches[0].clientY);
+    return {x:(cx-rect.left)*(c.width/rect.width),y:(cy-rect.top)*(c.height/rect.height)};
+  }
+  function hitTest(p){
+    var keys=["name","qr","photo","fields","partner"];
+    for(var i=0;i<keys.length;i++){
+      var k=keys[i],b=bounds[k];
+      if(b&&p.x>=b.x1&&p.x<=b.x2&&p.y>=b.y1&&p.y<=b.y2) return k;
+    }
+    return null;
+  }
+  function start(e){
+    var p=coords(e);
+    var hit=hitTest(p);
+    if(!hit){
+      if(state.selected){state.selected=null;paintCard();}
+      return;
+    }
+    var ov=ensureOverride(hit);
+    target=hit;
+    state.selected=hit;
+    offX=p.x-ov.x;offY=p.y-ov.y;
+    dragging=true;
+    c.style.cursor="grabbing";
+    paintCard();
+    e.preventDefault();
+  }
+  function move(e){
+    var p=coords(e);
+    if(!dragging){c.style.cursor=hitTest(p)?"grab":"default";return;}
+    var ov=state.overrides[target];
+    ov.x=p.x-offX;ov.y=p.y-offY;
+    paintCard();
+    e.preventDefault();
+  }
+  function end(){if(dragging){dragging=false;target=null;c.style.cursor="grab";}}
+  c.addEventListener("mousedown",start);
+  c.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",end);
+  c.addEventListener("touchstart",start,{passive:false});
+  c.addEventListener("touchmove",move,{passive:false});
+  window.addEventListener("touchend",end);
+  c.addEventListener("wheel",function(e){
+    if(!state.selected) return;
+    e.preventDefault();
+    var ov=ensureOverride(state.selected);
+    var f=e.deltaY<0?1.05:0.95;
+    ov.scale=Math.max(0.3,Math.min(3,ov.scale*f));
+    paintCard();
+  },{passive:false});
+})();
+
+function downloadCard(){
+  var c=document.getElementById("cardCanvas");
+  var a=document.createElement("a");
+  a.download="ash_health_card.png";
+  a.href=c.toDataURL("image/png");
+  a.click();
+}
+</script>
+</body>
+</html>

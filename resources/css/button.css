@@ -1,0 +1,434 @@
+/* Button Styles - Organized button classes */
+
+/* Button Variants - Using CSS Variables */
+.btn-gradient-primary {
+  @apply bg-primary;
+}
+
+.btn-gradient-primary:hover {
+  background-color: color-mix(in srgb, var(--primary) 90%, transparent);
+}
+
+.btn-gradient-success {
+  @apply bg-green-600 hover:bg-green-700 text-white;
+}
+
+.btn-gradient-blue {
+  @apply bg-blue-600 hover:bg-blue-700 text-white;
+}
+
+.btn-bright-blue {
+  @apply bg-bright-blue text-bright-blue-foreground shadow-sm;
+  border: 1px solid color-mix(in srgb, var(--color-bright-blue) 20%, transparent);
+}
+
+.btn-bright-blue:hover {
+  background-color: color-mix(in srgb, var(--color-bright-blue) 90%, transparent);
+}
+
+.btn-golden {
+  @apply !bg-golden-yellow !text-primary !font-semibold !shadow-sm cursor-pointer;
+  border: 1px solid color-mix(in srgb, var(--golden-yellow) 20%, transparent) !important;
+}
+
+.btn-golden:hover {
+  background-color: color-mix(in srgb, var(--golden-yellow) 90%, transparent) !important;
+}
+
+/* Button Size Standards */
+.btn-size-sm {
+  @apply px-4 py-2 text-sm;
+}
+
+.btn-size-md {
+  @apply px-6 py-3 text-base;
+}
+
+.btn-size-lg {
+  @apply px-8 py-4 text-lg;
+}
+
+.btn-size-xl {
+  @apply px-10 py-5 text-xl;
+}
+
+/* Quantity Control Buttons */
+.quantity-control {
+  @apply flex items-center gap-2 rounded-lg p-1;
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+.quantity-btn {
+  height: 2rem;
+  width: 2rem;
+  padding: 0;
+  border-radius: 0.375rem;
+  border: 1px solid oklch(var(--color-bright-blue) / 0.3);
+  background-color: oklch(var(--color-bright-blue) / 0.1);
+  color: oklch(var(--color-bright-blue-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 200ms;
+  cursor: pointer;
+}
+
+.quantity-btn:hover:not(:disabled) {
+  background-color: oklch(var(--color-bright-blue) / 0.2);
+  border-color: oklch(var(--color-bright-blue) / 0.5);
+  box-shadow: 0 1px 3px 0 oklch(var(--color-bright-blue) / 0.1);
+}
+
+.quantity-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quantity-display {
+  @apply w-10 text-center font-semibold text-foreground;
+}
+
+/* Purple Theme Buttons */
+.purple-button-primary {
+  @apply bg-gradient-to-r from-primary via-primary to-[oklch(0.32_0.18_285)] hover:from-[oklch(0.32_0.18_285)] hover:via-primary hover:to-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300;
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.purple-button-primary:hover {
+  box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.purple-button-ghost {
+  @apply bg-transparent text-primary-foreground transition-all duration-300;
+  border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.purple-button-ghost:hover {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+/* Carousel Navigation Buttons */
+.carousel-nav-button {
+  @apply bg-card border-border border-2 shadow-lg transition-all duration-200 !p-2;
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.carousel-nav-button:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.gallery-nav-lightbox {
+  @apply h-10 w-10 sm:h-12 sm:w-12 absolute top-1/2 -translate-y-1/2 z-50 rounded-lg transition-all duration-300;
+}
+
+/* Back Navigation Button */
+.back-nav-button {
+  @apply px-4 py-2 rounded-lg backdrop-blur-sm transition-all duration-300 text-foreground inline-flex items-center gap-2 text-sm font-medium;
+  border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  background-color: color-mix(in srgb, var(--card) 80%, transparent);
+}
+
+.back-nav-button:hover {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+/* Loading/Spinner Buttons */
+.loading-spinner {
+  @apply w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin;
+}
+
+.loading-spinner-primary {
+  @apply w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin;
+}
+
+/* Focus States for Buttons */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background;
+}
+
+.focus-ring:focus {
+  --tw-ring-color: color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.focus-ring-golden {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background;
+}
+
+.focus-ring-golden:focus {
+  --tw-ring-color: color-mix(in srgb, var(--golden-yellow) 50%, transparent);
+}
+
+/* ============================================
+   Release Payment Button Styles
+   Used in both School and Destination views
+   ============================================ */
+
+/* Direct Release - All conditions met (School) */
+.btn-release-payment-direct {
+  @apply !bg-emerald-bright !text-white !font-semibold !shadow-sm cursor-pointer;
+  border: 1px solid color-mix(in srgb, var(--color-emerald-bright) 20%, transparent) !important;
+}
+
+.btn-release-payment-direct:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 90%, transparent) !important;
+}
+
+/* Request Release - Conditions not met (School) */
+.btn-release-payment-request {
+  @apply !bg-vibrant-orange !text-white !font-semibold !shadow-sm cursor-pointer;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 20%, transparent) !important;
+}
+
+.btn-release-payment-request:hover {
+  background-color: color-mix(in srgb, var(--vibrant-orange) 90%, transparent) !important;
+}
+
+/* Review Release - Destination needs to review (Destination) */
+.btn-release-payment-review {
+  @apply !bg-vibrant-orange !text-white !font-semibold !shadow-sm cursor-pointer;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 20%, transparent) !important;
+}
+
+.btn-release-payment-review:hover {
+  background-color: color-mix(in srgb, var(--vibrant-orange) 90%, transparent) !important;
+}
+
+/* Confirm Release - School confirms after destination approval (School) */
+.btn-release-payment-confirm {
+  @apply !bg-golden-yellow !text-dark-foreground !font-semibold !shadow-sm cursor-pointer;
+}
+
+.btn-release-payment-confirm:hover {
+  background-color: color-mix(in srgb, var(--golden-yellow) 90%, transparent) !important;
+}
+
+/* Waiting States */
+.btn-release-payment-waiting {
+  @apply !text-white !font-semibold !shadow-sm cursor-wait;
+  background-color: color-mix(in srgb, var(--vibrant-orange) 70%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 20%, transparent) !important;
+}
+
+.btn-release-payment-waiting:hover {
+  background-color: color-mix(in srgb, var(--vibrant-orange) 60%, transparent) !important;
+}
+
+.btn-release-payment-awaiting-school {
+  @apply !bg-gray-400 hover:!bg-gray-400/90 !text-white !font-semibold !border-gray-400/20 !shadow-sm cursor-not-allowed !opacity-60;
+}
+
+.btn-release-payment-awaiting-admin {
+  @apply !bg-yellow-400 hover:!bg-yellow-400/90 !text-black !font-semibold !border-yellow-400/20 !shadow-sm cursor-not-allowed;
+}
+
+/* Completed/Final States */
+.btn-release-payment-released {
+  @apply !bg-emerald-bright !text-white !font-semibold !shadow-sm cursor-not-allowed;
+  border: 1px solid color-mix(in srgb, var(--color-emerald-bright) 20%, transparent) !important;
+}
+
+.btn-release-payment-released:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 90%, transparent) !important;
+}
+
+.btn-release-payment-rejected {
+  @apply !bg-coral-red !text-white !font-semibold !shadow-sm;
+  border: 1px solid color-mix(in srgb, var(--color-coral-red) 20%, transparent) !important;
+}
+
+/* Disabled State */
+.btn-release-payment-disabled {
+  @apply !bg-gray-300 hover:!bg-gray-300/90 !text-gray-600 !font-semibold !border-gray-300/20 !shadow-sm cursor-not-allowed !opacity-50;
+}
+
+/* Action Required Badge (External) */
+.badge-action-required {
+  @apply !bg-coral-red !text-coral-red-foreground !border-0 !font-semibold animate-pulse !shadow-md;
+}
+
+.badge-pending-approval {
+  @apply !text-vibrant-orange !font-medium;
+  background-color: color-mix(in srgb, var(--vibrant-orange) 10%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 50%, transparent) !important;
+}
+
+.badge-awaiting-confirmation {
+  @apply !bg-vibrant-orange cursor-not-allowed !font-medium;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 50%, transparent) !important;
+}
+
+.badge-final-step {
+  @apply !bg-electric-purple !text-foreground !font-medium;
+  border: 1px solid color-mix(in srgb, var(--color-electric-purple) 50%, transparent) !important;
+}
+
+
+/* ============================================
+   Table Action Button Styles
+   Used in table row actions across all listings
+   ============================================ */
+
+/* View Action - Golden Yellow */
+.btn-table-view {
+  @apply text-golden-yellow hover:!text-golden-yellow;
+}
+
+.btn-table-view:hover {
+  background-color: color-mix(in srgb, var(--golden-yellow) 10%, transparent) !important;
+}
+
+
+/* Edit Action & Download Action - Emerald Bright */
+.btn-table-download,
+.btn-table-edit {
+  @apply text-emerald-bright hover:!text-emerald-bright;
+}
+
+.btn-table-download:hover,
+.btn-table-edit:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent) !important;
+}
+
+/* Delete Action - Coral Red */
+.btn-table-delete {
+  @apply text-destructive hover:!text-destructive;
+}
+
+.btn-table-delete:hover {
+  background-color: color-mix(in srgb, var(--destructive) 10%, transparent) !important;
+}
+
+/* History Action - Electric Purple */
+.btn-table-history {
+  @apply text-white hover:!bg-white/10 hover:!text-white;
+}
+
+/* Settings/Configure Action - Emerald Bright */
+.btn-table-settings {
+  @apply text-emerald-bright hover:!text-emerald-bright;
+}
+
+.btn-table-settings:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent) !important;
+}
+
+/* Approve Action - Emerald Bright */
+.btn-table-approve {
+  @apply text-emerald-bright hover:!text-emerald-bright;
+}
+
+.btn-table-approve:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent) !important;
+}
+
+/* Reject Action - Destructive/Red */
+.btn-table-reject {
+  @apply text-destructive hover:!text-destructive;
+}
+
+.btn-table-reject:hover {
+  background-color: color-mix(in srgb, var(--destructive) 10%, transparent) !important;
+}
+
+/* Shifts/Time Action - Electric Purple */
+.btn-table-shifts {
+  @apply text-electric-purple hover:!text-electric-purple;
+}
+
+.btn-table-shifts:hover {
+  background-color: color-mix(in srgb, var(--color-electric-purple) 10%, transparent) !important;
+}
+
+/* Add-ons Action - Amber */
+.btn-table-addons {
+  @apply text-amber-600 hover:!bg-amber-600/10 hover:!text-amber-600;
+}
+
+/* Block/Disable Action - Coral Red */
+.btn-table-block {
+  @apply text-coral-red hover:!text-coral-red;
+}
+
+.btn-table-block:hover {
+  background-color: color-mix(in srgb, var(--color-coral-red) 10%, transparent) !important;
+}
+
+/* Toggle Fully Booked - Conditional */
+.btn-table-toggle-booked {
+  @apply text-amber-600 hover:!bg-amber-600/10 hover:!text-amber-600;
+}
+
+.btn-table-toggle-available {
+  @apply text-emerald-bright hover:!text-emerald-bright;
+}
+
+.btn-table-toggle-available:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent) !important;
+}
+
+/* Profile Action - Emerald Bright */
+.btn-table-profile {
+  @apply text-emerald-bright hover:!text-emerald-bright;
+}
+
+.btn-table-profile:hover {
+  background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent) !important;
+}
+
+/* Restore Action & View Trash - Vibrant Orange with strong visibility */
+.btn-table-restore,
+.btn-view-trash {
+  @apply !bg-vibrant-orange !text-white !font-semibold !shadow-sm;
+  border: 1px solid color-mix(in srgb, var(--vibrant-orange) 20%, transparent) !important;
+}
+
+.btn-table-restore:hover,
+.btn-view-trash:hover {
+  background-color: color-mix(in srgb, var(--vibrant-orange) 90%, transparent) !important;
+}
+
+/* Disabled Action Button */
+.btn-table-disabled {
+  @apply text-muted-foreground hover:!text-muted-foreground opacity-50 cursor-not-allowed;
+}
+
+.btn-table-disabled:hover {
+  background-color: color-mix(in srgb, var(--muted) 10%, transparent) !important;
+}
+
+/* ============================================
+   School Management Action Buttons
+   Colleges, University Years, Sections
+   ============================================ */
+
+/* Manage Colleges - Hot Magenta (very bright and visible) */
+.btn-table-colleges {
+  @apply text-hot-magenta hover:!text-hot-magenta;
+}
+
+.btn-table-colleges:hover {
+  background-color: color-mix(in srgb, var(--color-hot-magenta) 10%, transparent) !important;
+}
+
+/* Manage University Years - Vibrant Orange (highly visible) */
+.btn-table-university-years {
+  @apply text-vibrant-orange hover:!text-vibrant-orange;
+}
+
+.btn-table-university-years:hover {
+  background-color: color-mix(in srgb, var(--vibrant-orange) 10%, transparent) !important;
+}
+
+/* Manage Sections - Golden Yellow (extremely bright and visible) */
+.btn-table-sections {
+  @apply text-golden-yellow hover:!text-golden-yellow;
+}
+
+.btn-table-sections:hover {
+  background-color: color-mix(in srgb, var(--golden-yellow) 10%, transparent) !important;
+}
+
+

@@ -1,0 +1,110 @@
+{
+  "governorate": {
+    "ar": "بني سويف",
+    "en": "Beni Suef"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى برج الجزيرة", "en": "Al Jazeera Tower Hospital" },
+          "address": { "ar": "ش شفيق متفرع من ش 23 يوليو - بنى سويف", "en": "Shafiq St off 23rd of July St - Beni Suef" },
+          "phones": ["2366061", "2366062"]
+        },
+        {
+          "name": { "ar": "مستشفى السلام الخيري", "en": "Al Salam Charity Hospital" },
+          "address": { "ar": "شارع طوسون - بني سويف", "en": "Tousson Street - Beni Suef" },
+          "phones": ["2356262"]
+        },
+        {
+          "name": { "ar": "مستشفى برج الزهراء", "en": "Al Zahra Tower Hospital" },
+          "address": { "ar": "43 ش اسلام - تقاطع احمد عرابى - بنى سويف", "en": "43 Islam St - Ahmed Orabi Intersection - Beni Suef" },
+          "phones": ["2353508"]
+        },
+        {
+          "name": { "ar": "مستشفى سانت تريز", "en": "Saint Therese Hospital" },
+          "address": { "ar": "ش العمدة من ش الرياض – مقبل – بنى سويف", "en": "Al-Omda St off Al-Riyadh St - Moqbel - Beni Suef" },
+          "phones": ["2341734", "2323311"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز عيون", "en": "Eye Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى العيون الدولي", "en": "International Eye Hospital" },
+          "address": { "ar": "طريق الفيوم الجديد بجوار مدرسة الصفوة - بني سويف", "en": "New Fayoum Road, next to Al Safwa School - Beni Suef" },
+          "phones": ["19650"]
+        },
+        {
+          "name": { "ar": "دار العيون", "en": "Dar Al Oyoun" },
+          "address": { "ar": "4 ش طلعت تقسيم ارض الحرية خلف قسم شرطة بني سويف", "en": "4 Talaat St, Freedom Land, behind Beni Suef Police Station" },
+          "phones": ["1099911337"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز متخصصة", "en": "Specialized Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مصر سكوب (مركز الكبد ومناظير الجهاز الهضمى)", "en": "Egypt Scope (Liver & GI Endoscopy Center)" },
+          "address": { "ar": "داخل مستشفى برج الزهراء ومستشفى سانت تريز", "en": "Inside Al Zahra Tower and Saint Therese Hospitals" },
+          "phones": ["2323311"]
+        },
+        {
+          "name": { "ar": "د/ اسامه احمد امين", "en": "Dr. Osama Ahmed Amin" },
+          "specialty": { "ar": "استشاري قلب واوعية", "en": "Consultant Cardiologist" },
+          "address": { "ar": "برج اليسر ش صلاح سالم امام كلية التربية الدور 6", "en": "Al-Yousr Tower, Salah Salem St, 6th Floor" },
+          "phones": ["1281199544"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الايمان للاشعة", "en": "Al Iman Radiology Center" },
+          "branches": [
+            { "location": { "ar": "ش المدارس - بنى سويف", "en": "Al Madaris St - Beni Suef" }, "phones": ["2367470", "2367471"] },
+            { "location": { "ar": "ميدان المديرية بجوار عمر افندى", "en": "Al Modereya Square, next to Omar Effendi" }, "phone": "2332393" }
+          ]
+        },
+        {
+          "name": { "ar": "مركز طيبة للاشعة", "en": "Taiba Radiology Center" },
+          "branches": [
+            { "location": { "ar": "14 ش اسرائيل برسوم – ميدان حارث", "en": "14 Israel Barsoum St - Harith Square" }, "phone": "2350150" },
+            { "location": { "ar": "ش بور سعيد برج الندى امام مزلقان المديرية", "en": "Port Said St, Al Nada Tower" }, "phone": "2350153" }
+          ]
+        },
+        {
+          "name": { "ar": "مركز هى للاشعه", "en": "He Radiology Center" },
+          "address": { "ar": "2 ش احمد عرابى امام قصر الثقافه بنى سويف", "en": "2 Ahmed Orabi St, in front of Culture Palace" },
+          "phones": ["1119598889"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        { "name": { "ar": "الفا لاب", "en": "Alfa Lab" }, "address": { "ar": "74 ش احمد عرابي تقاطع الهلال", "en": "74 Ahmed Orabi St, El Helal Intersection" }, "phones": ["2352221"] },
+        { "name": { "ar": "معمل د/ سناء عبد الشافى", "en": "Dr. Sanaa Abdel Shafy Lab" }, "address": { "ar": "ش صلاح سالم فوق الدوغرى", "en": "Salah Salem St, above El Doghry" }, "phones": ["2331616"] },
+        { "name": { "ar": "معمل البرج", "en": "Al Borg Lab" }, "hotline": "19911", "branches": ["Saad Zaghloul St", "next to Omar Effendi"] },
+        { "name": { "ar": "معمل المختبر", "en": "Al Mokhtabar Lab" }, "hotline": "19014", "branches": ["Ahmed Orabi St", "Harith Square"] },
+        { "name": { "ar": "معامل البركه", "en": "Al Baraka Labs" }, "address": { "ar": "ش عبد السلام عارف ميدان الزراعيين برج سمارت", "en": "Abd El Salam Aref St, Smart Tower" }, "hotline": "15034" }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدلية هناء ابو طالب", "en": "Hana Abu Taleb Pharmacy" }, "address": { "ar": "ش محمد حميد خلف عمر افندي الجديد", "en": "Mohamed Hamid St, behind New Omar Effendi" }, "phones": ["2313901"] },
+        { "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" }, "branches": ["Salah Salem St", "23rd of July St"], "phones": ["01150875711", "01101433102", "01102232044"] },
+        { "name": { "ar": "صيدلية الحكمة", "en": "Al Hikma Pharmacy" }, "address": { "ar": "شارع المركز - الوسطى - بنى سويف", "en": "Al Markaz St - El Wasta - Beni Suef" }, "phones": ["2510600"] },
+        { "name": { "ar": "صيدلية فريد عكاشة", "en": "Farid Okasha Pharmacy" }, "branches": ["23rd of July St", "Orabi Mall", "Ard El Horreya"], "phones": ["2350714", "2331222", "2363033"] },
+        { "name": { "ar": "صيدلية ممدوح", "en": "Mamdouh Pharmacy" }, "address": { "ar": "ش السينما القديمة - ببا", "en": "Old Cinema St - Biba" }, "phones": ["4401802"] }
+      ]
+    }
+  ]
+}
+
+

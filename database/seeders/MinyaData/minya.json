@@ -1,0 +1,135 @@
+{
+  "governorate": {
+    "ar": "المنيا",
+    "en": "Minya"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى المنيا الوطنى", "en": "Minya National Hospital" },
+          "address": { "ar": "33 ش سعد زغلول بجوار السنترال", "en": "33 Saad Zaghloul St, next to the Central Exchange" },
+          "phones": ["2319319"]
+        },
+        {
+          "name": { "ar": "مستشفى جراحات اليوم الواحد", "en": "Day Surgery Hospital" },
+          "address": { "ar": "سمالوط - المنيا", "en": "Samalut - Minya" },
+          "phones": ["7714925"]
+        },
+        {
+          "name": { "ar": "مستشفي بني مزار العام", "en": "Beni Mazar General Hospital" },
+          "address": { "ar": "بنى مزار", "en": "Beni Mazar" },
+          "phones": ["7821931"]
+        },
+        {
+          "name": { "ar": "مستشفى المنيا العسكرى", "en": "Minya Military Hospital" },
+          "address": { "ar": "المنيا داخل مجمع المنيا للقوات المسلحة", "en": "Minya, inside the Minya Armed Forces Complex" },
+          "phones": ["2334753"]
+        },
+        {
+          "name": { "ar": "مستشفي مطاي المركزي", "en": "Matay Central Hospital" },
+          "address": { "ar": "امتداد ش الابراهيمية بجوار الوحدة المحلية مطاي", "en": "Ibrahimia St Extension, next to the Local Unit, Matay" },
+          "phones": ["3921120"]
+        },
+        {
+          "name": { "ar": "مستشفى المنيا الدولى", "en": "Minya International Hospital" },
+          "address": { "ar": "كوبرى النيل بجوار مسجد السيده مريم", "en": "Nile Bridge, next to Virgin Mary Mosque" },
+          "phones": ["1050008792"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز ومستشفيات العيون", "en": "Eye Centers and Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى حورس للعيون", "en": "Horus Eye Hospital" },
+          "address": { "ar": "15 ش النصر ارض سلطان – المنيا", "en": "15 El-Nasr St, Ard Sultan - Minya" },
+          "phones": ["0862320254", "0862320255"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الصفوة للاشعة", "en": "Al-Safwa Radiology Center" },
+          "address": { "ar": "9 ش الفولي فوق اسواق الشريف", "en": "9 El-Foli St, above Al-Sharif Markets" },
+          "phones": ["2347800"]
+        },
+        {
+          "name": { "ar": "مركز فرست سكان", "en": "First Scan Center" },
+          "branches": [
+            { "location": { "ar": "برج الحوطى بجوار موقف الاتوبيس السريع", "en": "Al-Houty Tower, next to Express Bus Station" }, "phone": "1152525367" },
+            { "location": { "ar": "اول ش سكه تله بجوار صيدليه ام القرى", "en": "Beginning of Sekket Talla St, next to Umm Al-Qura Pharmacy" }, "phone": "1126164864" }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" },
+          "branches": [
+            { "location": { "ar": "المنيا - 85 ش سعد زغلول", "en": "Minya - 85 Saad Zaghloul St" }, "phone": "2329692" },
+            { "location": { "ar": "مغاغه - 8 ش الجمهورية", "en": "Maghagha - 8 Republic St" }, "phone": "7567953" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل المختبر (د. مؤمنة كامل)", "en": "Al-Mokhtabar Lab (Dr. Moamena Kamel)" },
+          "branches": [
+            { "location": { "ar": "المنيا - ميدان المحطة برج سافوى", "en": "Minya - Station Square, Savoy Tower" }, "phone": "62321872" },
+            { "location": { "ar": "مغاغه - ش طه حسين امام مسجد ابو العلا", "en": "Maghagha - Taha Hussein St, in front of Abu Al-Ala Mosque" }, "phone": "7567999" }
+          ]
+        },
+        {
+          "name": { "ar": "المعمل المصرى الامريكى", "en": "Egyptian American Laboratory" },
+          "address": { "ar": "5 ميدان الساعة تقاطع ش ابن الخصيب", "en": "5 El-Sa'a Square, intersection with Ibn Khasib St" },
+          "phones": ["2347605"]
+        },
+        {
+          "name": { "ar": "معمل لايف لاب", "en": "Life Lab" },
+          "address": { "ar": "ش الابراهيمية مركز مطاى بجوار المركز الطبى", "en": "Ibrahimia St, Matay, next to Medical Center" },
+          "phones": ["0199920164"]
+        },
+        {
+          "name": { "ar": "معامل الشمس", "en": "Al-Shams Labs" },
+          "address": { "ar": "ميدان المسلة", "en": "Al-Mesalla Square" },
+          "hotline": "19445"
+        },
+        {
+          "name": { "ar": "معامل فرست لاب", "en": "First Lab" },
+          "address": { "ar": "برج البشاير ميدان المسلة", "en": "Al-Bashaer Tower, Al-Mesalla Square" },
+          "phones": ["6344463"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الأطباء والعيادات التخصصية", "en": "Doctors and Specialized Clinics" },
+      "facilities": [
+        {
+          "name": { "ar": "مصر سكوب – مركز الكبد ومناظير الجهاز الهضمى", "en": "Egypt Scope - Liver and GI Endoscopy Center" },
+          "address": { "ar": "المنيا - ش سعد زغلول", "en": "Minya - Saad Zaghloul St" },
+          "phones": ["2347605"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدلية نصار", "en": "Nassar Pharmacy" },
+          "address": { "ar": "ش عمر سلطان عمارة بنك الائتمان", "en": "Omar Sultan St, Credit Bank Building" },
+          "phones": ["2347017"]
+        },
+        {
+          "name": { "ar": "صيدلية السلام", "en": "Al Salam Pharmacy" },
+          "address": { "ar": "ش بن خصيب - المنيا", "en": "Ibn Khasib St - Minya" },
+          "phones": ["2362445"]
+        }
+      ]
+    }
+  ]
+}
+

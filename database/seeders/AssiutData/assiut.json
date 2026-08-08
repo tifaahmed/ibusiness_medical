@@ -1,0 +1,161 @@
+{
+  "governorate": {
+    "ar": "أسيوط",
+    "en": "Assiut"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى اسيوط الجامعى", "en": "Assiut University Hospital" },
+          "address": { "ar": "شارع الجامعة – حى غرب - اسيوط", "en": "University St, West District - Assiut" },
+          "phones": ["2334500", "2356235", "2335477", "2414141"]
+        },
+        {
+          "name": { "ar": "مستشفى الزهراء", "en": "Al Zahra Hospital" },
+          "address": { "ar": "منطقة فريال ش الجلاء – حى شرق - اسيوط", "en": "Feryal Area, El-Galaa St, East District - Assiut" },
+          "phones": ["2293571", "2311600"]
+        },
+        {
+          "name": { "ar": "مستشفى الزراعيين", "en": "Agriculturalists Hospital" },
+          "address": { "ar": "4 ش المساحة متفرع من ش النميس - اسيوط", "en": "4 El Mesaha St off El Nomeis St - Assiut" },
+          "phones": ["2301060", "2301040"]
+        },
+        {
+          "name": { "ar": "مستشفى سانت ماريا", "en": "Saint Maria Hospital" },
+          "address": { "ar": "21 ش الحكمدار من ش الجمهورية - حى شرق - اسيوط", "en": "21 El Hokamdar St off El Gomhoreya St, East District - Assiut" },
+          "phones": ["2322610", "2310515", "2318990", "2299966"]
+        },
+        {
+          "name": { "ar": "مركز صحه المراه", "en": "Women's Health Center" },
+          "address": { "ar": "مستشفى جامعة اسيوط", "en": "Assiut University Hospital" },
+          "phones": []
+        },
+        {
+          "name": { "ar": "مركز السلام 2 للقلب", "en": "Al Salam 2 Heart Center" },
+          "address": { "ar": "64 ش يسرى راغب اسيوط", "en": "64 Yousri Ragheb St, Assiut" },
+          "phones": ["01224381050"]
+        },
+        {
+          "name": { "ar": "مستشفى الامل", "en": "Al Amal Hospital" },
+          "address": { "ar": "تقسيم الحقوقين ش 11 اسيوط", "en": "Lawyers Division, St 11, Assiut" },
+          "phones": ["01007584416"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز عيون", "en": "Eye Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الفرسان للعيون", "en": "Al Forsan Eye Center" },
+          "address": { "ar": "ش النميس امام كنيسة الملاك اسيوط", "en": "El Nomeis St, in front of the Angel Church, Assiut" },
+          "phones": ["2296007"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز نفادى للاشعة", "en": "Nefadi Radiology Center" },
+          "address": { "ar": "ش الجمهورية ابراج عثمان - الدور الارضى", "en": "El Gomhoreya St, Othman Towers, Ground Floor" },
+          "phones": ["2302800"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل التحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل د/ منظمة عبد العال فاضل", "en": "Dr. Monazama Abdel Aal Fadel Lab" },
+          "address": { "ar": "6 ش فيصل من سعد زغلول - اسيوط", "en": "6 Faisal St off Saad Zaghloul - Assiut" },
+          "phones": ["0123971621"]
+        },
+        {
+          "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" },
+          "branches": [
+            { "address": { "ar": "القوصية شارع الجلاء امام مجلس المدينة", "en": "El Qusiya, El Galaa St, in front of City Council" } },
+            { "address": { "ar": "حى السادات برج الازهر امام حلوانى قصر نابولى", "en": "Sadat District, Al Azhar Tower, in front of Napoli Palace" } },
+            { "address": { "ar": "امتداد ش يسرى راغب برج الازهر اسيوط", "en": "Yousri Ragheb St Extension, Al Azhar Tower, Assiut" } }
+          ],
+          "hotline": "16064"
+        },
+        {
+          "name": { "ar": "معامل البركه للتحاليل الطبيه", "en": "Al Baraka Medical Lab" },
+          "address": { "ar": "برج خالد بن الوليد امام محطة القطار الدور الاول", "en": "Khaled Ibn Al Walid Tower, in front of Railway Station, 1st Floor" },
+          "hotline": "15034"
+        }
+      ]
+    },
+    {
+      "category": { "ar": "عيادات تخصصية", "en": "Specialized Clinics" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ محمد محمود السكري", "en": "Dr. Mohamed Mahmoud Al Sukkari" },
+          "specialty": { "ar": "اسنان", "en": "Dentistry" },
+          "address": { "ar": "5 ش الحكمدار اسيوط", "en": "5 El Hokamdar St, Assiut" },
+          "phones": ["2297527"]
+        },
+        {
+          "name": { "ar": "د/ ياسر جلال احمد صالح الغرابلى", "en": "Dr. Yasser Galal Al Gharabli" },
+          "specialty": { "ar": "جراحة عظام", "en": "Orthopedic Surgery" },
+          "address": { "ar": "عمارة الاوقاف امتداد شارع يسرى راغب - اسيوط", "en": "Awqaf Building, Yousri Ragheb St Extension - Assiut" },
+          "phones": ["0882351990"]
+        },
+        {
+          "name": { "ar": "د/ رشاد وهيب قسطندى", "en": "Dr. Rashad Waheeb Qostandi" },
+          "specialty": { "ar": "باطنه", "en": "Internal Medicine" },
+          "address": { "ar": "9 ش الجمهوريه اسيوط", "en": "9 El Gomhoreya St, Assiut" },
+          "phones": ["01224325180"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدلية حمدى", "en": "Hamdy Pharmacy" },
+          "address": { "ar": "13 ش تقسيم الحقوقيين - اسيوط", "en": "13 Lawyers Division St - Assiut" },
+          "phones": ["2144170"]
+        },
+        {
+          "name": { "ar": "صيدلية العزبي", "en": "El Ezaby Pharmacy" },
+          "address": { "ar": "ش محمود رشوان حي فريال - اسيوط", "en": "Mahmoud Rashwan St, Feryal District - Assiut" },
+          "phones": ["2325539"]
+        },
+        {
+          "name": { "ar": "صيدلية مصر", "en": "Misr Pharmacy" },
+          "address": { "ar": "ش محمد فريد فندق الحسين امام محطة ميدان المحطة", "en": "Mohamed Farid St, El Hussein Hotel, Station Square" },
+          "phones": ["2333330", "2333325"]
+        },
+        {
+          "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" },
+          "branches": [
+            { "address": { "ar": "29 ش العادلي امام مدرسة ناصر الثانوية", "en": "29 El Adly St, in front of Nasser Secondary School" }, "phone": "01101433108" },
+            { "address": { "ar": "ش الزهراء أسيوط", "en": "Al Zahra St, Assiut" }, "phone": "01101438865" },
+            { "address": { "ar": "150 ش الثورة بندر ثان اسيوط", "en": "150 El Thawra St, Assiut" }, "phone": "01126744142" },
+            { "address": { "ar": "ش صلاح سالم (الهلالى سابقا) اسيوط", "en": "Salah Salem St (formerly El Helaly), Assiut" }, "phone": "01126746363" }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "اوماب للبصريات و العدسات", "en": "Omap Optics and Lenses" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز لطفى للبصريات", "en": "Lotfy Optics Center" },
+          "address": { "ar": "اسيوط شركة فريال ش الحسن والحسين المتفرع من العادلي بجوار مكتب بريد الزهراء", "en": "Assiut, Feryal, Al Hassan & Al Hussein St off El Adly, next to Al Zahra Post Office" },
+          "phones": ["01118328666"]
+        },
+        {
+          "name": { "ar": "نظارات فور ايز", "en": "Four Eyes Eyewear" },
+          "address": { "ar": "اسيوط اول حى السادات ابراج التوحيد برج 2 داخل الممر - امتداد يسرى راغب", "en": "Assiut, Sadat District, Al Tawhid Towers, Tower 2, inside passage, Yousri Ragheb Extension" },
+          "phones": ["0882375110", "01006761930"]
+        }
+      ]
+    }
+  ]
+}
+
+

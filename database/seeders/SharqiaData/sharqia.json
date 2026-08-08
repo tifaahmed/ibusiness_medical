@@ -1,0 +1,132 @@
+{
+  "governorate": {
+    "ar": "الشرقية",
+    "en": "Sharqia"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى جاويش", "en": "Jawish Hospital" },
+          "address": { "ar": "ميدان القومية العربيه - الزقازيق", "en": "Al Qawmiya Square - Zagazig" },
+          "phones": ["2324585", "2326031", "2326981"]
+        },
+        {
+          "name": { "ar": "مستشفى العبور", "en": "El Obour Hospital" },
+          "address": { "ar": "ش أحمد ماهر - ميدان العبور - الزقازيق", "en": "Ahmed Maher St - El Obour Square - Zagazig" },
+          "phones": ["2316363", "122429910"]
+        },
+        {
+          "name": { "ar": "مستشفى التيسير الدولى", "en": "Al-Taysir International Hospital" },
+          "address": { "ar": "خلف موقف المنصورة منشية السادات - الزقازيق", "en": "Behind Mansoura Station, Manshiyat El Sadat - Zagazig" },
+          "phones": ["2360727", "2360628", "2360729"]
+        },
+        {
+          "name": { "ar": "مستشفى دار الشفا بفاقوس", "en": "Dar Al Shifa Hospital - Faqus" },
+          "address": { "ar": "ش بورسعيد بجوار هندسة الرى - فاقوس", "en": "Port Said St, next to Irrigation Engineering - Faqus" },
+          "phones": ["3970076"]
+        },
+        {
+          "name": { "ar": "مستشفى الرحمة", "en": "Al Rahma Hospital" },
+          "address": { "ar": "اول طريق الكليه الجويه (طريق المطار) - بلبيس", "en": "Beginning of Air Force Academy Road (Airport Rd) - Belbeis" },
+          "phones": ["2858473", "2853073"]
+        },
+        {
+          "name": { "ar": "مستشفى الغندور", "en": "Al Ghandour Hospital" },
+          "branches": [
+            { "location": { "ar": "بلبيس - طريق عبد المنعم رياض", "en": "Belbeis - Abdel Moneim Riad Rd" }, "phones": ["2852521", "2853250"] },
+            { "location": { "ar": "العاشر من رمضان - مجاورة 24", "en": "10th of Ramadan - District 24" }, "phones": ["015363870", "015362930"] }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى سلامات", "en": "Salamat Hospital" },
+          "address": { "ar": "منيا القمح - شارع سعد زغلول", "en": "Minya El Qamh - Saad Zaghloul St" },
+          "phones": ["3661999", "3674999"]
+        },
+        {
+          "name": { "ar": "مستشفى الاحرار بالزقازيق", "en": "Al Ahrar Hospital - Zagazig" },
+          "address": { "ar": "الزقازيق – بجوار المجلس الطبى", "en": "Zagazig - Next to Medical Council" },
+          "phones": ["2362740", "2362741"]
+        },
+        {
+          "name": { "ar": "مستشفى الهلال الاخضر", "en": "Green Crescent Hospital" },
+          "address": { "ar": "العاشر من رمضان - المجاورة الثالثة", "en": "10th of Ramadan - District 3" },
+          "phones": ["362011", "367231"]
+        },
+        {
+          "name": { "ar": "مستشفى صلاح سالم التخصصى", "en": "Salah Salem Specialized Hospital" },
+          "address": { "ar": "ش طلبه عويضه حى السلام الزقازيق", "en": "Tolba Oweida St, Hay El Salam - Zagazig" },
+          "phones": ["1010335460"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز ومستشفيات العيون", "en": "Eye Centers and Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الفردوس للعيون والاسنان", "en": "Al Ferdous Eye and Dental Hospital" },
+          "address": { "ar": "كفر ابو حسين - الزقازيق", "en": "Kafr Abu Hussein - Zagazig" },
+          "phones": ["2362802", "2132802"]
+        },
+        {
+          "name": { "ar": "مركز الشرقية للعيون", "en": "Sharqia Eye Center" },
+          "address": { "ar": "15 الامام على فيلات الجامعة – الشرقية", "en": "15 El Imam Ali, University Villas - Sharqia" },
+          "phones": ["2385888"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مراكز تكنوسكان (اسامة خليل)", "en": "Techno Scan (Osama Khalil)" },
+          "branches": [
+            { "location": { "ar": "العاشر من رمضان - الأردنية", "en": "10th of Ramadan - Jordan District" }, "phone": "15377444" },
+            { "location": { "ar": "الزقازيق - ميدان المنتزة", "en": "Zagazig - El Montaza Sq" }, "phone": "2382941" },
+            { "location": { "ar": "الزقازيق - ميدان القومية", "en": "Zagazig - Al Qawmiya Sq" }, "phone": "2360444" },
+            { "location": { "ar": "ديرب نجم", "en": "Diarb Negm" }, "phone": "3764111" },
+            { "location": { "ar": "بلبيس - ش بورسعيد", "en": "Belbeis - Port Said St" }, "phone": "2852174" }
+          ]
+        },
+        {
+          "name": { "ar": "مركز سونوسكان", "en": "Sono Scan Center" },
+          "address": { "ar": "52 ش القومية - الزقازيق", "en": "52 Al Qawmiya St - Zagazig" },
+          "phones": ["2361045"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل المختبر (د. مؤمنة كامل)", "en": "Al Mokhtabar (Dr. Moamena Kamel)" },
+          "branches": [
+            { "location": "10th of Ramadan - Doha Project", "phone": "366526" },
+            { "location": "Zagazig - Hay El Montaza", "phone": "2336168" },
+            { "location": "Belbeis - Gamal Abdel Nasser St", "phone": "2871614" },
+            { "location": "Minya El Qamh - Ahmed Orabi St", "phone": "3679251" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل البرج", "en": "Al Borg Lab" },
+          "hotline": "19911",
+          "branches": ["Zagazig", "Minya El Qamh", "Faqus", "10th of Ramadan", "Belbeis", "Sherbin"]
+        },
+        { "name": { "ar": "معامل الشمس", "en": "Al Shams Labs" }, "address": { "ar": "برج اللؤلؤه - ميدان محطه القطار - المنصورة", "en": "Al Loloa Tower - Railway Station Sq - Mansoura" }, "hotline": "19445" },
+        { "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" }, "address": { "ar": "الزقازيق", "en": "Zagazig" }, "hotline": "16064" }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدليات العزبى", "en": "El Ezaby Pharmacies" }, "address": { "ar": "الزقازيق / ميت غمر", "en": "Zagazig / Mit Ghamr" } },
+        { "name": { "ar": "صيدلية مكة المكرمة", "en": "Makkah Al Mukarramah Pharmacy" }, "address": { "ar": "العاشر من رمضان - مجاورة 6", "en": "10th of Ramadan - District 6" } },
+        { "name": { "ar": "صيدلية الكمال", "en": "Al Kamal Pharmacy" }, "address": { "ar": "ميدان عرابى - الزقازيق", "en": "Orabi Square - Zagazig" } },
+        { "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" }, "address": { "ar": "الزقازيق / فاقوس / منيا القمح", "en": "Zagazig / Faqus / Minya El Qamh" } }
+      ]
+    }
+  ]
+}
+
+

@@ -1,0 +1,148 @@
+{
+  "governorate": {
+    "ar": "الأقصر",
+    "en": "Luxor"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الاقصر العام", "en": "Luxor General Hospital" },
+          "address": { "ar": "كورنيش النيل الكرنك", "en": "Nile Corniche, Karnak" },
+          "phones": ["01010964821"]
+        },
+        {
+          "name": { "ar": "مستشفى الشفا التخصصى", "en": "Al Shifa Specialized Hospital" },
+          "address": { "ar": "شرق أسنا – رى أسنا", "en": "East Esna - Esna Irrigation" },
+          "phones": ["2512526"]
+        },
+        {
+          "name": { "ar": "مستشفي كليوباترا", "en": "Cleopatra Hospital" },
+          "address": { "ar": "شارع كليوباترا الأقصر", "en": "Cleopatra Street, Luxor" },
+          "phones": ["2256322"]
+        },
+        {
+          "name": { "ar": "عيادات النيل التخصصية", "en": "Nile Specialized Clinics" },
+          "address": { "ar": "ش الروضة الشريفة من ش المدينة المنورة الاقصر", "en": "Al Rawda Al Sharifa St, off Al Madinah Al Munawarah St, Luxor" },
+          "phones": ["2282422"]
+        },
+        {
+          "name": { "ar": "مستشفى الندى التخصصى", "en": "Al Nada Specialized Hospital" },
+          "address": { "ar": "طريق الكباش الجديده الاقصر", "en": "New Avenue of Sphinxes Road, Luxor" },
+          "phones": ["0103795371"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز العيون", "en": "Eye Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى العيون الدولي", "en": "International Eye Hospital" },
+          "address": { "ar": "العوامية - شارع شجرة الدر بجوار نقابة الاطباء - الاقصر", "en": "Al Awameya - Shagaret El Dor St, next to the Medical Syndicate, Luxor" },
+          "phones": ["19650"]
+        },
+        {
+          "name": { "ar": "مركز رؤية للعيون", "en": "Roaya Eye Center" },
+          "address": { "ar": "ش احمد عرابى امام موقف ارمنت الأقصر", "en": "Ahmed Orabi St, in front of Armant Station, Luxor" },
+          "phones": ["2284457"]
+        },
+        {
+          "name": { "ar": "مركز برادة للعيون وجراحات الشبكيه", "en": "Barada Eye and Retina Surgery Center" },
+          "address": { "ar": "المول الذهبى امام محطة سكه الحديد الاقصر", "en": "Golden Mall, in front of the Railway Station, Luxor" },
+          "phones": ["01007196027"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الرضوانية للاشعة", "en": "Al Radwaniya Radiology Center" },
+          "address": { "ar": "ش رضوان من ش التليفزيون – الاقصر", "en": "Radwan St, off Television Street, Luxor" },
+          "phones": ["2275850", "22771910"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل التحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل البرج", "en": "Al Borg Lab" },
+          "address": { "ar": "ميدان صلاح الدين - الاقصر", "en": "Salah El Din Square, Luxor" },
+          "phones": ["2280171"]
+        },
+        {
+          "name": { "ar": "الفا لاب", "en": "Alfa Lab" },
+          "address": { "ar": "ش التلفزيون عمارة الحاج حسين البلال الاقصر", "en": "Television St, Haj Hussein Al Belal Bldg, Luxor" },
+          "hotline": "16191"
+        },
+        {
+          "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" },
+          "address": { "ar": "ش التلفزيون عمارة الحاج حسين البلال الاقصر", "en": "Television St, Haj Hussein Al Belal Bldg, Luxor" },
+          "hotline": "16064"
+        },
+        {
+          "name": { "ar": "معامل الحكمة", "en": "Al Hekma Labs" },
+          "branches": [
+            { "location": { "ar": "ش التلفزيون بجوار بنك مصر", "en": "Television St, next to Banque Misr" } },
+            { "location": { "ar": "فرع اسنا ش المستشفي امام مستشفي اسنا العام", "en": "Esna Branch, Hospital St, in front of Esna General Hospital" } }
+          ],
+          "hotline": "16059"
+        },
+        {
+          "name": { "ar": "معمل د/ بدوي ابو عيطة", "en": "Dr. Badawy Abu Aita Lab" },
+          "address": { "ar": "ش التلفزيون عمارة الحاج حسين البلال الدور الثالث الاقصر", "en": "Television St, Haj Hussein Al Belal Bldg, 3rd Floor, Luxor" },
+          "hotline": "16064"
+        },
+        {
+          "name": { "ar": "معمل د/ مؤمنة كامل (المختبر)", "en": "Al Mokhtabar (Dr. Moamena Kamel)" },
+          "address": { "ar": "شارع التليفزيون بجوار فندق شادى", "en": "Television Street, next to Shady Hotel" },
+          "phones": ["2282672"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدلية طيبة", "en": "Taiba Pharmacy" },
+          "address": { "ar": "22 ش معبد الكرنك - الاقصر", "en": "22 Karnak Temple St, Luxor" },
+          "phones": ["2370947"]
+        },
+        {
+          "name": { "ar": "صيدلية امانى", "en": "Amany Pharmacy" },
+          "address": { "ar": "ش امون خلف المحكمة - الاقصر", "en": "Amoun St, behind the Court, Luxor" },
+          "phones": ["2379895"]
+        },
+        {
+          "name": { "ar": "صيدية الملاك", "en": "Al Malak Pharmacy" },
+          "address": { "ar": "ش احمد عرابى – اسنا", "en": "Ahmed Orabi St, Esna" },
+          "phones": ["2510649"]
+        },
+        {
+          "name": { "ar": "صيدية فاطمة محمد حسن", "en": "Fatma Mohamed Hassan Pharmacy" },
+          "address": { "ar": "ش احمد عرابى خلف مستشفى الرمد– اسنا", "en": "Ahmed Orabi St, behind the Ophthalmic Hospital, Esna" },
+          "phones": ["2514095"]
+        },
+        {
+          "name": { "ar": "صيدلية العزبى", "en": "El Ezaby Pharmacy" },
+          "address": { "ar": "ش التلفزيون بجوار خير زمان", "en": "Television St, next to Kheir Zaman" },
+          "phones": ["2275396"]
+        },
+        {
+          "name": { "ar": "صيدليه يسرى منير", "en": "Yousry Mounir Pharmacy" },
+          "address": { "ar": "ش خليل العمارى الكرنك القديم الاقصر", "en": "Khalil El Amary St, Old Karnak, Luxor" },
+          "phones": ["01003539959"]
+        },
+        {
+          "name": { "ar": "صيدليه رافت كومامبو", "en": "Rafat Kom Ombo Pharmacy" },
+          "address": { "ar": "كومامبو ش بنك مصر", "en": "Kom Ombo, Banque Misr St" },
+          "phones": []
+        }
+      ]
+    }
+  ]
+}
+
+

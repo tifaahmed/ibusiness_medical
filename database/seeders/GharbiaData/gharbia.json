@@ -1,0 +1,89 @@
+{
+  "governorate": {
+    "ar": "الغربية",
+    "en": "Gharbia"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى السلام التخصصى", "en": "Al Salam Specialized Hospital" },
+          "address": { "ar": "ش الهناء و الصفاء منطقة الاستاد - طنطا", "en": "Hanaa & Safaa St, Stadium Area - Tanta" },
+          "phones": ["3348855"]
+        },
+        {
+          "name": { "ar": "مستشفى الفضالى التخصصى", "en": "El Fadaly Specialized Hospital" },
+          "address": { "ar": "شارع فطين - طنطا", "en": "Fatin St - Tanta" },
+          "phones": ["3286303"]
+        },
+        {
+          "name": { "ar": "مستشفى المدينة الطبية", "en": "Medical City Hospital" },
+          "address": { "ar": "ش كفر عصام طنطا اول - طنطا", "en": "Kafr Essam St - Tanta" },
+          "phones": ["3310312"]
+        },
+        {
+          "name": { "ar": "مستشفى ابن سينا التخصصى", "en": "Ibn Sina Specialized Hospital" },
+          "address": { "ar": "طنطا الجيش بجوار مبني القوى العاملة", "en": "Tanta, Army St, next to Labor Office" },
+          "phones": ["0403377004"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز قلب متخصصة", "en": "Specialized Heart Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز ام القرى للقلب والقسطرة", "en": "Om El Qura Heart & Catheterization Center" },
+          "address": { "ar": "طنطا منطقة الاستاد", "en": "Tanta, Stadium Area" },
+          "phones": ["3340121"]
+        },
+        {
+          "name": { "ar": "مركز طنطا للقلب و الصدر و الاوعية الدموية", "en": "Tanta Heart, Chest & Vascular Center" },
+          "address": { "ar": "ش الكورنيش بجوار الاستاد الرياضى طنطا", "en": "Corniche St, next to Sports Stadium" },
+          "phones": ["3407752"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز ومستشفيات العيون", "en": "Eye Hospitals & Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى مغربى للعيون", "en": "Magrabi Eye Hospital" },
+          "address": { "ar": "107 ش الجيش - طنطا", "en": "107 Army St - Tanta" },
+          "phones": ["3333528"]
+        },
+        {
+          "name": { "ar": "مركز رؤية للعيون", "en": "Ro'ya Eye Center" },
+          "address": { "ar": "23 ش الأستاذ امام حديقة الطفل طنطا", "en": "23 El Ostaz St, in front of Children Park" },
+          "phones": ["3337322"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل د/مؤمنة كامل (المختبر)", "en": "Dr. Moumena Kamel Lab" },
+          "branches": [
+            { "location": { "ar": "71ش الجيش امام المستشفى الجامعى – طنطا", "en": "71 Army St - Tanta" }, "phone": "3303000" },
+            { "location": { "ar": "13ش 23يوليو بجوار بنك الاسكندرية – المحلة الكبرى", "en": "13 23 July St - Mahalla" }, "phone": "2257235" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل البرج", "en": "Al Borg Lab" },
+          "phones": ["19911"]
+        },
+        {
+          "name": { "ar": "معامل الفضالى", "en": "El Fadaly Labs" },
+          "phones": ["3282822"]
+        },
+        {
+          "name": { "ar": "معامل الشمس", "en": "Al Shams Labs" },
+          "phones": ["19445"]
+        }
+      ]
+    }
+  ]
+}
+
+

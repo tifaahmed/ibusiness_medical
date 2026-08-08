@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+
+# Sitemap
+# Note: Add your sitemap URL here when available
+# Sitemap: https://yourdomain.com/sitemap.xml

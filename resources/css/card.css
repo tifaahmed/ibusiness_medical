@@ -1,0 +1,228 @@
+/* Professional Card Design System */
+@layer components {
+  .card-border {
+    @apply border-[1.4px] border-[#D0D0D0];
+  }
+  /* Card Base Classes */
+  .card-modern {
+    @apply border border-border shadow-sm bg-card text-card-foreground overflow-hidden rounded-xl hover:shadow-lg transition-all duration-300;
+  }
+
+  .card-elevated {
+    @apply border-0 shadow-lg backdrop-blur-sm overflow-hidden !p-0;
+    background-color: color-mix(in srgb, var(--card) 95%, transparent);
+  }
+
+  .card-header-emerald {
+    @apply bg-emerald-50 dark:bg-emerald-900/20 px-6 pt-6 pb-4;
+  }
+
+  .card-header-indigo {
+    @apply bg-indigo-50 dark:bg-indigo-900/20 px-6 pt-6 pb-4;
+  }
+
+  .card-header-orange {
+    @apply bg-orange-50 dark:bg-orange-900/20 px-6 pt-6 pb-4;
+  }
+
+  /* Card Content Base */
+  .card-content-modern {
+    @apply px-6 pb-6;
+  }
+
+  .card-content-spaced {
+    @apply px-6 pb-6 space-y-6;
+  }
+
+  /* Professional Card Title with Icon */
+  .card-title-with-icon {
+    @apply text-xl font-bold flex items-center gap-3;
+  }
+
+  .card-icon-blue {
+    @apply p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/50;
+  }
+
+  .card-icon-emerald {
+    @apply p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/50;
+  }
+
+  .card-icon-indigo {
+    @apply p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/50;
+  }
+
+
+  .card-icon-orange {
+    @apply p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/50;
+  }
+
+  /* Interactive Detail Cards - Enhanced */
+  .detail-card {
+    @apply p-3 sm:p-4 rounded-xl border backdrop-blur-sm transition-all duration-200;
+  }
+
+  /* Group utility helper for Tailwind v4 */
+  .group {
+    position: relative;
+  }
+
+  .detail-card-blue {
+    @apply hover:shadow-md;
+    background-color: color-mix(in srgb, var(--color-bright-blue) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-bright-blue) 20%, transparent);
+  }
+  
+  .detail-card-blue:hover {
+    background-color: color-mix(in srgb, var(--color-bright-blue) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-bright-blue) 30%, transparent);
+    box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--color-bright-blue) 10%, transparent);
+  }
+
+  .detail-card-green {
+    @apply hover:shadow-md;
+    background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-emerald-bright) 20%, transparent);
+  }
+  
+  .detail-card-green:hover {
+    background-color: color-mix(in srgb, var(--color-emerald-bright) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-emerald-bright) 30%, transparent);
+    box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--color-emerald-bright) 10%, transparent);
+  }
+
+  .detail-card-purple {
+    @apply hover:shadow-md;
+    background-color: color-mix(in srgb, var(--color-electric-purple) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-electric-purple) 20%, transparent);
+  }
+  
+  .detail-card-purple:hover {
+    background-color: color-mix(in srgb, var(--color-electric-purple) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-electric-purple) 30%, transparent);
+    box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--color-electric-purple) 10%, transparent);
+  }
+
+  .detail-card-orange {
+    @apply hover:shadow-md;
+    background-color: color-mix(in srgb, var(--vibrant-orange) 10%, transparent);
+    border-color: color-mix(in srgb, var(--vibrant-orange) 20%, transparent);
+  }
+  
+  .detail-card-orange:hover {
+    background-color: color-mix(in srgb, var(--vibrant-orange) 15%, transparent);
+    border-color: color-mix(in srgb, var(--vibrant-orange) 30%, transparent);
+    box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--vibrant-orange) 10%, transparent);
+  }
+
+
+
+  /* Registration Overview Cards - New Enhanced Styles */
+  .registration-card {
+    @apply text-center p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] hover:shadow-md;
+  }
+
+  .registration-card-default {
+    @apply hover:border-border;
+    background-color: color-mix(in srgb, var(--card) 50%, transparent);
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  
+  .registration-card-default:hover {
+    background-color: color-mix(in srgb, var(--card) 70%, transparent);
+  }
+
+  .registration-card-success {
+    background-color: color-mix(in srgb, var(--color-emerald-bright) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-emerald-bright) 20%, transparent);
+  }
+  
+  .registration-card-success:hover {
+    background-color: color-mix(in srgb, var(--color-emerald-bright) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-emerald-bright) 30%, transparent);
+    box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--color-emerald-bright) 10%, transparent);
+  }
+
+  /* Detail Card Icons */
+  .detail-icon {
+    @apply p-1.5 rounded-lg transition-colors duration-300;
+  }
+
+  .detail-icon-blue {
+    @apply bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50;
+  }
+
+  .detail-icon-green {
+    @apply bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-800/50;
+  }
+
+  .detail-icon-purple {
+    @apply bg-purple-100 dark:bg-purple-900/30 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50;
+  }
+
+  .detail-icon-orange {
+    @apply bg-orange-100 dark:bg-orange-900/30 group-hover:bg-orange-200 dark:group-hover:bg-orange-800/50;
+  }
+
+  /* Item Cards for Lists - Enhanced Purple Theme */
+  .item-card {
+    @apply p-4 rounded-xl border-2 transition-all duration-300 hover:shadow-lg;
+  }
+  
+  .item-card:hover {
+    box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .item-card-blue {
+    @apply border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20;
+  }
+
+  .item-card-hover-purple:hover {
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+    background-color: color-mix(in srgb, var(--primary) 5%, transparent);
+  }
+  
+  .dark .item-card-hover-purple:hover {
+    border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .item-card-hover-blue {
+    @apply hover:border-blue-300 dark:hover:border-blue-700;
+  }
+
+  /* Card Hover Enhancements */
+  .card-hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+  
+  .card-hover-lift:hover {
+    box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .card-hover-glow {
+    @apply transition-all duration-300 hover:shadow-lg;
+  }
+  
+  .card-hover-glow:hover {
+    box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--primary) 20%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  .purple-card-elevated {
+    @apply backdrop-blur-md shadow-xl transition-all duration-500;
+    background-image: linear-gradient(to bottom right, color-mix(in srgb, var(--card) 95%, transparent), color-mix(in srgb, var(--card) 90%, transparent));
+    border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+    box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+  
+  .purple-card-elevated:hover {
+    box-shadow: 0 25px 50px -12px color-mix(in srgb, var(--primary) 15%, transparent);
+  }
+
+  /* Info Card - Replaces bg-muted/50 border border-border */
+  .info-card {
+    @apply border border-border rounded-lg;
+    background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  }
+}
+

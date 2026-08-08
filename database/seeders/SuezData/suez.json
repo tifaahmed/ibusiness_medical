@@ -1,0 +1,134 @@
+{
+  "governorate": {
+    "ar": "السويس",
+    "en": "Suez"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الامل التخصصى", "en": "Al-Amal Specialized Hospital" },
+          "address": { "ar": "58 ش بنك مصر- السويس", "en": "58 Bank Misr St - Suez" },
+          "phones": ["3335495", "3335496"]
+        },
+        {
+          "name": { "ar": "مستشفى ابن سيناء الدولى", "en": "Ibn Sina International Hospital" },
+          "address": { "ar": "8 ش المدينة الرياضية بالملاحة", "en": "8 Sports City St, Al-Mellaha" },
+          "phones": ["3333445", "3333225"]
+        },
+        {
+          "name": { "ar": "مستشفى عين الحياه", "en": "Ain Al-Hayah Hospital" },
+          "address": { "ar": "5 ش الفردوس بجوار حي السويس", "en": "5 Al-Ferdous St, next to Suez District" },
+          "phones": ["3194269", "1123600013"]
+        },
+        {
+          "name": { "ar": "مستشفى القنال التخصصى", "en": "Al-Canal Specialized Hospital" },
+          "address": { "ar": "419 شارع 23 يوليو - برج الدوشى - الأربعين", "en": "419 July 23rd St, Al-Doushi Tower, Al-Arbaeen" },
+          "phones": ["3300833", "3300869"]
+        },
+        {
+          "name": { "ar": "مستشفى الزهور للأطفال", "en": "Al-Zohoor Pediatric Hospital" },
+          "address": { "ar": "302 شارع الجيش - برج النور بجوار الرخاوى", "en": "302 Al-Geish St, Al-Nour Tower, next to Al-Rakhawy" },
+          "phones": ["3316900", "3300888"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "علاج طبيعى وتأهيل", "en": "Physical Therapy and Rehabilitation" },
+      "facilities": [
+        {
+          "name": { "ar": "المركز المصرى للعلاج الطبيعى - د/عادل زكريا", "en": "Egyptian Physical Therapy Center - Dr. Adel Zakaria" },
+          "branches": [
+            { "location": { "ar": "ش الاربعين برج البطل", "en": "Al-Arbaeen St, Al-Batal Tower" } },
+            { "location": { "ar": "داخل مستشفى القنال السويس", "en": "Inside Al-Canal Hospital, Suez" } }
+          ],
+          "phones": ["1204547747"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز السويس للأشعة", "en": "Suez Radiology Center" },
+          "address": { "ar": "49 ش الشهداء امام نادى الشرطة بالسويس", "en": "49 Al-Shohadaa St, in front of the Police Club, Suez" },
+          "phones": ["3329633"]
+        },
+        {
+          "name": { "ar": "مركز اليوسف للاشعة د.يوسف عوض الله", "en": "Al-Yousef Radiology Center - Dr. Yousef Awad Allah" },
+          "address": { "ar": "8 ش خالد بن الوليد", "en": "8 Khaled Bin Al-Walid St" },
+          "phones": ["3334205"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        { "name": { "ar": "معمل المختبر", "en": "Al-Mokhtabar Lab" }, "address": { "ar": "شارع الجيش - السويس", "en": "Al-Geish St - Suez" }, "hotline": "19014" },
+        { "name": { "ar": "معامل الشمس", "en": "Al-Shams Labs" }, "address": { "ar": "362 ش الجيش - برج بلال", "en": "362 Al-Geish St, Bilal Tower" }, "hotline": "19445" },
+        { "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" }, "address": { "ar": "12 ش احمد عرابى برج التوفيق ميدان الاربعين", "en": "12 Ahmed Orabi St, Al-Tawfiq Tower, Al-Arbaeen Square" }, "hotline": "16064" },
+        { "name": { "ar": "معمل الفا لاب", "en": "Alfa Lab" }, "address": { "ar": "ش الجيش برج كنتاكى الدور الثالث", "en": "Al-Geish St, KFC Tower, 3rd Floor" }, "phones": ["3344323"] },
+        { "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" }, "address": { "ar": "363 ش 26 يوليو - السويس", "en": "363 July 26th St - Suez" }, "phones": ["3328580"] },
+        { "name": { "ar": "معامل ميترا", "en": "Mitra Labs" }, "address": { "ar": "ش 23 يوليو عمارة 405 بجوار كنتاكى", "en": "July 23rd St, Bldg 405, next to KFC" }, "phones": ["0623333414"] },
+        { "name": { "ar": "معامل البركه للتحاليل الطبيه", "en": "Al-Baraka Medical Laboratories" }, "address": { "ar": "ش الجيش فوق مطعم كنتاكى", "en": "Al-Geish St, above KFC restaurant" }, "hotline": "15034" }
+      ]
+    },
+    {
+      "category": { "ar": "الاطباء", "en": "Doctors" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ عصام موافى", "en": "Dr. Essam Mwafi" },
+          "specialty": { "ar": "جراحة قلب وصدر", "en": "Cardiothoracic Surgery" },
+          "address": { "ar": "395 شارع الجيش - برج الياسمين", "en": "395 Al-Geish St - Al-Yasmin Tower" },
+          "phones": ["3303015"]
+        },
+        {
+          "name": { "ar": "د/ غريب محمود عبدالمقصود", "en": "Dr. Gharib Mahmoud Abdel Maqsoud" },
+          "specialty": { "ar": "انف واذن وحنجرة", "en": "ENT" },
+          "address": { "ar": "52 ش احمد عرابى – الاربعين", "en": "52 Ahmed Orabi St – Al-Arbaeen" },
+          "phones": ["3333192"]
+        },
+        {
+          "name": { "ar": "د/ محمد منير البديوى", "en": "Dr. Mohamed Mounir El-Bediwi" },
+          "specialty": { "ar": "طب وجراحة العيون", "en": "Ophthalmology" },
+          "address": { "ar": "2 ش احمد عرابى اما صيدلية نهى – الاربعين", "en": "2 Ahmed Orabi St, in front of Noha Pharmacy – Al-Arbaeen" },
+          "phones": ["3226977"]
+        },
+        {
+          "name": { "ar": "د/ رضا صالح محمد خليفة", "en": "Dr. Reda Saleh Khalifa" },
+          "specialty": { "ar": "جلدية تناسلية", "en": "Dermatology & Venereology" },
+          "address": { "ar": "50 ش عبدالخالق ثروت – عمارة بنزايون", "en": "50 Abdel Khalek Sarwat St – Benzayon Bldg" },
+          "phones": ["3326444"]
+        },
+        {
+          "name": { "ar": "د/ محمد فهمى عبد الواحد خليل", "en": "Dr. Mohamed Fahmi Khalil" },
+          "specialty": { "ar": "أطفال", "en": "Pediatrics" },
+          "address": { "ar": "ميدان الترعه الاربعين السويس", "en": "Al-Tur'a Square, Al-Arbaeen, Suez" },
+          "phones": ["1223595533"]
+        },
+        {
+          "name": { "ar": "د/ كريمان ابو بكر الصديق", "en": "Dr. Kariman Abu Bakr" },
+          "specialty": { "ar": "اسنان", "en": "Dentistry" },
+          "address": { "ar": "62 ش احمد عرابى بجوار معمل وفاء درويش", "en": "62 Ahmed Orabi St, next to Wafaa Darwish Lab" },
+          "phones": ["1007221440"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدلية اسامة عيد", "en": "Osama Eid Pharmacy" }, "address": { "ar": "حي المختار الصباح جمعية المرأة", "en": "Al-Mukhtar Al-Sabah District" }, "phones": ["106889191"] },
+        { "name": { "ar": "صيدلية رامي وفادى", "en": "Ramy & Fady Pharmacy" }, "address": { "ar": "21 ش المحروم الجديدة محل 3", "en": "21 New Al-Mahroum St, Shop 3" }, "phones": ["1224030911"] },
+        { "name": { "ar": "صيدلية فؤاد شهيد", "en": "Fouad Shahid Pharmacy" }, "address": { "ar": "19 ش مدرسة هلال ش احمد عرابى الاربعين", "en": "19 Helal School St, Ahmed Orabi St, Al-Arbaeen" }, "phones": ["47420525"] },
+        { "name": { "ar": "صيدلية هدي عارف", "en": "Hoda Aref Pharmacy" }, "address": { "ar": "مدينة فيصل ــ حي الطائف السوق التجاري", "en": "Faisal City, Al-Taif District, Commercial Market" }, "phones": ["25801043"] },
+        { "name": { "ar": "صيدلية عماد", "en": "Emad Pharmacy" }, "branches": [ { "location": { "ar": "حى الصباح", "en": "Al-Sabah District" } }, { "location": { "ar": "حي الطائف", "en": "Al-Taif District" } } ], "phones": ["3664477", "3671006"] },
+        { "name": { "ar": "صيدلية منال الجديدة", "en": "New Manal Pharmacy" }, "address": { "ar": "11 سوق الطائف فيصل", "en": "11 Al-Taif Market, Faisal City" }, "phones": ["3660199"] },
+        { "name": { "ar": "صيدليات كير", "en": "Care Pharmacy" }, "branches": [ { "location": "New Mellaha" }, { "location": "Al-Arbaeen" } ], "phones": ["1150877170", "1101438898"] },
+        { "name": { "ar": "صيدليات الشركة المصرية للادوية", "en": "Egyptian Pharmaceutical Trading Co." }, "address": { "ar": "12 ش الجمهورية بجوار مسجد العشرة", "en": "12 El-Gomhoureya St, next to Al-Ashara Mosque" }, "phones": ["3220670"] }
+      ]
+    }
+  ]
+}
+
+

@@ -1,0 +1,149 @@
+{
+  "governorate": {
+    "ar": "السويس / الغربية (طنطا والمحلة)",
+    "en": "Suez / Gharbia (Tanta & Mahalla)"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الامل التخصصى", "en": "Al-Amal Specialized Hospital" },
+          "address": { "ar": "58 ش بنك مصر- السويس", "en": "58 Bank Misr St - Suez" },
+          "phones": ["3335495", "3335496"]
+        },
+        {
+          "name": { "ar": "مستشفى ابن سيناء الدولى", "en": "Ibn Sina International Hospital" },
+          "address": { "ar": "8 ش المدينة الرياضية بالملاحة", "en": "8 Sports City St, Al-Mellaha - Suez" },
+          "phones": ["3333445", "3333225"]
+        },
+        {
+          "name": { "ar": "مستشفى عين الحياه", "en": "Ain Al-Hayah Hospital" },
+          "address": { "ar": "5 ش الفردوس بجوار حي السويس", "en": "5 Al-Ferdous St, next to Suez District" },
+          "phones": ["3194269", "1123600013"]
+        },
+        {
+          "name": { "ar": "مستشفى القنال التخصصى", "en": "Al-Canal Specialized Hospital" },
+          "address": { "ar": "419 شارع 23 يوليو - برج الدوشى - الأربعين", "en": "419 July 23rd St, Al-Doushi Tower, Al-Arbaeen" },
+          "phones": ["3300833", "3300869"]
+        },
+        {
+          "name": { "ar": "مستشفى الزهور للأطفال", "en": "Al-Zohoor Pediatric Hospital" },
+          "address": { "ar": "302 شارع الجيش - برج النور بجوار الرخاوى", "en": "302 Al-Geish St, Al-Nour Tower, Suez" },
+          "phones": ["3316900", "3300888"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "علاج طبيعى وتأهيل", "en": "Physical Therapy and Rehabilitation" },
+      "facilities": [
+        {
+          "name": { "ar": "المركز المصرى للعلاج الطبيعى - د/عادل زكريا", "en": "Egyptian Physical Therapy Center - Dr. Adel Zakaria" },
+          "address": { "ar": "ش الاربعين برج البطل / برج الدوشى - السويس", "en": "Al-Arbaeen St, Al-Batal Tower / Al-Doushi Tower - Suez" },
+          "phones": ["1204547747"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز السويس للأشعة", "en": "Suez Radiology Center" },
+          "address": { "ar": "49 ش الشهداء امام نادى الشرطة بالسويس", "en": "49 Al-Shohadaa St, in front of the Police Club, Suez" },
+          "phones": ["3329633"]
+        },
+        {
+          "name": { "ar": "مركز اليوسف للاشعة د.يوسف عوض الله", "en": "Al-Yousef Radiology Center - Dr. Yousef Awad Allah" },
+          "address": { "ar": "8 ش خالد بن الوليد", "en": "8 Khaled Bin Al-Walid St" },
+          "phones": ["3334205"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        { "name": { "ar": "معمل المختبر", "en": "Al-Mokhtabar Lab" }, "address": { "ar": "شارع الجيش - السويس", "en": "Al-Geish St - Suez" }, "hotline": "19014" },
+        { "name": { "ar": "معامل الشمس", "en": "Al-Shams Labs" }, "address": { "ar": "362 ش الجيش - برج بلال", "en": "362 Al-Geish St, Bilal Tower" }, "hotline": "19445" },
+        { "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" }, "address": { "ar": "12 ش احمد عرابى برج التوفيق ميدان الاربعين", "en": "12 Ahmed Orabi St, Al-Arbaeen Sq" }, "hotline": "16064" },
+        { "name": { "ar": "معمل الفا لاب", "en": "Alfa Lab" }, "address": { "ar": "ش الجيش برج كنتاكى الدور الثالث", "en": "Al-Geish St, KFC Tower, 3rd Floor" }, "phones": ["3344323"] },
+        { "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" }, "address": { "ar": "363 ش 26 يوليو - السويس", "en": "363 July 26th St - Suez" }, "phones": ["3328580"] }
+      ]
+    },
+    {
+      "category": { "ar": "الأطباء والعيادات التخصصية", "en": "Doctors and Specialized Clinics" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ عصام موافى", "en": "Dr. Essam Mwafi" },
+          "specialty": { "ar": "جراحة قلب وصدر", "en": "Cardiothoracic Surgery" },
+          "address": { "ar": "395 شارع الجيش - برج الياسمين", "en": "395 Al-Geish St - Al-Yasmin Tower, Suez" },
+          "phones": ["3303015"]
+        },
+        {
+          "name": { "ar": "د/ على عبدالسلام مناع", "en": "Dr. Ali Abdelsalam Manna" },
+          "specialty": { "ar": "جراحة قلب وصدر", "en": "Cardiothoracic Surgery" },
+          "address": { "ar": "ميدان الاسكندرية – طنطا", "en": "Alexandria Square - Tanta" },
+          "phones": ["3353352"]
+        },
+        {
+          "name": { "ar": "د/ غريب محمود عبدالمقصود", "en": "Dr. Gharib Mahmoud Abdel Maqsoud" },
+          "specialty": { "ar": "انف واذن وحنجرة", "en": "ENT" },
+          "address": { "ar": "52 ش احمد عرابى – الاربعين", "en": "52 Ahmed Orabi St – Al-Arbaeen, Suez" },
+          "phones": ["3333192"]
+        },
+        {
+          "name": { "ar": "د/ حاتم محمد النجار", "en": "Dr. Hatem Mohamed El Naggar" },
+          "specialty": { "ar": "اسنان", "en": "Dentistry" },
+          "address": { "ar": "طنطا ش المديرية امام الرقم القومي", "en": "El Modereya St, in front of Civil Registry, Tanta" },
+          "phones": ["403330525"]
+        },
+        {
+          "name": { "ar": "د/ احمد عبد المنعم رجب", "en": "Dr. Ahmed Abdelmoneim Ragab" },
+          "specialty": { "ar": "انف واذن وحنجرة", "en": "ENT" },
+          "address": { "ar": "تقاطع ش عبد الحليم امام الشريف للبلاستيك - طنطا", "en": "Abdel Halim St, Tanta" },
+          "phones": ["01001709898"]
+        },
+        {
+          "name": { "ar": "د/ عيسي حميم ابو اليزيد", "en": "Dr. Issa Hemaim Abu El Yazid" },
+          "specialty": { "ar": "طب عيون", "en": "Ophthalmology" },
+          "address": { "ar": "ش المديرية ناصية درب الابشيهي طنطا", "en": "El Modereya St, corner of Darb El Abshihi, Tanta" },
+          "phones": ["3344681"]
+        },
+        {
+          "name": { "ar": "د/ محمد السيد عبد العزيز الهنداوي", "en": "Dr. Mohamed El Sayed El Hendawi" },
+          "specialty": { "ar": "جهاز هضمي وكبد", "en": "Gastroenterology & Hepatology" },
+          "address": { "ar": "ش عمر زعفان بجوار جامع السيد البدوي طنطا", "en": "Omar Zaafan St, near El Sayed El Badawi Mosque, Tanta" },
+          "phones": ["403349954"]
+        },
+        {
+          "name": { "ar": "د/ سامي عبد القادر علي خضير", "en": "Dr. Sami Abdel Kader Ali Khodeir" },
+          "specialty": { "ar": "جهاز هضمي وكبد", "en": "Gastroenterology & Hepatology" },
+          "address": { "ar": "ش عثمان محمد برج جوهرة عثمان طنطا", "en": "Othman Mohamed St, Jawharat Othman Tower, Tanta" },
+          "phones": ["403335010"]
+        },
+        {
+          "name": { "ar": "د/ محمد عبد العال ابراهيم", "en": "Dr. Mohamed Abdel Aal Ibrahim" },
+          "specialty": { "ar": "قلب واوعية دموية", "en": "Cardiology" },
+          "address": { "ar": "ش المديرية عمارة الست مباركة ب طنطا", "en": "El Modereya St, El Set Mobaraka Bldg, Tanta" },
+          "phones": ["403350130"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدلية اسامة عيد", "en": "Osama Eid Pharmacy" }, "address": { "ar": "حي المختار الصباح جمعية المرأة", "en": "Al-Mukhtar Al-Sabah District, Suez" }, "phones": ["106889191"] },
+        { "name": { "ar": "صيدلية رامي وفادى", "en": "Ramy & Fady Pharmacy" }, "address": { "ar": "21 ش المحروم الجديدة محل 3 - السويس", "en": "21 New Al-Mahroum St, Suez" }, "phones": ["1224030911"] },
+        { "name": { "ar": "صيدلية فؤاد شهيد", "en": "Fouad Shahid Pharmacy" }, "address": { "ar": "19 ش مدرسة هلال ش احمد عرابى الاربعين السويس", "en": "19 Helal School St, Suez" }, "phones": ["47420525"] },
+        { "name": { "ar": "صيدلية بهجت", "en": "Bahgat Pharmacy" }, "address": { "ar": "ش الجيش بجوار بنزايون - طنطا", "en": "El Geish St, next to Benzayon, Tanta" }, "phones": ["3313007"] },
+        { "name": { "ar": "صيدلية شتا", "en": "Sheta Pharmacy" }, "address": { "ar": "4 ش سعد الدين خلف مستشفى المبرة - طنطا", "en": "4 Saad El Din St, Tanta" }, "phones": ["3349349"] },
+        { "name": { "ar": "صيدلية الشافعى", "en": "Al-Shaffay Pharmacy" }, "address": { "ar": "المحلة الكبرى - ش البحر / ش ناصر", "en": "Al-Mahalla Al-Kubra - El Bahr St / Nasser St" }, "phones": ["2201614", "2233701"] },
+        { "name": { "ar": "صيدلية محمد عبد المنعم", "en": "Mohamed Abdelmoneim Pharmacy" }, "address": { "ar": "15 ش معاويه متفرع من ش سعيد - طنطا", "en": "15 Moawiya St off Said St, Tanta" }, "phones": ["1222243203"] },
+        { "name": { "ar": "صيدلية البكري", "en": "Al-Bakry Pharmacy" }, "address": { "ar": "الجيش ناصية المعتصم - طنطا", "en": "El Geish St, corner of Al-Moatasem, Tanta" },
+          "phones": ["3314324"] },
+        { "name": { "ar": "صيدلية التوفيقية", "en": "Al-Tawfiqia Pharmacy" }, "address": { "ar": "ش الساحة الشعبية – كفر الزيات", "en": "Public Arena St - Kafr El Zayat" }, "phones": ["1226277147"] }
+      ]
+    }
+  ]
+}
+
+

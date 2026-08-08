@@ -1,0 +1,134 @@
+{
+  "governorate": {
+    "ar": "بورسعيد",
+    "en": "Port Said"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى افامينا", "en": "Avamina Hospital" },
+          "address": { "ar": "امتداد شارع الامين - بورسعيد", "en": "Al-Amin St Extension - Port Said" },
+          "phones": ["3727985"]
+        },
+        {
+          "name": { "ar": "مستشفى عطاء التخصصى", "en": "Attaa Specialized Hospital" },
+          "address": { "ar": "ش الامين مساكن الحرية الجديده امام مسجد الايمان", "en": "Al-Amin St, New Horreya Housing, in front of Al-Iman Mosque" },
+          "phones": ["3260800", "3260000"]
+        },
+        {
+          "name": { "ar": "مستشفى القوات المسلحه", "en": "Armed Forces Hospital" },
+          "address": { "ar": "شارع 23 يوليو امام المتحف الحربى", "en": "July 23rd St, in front of the Military Museum" },
+          "phones": ["3223722"]
+        },
+        {
+          "name": { "ar": "مستشفى الدليفراند", "en": "Delivrand Hospital" },
+          "address": { "ar": "17 ش محمد الجيار – بورسعيد", "en": "17 Mohamed Al-Gayyar St - Port Said" },
+          "phones": ["3223663", "3225695"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "علاج طبيعى وتأهيل", "en": "Physical Therapy and Rehabilitation" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز بورسعيد للعلاج الطبيعى (د/ مصطفى محمد عبدالعزيز)", "en": "Port Said Physical Therapy Center (Dr. Mostafa Mohamed Abdel Aziz)" },
+          "address": { "ar": "51 ش سعد زغلول عمارة الخشب", "en": "51 Saad Zaghloul St, Al-Khashab Bldg" },
+          "phones": ["3332404"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز ومستشفيات العيون", "en": "Eye Centers and Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز قرطبة للعيون والليزك", "en": "Cordoba Eye and Lasik Center" },
+          "address": { "ar": "برج الحرية امام الموقف الجديد بورسعيد", "en": "Al-Horreya Tower, in front of the New Station, Port Said" },
+          "phones": ["3334933"]
+        },
+        {
+          "name": { "ar": "شركة شعاع للبصريات", "en": "Shoaa Optics Company" },
+          "address": { "ar": "119 ش سعد زغلول وبنى سويف - بورسعيد", "en": "119 Saad Zaghloul St & Beni Suef St - Port Said" },
+          "phones": ["3327320"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الايمان للاشعة", "en": "Al-Eman Radiology Center" },
+          "branches": [
+            { "location": { "ar": "ش 23 يوليو بجوار مستشفى التضامن", "en": "July 23rd St, next to Al-Tadamun Hospital" }, "phone": "3357159" },
+            { "location": { "ar": "ش 100 بجوار مسجد علوان برج الايمان الطبى", "en": "St 100, next to Alwan Mosque, Al-Eman Medical Tower" }, "phone": "663238310" }
+          ]
+        },
+        {
+          "name": { "ar": "سمارت سكان اندلاب", "en": "Smart Scan and Lab" },
+          "branches": [
+            { "location": { "ar": "63 ش اوجينا", "en": "63 Ogina St" }, "phone": "1026604990" },
+            { "location": { "ar": "ش الثلاثين (برج قناة السويس)", "en": "Al-Thalatheny St (Suez Canal Tower)" }, "phone": "1024355997" }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل جراند لاب", "en": "Grand Lab" },
+          "address": { "ar": "ش الثلاثينى مجمع ابو اسماعيل التجارى", "en": "Al-Thalatheny St, Abu Ismail Commercial Complex" },
+          "phones": ["3331010", "2228008"]
+        },
+        { "name": { "ar": "معمل احمد اللواح", "en": "Ahmed El-Lawah Lab" }, "address": { "ar": "ش سعد زغلول - بور سعيد", "en": "Saad Zaghloul St - Port Said" }, "phones": ["3355765"] },
+        {
+          "name": { "ar": "معمل استرا", "en": "Astra Lab" },
+          "branches": [
+            { "location": "Al-Tawhid Tower, Mohamed Ali St", "phone": "3333305" },
+            { "location": "Al-Zohoor, Sondos Tower", "phone": "3600065" },
+            { "location": "Port Fouad, Al-Shaarawy St", "phone": "3414104" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل المختبر (د. مؤمنة كامل)", "en": "Al-Mokhtabar Lab (Dr. Moamena Kamel)" },
+          "hotline": "19014",
+          "branches": ["14 El-Gomhoureya St", "Port Fouad", "Al-Zohoor District"]
+        },
+        {
+          "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" },
+          "hotline": "19911",
+          "branches": ["Al-Rabat Medical Center", "Al-Zohoor", "Army & Ogina Intersection"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الاطباء", "en": "Doctors" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ ابو المعاطى محمد حسين", "en": "Dr. Abul Maati Mohamed Hussein" },
+          "specialty": { "ar": "باطنة عامة", "en": "General Internal Medicine" },
+          "address": { "ar": "13 ش احمد شوقى و صلاح سالم", "en": "13 Ahmed Shawky St & Salah Salem" },
+          "phones": ["3327288"]
+        },
+        {
+          "name": { "ar": "د/ محمد محمد مصطفي الصباغ", "en": "Dr. Mohamed Mohamed Mostafa El-Sabagh" },
+          "specialty": { "ar": "طب اطفال", "en": "Pediatrics" },
+          "address": { "ar": "نهاية سور نادي الرباط / الزهور", "en": "End of Rabat Club fence / Al-Zohoor" },
+          "phones": ["3644376"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدلية العزبى", "en": "El Ezaby Pharmacy" }, "address": { "ar": "تعاونيات الزهور", "en": "Al-Zohoor Cooperatives" }, "phones": ["3333835"] },
+        { "name": { "ar": "صيدلية الشربينى", "en": "El Sherbiny Pharmacy" }, "address": { "ar": "33 ش الطور وعكا", "en": "33 Al-Tour & Akka St" }, "phones": ["3326942"] },
+        { "name": { "ar": "صيدلية فاطمة", "en": "Fatma Pharmacy" }, "address": { "ar": "بورفؤاد - ابراج محمد على", "en": "Port Fouad - Mohamed Ali Towers" }, "phones": ["1227872657"] },
+        { "name": { "ar": "صيدليات كير", "en": "Care Pharmacy" }, "branches": ["Mohamed Ali St", "July 23rd St", "December 23rd St", "Salah Salem"], "phones": ["01155474743", "01101438896"] }
+      ]
+    }
+  ]
+}
+
+

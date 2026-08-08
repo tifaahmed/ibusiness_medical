@@ -1,0 +1,205 @@
+{
+  "governorate": {
+    "ar": "سوهاج",
+    "en": "Sohag"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى ابن سينا التخصصى", "en": "Ibn Sina Specialized Hospital" },
+          "address": { "ar": "ش اسحاق - ميدان العارف", "en": "Ishak St - Al-Aref Square" },
+          "phones": ["2311936"]
+        },
+        {
+          "name": { "ar": "مستشفى راشد التخصصى", "en": "Rashid Specialized Hospital" },
+          "address": { "ar": "مدينة ناصر - سوهاج", "en": "Nasser City - Sohag" },
+          "phones": ["4602502"]
+        },
+        {
+          "name": { "ar": "مستشفي الحياة", "en": "Al-Hayah Hospital" },
+          "address": { "ar": "سوهاج بجوار نادي الشرطة القبلي", "en": "Sohag, next to the Southern Police Club" },
+          "phones": ["2157000", "2157003"]
+        },
+        {
+          "name": { "ar": "مستشفي مصر", "en": "Egypt Hospital" },
+          "address": { "ar": "45 ش مصنع الهدرجة من كورنيش النيل", "en": "45 Hydrogenation Factory St, off Nile Corniche" },
+          "phones": ["4607477"]
+        },
+        {
+          "name": { "ar": "مستشفى سوهاج العسكري", "en": "Sohag Military Hospital" },
+          "address": { "ar": "المدينة الطبية بسوهاج بجوار مستشفى الاورام", "en": "Sohag Medical City, next to the Oncology Hospital" },
+          "phones": ["2309947"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل المختبر (د. مؤمنة كامل)", "en": "Al-Mokhtabar Lab (Dr. Moamena Kamel)" },
+          "branches": [
+            { "location": { "ar": "ميدان العارف - سوهاج", "en": "Al-Aref Square - Sohag" }, "phone": "2337753" },
+            { "location": { "ar": "جرجا - ش ثابت بن اسلم", "en": "Gerga - Thabit Ibn Aslam St" }, "phone": "4666879" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" },
+          "address": { "ar": "ناصية ش الحرية - كورنيش النيل", "en": "Corner of Al-Horreya St - Nile Corniche" },
+          "phones": ["2321233"]
+        },
+        { "name": { "ar": "معامل الفا", "en": "Alfa Labs" }, "address": { "ar": "38 ش البحر بجوار بنك الاهلى", "en": "38 El Bahr St, next to NBE" }, "hotline": "16191" },
+        { 
+          "name": { "ar": "معامل رويال لاب", "en": "Royal Lab" }, 
+          "branches": [
+            { "location": { "ar": "العروبة برج المهندسين الدور الخامس سوهاج", "en": "Al-Uruba, Engineers Tower, 5th Floor, Sohag" }, "phone": "16064" },
+            { "location": { "ar": "16 ميدان العارف بالله اعلى مركز مكى للمحاماه", "en": "16 Al-Aref Billah Square, above Maki Law Center" }, "phone": "16064" }
+          ]
+        },
+        {
+          "name": { "ar": "معامل الإسراء", "en": "Al-Israa Laboratories" },
+          "branches": [
+            { "location": { "ar": "ش المحطه برج المدينة المنوره امام استراحة السكه الحديد الدور الثانى", "en": "Station St, Madina Monawara Tower, in front of Railway Rest House, 2nd Floor" }, "phone": "932160161" },
+            { "location": { "ar": "ش مستشفى سوهاج الجامعى", "en": "Sohag University Hospital St" }, "phone": "934595157" },
+            { "location": { "ar": "ش النقراشى امام مستشفى سوهام العام اعلى كشرى ابن عز", "en": "El-Naqrashi St, in front of Suham General Hospital, above Kasry Ibn Ezz" }, "phone": "932129901" },
+            { "location": { "ar": "كورنيش النيل القبلى مدينة العرايس بجوار معهد الاورام", "en": "Nile Corniche, Qibli, Al-Araies City, next to Oncology Institute" }, "phone": "932110085" },
+            { "location": { "ar": "الشهيد ش اولاد نصير برج الاطباء الدور الاول", "en": "Al-Shaheed St, Awlad Naseer, Doctors Tower, 1st Floor" }, "phone": "932128088" },
+            { "location": { "ar": "الشهيد ش اولاد نصير برج دار الفؤاد", "en": "Al-Shaheed St, Awlad Naseer, Dar El Fouad Tower" }, "phone": "932128182" },
+            { "location": { "ar": "ميدان الهلال مجمع عيادات السلامه الدور الثالث", "en": "Al-Hilal Square, Al-Salama Clinics Complex, 3rd Floor" }, "phone": "932716928" },
+            { "location": { "ar": "ميدان العارف عمارة المدنى الدور الاول اعلى صيدلية المواساه", "en": "Al-Aref Square, Madany Building, 1st Floor, above Al-Mowasah Pharmacy" }, "phone": "932133702" },
+            { "location": { "ar": "اخميم ش العقيد عمارة القاعود امام عيادة د ناصر رشاد", "en": "Akhmim, Al-Aqeed St, Al-Qaoud Building, in front of Dr. Nasser Rashad Clinic" }, "phone": "932593935" },
+            { "location": { "ar": "امتداد ش ابو القاسم بجوار مخبز الاسيوطى", "en": "Abu El-Qasim St Extension, next to Asyuti Bakery" }, "phone": "932592902" },
+            { "location": { "ar": "امام مستشفى طهطا العام", "en": "In front of Tahta General Hospital" }, "phone": "934790937" },
+            { "location": { "ar": "ش يسى خلف بنك مصر الاسلامى القديم", "en": "Yessi St, behind Old Islamic Bank of Egypt" }, "phone": "934771101" },
+            { "location": { "ar": "ش صلاح سالم بجوار مطعم الزعيم", "en": "Salah Salem St, next to Al-Zaeem Restaurant" }, "phone": "934761600" },
+            { "location": { "ar": "بحرى مستشفى المراغى ش الشباب", "en": "Bahri, Al-Maraghi Hospital, Al-Shabab St" }, "phone": "932538308" },
+            { "location": { "ar": "ش عبد المنعم رياض امام شركة بيع المصنوعات", "en": "Abdel Moneim Riad St, in front of Egyptian Products Sales Co" }, "phone": "932538425" },
+            { "location": { "ar": "ش الشهداء بجوار قسم شرطة جهينة", "en": "Al-Shohadaa St, next to Gehina Police Station" }, "phone": "934700134" }
+          ]
+        },
+        {
+          "name": { "ar": "المعمل المصرى الامريكى", "en": "Egyptian American Lab" },
+          "address": { "ar": "22 ش النهضة - سوهاج", "en": "22 El-Nahda St - Sohag" },
+          "phones": ["2322732"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "علاج طبيعي", "en": "Physical Therapy" },
+      "facilities": [
+        {
+          "name": { "ar": "جون ثروت متري", "en": "John Tharwat Metry" },
+          "address": { "ar": "ش الصفا امام فيلا ضيف", "en": "El-Safa St, in front of Deif Villa" },
+          "phones": ["2302056"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الاطباء والعيادات", "en": "Doctors and Clinics" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ اسامه احمد امين", "en": "Dr. Osama Ahmed Amin" },
+          "specialty": { "ar": "قلب واوعية دموية", "en": "Cardiology" },
+          "address": { "ar": "برج اليسر ش صلاح سالم", "en": "Al-Yosr Tower, Salah Salem St" },
+          "phones": ["1281199544"]
+        },
+        {
+          "name": { "ar": "د/ خالد مصطفي ابو زيد", "en": "Dr. Khaled Mostafa Abu Zeid" },
+          "specialty": { "ar": "عظام", "en": "Orthopedics" },
+          "address": { "ar": "خلف الثانوية الميكانيكية", "en": "Behind Mechanical Secondary School" },
+          "phones": ["1203732374"]
+        },
+        {
+          "name": { "ar": "د/ فوزى انيس دميان", "en": "Dr. Fawzy Anis Demian" },
+          "specialty": { "ar": "طب اسنان", "en": "Dentistry" },
+          "address": { "ar": "ش احمد ماهر نجع ابو شجرة", "en": "Ahmed Maher St, Nagaa Abu Shagara" },
+          "phones": ["2325711"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدلية النيل", "en": "Nile Pharmacy" },
+          "address": { "ar": "ش اسيوط سوهاج بجوار مجلس المدينة", "en": "Asyut St, Sohag, next to City Council" },
+          "phones": ["2323310"]
+        },
+        {
+          "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" },
+          "branches": [
+            {
+              "location": { "ar": "ش الجلاء الفنار مول - سوهاج", "en": "El Galaa St, Fanar Mall - Sohag" },
+              "phone": "1146766869"
+            }
+          ]
+        },
+        {
+          "name": { "ar": "صيدلية اماني ذكي", "en": "Amani Zaki Pharmacy" },
+          "address": { "ar": "ش 15 - سوهاج", "en": "St 15 - Sohag" },
+          "phones": ["2314505"]
+        },
+        {
+          "name": { "ar": "صيدليات اسلام فتحى", "en": "Islam Fathy Pharmacies" },
+          "branches": [
+            { "location": { "ar": "ش الاخوة اخميم امتداد ش ابو القاسم", "en": "Al-Akhwa St, Akhmim, Abu El-Qasim St Extension" }, "phone": "2592928" },
+            { "location": { "ar": "سيتى امام مدرسة سيتى", "en": "Siti, in front of Siti School" }, "phone": "2118115" },
+            { "location": { "ar": "الجمهورية برج احمد ضيف بجوار فودافون", "en": "El-Gomhoreya St, Ahmed Deif Tower, next to Vodafone" }, "phone": "2313148" },
+            { "location": { "ar": "العربى مدينة ناصر ش الكورنيش سوهاج", "en": "Al-Arabi, Nasser City, Corniche St, Sohag" }, "phone": "4606622" },
+            { "location": { "ar": "مستشفى الحياة سوهاج", "en": "Al-Hayat Hospital, Sohag" }, "phone": "2157004" }
+          ]
+        },
+        {
+          "name": { "ar": "صيدلية مصر", "en": "Misr Pharmacy" },
+          "branches": [
+            { "location": { "ar": "ش المحطة الرئيسى سوهاج", "en": "Main Station St, Sohag" }, "phone": "932535093" },
+            { "location": { "ar": "ش المحطة الرئيسى سوهاج", "en": "Main Station St, Sohag" }, "phone": "932350500" }
+          ],
+          "phones": ["19110"]
+        },
+        {
+          "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" },
+          "branches": [
+            {
+              "location": { "ar": "ش الجلاء الفنار مول - سوهاج", "en": "El Galaa St, Fanar Mall - Sohag" },
+              "phone": "1146766869"
+            },
+            {
+              "location": { "ar": "ش الجامعة - مبني الانشطة الطلابية - مدينة ناصر - سوهاج", "en": "University St - Student Activities Building - Nasser City - Sohag" },
+              "phone": "1146771742"
+            }
+          ]
+        },
+        {
+          "name": { "ar": "صيدلية د / شرين على صالح", "en": "Dr. Sherin Ali Saleh Pharmacy" },
+          "address": { "ar": "ش الجلاء الفنار مول - سوهاج", "en": "El Galaa St, Fanar Mall - Sohag" },
+          "phones": ["1146766869"]
+        },
+        {
+          "name": { "ar": "صيدلية أحمد على يوسف", "en": "Ahmed Ali Youssef Pharmacy" },
+          "address": { "ar": "ش الجامعة - مبني الانشطة الطلابية - مدينة ناصر - سوهاج", "en": "University St - Student Activities Building - Nasser City - Sohag" },
+          "phones": ["1146771742"]
+        },
+        {
+          "name": { "ar": "صيدليات مبارك", "en": "Mubarak Pharmacies" },
+          "branches": [
+            { "location": { "ar": "1 ش الجرجاوية الشرقى امام مستشفى النعمانى سوهاج", "en": "1 El-Gergawiya El-Sharqi St, in front of Al-Nomani Hospital, Sohag" }, "phone": "19056" },
+            { "location": { "ar": "م العروبة بجوار الاسعاف", "en": "Al-Uruba, next to Ambulance" }, "phone": "1050664496" },
+            { "location": { "ar": "فرع الشهيد بجوار برج الاطباء", "en": "Al-Shaheed Branch, next to Doctors Tower" }, "phone": "1050448853" },
+            { "location": { "ar": "فرع مستشفى بن سيناء", "en": "Ibn Sina Hospital Branch" }, "phone": "1050448848" },
+            { "location": { "ar": "فرع الاميرى امام مستشفى سوهاج العام", "en": "Al-Amiri Branch, in front of Sohag General Hospital" }, "phone": "1050448854" },
+            { "location": { "ar": "ش 15 بجوار توكيل سامسونج وبى تك", "en": "St 15, next to Samsung and B.Tech Agencies" }, "phone": "1125000300" },
+            { "location": { "ar": "ش المحطة امام مزلقان السكة الحديد", "en": "Station St, in front of Railway Crossing" }, "phone": "1050448846" },
+            { "location": { "ar": "ش المحطة بجوار مطعم ابو صلاح", "en": "Station St, next to Abu Salah Restaurant" }, "phone": "1050448847" },
+            { "location": { "ar": "فرع طهطا ش الجهاد بجوار توكيل اورانج", "en": "Tahta Branch, Al-Jihad St, next to Orange Agency" }, "phone": "1555525260" },
+            { "location": { "ar": "الكورنيش الشرقى بجوار عبارة نايل ستورى", "en": "Eastern Corniche, next to Nile Story Ferry" }, "phone": "1012117226" },
+            { "location": { "ar": "ش المحطة امام باب الرئيسى", "en": "Station St, in front of Main Gate" }, "phone": "1020998007" },
+            { "location": { "ar": "طريق سوهاج اخميم امام النساجون الشرقيون", "en": "Sohag-Akhmim Road, in front of Eastern Weavers" }, "phone": "1020899300" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,164 @@
+{
+  "governorate": {
+    "ar": "الإسماعيلية",
+    "en": "Ismailia"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى جامعة قناة السويس التعليمي", "en": "Suez Canal University Educational Hospital" },
+          "address": { "ar": "الطريق الدائرى - الاسماعيلية", "en": "Ring Road - Ismailia" },
+          "phones": ["3381122"]
+        },
+        {
+          "name": { "ar": "مستشفى جامعة قناة السويس التخصصى", "en": "Suez Canal University Specialized Hospital" },
+          "address": { "ar": "الطريق الدائرى الكيلو 4.5 - الاسماعيلية", "en": "Ring Road, Km 4.5 - Ismailia" },
+          "phones": ["3210290"]
+        },
+        {
+          "name": { "ar": "مجمع الخير والبركة", "en": "Al Khair Wal Baraka Medical Complex" },
+          "address": { "ar": "ش شبين طريق مجمع المحاكم", "en": "Shebin St, Court Complex Road" },
+          "phones": ["3335224"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "علاج طبيعى وتأهيل", "en": "Physical Therapy and Rehabilitation" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الغنيمى للعلاج الطبيعى", "en": "Al Ghoneimi Physiotherapy Center" },
+          "address": { "ar": "2أ ش الشريف من ميدان عرابى", "en": "2A El Sherif St, off Orabi Square" },
+          "phones": ["3919314"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الامل للاشعة", "en": "Al Amal Radiology Center" },
+          "address": { "ar": "167 ش الاسكندرية متفرع من ميدان عرابى", "en": "167 Alexandria St, off Orabi Square" },
+          "phones": ["3919046", "3919036"]
+        },
+        {
+          "name": { "ar": "تكنو سكان اسامة خليل", "en": "Techno Scan (Osama Khalil)" },
+          "address": { "ar": "ش مدرسة التكنولوجيا المرحلة الخامسة", "en": "Technology School St, 5th Phase" },
+          "phones": ["228681", "228682"]
+        },
+        {
+          "name": { "ar": "مركز الايمان للاشعة", "en": "Al Eman Radiology Center" },
+          "address": { "ar": "امام الموقف الجديد برج الجوهرة", "en": "In front of the New Terminal, Al Jawhara Tower" },
+          "phones": ["643228984"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل د/مؤمنة كامل (المختبر)", "en": "Al Mokhtabar (Dr. Moamena Kamel)" },
+          "branches": [
+            { "address": { "ar": "ش التحرير القنطرة غرب - امام موقف البيجو", "en": "El Tahrir St, Qantara West - in front of Peugeot Station" }, "phone": "3566793" },
+            { "address": { "ar": "41 ش الجمهورية ( الثلاثينى )", "en": "41 El Gomhoreya St (Al Thalathini)" }, "phone": "3922081" }
+          ]
+        },
+        {
+          "name": { "ar": "معامل الشمس", "en": "Al Shams Labs" },
+          "address": { "ar": "43 ش عمروبن العاص - قسم اول", "en": "43 Amr Ibn El Aas St, 1st District" },
+          "phones": ["19445"]
+        },
+        {
+          "name": { "ar": "معمل البرج", "en": "Al Borg Lab" },
+          "branches": [
+            { "address": { "ar": "15 ش التحرير القنطرة غرب", "en": "15 El Tahrir St, Qantara West" }, "phone": "3566386" },
+            { "address": { "ar": "26 ش الثورة - الاسماعيلية", "en": "26 El Thawra St - Ismailia" }, "phone": "3920266" }
+          ]
+        },
+        {
+          "name": { "ar": "معامل ميترا", "en": "Mitra Labs" },
+          "branches": [
+            { "address": { "ar": "ش شريف متفرع من ميدان عرابى عمارة 4", "en": "Sherif St, off Orabi Square, Building 4" }, "phone": "1069888144" },
+            { "address": { "ar": "ش شبين الكوم امام مجمع المحاكم", "en": "Shebin El Kom St, in front of the Court Complex" }, "phone": "1069665066" },
+            { "address": { "ar": "حى الزهور عمارة 18 خلف نادى المنتزه", "en": "Hay El Zohour, Bldg 18, behind El Montaza Club" }, "phone": "1060766635" }
+          ]
+        },
+        {
+          "name": { "ar": "معامل الفا", "en": "Alfa Labs" },
+          "phones": ["16191"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الاطباء", "en": "Doctors" },
+      "facilities": [
+        {
+          "name": { "ar": "د/احمد نبيل ابراهيم داود", "en": "Dr. Ahmed Nabil Ibrahim Daoud" },
+          "specialty": { "ar": "انف واذن وحنجرة", "en": "ENT" },
+          "address": { "ar": "141 ش عرابى - برج العز", "en": "141 Orabi St, El Ezz Tower" },
+          "phones": ["1277014460", "3923343"]
+        },
+        {
+          "name": { "ar": "د/ عصام عبد المنعم شلبي", "en": "Dr. Essam Abdel Monem Shalaby" },
+          "specialty": { "ar": "جراحة مسالك بولية", "en": "Urology Surgery" },
+          "address": { "ar": "ش شبين الكوم برج الجندول السلام 2", "en": "Shebin El Kom St, El Gondol Tower, El Salam 2" },
+          "phones": ["3362702"]
+        },
+        {
+          "name": { "ar": "د/ايمن سالم", "en": "Dr. Ayman Salem" },
+          "specialty": { "ar": "جهاز هضمى", "en": "Gastroenterology" },
+          "address": { "ar": "ميدان شامبليون - امام مسجد ابوبكر الصديق", "en": "Champollion Square, in front of Abu Bakr Mosque" },
+          "phones": ["1142878717"]
+        },
+        {
+          "name": { "ar": "د/ محمد صالح مصطفى", "en": "Dr. Mohamed Saleh Mostafa" },
+          "specialty": { "ar": "جراحة عظام", "en": "Orthopedic Surgery" },
+          "address": { "ar": "55 ش سعد زغلول – المحطة الجديدة", "en": "55 Saad Zaghloul St – New Station" },
+          "phones": ["1225499099"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "اجهزة تعويضية", "en": "Prosthetics" },
+      "facilities": [
+        {
+          "name": { "ar": "اورثو ميديكس", "en": "Ortho Medics" },
+          "address": { "ar": "برج بانوراما الاسماعيلية امام مجمع المحاكم", "en": "Panorama Tower, in front of the Court Complex" },
+          "phones": ["1150901101"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدلية الميدان", "en": "Al Midan Pharmacy" },
+          "address": { "ar": "شارع العبور - الميدان - فايد", "en": "Al Obour St - Al Midan - Fayed" },
+          "phones": ["3665775"]
+        },
+        {
+          "name": { "ar": "صيدلية الشفا", "en": "Al Shifa Pharmacy" },
+          "branches": [
+            { "address": { "ar": "20 ش اسماعيل سرى والاسكندرية", "en": "20 Ismail Serry St & Alexandria St" }, "phone": "3915000" },
+            { "address": { "ar": "ش احمد عرابى - التل الكبير", "en": "Ahmed Orabi St - El Tell El Kebir" }, "phone": "3961273" }
+          ]
+        },
+        {
+          "name": { "ar": "صيدلية العزبى", "en": "El Ezaby Pharmacy" },
+          "branches": [
+            { "address": { "ar": "209 ش الحرية", "en": "209 Al Horreya St" }, "phone": "3912442" },
+            { "address": { "ar": "تقاطع ش 227 وش شبين الكوم", "en": "Intersection of St 227 and Shebin El Kom St" }, "phone": "3311800" },
+            { "address": { "ar": "3 برج السنترال ش الجمهورية عرايشية مصر", "en": "Central Tower, El Gomhoreya St, Arayishiya" }, "phone": "3349047" }
+          ]
+        },
+        {
+          "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" },
+          "address": { "ar": "51 ش شبين الكوم -الاسماعيلية", "en": "51 Shebin El Kom St - Ismailia" },
+          "phones": ["1123484333"]
+        }
+      ]
+    }
+  ]
+}
+

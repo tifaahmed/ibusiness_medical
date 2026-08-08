@@ -1,0 +1,92 @@
+{
+  "governorate": {
+    "ar": "كفر الشيخ",
+    "en": "Kafr El Sheikh"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الفتح التخصصى", "en": "Al-Fateh Specialized Hospital" },
+          "address": { "ar": "كفرالشيخ – ش فريد ندا (جيهان سايقا)", "en": "Kafr El Sheikh - Farid Nada St (formerly Gehan)" },
+          "phones": ["3238929", "3235372"]
+        },
+        {
+          "name": { "ar": "مستشفى كفر الشيخ العسكري", "en": "Kafr El Sheikh Military Hospital" },
+          "address": { "ar": "كفر الشيخ", "en": "Kafr El Sheikh" },
+          "phones": ["3232129"]
+        },
+        {
+          "name": { "ar": "مستشفى الزهراء الحديث", "en": "Modern Al-Zahra Hospital" },
+          "address": { "ar": "كفر الشيخ - تقسيم الاوقاف خلف المستشفى العام", "en": "Kafr El Sheikh - Awqaf Division, behind the General Hospital" },
+          "phones": ["3245024"]
+        },
+        {
+          "name": { "ar": "مستشفى مبرة دسوق", "en": "Mabarrat Desouk Hospital" },
+          "address": { "ar": "دسوق - تقاطع ش الجيش مع الشركات", "en": "Desouk - El-Geish St and Companies St Intersection" },
+          "phones": ["2558223", "2558224"]
+        },
+        {
+          "name": { "ar": "مستشفى النخبه التخصصى", "en": "Elite Specialized Hospital" },
+          "address": { "ar": "كفر الشيخ ش صبرى القاضى", "en": "Kafr El Sheikh - Sabry El Qady St" },
+          "phones": []
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز ابو شعيشع", "en": "Abu Shaysha Radiology Center" },
+          "address": { "ar": "كفرالشيخ - ش الجيش امام عمر افندى", "en": "Kafr El Sheikh - El-Geish St, in front of Omar Effendi" },
+          "phones": ["3224192"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل البرج", "en": "Al-Borg Lab" },
+          "branches": [
+            { "location": { "ar": "دسوق - برج مبرة دسوق", "en": "Desouk - Mabarrat Desouk Tower" }, "phone": "2554226" },
+            { "location": { "ar": "كفر الشيخ - 6 ش محمد عبده", "en": "Kafr El Sheikh - 6 Mohamed Abdu St" }, "phone": "3212124" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل فرست لاب", "en": "First Lab" },
+          "address": { "ar": "اعلى التوحيد والنور وسط البلد - كفر الشيخ", "en": "Above El Tawhid & El Nour, City Center - Kafr El Sheikh" },
+          "phones": ["3215644"]
+        },
+        {
+          "name": { "ar": "معمل د/ مسعد مرجان", "en": "Dr. Mossad Morgan Lab" },
+          "address": { "ar": "ش الجيش امام عمر افندى - كفر الشيخ", "en": "El-Geish St, in front of Omar Effendi - Kafr El Sheikh" },
+          "phones": ["3230029", "3226373"]
+        },
+        {
+          "name": { "ar": "معمل المختبر (د. مؤمنة كامل)", "en": "Al-Mokhtabar Lab (Dr. Moamena Kamel)" },
+          "branches": [
+            { "location": { "ar": "سيدى سالم - ش النادى الرياضى", "en": "Sidi Salem - Sports Club St" }, "phone": "2705870" },
+            { "location": { "ar": "الفيوم - 30 ش سعد زغلول", "en": "Desouk - 30 Saad Zaghloul St" }, "phone": "2578021" },
+            { "location": { "ar": "كفر الشيخ - 2 ش الخلفاء الراشدين", "en": "Kafr El Sheikh - 2 El Kholafaa El Rashideen St" }, "phone": "3212537" }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        { "name": { "ar": "صيدليات الشركة المصرية لتجارة الادوية", "en": "Egyptian Pharmaceutical Trading Co." }, "address": { "ar": "عمارة المهندسين", "en": "Engineers Building" }, "phones": ["3230549"] },
+        { "name": { "ar": "صيدية المدينة", "en": "Al-Madina Pharmacy" }, "address": { "ar": "دسوق - ش الجلاء بجوار السنترال", "en": "Desouk - El-Galaa St, next to Central Exchange" }, "phones": ["2563003"] },
+        { "name": { "ar": "صيدلية د/ يسرى سعد يوسف الجديدة", "en": "Dr. Yousry Saad Youssef New Pharmacy" }, "address": { "ar": "ميت علوان – كفر الشيخ", "en": "Meet Alwan - Kafr El Sheikh" }, "phones": ["2210488"] },
+        { "name": { "ar": "صيدلية د/ محمد عبد اللطيف مختار", "en": "Dr. Mohamed Abdel Latif Mokhtar Pharmacy" }, "address": { "ar": "كفر العرب – دسوق", "en": "Kafr El Arab - Desouk" }, "phones": ["2640111"] },
+        { "name": { "ar": "صيدلية عصمت ابراهيم ابراهيم", "en": "Esmat Ibrahim Pharmacy" }, "address": { "ar": "المحاربين الجديدة برج الصفوة", "en": "New Al-Moharibin, Al-Safwa Tower" }, "phones": ["3144976"] },
+        { "name": { "ar": "صيدلية د/ احمد ماهر احمد حافظ", "en": "Dr. Ahmed Maher Pharmacy" }, "address": { "ar": "ش ممدوح خضر - كفر الشيخ", "en": "Mamdouh Khadr St - Kafr El Sheikh" }, "phones": ["1008420821"] },
+        { "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" }, "address": { "ar": "تقاطع ش الثورة مع ش محرم", "en": "Al-Thawra St and Moharam St Intersection" }, "phones": ["1101438869"] }
+      ]
+    }
+  ]
+}
+
+

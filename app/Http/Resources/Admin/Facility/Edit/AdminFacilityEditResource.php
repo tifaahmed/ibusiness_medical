@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Http\Resources\Admin\Facility\Edit;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class AdminFacilityEditResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        // Get all translations for translatable fields (not just current locale)
+        $nameTranslations = $this->getTranslations('name');
+        $descriptionTranslations = $this->getTranslations('description');
+        
+        return [
+            'id' => $this->id,
+            'name' => $nameTranslations,
+            'description' => $descriptionTranslations,
+            'slug' => $this->slug,
+            'facility_type_id' => $this->facility_type_id,
+            'discount_percent' => $this->discount_percent,
+            'branches' => $this->whenLoaded('branches', function () {
+                return $this->branches->map(function ($branch) {
+                    return [
+                        'id' => $branch->id,
+                        'name' => $branch->getTranslations('name'),
+                        'address' => $branch->getTranslations('address'),
+                        'phone' => $branch->phone,
+                        'governorate_id' => $branch->governorate_id,
+                        'city_id' => $branch->city_id,
+                        'latitude' => $branch->latitude,
+                        'longitude' => $branch->longitude,
+                        'slug' => $branch->slug,
+                    ];
+                });
+            }),
+            'logo'         => $this->logo,
+            'mobile_logo'  => $this->mobile_logo,
+            'image'        => $this->image,
+            'mobile_image' => $this->mobile_image,
+            'gallery' => $this->gallery,
+            '_debug_mobile_logo' => $this->getFirstMedia('mobile_logo') ? $this->getFirstMedia('mobile_logo')->getUrl() : 'EMPTY',
+            '_debug_mobile_image' => $this->getFirstMedia('mobile_image') ? $this->getFirstMedia('mobile_image')->getUrl() : 'EMPTY',
+            '_debug_media_count' => $this->media->count(),
+            'tags' => $this->whenLoaded('tags', function () {
+                return $this->tags->map(function ($tag) {
+                    return [
+                        'id' => $tag->id,
+                        'name' => $tag->name,
+                        'icon' => $tag->icon,
+                        'color' => $tag->color,
+                    ];
+                });
+            }),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+        ];
+    }
+}
+

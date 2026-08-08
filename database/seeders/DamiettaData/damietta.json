@@ -1,0 +1,144 @@
+{
+  "governorate": {
+    "ar": "دمياط",
+    "en": "Damietta"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى دمياط العسكري", "en": "Damietta Military Hospital" },
+          "address": { "ar": "طريق الصناعية، مدينة دمياط الجديدة، كفر سعد، دمياط", "en": "Industrial Road, New Damietta City, Kafr Saad, Damietta" },
+          "phones": ["572402556", "572292222"]
+        },
+        {
+          "name": { "ar": "مستشفى الصفا", "en": "Al-Safa Hospital" },
+          "address": { "ar": "السنانيه امام الكوبري العلوي - دمياط", "en": "El Senaneya, in front of the Overpass Bridge - Damietta" },
+          "phones": ["126407071"]
+        },
+        {
+          "name": { "ar": "مستشفى ابن سيناء التخصصى", "en": "Ibn Sina Specialized Hospital" },
+          "address": { "ar": "ش الجمهورية كفر سعد - دمياط", "en": "El-Gomhoureya St, Kafr Saad - Damietta" },
+          "phones": ["0573600800"]
+        },
+        {
+          "name": { "ar": "مستشفى الشروق 2000", "en": "Al Shorouk 2000 Hospital" },
+          "address": { "ar": "المنطقة المركزية خلف كلية التربية - دمياط الجديدة", "en": "Central Area, behind the Faculty of Education - New Damietta" },
+          "phones": ["2406385"]
+        },
+        {
+          "name": { "ar": "مستشفى دار الحياة", "en": "Dar Al-Hayat Hospital" },
+          "address": { "ar": "دمياط الجديدة الحى الثانى المجاورة الثانية", "en": "New Damietta, 2nd District, 2nd neighborhood" },
+          "phones": ["01022278934"]
+        },
+        {
+          "name": { "ar": "مستشفى السلام بدمياط", "en": "Al-Salam Hospital Damietta" },
+          "address": { "ar": "دمياط - ش المستشار نافع امام مسجد مظلوم", "en": "Damietta - El Mostashar Nafea St, in front of Mazloum Mosque" },
+          "phones": ["2225036"]
+        },
+        {
+          "name": { "ar": "مستشفى دار الشفا", "en": "Dar Al-Shifa Hospital" },
+          "address": { "ar": "ش محمد حسن دره بجوار المحكمة – دمياط", "en": "Mohamed Hassan Dorra St, next to the Court - Damietta" },
+          "phones": ["2251880", "2221279"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الاطباء", "en": "Doctors" },
+      "facilities": [
+        {
+          "name": { "ar": "د/ السيد ابو زيد ابراهيم", "en": "Dr. El-Sayed Abu Zaid Ibrahim" },
+          "specialty": { "ar": "باطنة وكبد", "en": "Internal Medicine & Hepatology" },
+          "branches": [
+            { "location": { "ar": "دمياط الجديدة - المنطقة المركزية", "en": "New Damietta - Central Area" }, "phone": "1019359366" },
+            { "location": { "ar": "دمياط الشمالية - مطلع الكوبرى العلوى", "en": "North Damietta - Overpass Entrance" }, "phone": "1069310856" }
+          ]
+        },
+        {
+          "name": { "ar": "د/ محمد نبيل حامد ابو العز", "en": "Dr. Mohamed Nabil Hamed Abu El-Ezz" },
+          "specialty": { "ar": "طب اسنان", "en": "Dentistry" },
+          "address": { "ar": "كفر سعد ش ناصر العمومى", "en": "Kafr Saad, Nasser Public St" },
+          "phones": ["1092863715"]
+        },
+        {
+          "name": { "ar": "د/ صلاح محرم الشطورى", "en": "Dr. Salah Moharam El-Shatory" },
+          "specialty": { "ar": "علاج طبيعى", "en": "Physical Therapy" },
+          "address": { "ar": "دمياط الجديدة المنطقة المركزية", "en": "New Damietta, Central Area" },
+          "phones": ["1090318282"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز الاشعة", "en": "Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مراكز تكنو سكان (اسامة خليل)", "en": "Techno Scan (Osama Khalil)" },
+          "address": { "ar": "دمياط - المستشار نافع بجوار شركة مياه الشرب", "en": "Damietta - El Mostashar Nafea St, near the Water Company" },
+          "phones": ["2230140"]
+        },
+        {
+          "name": { "ar": "مركز الايمان للاشعة", "en": "Al-Eman Radiology Center" },
+          "address": { "ar": "دمياط – ش المستشار نافع خلف مسجد المظلوم", "en": "Damietta - El Mostashar Nafea St, behind Mazloum Mosque" },
+          "phones": ["2288876", "2245296"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل تحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        { "name": { "ar": "معمل جراند لاب", "en": "Grand Lab" }, "address": { "ar": "64 ش التحرير ميدان سرور اما مجمع زهران - دمياط", "en": "64 Tahrir St, Sorour Square" }, "phones": ["2228008"] },
+        { "name": { "ar": "معامل استرا", "en": "Astra Labs" }, "address": { "ar": "ميدان الشهابية - شارع الكوبرى الجديد العلوى برج الروضى", "en": "Shahabia Square - New Overpass St, Rawdy Tower" }, "phones": ["2335533"] },
+        { "name": { "ar": "معمل البرج", "en": "Al Borg Lab" }, "address": { "ar": "2 ابراج الصفوة ش الكورنيش عمارات المقاولين العرب - دمياط", "en": "2 Safwa Towers, Corniche St" }, "phones": ["2244700"] },
+        {
+          "name": { "ar": "معمل د.مؤمنة كامل (المختبر)", "en": "Dr. Moumena Kamel Lab" },
+          "branches": [
+            { "location": { "ar": "ش حسب الله الكفراوى - مجاورة 3 - دمياط الجديدة", "en": "Hasbullah Kafrawi St, Block 3 - New Damietta" }, "phone": "9805017" },
+            { "location": { "ar": "كورنيش النيل عمارة التطبيقيين امام قصر الثقافة – دمياط", "en": "Nile Corniche, Technicians Building" }, "phone": "2226063" }
+          ]
+        },
+        {
+          "name": { "ar": "معمل الماس د/ اميمة عبدالعزيز", "en": "Al-Mas Lab - Dr. Omayma Abdel Aziz" },
+          "address": { "ar": "دمياط الزرقا ش عثمان بن عفان", "en": "Damietta Al-Zarqa, Othman Ibn Affan St" },
+          "phones": ["3857624"]
+        },
+        {
+          "name": { "ar": "معامل ميترا", "en": "Mitra Labs" },
+          "branches": [
+            { "location": { "ar": "برج التطبيقيين امام عمر افندى الدور التانى", "en": "Technicians Tower, in front of Omar Effendi, 2nd Floor" }, "phone": "057/2226080" },
+            { "location": { "ar": "ش الصعيدى اعلى كافيتريا سهر الليالى الدور الاول دمياط الجديدة", "en": "El Saidi St, above Kafeteria Sahar El Layali, 1st Floor, New Damietta" }, "phone": "057/2408040" },
+            { "location": { "ar": "فارسكور ش صلاح سالم عمارة ابو جلاله الدور الاول", "en": "Farskour, Salah Salem St, Abu Galala Building, 1st Floor" }, "phone": "1096011120" }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدليات سيف", "en": "Seif Pharmacies" },
+          "branches": [
+            { "location": { "ar": "الصحة 22ش الجلاء ميدان الكباس", "en": "22 Galaa St, Kabas Square" }, "phone": "2322488" },
+            { "location": { "ar": "التحرير 2ش التحرير ميدان سرور", "en": "2 Tahrir St, Sorour Square" }, "phone": "2226640" }
+          ]
+        },
+        {
+          "name": { "ar": "صيدليات كير", "en": "Care Pharmacies" },
+          "address": { "ar": "دمياط الجديدة الحى الثانى", "en": "New Damietta, Second District" },
+          "phones": ["011-01438997"]
+        },
+        {
+          "name": { "ar": "صيدلية محمد على محمد السيد", "en": "Mohamed Ali Mohamed El Sayed Pharmacy" },
+          "address": { "ar": "مجاورة 6 الحى الرابع دمياط الجديدة", "en": "Block 6, 4th District, New Damietta" },
+          "phones": []
+        },
+        {
+          "name": { "ar": "صيدلية اسماء رجب", "en": "Asmaa Ragab Pharmacy" },
+          "address": { "ar": "الحى الثانى مجاورة 248 دمياط الجديدة", "en": "2nd District, Block 248, New Damietta" },
+          "phones": ["1033737004"]
+        }
+      ]
+    }
+  ]
+}
+

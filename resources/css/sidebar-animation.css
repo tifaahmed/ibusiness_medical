@@ -1,0 +1,628 @@
+/* ========================================
+   Sidebar Animation Classes
+   ======================================== */
+
+/* Formal gear animation */
+.gear-smooth {
+  transition: transform 0.2s ease-in-out, color 0.15s ease-in-out;
+}
+
+.gear-smooth:hover {
+  transform: rotate(45deg);
+}
+
+/* Active state with subtle rotation */
+.gear-active {
+  transform: rotate(12deg);
+}
+
+/* Professional dropdown animations with linear timing */
+.dropdown-smooth {
+  transform-origin: top center;
+  transition: all 0.2s linear;
+  will-change: transform, opacity, height;
+}
+
+.dropdown-smooth[data-state="open"] {
+  animation: dropdown-slide-down 0.2s linear forwards;
+}
+
+.dropdown-smooth[data-state="closed"] {
+  animation: dropdown-slide-up 0.15s linear forwards;
+}
+
+@keyframes dropdown-slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdown-slide-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* Chevron rotation animation - formal linear */
+.chevron-smooth {
+  transition: transform 0.2s linear;
+  transform-origin: center;
+}
+
+.chevron-smooth-rotate {
+  transform: rotate(180deg);
+}
+
+/* Formal menu item hover effect */
+.menu-item-smooth {
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+  position: relative;
+}
+
+.menu-item-smooth:hover {
+  background-color: var(--sidebar-accent);
+}
+
+.menu-item-smooth::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 0;
+  background: var(--sidebar-primary);
+  transition: height 0.15s ease-in-out;
+  opacity: 0;
+}
+
+.menu-item-smooth:hover::before {
+  height: 60%;
+  opacity: 1;
+}
+
+/* No stagger for formal appearance */
+
+/* Subtle button press effect */
+.dropdown-trigger-smooth {
+  transition: background-color 0.15s ease-in-out, opacity 0.15s ease-in-out;
+}
+
+.dropdown-trigger-smooth:active {
+  opacity: 0.95;
+}
+
+/* Formal sidebar icon animations */
+.sidebar-icon-smooth {
+  transition: color 0.15s ease-in-out, opacity 0.15s ease-in-out;
+}
+
+.sidebar-icon-smooth:hover {
+  opacity: 0.8;
+}
+
+/* Sidebar Title Badge Animations */
+.sidebar-title-badge {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-title-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar Collapse/Expand Animations */
+.sidebar-transition {
+  transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1),
+              transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Smooth sidebar text fade transitions */
+.sidebar-text-transition {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, max-width;
+}
+
+/* Delay opacity fade-in slightly after width expands */
+.sidebar-text-expand {
+  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.2s;
+}
+
+/* Fade out before width collapses */
+.sidebar-text-collapse {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
+}
+
+/* Mobile Sidebar Slide Animation */
+.sidebar-mobile-slide {
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1),
+              box-shadow 0.5s ease;
+}
+
+/* Sidebar Fade-in Animation */
+.sidebar-fade-in {
+  animation: sidebar-fade-in 0.3s ease-out;
+}
+
+@keyframes sidebar-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Sidebar Content Smooth Transitions */
+.sidebar-content-transition {
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Notification Badge Pulse */
+.notification-badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+/* Active Dropdown Container Animation */
+.dropdown-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: rgba(var(--sidebar-primary-rgb), 0.3) !important;
+  color: white !important;
+  border: 2px solid rgba(var(--sidebar-primary-rgb), 0.5) !important;
+  font-weight: 600 !important;
+}
+
+/* Active Dropdown Icon Animation */
+.dropdown-icon-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+/* Dropdown Menu Item Active State */
+.dropdown-menu-item-active {
+  background-color: rgba(var(--sidebar-primary-rgb), 0.1);
+  color: var(--sidebar-primary);
+  border: 1px solid rgba(var(--sidebar-primary-rgb), 0.2);
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Dropdown Open Animation Enhancement */
+.dropdown-container-open {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Smooth Height Transition for Collapsible Content */
+.collapsible-content-smooth {
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease-in-out,
+              padding 0.3s ease-in-out;
+}
+
+/* Enhanced Chevron Animation */
+.chevron-dropdown-active {
+  animation: chevron-bounce 0.3s ease-out;
+}
+
+@keyframes chevron-bounce {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(190deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+/* Icon Animation Classes */
+.animate-shadow-pulse {
+  animation: shadow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes shadow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+}
+
+.animate-hue-rotate {
+  animation: hue-rotate 3s linear infinite;
+}
+
+@keyframes hue-rotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.animate-glow-ring {
+  animation: glow-ring 2s ease-in-out infinite;
+}
+
+@keyframes glow-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 3px currentColor;
+  }
+}
+
+.animate-scale-pulse {
+  animation: scale-pulse 2s ease-in-out infinite;
+}
+
+@keyframes scale-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-contrast-pulse {
+  animation: contrast-pulse 2s ease-in-out infinite;
+}
+
+@keyframes contrast-pulse {
+  0%, 100% {
+    filter: contrast(1);
+  }
+  50% {
+    filter: contrast(1.2);
+  }
+}
+
+.animate-sepia {
+  transition: filter 0.3s ease-in-out;
+}
+
+.animate-sepia:hover {
+  filter: sepia(0.3);
+}
+
+.animate-grayscale {
+  transition: filter 0.3s ease-in-out;
+}
+
+.animate-grayscale:hover {
+  filter: grayscale(0.3);
+}
+
+.animate-drop-shadow {
+  transition: filter 0.3s ease-in-out;
+}
+
+.animate-drop-shadow:hover {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Sidebar Scrollbar Styling */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--sidebar-foreground-rgb), 0.3);
+  border-radius: 3px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--sidebar-foreground-rgb), 0.5);
+}
+
+/* Sidebar Title Badge - Destination Specific */
+.sidebar-title-badge-destination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.12) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(147, 51, 234, 0.12) 100%);
+  border: 1px solid rgba(147, 51, 234, 0.25);
+  border-radius: 0.625rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(147, 51, 234, 0.1),
+    0 2px 4px -1px rgba(147, 51, 234, 0.06),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  color: var(--sidebar-foreground);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+/* Gradient bottom border effect */
+.sidebar-title-badge-destination::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(147, 51, 234, 0.3) 20%,
+    rgba(168, 85, 247, 0.6) 50%,
+    rgba(147, 51, 234, 0.3) 80%,
+    transparent 100%);
+  animation: shimmer 4s ease-in-out infinite;
+  transform: translateX(-100%);
+}
+
+/* Subtle glow effect */
+.sidebar-title-badge-destination::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.625rem;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+}
+
+.sidebar-title-badge-destination:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 10px 15px -3px rgba(147, 51, 234, 0.2),
+    0 4px 6px -2px rgba(147, 51, 234, 0.1),
+    inset 0 1px 3px rgba(255, 255, 255, 0.15);
+  border-color: rgba(147, 51, 234, 0.4);
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(168, 85, 247, 0.1) 50%, rgba(147, 51, 234, 0.15) 100%);
+}
+
+.sidebar-title-badge-destination:hover::after {
+  opacity: 1;
+}
+
+/* Icon animation within badge */
+.sidebar-title-badge-destination > svg {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sidebar-title-badge-destination:hover > svg {
+  transform: rotate(-5deg) scale(1.1);
+}
+
+/* Animation for brightness effect */
+.animate-brightness {
+  transition: filter 0.3s ease-in-out;
+}
+
+.animate-brightness:hover {
+  filter: brightness(1.2);
+}
+
+/* Shimmer animation for bottom border */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+/* Pulse animation for collapsed state badges */
+.sidebar-title-badge-destination.collapsed,
+.sidebar-title-badge-school.collapsed {
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 
+      0 6px 8px -1px rgba(0, 0, 0, 0.12),
+      0 3px 5px -1px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Enhanced icon glow for active state */
+.sidebar-title-badge-destination > svg,
+.sidebar-title-badge-school > svg {
+  filter: drop-shadow(0 0 2px currentColor);
+}
+
+.sidebar-title-badge-destination:hover > svg,
+.sidebar-title-badge-school:hover > svg {
+  filter: drop-shadow(0 0 4px currentColor) brightness(1.1);
+}
+
+/* Sidebar Title Badge - School Specific */
+.sidebar-title-badge-school {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(96, 165, 250, 0.08) 50%, rgba(59, 130, 246, 0.12) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 0.625rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(59, 130, 246, 0.1),
+    0 2px 4px -1px rgba(59, 130, 246, 0.06),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  color: var(--sidebar-foreground);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+/* Gradient bottom border effect */
+.sidebar-title-badge-school::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(59, 130, 246, 0.3) 20%,
+    rgba(96, 165, 250, 0.6) 50%,
+    rgba(59, 130, 246, 0.3) 80%,
+    transparent 100%);
+  animation: shimmer 4s ease-in-out infinite;
+  transform: translateX(-100%);
+}
+
+/* Subtle glow effect */
+.sidebar-title-badge-school::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.625rem;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+}
+
+.sidebar-title-badge-school:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 10px 15px -3px rgba(59, 130, 246, 0.2),
+    0 4px 6px -2px rgba(59, 130, 246, 0.1),
+    inset 0 1px 3px rgba(255, 255, 255, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(96, 165, 250, 0.1) 50%, rgba(59, 130, 246, 0.15) 100%);
+}
+
+.sidebar-title-badge-school:hover::after {
+  opacity: 1;
+}
+
+/* Icon animation within badge */
+.sidebar-title-badge-school > svg {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sidebar-title-badge-school:hover > svg {
+  transform: rotate(-5deg) scale(1.1);
+}
+
+/* Admin Title Badge with Advanced Styling */
+.sidebar-title-badge-admin {
+  @apply flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground;
+  background: linear-gradient(135deg, 
+    oklch(0.45 0.15 280 / 0.2) 0%,
+    oklch(0.5 0.18 260 / 0.15) 50%,
+    oklch(0.45 0.15 280 / 0.2) 100%);
+  border: 1px solid oklch(0.5 0.18 260 / 0.3);
+  box-shadow: 
+    0 2px 8px oklch(0.5 0.18 260 / 0.15),
+    inset 0 1px 2px oklch(1 0 0 / 0.05);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer effect for admin badge */
+.sidebar-title-badge-admin::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    oklch(1 0 0 / 0.1) 50%,
+    transparent 100%);
+  transition: left 0.6s ease-in-out;
+}
+
+/* Glow effect */
+.sidebar-title-badge-admin::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg,
+    oklch(0.5 0.18 260 / 0.3),
+    oklch(0.45 0.15 280 / 0.3));
+  border-radius: inherit;
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  filter: blur(6px);
+}
+
+.sidebar-title-badge-admin:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg,
+    oklch(0.5 0.18 260 / 0.25) 0%,
+    oklch(0.55 0.2 240 / 0.2) 50%,
+    oklch(0.5 0.18 260 / 0.25) 100%);
+  border-color: oklch(0.5 0.18 260 / 0.4);
+  box-shadow: 
+    0 4px 16px oklch(0.5 0.18 260 / 0.2),
+    inset 0 1px 3px oklch(1 0 0 / 0.1);
+}
+
+.sidebar-title-badge-admin:hover::after {
+  opacity: 1;
+}
+
+.sidebar-title-badge-admin > svg {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sidebar-title-badge-admin:hover > svg {
+  transform: rotate(10deg) scale(1.1);
+}
+
+

@@ -1,0 +1,77 @@
+{
+  "governorate": {
+    "ar": "جنوب سيناء",
+    "en": "South Sinai"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى شرم الشيخ الدولى", "en": "Sharm El Sheikh International Hospital" },
+          "address": { "ar": "شرم الشيخ – طريق السلام – حى النور", "en": "Sharm El Sheikh - Peace Road - Hay El Nour" },
+          "phones": ["3661624", "3660893", "3660894", "3660895"]
+        },
+        {
+          "name": { "ar": "مستشفى جبل سيناء", "en": "Mount Sinai Hospital (Gabal Sinai)" },
+          "address": { "ar": "طريق السلام – حى النور بجوار بنزينة موبيل - شرم الشيخ", "en": "Peace Road - Hay El Nour, next to Mobil Station - Sharm El Sheikh" },
+          "phones": ["3661744", "3661745"]
+        },
+        {
+          "name": { "ar": "مستشفي جنوب سيناء", "en": "South Sinai Hospital" },
+          "address": { "ar": "10 ش راس كيندي طريق السلام شرم الشيخ", "en": "10 Ras Kennedy St, Peace Road - Sharm El Sheikh" },
+          "phones": ["3666020", "3666030", "3666040"]
+        },
+        {
+          "name": { "ar": "مستشفى مبارك العسكرى بالطور", "en": "Mubarak Military Hospital - El Tor" },
+          "address": { "ar": "مدينة الطور", "en": "El Tor City" },
+          "phones": ["3771757", "3771758"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل التحاليل", "en": "Medical Laboratories" },
+      "facilities": [
+        {
+          "name": { "ar": "معمل الفيروز للتحاليل الطبية", "en": "Al Fayrouz Medical Laboratory" },
+          "address": { "ar": "شارع المنشية القديمة - مدينة الطور - جنوب سيناء", "en": "Old Manshia St - El Tor City - South Sinai" },
+          "phones": ["3776690", "01062889088"]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدليات العزبى", "en": "El Ezaby Pharmacies" },
+          "branches": [
+            {
+              "location": { "ar": "شرم الشيخ - ميركاتو مول - هضبة ام السيد", "en": "Sharm El Sheikh - Mercato Mall - Hadaba (Om El Sid)" },
+              "phone": "3665256"
+            },
+            {
+              "location": { "ar": "شرم الشيخ - الخان مول - منطقة نبق", "en": "Sharm El Sheikh - El Khan Mall - Nabq Area" },
+              "phone": "9205486"
+            },
+            {
+              "location": { "ar": "شرم الشيخ - فندق ماريوت - خليج نعمة", "en": "Sharm El Sheikh - Marriott Hotel - Naama Bay" },
+              "phone": "3600312"
+            }
+          ]
+        },
+        {
+          "name": { "ar": "صيدلية د/ سامح نبيه محروس", "en": "Dr. Sameh Nabih Mahrous Pharmacy" },
+          "address": { "ar": "139 ش قرية دلتا شرم – هضبة ام السيد – شرم الشيخ", "en": "139 Delta Sharm Village St - Hadaba - Sharm El Sheikh" },
+          "phones": ["3663331"]
+        },
+        {
+          "name": { "ar": "صيدلية الشناوى الجديدة", "en": "Al Shennawy New Pharmacy" },
+          "address": { "ar": "قطعة 107 المنشية القديمة – مدينة الطور", "en": "Plot 107, Old Manshia - El Tor City" },
+          "phones": ["3777007"]
+        }
+      ]
+    }
+  ]
+}
+
+

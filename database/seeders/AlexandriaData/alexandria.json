@@ -1,0 +1,228 @@
+{
+  "governorate": {
+    "ar": "الاسكندرية",
+    "en": "Alexandria"
+  },
+  "medical_directory": [
+    {
+      "category": { "ar": "المستشفيات", "en": "Hospitals" },
+      "facilities": [
+        {
+          "name": { "ar": "مستشفى الألماني", "en": "German Hospital" },
+          "branches": [
+            {
+              "location": { "ar": "56 ش عبد السلام عارف – سابا باشا", "en": "56 Abd El Salam Aref St, Saba Pasha" },
+              "phones": ["5840757", "5841717"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى الثغر التخصصى", "en": "Al Thaghr Specialized Hospital" },
+          "branches": [
+            {
+              "location": { "ar": "14 ش الجلاء - فيكتوريا أمام قسم النزهة", "en": "14 El Galaa St, Victoria, in front of El Nozha Police Station" },
+              "phones": ["5744720", "5744721"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى السعد التخصصي", "en": "Al Saad Specialized Hospital" },
+          "branches": [
+            {
+              "location": { "ar": "ش الرحمة بجوار شركة ليسيكو - خورشيد", "en": "Al Rahma St, next to Lecico, Khurshid" },
+              "phones": ["5180242"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى مبره العصافره للخدمات الطبية", "en": "Mabaret Al Asafra Hospital" },
+          "branches": [
+            {
+              "location": { "ar": "432 ش ملك حفني - أمام محطة قطار العصافرة", "en": "432 Malek Hefni St, in front of Al Asafra Train Station" },
+              "phones": ["35551612", "35556345"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى الاسكندريه الدولى", "en": "Alexandria International Hospital" },
+          "branches": [
+            {
+              "location": { "ar": "20 ش محمد بهاء الدين الغتورى - سموحة", "en": "20 Mohamed Bahaa El Din El Ghatouri St, Smouha" },
+              "phones": ["4207243", "4207244", "4207245"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مركز الإسكندرية الطبى", "en": "Alexandria Medical Center" },
+          "branches": [
+            {
+              "location": { "ar": "طريق 14 مايو - سموحة", "en": "14 May Road, Smouha" },
+              "phones": ["4272663", "4272659"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى اندلسية - سموحة", "en": "Andalusia Hospital - Smouha" },
+          "branches": [
+            {
+              "location": { "ar": "35 ش محمد بهاء الدين الغتورى - سموحة", "en": "35 Mohamed Bahaa El Din El Ghatouri St, Smouha" },
+              "phones": ["4879999"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز قلب متخصصة", "en": "Specialized Heart Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز دار القلب والصدر", "en": "Heart & Chest Center" },
+          "branches": [
+            {
+              "location": { "ar": "649 طريق الحرية - جناكليس بجوار سنترال الفتح", "en": "649 Horreya Road, Janaklis, next to Al-Fateh Exchange" },
+              "phones": ["5750480", "5741137"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مركز الحياة للقلب و الأوعية الدموية", "en": "Al Hayat Heart & Vascular Center" },
+          "branches": [
+            {
+              "location": { "ar": "90 شارع فوزى معاذ - برج سما الحرية - سموحة", "en": "90 Fawzi Moaz St, Sama El Horreya Tower, Smouha" },
+              "phones": ["4200035"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مركز اي فين (I vein) للاوعية والاوردة", "en": "I Vein Center" },
+          "branches": [
+            {
+              "location": { "ar": "8 ش كلية الطب - محطة الرمل", "en": "8 Faculty of Medicine St, Mahattat El Raml" },
+              "phones": ["4808060"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "مراكز ومستشفيات العيون", "en": "Eye Hospitals & Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز الاسكندرية للعيون", "en": "Alexandria Eye Center" },
+          "branches": [
+            {
+              "location": { "ar": "64 ش اسماعيل مصطفى سرى - سموحة", "en": "64 Ismail Mostafa Serry St, Smouha" },
+              "phones": ["19477", "4240779", "4244262"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "مستشفى معهد الكتاركت الدولى", "en": "International Cataract Institute" },
+          "branches": [
+            {
+              "location": { "ar": "ميامى - 288 ش جمال عبد الناصر", "en": "Miami - 288 Gamal Abdel Nasser St" },
+              "phone": "5407798"
+            },
+            {
+              "location": { "ar": "سابا باشا - 42 ش عبد السلام عارف", "en": "Saba Pasha - 42 Abd El Salam Aref St" },
+              "phone": "5832656"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "معامل التحاليل والأشعة", "en": "Labs & Radiology Centers" },
+      "facilities": [
+        {
+          "name": { "ar": "مركز دار الاشعة", "en": "Dar El Ashaa Radiology Center" },
+          "branches": [
+            {
+              "location": { "ar": "محطة الرمل - 4 ش امين فكرى", "en": "Mahattat El Raml - 4 Amin Fekry St" },
+              "phone": "4878027"
+            },
+            {
+              "location": { "ar": "سموحة - 14 ش مصطفى كامل", "en": "Smouha - 14 Mostafa Kamel St" },
+              "phone": "4266656"
+            },
+            {
+              "location": { "ar": "العجمى - اول شارع الهانوفيل", "en": "Agami - Hanoville St Entrance" },
+              "phone": "4390022"
+            }
+          ]
+        },
+        {
+          "name": { "ar": "معامل حساب", "en": "Hassab Labs" },
+          "branches": [
+            {
+              "location": { "ar": "محطة الرمل - 18 ش كلية الطب", "en": "Mahattat El Raml - 18 Faculty of Medicine St" },
+              "phone": "19056"
+            },
+            {
+              "location": { "ar": "ميامى - 350 ش جمال عبد الناصر", "en": "Miami - 350 Gamal Abdel Nasser St" },
+              "phone": "5544837"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "الصيدليات", "en": "Pharmacies" },
+      "facilities": [
+        {
+          "name": { "ar": "صيدليات العزبى", "en": "El Ezaby Pharmacy" },
+          "branches": [
+            {
+              "location": { "ar": "سموحة - محطة قطار سيدى جابر", "en": "Smouha - Sidi Gaber Train Station" },
+              "phone": "5566240"
+            },
+            {
+              "location": { "ar": "زيزينيا - 601 ش طريق الحرية", "en": "Zizinia - 601 Horreya Road" },
+              "phone": "5919323"
+            },
+            {
+              "location": { "ar": "سان ستيفانو - أمام فندق سان ستيفانو", "en": "San Stefano - in front of San Stefano Hotel" },
+              "phone": "3022947"
+            }
+          ]
+        },
+        {
+          "name": { "ar": "صيدليات د/ ابو زيادة", "en": "Dr. Abu Ziada Pharmacy" },
+          "branches": [
+            {
+              "location": { "ar": "محطة الرمل - ش كلية الطب", "en": "Mahattat El Raml - Faculty of Medicine St" },
+              "phone": "3227862"
+            },
+            {
+              "location": { "ar": "ميامى - ناصية اسكندر ابراهيم", "en": "Miami - Corner of Iskandar Ibrahim St" },
+              "phone": "4867243"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": { "ar": "بصريات أوماب", "en": "Omap Optics" },
+      "facilities": [
+        {
+          "name": { "ar": "نظارات الحرية", "en": "El Horreya Optics" },
+          "branches": [
+            {
+              "location": { "ar": "330 طريق الحريه - سيدى جابر", "en": "330 Horreya Road, Sidi Gaber" },
+              "phones": ["01111604020"]
+            }
+          ]
+        },
+        {
+          "name": { "ar": "نظاراتى خالد", "en": "Khaled Optics" },
+          "branches": [
+            {
+              "location": { "ar": "54 شارع خالد ابن الوليد - سيدى بشر", "en": "54 Khaled Ibn El Walid St, Sidi Bishr" },
+              "phones": ["01118487149"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
