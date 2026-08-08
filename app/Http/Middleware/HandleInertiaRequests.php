@@ -65,6 +65,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...$shared,
+            'appName' => config('app.name'),
             'locale' => $locale,
             'translations' => [
                 'home' => __('home'),

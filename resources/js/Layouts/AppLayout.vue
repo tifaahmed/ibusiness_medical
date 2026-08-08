@@ -19,6 +19,10 @@ defineProps({
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 
+// Brand name comes from APP_NAME via the Inertia share, so it tracks .env
+// without needing a frontend rebuild.
+const appName = computed(() => page.props.appName || 'Laravel');
+
 const userPermissions = computed(() => page.props.auth?.user?.permissions || []);
 const userRoles = computed(() => page.props.auth?.user?.roles || []);
 const isSuperAdmin = computed(() => userRoles.value.includes('super_admin'));
@@ -140,8 +144,8 @@ const getUserInitials = (name) => {
                 <!-- Logo Slot -->
                 <template #logo>
                     <Link :href="route('admin.dashboard')" class="flex items-center gap-2" :class="sidebarCollapsed ? 'justify-center' : ''" preserve-scroll>
-                        <img src="/images/logo/ash-health-care.png" alt="ASH Health Care" class="transition-all duration-300 rounded" :class="sidebarCollapsed ? 'h-8 w-8' : 'h-10 w-auto'" />
-                        <span v-if="!sidebarCollapsed" class="font-bold text-base tracking-wider animate-text-fizzy-sidebar">A S H Health Care</span>
+                        <img src="/images/logo/ash-health-care.png" :alt="appName" class="transition-all duration-300 rounded" :class="sidebarCollapsed ? 'h-8 w-8' : 'h-10 w-auto'" />
+                        <span v-if="!sidebarCollapsed" class="font-bold text-base tracking-wider animate-text-fizzy-sidebar">{{ appName }}</span>
                     </Link>
                 </template>
 
@@ -246,23 +250,6 @@ const getUserInitials = (name) => {
                         </svg>
                     </template>
                     <template #label>{{ t.sidebar?.member_payments || 'Member Payments' }}</template>
-                </SidebarLink>
-
-                <SidebarLink
-                    v-if="can('manage memberships')"
-                    :href="route('admin.contact-messages.index')"
-                    :active="route().current('admin.contact-messages.*')"
-                    :is-collapsed="sidebarCollapsed"
-                    icon-animation="animate-icon-breathe"
-                    @click="closeSidebar"
-                >
-                    <template #icon>
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <rect width="20" height="16" x="2" y="4" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-                        </svg>
-                    </template>
-                    <template #label>{{ t.sidebar?.contact_messages || 'Contact Messages' }}</template>
                 </SidebarLink>
 
                 <SidebarLink
@@ -385,24 +372,6 @@ const getUserInitials = (name) => {
                         </svg>
                     </template>
                     <template #label>{{ t.sidebar?.contracts || 'Contracts' }}</template>
-                </SidebarLink>
-
-                <SidebarLink
-                    v-if="can('manage faqs')"
-                    :href="route('admin.faq.list')"
-                    :active="route().current('admin.faq.*')"
-                    :is-collapsed="sidebarCollapsed"
-                    icon-animation="animate-icon-pulse"
-                    @click="closeSidebar"
-                >
-                    <template #icon>
-                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
-                        </svg>
-                    </template>
-                    <template #label>{{ t.sidebar?.faqs || 'FAQs' }}</template>
                 </SidebarLink>
 
                 <SidebarLink

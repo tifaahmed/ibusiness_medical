@@ -33,8 +33,9 @@ class ContractSeeder extends Seeder
         foreach ($partnerImages as $index => $imageName) {
             $number = $index + 1;
 
-            $contract = Contract::create([
+            $contract = Contract::updateOrCreate([
                 'slug' => Str::slug("partner-{$number}"),
+            ], [
                 'name' => [
                     'ar' => "شريك {$number}",
                     'en' => "Partner {$number}",
@@ -49,7 +50,7 @@ class ContractSeeder extends Seeder
 
             $imagePath = public_path("images/partners/{$imageName}");
 
-            if (file_exists($imagePath)) {
+            if (file_exists($imagePath) && ! $contract->hasMedia('image')) {
                 $contract->addMedia($imagePath)
                     ->preservingOriginal()
                     ->toMediaCollection('image');

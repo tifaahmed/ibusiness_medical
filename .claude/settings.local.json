@@ -124,7 +124,18 @@
       "Bash(git status *)",
       "Bash(npm audit *)",
       "Bash(npm -v)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(awk '/CREATE TABLE `partners`/,/ENGINE=/' database/schema/mysql-schema.sql)",
+      "Bash(grep -n \"fillable\\\\|class Partner\\\\|protected \\\\$\" app/Models/Partner.php)",
+      "Bash(php -l database/seeders/DatabaseSeeder.php)",
+      "Bash(php -l database/seeders/PartnerOfferSeeder.php)",
+      "Bash(php artisan *)",
+      "Bash(sed -i 's/?->id ?? 1,/?->id ?? $fallbackType,/g' database/seeders/ServiceSeeder.php)",
+      "Bash(php -l database/seeders/ServiceSeeder.php)",
+      "Bash(php -l database/seeders/ContractSeeder.php)",
+      "Bash(echo \"seed1=$?\")",
+      "Bash(echo \"seed2=$?\")",
+      "Bash(git ls-tree *)"
     ]
   }
 }

@@ -3,10 +3,6 @@
 
 use App\Http\Controllers\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
-use App\Http\Controllers\Guest\HomeController;
-use App\Http\Controllers\Guest\AboutController;
-use App\Http\Controllers\Guest\ContactController;
-use App\Http\Controllers\Guest\PartnersController;
 use App\Http\Controllers\Guest\PartnerOfferRequestController;
 
 use App\Http\Controllers\Admin\User\Membership\List\AdminUserMembershipListController;
@@ -213,16 +209,21 @@ use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', HomeController::class)->name('home');
+// There are no public landing pages. "/" sends guests to the login screen and
+// authenticated users to their own area. See HomeRedirectController for why the
+// `home` route name has to stay in place.
+Route::get('/', \App\Http\Controllers\HomeRedirectController::class)->name('home');
 
 // Language switching
 Route::get('/lang/{locale}', [\App\Http\Controllers\LanguageController::class, 'switch'])->name('lang.switch');
 
-// Guest routes (public pages)
-Route::get('/about', AboutController::class)->name('about');
-Route::get('/contact-us', ContactController::class)->name('contact');
-Route::get('/partners', PartnersController::class)->name('partners');
-Route::get('/partners/{facility:slug}', \App\Http\Controllers\Guest\FacilityShowController::class)->name('partners.show');
+// Former public marketing pages. They now bounce to "/" so that anyone landing
+// on an old link (or an old in-app <Link>) ends up on the login screen while
+// logged-in users still reach their own area instead of a 404.
+Route::redirect('/about', '/')->name('about');
+Route::redirect('/contact-us', '/')->name('contact');
+Route::redirect('/partners', '/')->name('partners');
+Route::redirect('/partners/{facility}', '/')->name('partners.show');
 
 // Partners JSON list (used by /card-generator.html iframe)
 Route::get('/api/partners', \App\Http\Controllers\Api\PartnersListController::class)->name('api.partners.list');

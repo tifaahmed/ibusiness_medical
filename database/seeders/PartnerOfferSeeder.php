@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Partner;
 use App\Models\PartnerOffer;
+use App\Models\User;
 use App\Enums\PartnerOffer\OperatorEnum;
 use Illuminate\Database\Seeder;
 
@@ -10,6 +12,13 @@ class PartnerOfferSeeder extends Seeder
 {
     public function run(): void
     {
+        // partner_id is a non-nullable FK, so a fresh database needs a partner
+        // to hang these demo offers off of.
+        $partner = Partner::first() ?? Partner::create([
+            'title' => 'Default Partner',
+            'created_by' => User::first()?->id,
+        ]);
+
         $imagesPath = public_path('images/offers');
 
         $offers = [
@@ -59,9 +68,10 @@ class PartnerOfferSeeder extends Seeder
             $imagePath = $data['image'];
             unset($data['image']);
 
-            $offer = PartnerOffer::create([
-                'partner_id' => 1,
+            $offer = PartnerOffer::updateOrCreate([
+                'partner_id' => $partner->id,
                 'title' => $data['title'],
+            ], [
                 'short_description' => $data['short_description'],
                 'description' => $data['description'],
                 'old_price' => $data['old_price'],
@@ -70,7 +80,7 @@ class PartnerOfferSeeder extends Seeder
                 'operator' => $data['operator'],
             ]);
 
-            if (file_exists($imagePath)) {
+            if (file_exists($imagePath) && ! $offer->hasMedia('header_image')) {
                 $offer->addMedia($imagePath)
                     ->preservingOriginal()
                     ->toMediaCollection('header_image');
