@@ -167,7 +167,16 @@
       "Bash(openssl x509 *)",
       "Bash(openssl s_client -connect 195.200.10.74:443 -servername card.deilar.com)",
       "Bash(openssl s_client -connect 2.57.91.91:443 -servername deilar.com)",
-      "Bash(getent hosts *)"
+      "Bash(getent hosts *)",
+      "Bash(pkill -f \"artisan serve --port=8123\")",
+      "Bash(DB_DATABASE=ibm_migration_check php artisan migrate --force --database=mysql)",
+      "Bash(cp database/schema/mysql-schema.sql \"/tmp/claude-1000/-home-tifaa-projects-New-folder-ibusiness-medical/4b314cac-95db-4095-8f4a-935861baa7ef/scratchpad/mysql-schema.sql.bak\")",
+      "Bash(rm database/schema/mysql-schema.sql)",
+      "Bash(rmdir database/schema)",
+      "Bash(DB_DATABASE=ibm_migration_check php artisan migrate:fresh --force)",
+      "Bash(DB_DATABASE=ibm_migration_check php artisan db:seed --force)",
+      "Bash(awk '{print $1}')",
+      "Bash(xargs -n1 basename)"
     ]
   }
 }

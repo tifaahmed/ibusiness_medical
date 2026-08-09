@@ -39,7 +39,7 @@
 
             <!-- Logo watermark -->
             <div class="watermark-logo">
-              <img src="/images/logo/ash-health-care.png" alt="ASH Health Care" />
+              <img :src="$page.props.appLogo" alt="ASH Health Care" />
             </div>
           </div>
 

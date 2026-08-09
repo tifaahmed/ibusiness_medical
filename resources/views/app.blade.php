@@ -6,20 +6,20 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
         <!-- Favicon -->
-        <link rel="icon" type="image/png" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="152x152" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="144x144" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="120x120" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="114x114" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="72x72" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="60x60" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="apple-touch-icon" sizes="57x57" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo/ash-health-care.png') }}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/logo/ash-health-care.png') }}">
+        <link rel="icon" type="image/png" href="{{ asset(config('app.logo')) }}">
+        <link rel="shortcut icon" type="image/png" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="152x152" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="144x144" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="120x120" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="114x114" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="76x76" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="72x72" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="60x60" href="{{ asset(config('app.logo')) }}">
+        <link rel="apple-touch-icon" sizes="57x57" href="{{ asset(config('app.logo')) }}">
+        <link rel="icon" type="image/png" sizes="192x192" href="{{ asset(config('app.logo')) }}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset(config('app.logo')) }}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset(config('app.logo')) }}">
         
         <!-- Default Meta Tags (can be overridden by Inertia Head) -->
         <meta name="generator" content="Laravel {{ app()->version() }}">
@@ -48,7 +48,7 @@
         <!-- Default Open Graph Meta Tags (can be overridden by Inertia Head) -->
         <meta property="og:type" content="website">
         <meta property="og:site_name" content="ASH Health Care">
-        <meta property="og:image" content="{{ url('/images/logo/ash-health-care.png') }}">
+        <meta property="og:image" content="{{ url('/' . ltrim(config('app.logo'), '/')) }}">
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
         <meta property="og:image:alt" content="ASH Health Care - Medical Discount Card">
@@ -59,13 +59,13 @@
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:site" content="@ashhealthcare">
         <meta name="twitter:creator" content="@ashhealthcare">
-        <meta name="twitter:image" content="{{ url('/images/logo/ash-health-care.png') }}">
+        <meta name="twitter:image" content="{{ url('/' . ltrim(config('app.logo'), '/')) }}">
         <meta name="twitter:image:alt" content="ASH Health Care - Medical Discount Card">
         
         <!-- Mobile Meta Tags -->
         <meta name="theme-color" content="#1E3943">
         <meta name="msapplication-TileColor" content="#1E3943">
-        <meta name="msapplication-TileImage" content="{{ asset('images/logo/ash-health-care.png') }}">
+        <meta name="msapplication-TileImage" content="{{ asset(config('app.logo')) }}">
         <meta name="msapplication-navbutton-color" content="#1E3943">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -113,7 +113,7 @@
         <!-- Preload Critical Images -->
         <link rel="preload" as="image" href="{{ asset('images/slider/1.webp') }}" type="image/webp" fetchpriority="high">
         <link rel="preload" as="image" href="{{ asset('images/slider/1.png') }}" type="image/png" fetchpriority="high">
-        <link rel="preload" as="image" href="{{ asset('images/logo/ash-health-care.png') }}" type="image/png">
+        <link rel="preload" as="image" href="{{ asset(config('app.logo')) }}" type="image/png">
         
         <!-- Default Title (will be overridden by Inertia) -->
         <title inertia>{{ config('app.name', 'ASH Health Care') }} - @if(session('locale') === 'ar') كارت خصومات طبي شامل @else Comprehensive Medical Discount Card @endif</title>

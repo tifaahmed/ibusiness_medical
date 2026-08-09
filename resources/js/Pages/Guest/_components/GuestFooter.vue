@@ -6,7 +6,7 @@
         <div class="md:col-span-2" :dir="$page.props.locale === 'ar' ? 'rtl' : 'ltr'">
           <div class="flex items-center space-x-3 mb-3">
             <img
-            src="/images/logo/ash-health-care.png"
+            :src="$page.props.appLogo"
             alt="ASH Health Care"
             class="w-[60px] h-[60px] object-contain"
             loading="lazy"

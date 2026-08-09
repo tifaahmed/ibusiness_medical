@@ -21,7 +21,7 @@
         <Link href="/" class="flex items-center space-x-2">
           <img
             v-show="!isScrolled"
-            src="/images/logo/ash-health-care.png"
+            :src="$page.props.appLogo"
             alt="ASH Health Care"
             class="hidden lg:block h-14 w-auto transition-all duration-300"
             loading="eager"
@@ -33,7 +33,7 @@
           >A S H Health Care</span>
           <img
             v-show="isScrolled"
-            src="/images/logo/ash-health-care.png"
+            :src="$page.props.appLogo"
             alt="ASH Health Care"
             class="hidden lg:block h-10 w-auto transition-all duration-300"
             loading="eager"
@@ -44,7 +44,7 @@
             class="hidden lg:block font-bold text-sm tracking-wider animate-text-fizzy"
           >A S H Health Care</span>
           <img
-            src="/images/logo/ash-health-care.png"
+            :src="$page.props.appLogo"
             alt="ASH Health Care"
             class="hidden md:block lg:!hidden w-[40px] h-[40px] object-contain"
             loading="eager"
@@ -178,7 +178,7 @@
       <!-- Logo -->
       <Link href="/" class="flex items-center space-x-1 flex-shrink-0">
         <img
-          src="/images/logo/ash-health-care.png"
+          :src="$page.props.appLogo"
           alt="ASH Health Care"
           class="w-[32px] h-[32px] object-contain"
           loading="eager"

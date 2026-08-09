@@ -10,7 +10,7 @@ const handleImageError = (event) => {
 <template>
     <Link :href="'/'">
         <img 
-            src="/images/logo/ash-health-care.png" 
+            :src="$page.props.appLogo" 
             alt="ASH Health Care" 
             class="h-16 w-auto mx-auto mb-4"
             @error="handleImageError"

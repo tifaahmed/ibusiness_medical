@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Logo
+    |--------------------------------------------------------------------------
+    |
+    | Path (relative to the public directory) of the brand logo used for the
+    | favicons, social share images and every in-app logo. Change APP_LOGO to
+    | rebrand the whole application without touching any view or component.
+    |
+    */
+
+    'logo' => env('APP_LOGO', 'images/logo/dielar.png'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

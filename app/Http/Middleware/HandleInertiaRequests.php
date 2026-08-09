@@ -66,6 +66,8 @@ class HandleInertiaRequests extends Middleware
         return [
             ...$shared,
             'appName' => config('app.name'),
+            // Brand logo comes from APP_LOGO so rebranding never touches components.
+            'appLogo' => asset(config('app.logo')),
             'locale' => $locale,
             'translations' => [
                 'home' => __('home'),

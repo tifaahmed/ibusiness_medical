@@ -26,7 +26,7 @@
       >
         <div class="p-6">
           <div class="flex justify-between items-center mb-8">
-            <img src="/images/logo/ash-health-care.png" alt="ASH Health Care" class="h-8 w-auto" @error="handleImageError">
+            <img :src="$page.props.appLogo" alt="ASH Health Care" class="h-8 w-auto" @error="handleImageError">
             <button @click="mobileMenuOpen = false">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -412,7 +412,7 @@ const metaKeywords = computed(() => {
 });
 
 const ogImage = computed(() => {
-  return `${baseUrl.value}/images/logo/ash-health-care.png`;
+  return page.props.appLogo;
 });
 
 // Meta Tags
@@ -497,7 +497,7 @@ const injectStructuredData = () => {
     'name': 'ASH Health Care',
     'alternateName': locale.value === 'ar' ? 'آش للرعاية الصحية' : 'ASH Health Care',
     'url': baseUrl.value,
-    'logo': `${baseUrl.value}/images/logo/ash-health-care.png`,
+    'logo': page.props.appLogo,
     'description': metaDescription.value,
     'address': {
       '@type': 'PostalAddress',
@@ -545,7 +545,7 @@ const injectStructuredData = () => {
     '@context': 'https://schema.org',
     '@type': 'MedicalBusiness',
     'name': 'ASH Health Care',
-    'image': `${baseUrl.value}/images/logo/ash-health-care.png`,
+    'image': page.props.appLogo,
     'description': metaDescription.value,
     'url': baseUrl.value,
     'telephone': '+20-1156385251',

@@ -573,7 +573,7 @@ const metaKeywords = computed(() => {
 });
 
 const ogImage = computed(() => {
-  return `${baseUrl.value}/images/logo/ash-health-care.png`;
+  return page.props.appLogo;
 });
 
 // Meta Tags
