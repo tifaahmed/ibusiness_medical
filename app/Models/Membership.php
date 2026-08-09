@@ -30,9 +30,12 @@ class Membership extends Model implements HasMedia
      */
     public function getSlugOptions(): SlugOptions
     {
+        // Frozen after create — see User::getSlugOptions(). Editing the membership
+        // number must not move the membership's public URL.
         return SlugOptions::create()
             ->generateSlugsFrom('membership_number')
-            ->saveSlugsTo('slug');
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
     }
 
     /**

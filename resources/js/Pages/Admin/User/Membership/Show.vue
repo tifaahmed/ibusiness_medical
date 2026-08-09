@@ -89,6 +89,32 @@
                   </div>
                 </div>
 
+                <!-- Public QR link — the exact URL this membership's QR code encodes. -->
+                <div v-if="membership.slug">
+                  <label class="text-xs font-medium text-white">{{ t.member?.qr_link || 'QR Code Link' }}</label>
+                  <div class="mt-0.5 flex flex-wrap items-center gap-2">
+                    <a
+                      :href="membershipPublicUrl(membership)"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-xs font-mono break-all text-white hover:underline"
+                    >
+                      {{ membershipPublicUrl(membership) }}
+                    </a>
+                    <button
+                      type="button"
+                      @click="copyMembershipUrl(membership)"
+                      class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-background px-2 py-1 text-xs font-medium transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5">
+                        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                      </svg>
+                      {{ copiedMembershipSlug === membership.slug ? (t.common?.copied || 'Copied') : (t.common?.copy || 'Copy') }}
+                    </button>
+                  </div>
+                </div>
+
                 <!-- Status badges -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-sm">
                   <div>
@@ -726,6 +752,7 @@ const adminPopupMode = ref('full');
 const qrcodeCanvas = ref(null);
 const membershipCardRef = ref(null);
 const membershipUrl = ref("");
+const copiedMembershipSlug = ref(null);
 const flipState = reactive({});
 const popupCardCanvasRef = ref(null);
 
@@ -804,22 +831,63 @@ const getLogsRoute = (slug) => {
   }
 };
 
+// The public page a membership's QR code points at. Returned absolute so the
+// value shown on screen is exactly what gets encoded into the card and what
+// someone scanning it will land on.
+const membershipPublicUrl = (membership) => {
+  const slug = typeof membership === "string" ? membership : membership?.slug;
+  if (!slug) {
+    return "";
+  }
+
+  let url = route("guest.membership.show", slug);
+
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    if (!url.startsWith("/")) {
+      url = "/" + url;
+    }
+    url = window.location.origin + url;
+  }
+
+  return url;
+};
+
+const copyMembershipUrl = async (membership) => {
+  const url = membershipPublicUrl(membership);
+  if (!url) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    // Clipboard API is unavailable (older browser / insecure context) — fall
+    // back to a throwaway textarea so the button still works.
+    const textarea = document.createElement("textarea");
+    textarea.value = url;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  }
+
+  copiedMembershipSlug.value = membership.slug;
+  setTimeout(() => {
+    if (copiedMembershipSlug.value === membership.slug) {
+      copiedMembershipSlug.value = null;
+    }
+  }, 2000);
+};
+
 const generateQRCode = async () => {
   if (!activeMembership.value || !activeMembership.value.slug) {
     return;
   }
 
   try {
-    let url = route("guest.membership.show", activeMembership.value.slug);
-
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      if (!url.startsWith("/")) {
-        url = "/" + url;
-      }
-      membershipUrl.value = window.location.origin + url;
-    } else {
-      membershipUrl.value = url;
-    }
+    membershipUrl.value = membershipPublicUrl(activeMembership.value);
 
     if (qrcodeCanvas.value) {
       await QRCode.toCanvas(qrcodeCanvas.value, membershipUrl.value, {

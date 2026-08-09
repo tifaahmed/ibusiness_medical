@@ -86,9 +86,13 @@ class User extends Authenticatable implements HasMedia
      */
     public function getSlugOptions(): SlugOptions
     {
+        // The slug is the public URL key for a member (/admin/user/membership/{slug}).
+        // It is minted once on create and frozen after that, so renaming a member
+        // never breaks existing links, bookmarks or QR codes pointing at them.
         return SlugOptions::create()
             ->generateSlugsFrom('name')
-            ->saveSlugsTo('slug');
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
     }
 
     /**

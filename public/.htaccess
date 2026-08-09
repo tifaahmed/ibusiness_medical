@@ -1,9 +1,40 @@
+# PHP 8.4 for this site only — the app requires >= 8.4 (endroid/qr-code, Symfony 8)
+# and the vhost default here is 8.3. Verified: without this line the site reports
+# PHP 8.3.30, with it 8.4.19. Other domains on the account are unaffected.
+# Setting 8.4 in hPanel (Advanced -> PHP Configuration) does the same thing; this
+# line is harmless to keep either way.
+AddHandler application/x-httpd-alt-php84___lsphp .php
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
+    # Required: the document root and public/storage are symlinks
+    Options +FollowSymLinks
+
     RewriteEngine On
+
+    # Force HTTPS. Requires the SSL certificate to be issued for card.deilar.com
+    # first (hPanel -> Security -> SSL); until then the site is HTTP-only and this
+    # rule would redirect to an unreachable URL.
+    # TEMPORARILY DISABLED until the SSL certificate is installed for
+    # card.deilar.com (hPanel -> Security -> SSL). Re-enable by uncommenting
+    # these four lines — with no certificate they redirect every visitor into
+    # ERR_SSL_PROTOCOL_ERROR.
+    # RewriteCond %{HTTPS} !=on
+    # RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    # RewriteCond %{REQUEST_URI} !^/\.well-known/
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # Block dotfiles (.env, .git, editor and backup files) — defence in depth:
+    # the application root already sits above the document root.
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+
+    # Never serve design sources, dumps, logs or source maps, even though they
+    # sit in the document root. The card-template_*.tif files (~21 MB) are print
+    # sources — the browser only ever loads card-template_pure.jpg.
+    RewriteRule \.(tif|tiff|psd|ai|eps|sketch|log|sql|sqlite|bak|old|orig|swp|dist|sh|map)$ - [F,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -27,6 +58,30 @@
     RewriteCond %{REQUEST_FILENAME} sw.js
     RewriteRule ^sw.js$ sw.js [L]
 </IfModule>
+
+# Security headers. Mirrors App\Http\Middleware\SecurityHeaders so that static
+# files (assets, uploads, sw.js) are covered too, not just PHP responses.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Permitted-Cross-Domain-Policies "none"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
+    # HSTS — sent only over HTTPS, so it cannot lock anyone out before the
+    # certificate is issued. Add "preload" only when you are sure.
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+
+    # Do not advertise the stack
+    Header always unset X-Powered-By
+    Header always unset X-AspNet-Version
+    Header always unset Server
+</IfModule>
+
+# No directory listings anywhere
+Options -Indexes
+
 
 # Browser Caching
 <IfModule mod_expires.c>

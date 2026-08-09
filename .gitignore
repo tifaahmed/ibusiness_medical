@@ -24,3 +24,18 @@ Homestead.yaml
 Thumbs.db
 *Zone.Identifier*
 
+# Any .env variant, including timestamped/ad-hoc backups — these hold real
+# credentials and must never reach the remote.
+.env.*
+!.env.example
+
+# Apache/LiteSpeed drops this next to the script that errored; it is not *.log
+error_log
+
+# Hostinger's placeholder page, recreated by the panel whenever the docroot
+# looks empty.
+/public/default.php
+
+# Host-specific wrappers pinning php 8.4 / node 22 on this shared account.
+/bin
+
