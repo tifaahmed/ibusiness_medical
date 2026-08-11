@@ -29,7 +29,7 @@ class StoreMembershipRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'nullable|string|lowercase|email|max:255|unique:'.User::class.',email',
-            'phone' => 'nullable|string|max:50',
+            'phone' => ['nullable', 'string', 'regex:/^01\d{9}$/'],
             'membership_number' => 'required|string|unique:'.Membership::class.',membership_number',
             'national_id' => 'required|string|digits:14',
             'registration_date' => 'required|date',
@@ -71,6 +71,7 @@ class StoreMembershipRequest extends FormRequest
             'name.required' => 'The name field is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email is already registered.',
+            'phone.regex' => 'The phone number must start with 01 and be exactly 11 digits.',
             'membership_number.required' => 'The membership number field is required.',
             'membership_number.unique' => 'This membership number is already in use.',
             'national_id.required' => 'The National ID number is required.',
@@ -82,4 +83,3 @@ class StoreMembershipRequest extends FormRequest
         ];
     }
 }
-

@@ -11,36 +11,7 @@
 
     <div class="max-w-7xl mx-auto">
       <!-- Tabs -->
-      <div class="flex gap-2 mb-4 border-b border-border" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'profile'"
-          @click="activeTab = 'profile'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-t-md border-b-2 -mb-px transition-colors',
-            activeTab === 'profile'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted',
-          ]"
-        >
-          {{ t.member?.tab_profile || 'Profile' }}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'password'"
-          @click="activeTab = 'password'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-t-md border-b-2 -mb-px transition-colors',
-            activeTab === 'password'
-              ? 'border-primary text-primary font-semibold'
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted',
-          ]"
-        >
-          {{ t.member?.tab_password || 'Password' }}
-        </button>
-      </div>
+      <TabBar v-model="activeTab" :tabs="tabs" class="mb-4" />
 
       <form v-show="activeTab === 'profile'" @submit.prevent="handleSubmit" class="space-y-4">
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -99,6 +70,12 @@
       <div v-show="activeTab === 'password'">
         <ChangePasswordCard :user-slug="member?.slug" />
       </div>
+
+      <!-- Payments tab — read-only list; recording and editing happen in the
+           member-payment module, which this links straight into. -->
+      <div v-show="activeTab === 'payments'">
+        <MemberPaymentsCard :membership="member?.membership" />
+      </div>
     </div>
     </div>
   </MemberLayout>
@@ -109,7 +86,8 @@ import { Link, usePage } from "@inertiajs/vue3";
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
-import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard } from "../_components/Form";
+import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberPaymentsCard } from "../_components/Form";
+import TabBar from "@/Components/ui/TabBar.vue";
 import { onMounted, computed, ref } from "vue";
 
 const activeTab = ref('profile');
@@ -124,6 +102,19 @@ const props = defineProps({
     required: true,
   },
 });
+
+const paymentsCount = computed(() => props.member?.membership?.member_payments?.length || 0);
+
+const tabs = computed(() => [
+  { key: 'profile', label: t.value.member?.tab_profile || 'Profile' },
+  { key: 'password', label: t.value.member?.tab_password || 'Password' },
+  {
+    key: 'payments',
+    label: paymentsCount.value
+      ? `${t.value.member?.payments || 'Payments'} (${paymentsCount.value})`
+      : (t.value.member?.payments || 'Payments'),
+  },
+]);
 
 onMounted(() => {
   memberStore.setMember(props.member);

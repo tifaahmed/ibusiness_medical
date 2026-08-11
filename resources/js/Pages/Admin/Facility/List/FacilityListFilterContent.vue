@@ -56,6 +56,25 @@
         />
       </div>
 
+      <!-- Sales Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="sales_id"
+        >
+          {{ t.sales?.name || 'Sales' }}
+        </label>
+        <SearchableSelect
+          :key="`sales-${locale}`"
+          id="sales_id"
+          v-model="filters.sales_id"
+          :options="salesSelectOptions"
+          :placeholder="t.facility?.all_sales || 'All Sales'"
+          @change="handleFilterChange"
+        />
+      </div>
+
     </div>
 
     <!-- Reset Filter - Only show if there's an active filter -->
@@ -89,6 +108,7 @@
 import { ref, watch, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import Select from '@/Components/ui/Select.vue';
+import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 
 const props = defineProps({
   initialFilters: {
@@ -96,9 +116,15 @@ const props = defineProps({
     default: () => ({
       search: '',
       facility_type_id: '',
+      sales_id: '',
     })
   },
   facilityTypes: {
+    type: Array,
+    default: () => []
+  },
+  // Already shaped as { value, label } by the controller.
+  salesOptions: {
     type: Array,
     default: () => []
   }
@@ -131,6 +157,13 @@ const facilityTypeOptions = computed(() => {
   }));
 });
 
+const salesSelectOptions = computed(() =>
+  props.salesOptions.map(option => ({
+    value: option.value,
+    label: getTranslatedName(option.label),
+  }))
+);
+
 const emit = defineEmits(['filter-change']);
 
 const getInitialFilters = () => {
@@ -138,6 +171,7 @@ const getInitialFilters = () => {
     return {
       search: props.initialFilters.search || '',
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
+      sales_id: props.initialFilters.sales_id || '',
     };
   }
   if (typeof window !== 'undefined') {
@@ -145,16 +179,17 @@ const getInitialFilters = () => {
     return {
       search: urlParams.get('search') || '',
       facility_type_id: urlParams.get('facility_type_id') || '',
+      sales_id: urlParams.get('sales_id') || '',
     };
   }
-  return { search: '', facility_type_id: '' };
+  return { search: '', facility_type_id: '', sales_id: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id);
 });
 
 let searchTimeout = null;
@@ -173,7 +208,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '' };
   applyFilters();
 };
 
@@ -193,6 +228,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.facility_type_id && currentFilters.facility_type_id !== '') {
     params.facility_type_id = currentFilters.facility_type_id;
+  }
+  if (currentFilters.sales_id && currentFilters.sales_id !== '') {
+    params.sales_id = currentFilters.sales_id;
   }
   
   emit('filter-change', currentFilters);

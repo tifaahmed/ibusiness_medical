@@ -17,13 +17,19 @@ class AdminFacilityEditResource extends JsonResource
         // Get all translations for translatable fields (not just current locale)
         $nameTranslations = $this->getTranslations('name');
         $descriptionTranslations = $this->getTranslations('description');
-        
+
         return [
             'id' => $this->id,
             'name' => $nameTranslations,
             'description' => $descriptionTranslations,
             'slug' => $this->slug,
+            'meta_title' => $this->getTranslations('meta_title'),
+            'meta_description' => $this->getTranslations('meta_description'),
+            'meta_keywords' => $this->getTranslations('meta_keywords'),
+            'canonical_url' => $this->canonical_url,
+            'og_image' => $this->og_image,
             'facility_type_id' => $this->facility_type_id,
+            'sales_id' => $this->sales_id,
             'discount_percent' => $this->discount_percent,
             'branches' => $this->whenLoaded('branches', function () {
                 return $this->branches->map(function ($branch) {
@@ -40,9 +46,9 @@ class AdminFacilityEditResource extends JsonResource
                     ];
                 });
             }),
-            'logo'         => $this->logo,
-            'mobile_logo'  => $this->mobile_logo,
-            'image'        => $this->image,
+            'logo' => $this->logo,
+            'mobile_logo' => $this->mobile_logo,
+            'image' => $this->image,
             'mobile_image' => $this->mobile_image,
             'gallery' => $this->gallery,
             '_debug_mobile_logo' => $this->getFirstMedia('mobile_logo') ? $this->getFirstMedia('mobile_logo')->getUrl() : 'EMPTY',
@@ -63,4 +69,3 @@ class AdminFacilityEditResource extends JsonResource
         ];
     }
 }
-

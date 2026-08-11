@@ -448,8 +448,8 @@
                       <canvas
                         v-else
                         :ref="el => setCardCanvas(el, membership.id, 'full')"
-                        width="1063"
-                        height="650"
+                        :width="CARD_W"
+                        :height="CARD_H"
                         class="max-w-full h-auto rounded shadow"
                         style="max-height: 220px; width: auto"
                       ></canvas>
@@ -515,8 +515,8 @@
                       <canvas
                         v-else
                         :ref="el => setCardCanvas(el, membership.id, 'minimal')"
-                        width="1063"
-                        height="650"
+                        :width="CARD_W"
+                        :height="CARD_H"
                         class="max-w-full h-auto rounded shadow"
                         style="max-height: 220px; width: auto"
                       ></canvas>
@@ -689,8 +689,8 @@
                       <canvas
                         v-else
                         :ref="el => setPopupCardCanvas(el)"
-                        width="1063"
-                        height="650"
+                        :width="CARD_W"
+                        :height="CARD_H"
                         class="max-w-full h-auto rounded shadow"
                       ></canvas>
                     </div>
@@ -732,7 +732,8 @@ import html2canvas from "html2canvas";
 import MemberLayout from "../Member/MemberLayout.vue";
 import Modal from "@/Components/Modal.vue";
 import MembershipCard from "./_components/MembershipCard.vue";
-import { renderCardCanvas } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
+import { renderCardCanvas, CARD_W, CARD_H } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
+import { publicMembershipUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const props = defineProps({
   user: {
@@ -805,8 +806,7 @@ const getCardGeneratorUrl = (member) => {
     params.set('valid', `${d.getMonth() + 1} / ${d.getFullYear()}`);
   }
   if (member.membership?.slug) {
-    const base = window.location.origin;
-    params.set('url', `${base}/membership/${member.membership.slug}`);
+    params.set('url', publicMembershipUrl(member.membership.slug));
   }
   if (member.avatar_url) params.set('avatar', member.avatar_url);
   if (member.membership?.job_title_ar) params.set('member_ar', member.membership.job_title_ar);

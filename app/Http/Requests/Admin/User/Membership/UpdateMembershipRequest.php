@@ -146,7 +146,7 @@ class UpdateMembershipRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
             ],
-            'phone' => ['required', 'string', 'max:50'],
+            'phone' => ['required', 'string', 'regex:/^01\d{9}$/'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'membership_number' => $membershipNumberRule,
             'national_id' => 'required|string|digits:14',
@@ -208,6 +208,7 @@ class UpdateMembershipRequest extends FormRequest
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email is already registered.',
             'phone.required' => 'The phone field is required.',
+            'phone.regex' => 'The phone number must start with 01 and be exactly 11 digits.',
             'company_id.required' => 'Company is required for a paid monthly membership.',
             'sales_id.required' => 'Sales is required for a paid monthly membership.',
             'governorate_id.required' => 'Governorate is required for a paid monthly membership.',
@@ -242,12 +243,12 @@ class UpdateMembershipRequest extends FormRequest
         $validated = parent::validated($key, $default);
 
         // Ensure is_visible is always included (from prepareForValidation)
-        if (is_array($validated) && !array_key_exists('is_visible', $validated)) {
+        if (is_array($validated) && ! array_key_exists('is_visible', $validated)) {
             $validated['is_visible'] = $this->input('is_visible', false);
         }
 
         // Same guarantee for is_paid.
-        if (is_array($validated) && !array_key_exists('is_paid', $validated)) {
+        if (is_array($validated) && ! array_key_exists('is_paid', $validated)) {
             $validated['is_paid'] = $this->input('is_paid', false);
         }
 
@@ -256,12 +257,11 @@ class UpdateMembershipRequest extends FormRequest
 
     /**
      * Get the user from the route parameter.
-     *
-     * @return User|null
      */
     private function getRouteUser(): ?User
     {
         $userParam = $this->route('user');
+
         return $userParam instanceof User
             ? $userParam
             : ($userParam ? User::where('slug', $userParam)->first() : null);
@@ -277,22 +277,21 @@ class UpdateMembershipRequest extends FormRequest
     }
 
     /**
-     * The first member-payment row is required when the admin is marking an
-     * incomplete, never-paid membership as paid — mirrors the "Payment" card
-     * that only appears on the edit form under those same conditions.
+     * The first member-payment row is required when the admin marks a
+     * never-paid membership as paid — mirrors the "Payment" card that appears
+     * on the edit form under those same conditions. A membership that already
+     * has payments is managed from the member-payment module instead.
      */
     private function requiresInitialPayment(?Membership $editingMembership): bool
     {
-        if (!$this->boolean('is_paid')) {
+        if (! $this->boolean('is_paid')) {
             return false;
         }
         if ($editingMembership === null) {
             return true;
         }
-        if ($editingMembership->completed_at !== null) {
-            return false;
-        }
-        return !$editingMembership->memberPayments()->exists();
+
+        return ! $editingMembership->memberPayments()->exists();
     }
 
     /**
@@ -312,7 +311,7 @@ class UpdateMembershipRequest extends FormRequest
         if ($user->hasPermissionTo(UserPermissionEnum::MANAGE_OWN_MEMBERSHIPS)) {
             return false;
         }
+
         return $user->hasPermissionTo(UserPermissionEnum::MANAGE_PARTNER_MEMBERSHIPS);
     }
 }
-

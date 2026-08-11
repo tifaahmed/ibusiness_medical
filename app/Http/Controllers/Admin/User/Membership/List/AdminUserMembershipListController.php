@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\User\Membership\List;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\User\Membership\List\AdminUserMembershipListCollection;
+use App\Models\CardLayout;
 use App\Models\Company;
 use App\Models\MemberActiveHistory;
 use App\Models\Membership;
@@ -62,6 +63,10 @@ class AdminUserMembershipListController extends BaseController
             ->unique()
             ->values()
             ->toArray();
+
+        // Memberships whose card was changed away from its design — the rest
+        // still render from the template and follow every change to it.
+        $customCardMembershipIds = CardLayout::customisedMembershipIds();
 
         // Closure that applies the union (creator OR partner) restriction to
         // a Membership sub-query. No-op when the admin has full access.
@@ -189,6 +194,17 @@ class AdminUserMembershipListController extends BaseController
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $cardPatchMembershipIds);
+                $listingFilter($mq);
+            }))
+            ->when($filters['has_custom_card'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
+                $mq->whereIn('id', $customCardMembershipIds);
+                $listingFilter($mq);
+            }))
+            ->when($filters['has_custom_card'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
+                $mq->whereNotIn('id', $customCardMembershipIds);
+                $listingFilter($mq);
+            })->whereDoesntHave('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
+                $mq->whereIn('id', $customCardMembershipIds);
                 $listingFilter($mq);
             }))
             ->with(['memberships' => function ($q) use ($isActiveFilter, $partnerIdFilter, $creatorFilter, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $listingFilter) {
@@ -408,6 +424,8 @@ class AdminUserMembershipListController extends BaseController
             ), 0) <= ?', [(int) $filters['outstanding_days_to']]))
             ->when($filters['is_from_card_patch'] === true, fn($q) => $q->whereIn('id', $cardPatchMembershipIds))
             ->when($filters['is_from_card_patch'] === false, fn($q) => $q->whereNotIn('id', $cardPatchMembershipIds))
+            ->when($filters['has_custom_card'] === true, fn($q) => $q->whereIn('id', $customCardMembershipIds))
+            ->when($filters['has_custom_card'] === false, fn($q) => $q->whereNotIn('id', $customCardMembershipIds))
             ->when(!empty($filters['chart_days']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('created_at', '>=', now()->subDays((int)$filters['chart_days']))));
 
         $dailyCounts = (clone $chartMembershipQuery)
@@ -480,6 +498,7 @@ class AdminUserMembershipListController extends BaseController
             'expiration_date_from' => $request->filled('expiration_date_from') ? $request->input('expiration_date_from') : null,
             'expiration_date_to' => $request->filled('expiration_date_to') ? $request->input('expiration_date_to') : null,
             'is_from_card_patch' => $request->has('is_from_card_patch') ? (bool) $request->input('is_from_card_patch') : null,
+            'has_custom_card' => $request->has('has_custom_card') ? (bool) $request->input('has_custom_card') : null,
             'last_activation_changer' => $request->input('last_activation_changer', ''),
             'last_activation_from' => $request->filled('last_activation_from') ? $request->input('last_activation_from') : null,
             'last_activation_to' => $request->filled('last_activation_to') ? $request->input('last_activation_to') : null,

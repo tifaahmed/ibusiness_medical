@@ -44,6 +44,16 @@
           </div>
 
           <div data-slot="form-item" class="grid gap-1">
+            <FormSearchableSelect
+              v-model="facilityStore.form.sales_id"
+              :label="t.sales?.name || 'Sales'"
+              :options="salesSelectOptions"
+              :error="facilityStore.validationErrors?.sales_id"
+              :placeholder="t.facility?.sales_placeholder || 'Select sales (optional)'"
+            />
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
             <FormInput
               v-model="formDiscountPercent"
               :label="t.facility?.discount_percent || 'Discount %'"
@@ -297,7 +307,7 @@
 </template>
 
 <script setup>
-import { FormTranslatableInput, FormTranslatableQuillEditor, FormSelect, FormInput } from "@/Components/form";
+import { FormTranslatableInput, FormTranslatableQuillEditor, FormSelect, FormSearchableSelect, FormInput } from "@/Components/form";
 import ImageFileInput from "@/Components/form/ImageFileInput.vue";
 import { useFacilityStore } from "../../Stores/FacilityStore";
 import { computed, ref } from "vue";
@@ -314,6 +324,11 @@ const props = defineProps({
     default: () => null
   },
   tags: {
+    type: Array,
+    default: () => []
+  },
+  // Already shaped as { value, label } by the controller.
+  salesOptions: {
     type: Array,
     default: () => []
   }
@@ -414,6 +429,13 @@ const facilityTypeOptions = computed(() => {
     label: getTranslatedName(type.name, currentLocale)
   }));
 });
+
+const salesSelectOptions = computed(() =>
+  props.salesOptions.map(option => ({
+    value: option.value,
+    label: getTranslatedName(option.label, locale.value),
+  }))
+);
 
 const isTagSelected = (id) => (facilityStore.form.tag_ids || []).includes(id);
 

@@ -36,6 +36,7 @@ class AdminMembershipCardShowController extends BaseController
 
         $card->setRelation('loadedMemberships', $memberships);
         $card->load(['creator:id,name,email', 'media']);
+        $card->load('cardTemplate');
 
         // All memberships in a batch share the same partner_id by construction,
         // so the first one is enough to drive the card preview.
@@ -53,6 +54,7 @@ class AdminMembershipCardShowController extends BaseController
         return Inertia::render('Admin/MembershipCard/Show', [
             'card' => (new AdminMembershipCardShowResource($card))->resolve($request),
             'partner' => $partnerPayload,
+            'cardTemplate' => $card->cardTemplate,
         ]);
     }
 }

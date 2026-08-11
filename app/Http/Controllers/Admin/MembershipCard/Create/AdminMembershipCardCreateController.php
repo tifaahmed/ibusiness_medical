@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\MembershipCard\Create;
 
+use App\Http\Controllers\Concerns\ProvidesCardTemplates;
 use App\Http\Controllers\Concerns\ScopesByMembershipCardCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Membership;
@@ -13,6 +14,7 @@ use Inertia\Response;
 
 class AdminMembershipCardCreateController extends BaseController
 {
+    use ProvidesCardTemplates;
     use ScopesByMembershipCardCreator;
 
     public function __invoke(Request $request): Response
@@ -37,7 +39,7 @@ class AdminMembershipCardCreateController extends BaseController
         // CardPreview.vue replicates that page's minimal-mode renderer and
         // needs the same per-partner layout fields.
         $partners = Partner::query()
-            ->when($partnerLocked, fn($q) => $q->where('id', $adminPartnerId))
+            ->when($partnerLocked, fn ($q) => $q->where('id', $adminPartnerId))
             ->orderBy('title')
             ->get()
             ->map(fn (Partner $p) => [
@@ -55,6 +57,10 @@ class AdminMembershipCardCreateController extends BaseController
             'partners' => $partners,
             'partnerLocked' => $partnerLocked,
             'lockedPartnerId' => $partnerLocked ? $adminPartnerId : null,
+            // The card design the batch is cut from. Picking a partner selects
+            // the `with_partner` design and leaving it empty selects
+            // `no_partner`; per-batch tweaks ride on top as `layout_overrides`.
+            'cardTemplates' => $this->cardTemplatesByStatus(),
         ]);
     }
 }

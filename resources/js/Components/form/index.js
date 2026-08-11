@@ -1,6 +1,7 @@
 export { default as FormInput } from './FormInput.vue';
 export { default as FormTextarea } from './FormTextarea.vue';
 export { default as FormSelect } from './FormSelect.vue';
+export { default as FormSearchableSelect } from './FormSearchableSelect.vue';
 export { default as FormCheckbox } from './FormCheckbox.vue';
 export { default as FormDateInput } from './FormDateInput.vue';
 export { default as ImageFileInput } from './ImageFileInput.vue';

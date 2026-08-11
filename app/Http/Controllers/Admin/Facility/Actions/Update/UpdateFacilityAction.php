@@ -15,9 +15,6 @@ class UpdateFacilityAction
     /**
      * Execute the action to update a facility.
      *
-     * @param Facility $facility
-     * @param array $validated
-     * @return Facility
      * @throws \Exception
      */
     public function execute(Facility $facility, array $validated): Facility
@@ -31,7 +28,12 @@ class UpdateFacilityAction
             $facility->update([
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
+                'meta_title' => $validated['meta_title'] ?? null,
+                'meta_description' => $validated['meta_description'] ?? null,
+                'meta_keywords' => $validated['meta_keywords'] ?? null,
+                'canonical_url' => $validated['canonical_url'] ?? null,
                 'facility_type_id' => $validated['facility_type_id'],
+                'sales_id' => $validated['sales_id'] ?? null,
                 'discount_percent' => $validated['discount_percent'] ?? null,
             ]);
 
@@ -47,28 +49,34 @@ class UpdateFacilityAction
                 $branchChanges = $this->handleBranches($facility, $validated['branches']);
             }
 
-            if (!empty($validated['logo'])) {
+            if (! empty($validated['logo'])) {
                 $facility->clearMediaCollection('logo');
                 $facility->addMedia($validated['logo'])->toMediaCollection('logo');
             }
-            if (!empty($validated['mobile_logo'])) {
+            if (! empty($validated['mobile_logo'])) {
                 $facility->clearMediaCollection('mobile_logo');
                 $facility->addMedia($validated['mobile_logo'])->toMediaCollection('mobile_logo');
             }
-            if (!empty($validated['image'])) {
+            if (! empty($validated['image'])) {
                 $facility->clearMediaCollection('image');
                 $facility->addMedia($validated['image'])->toMediaCollection('image');
             }
-            if (!empty($validated['mobile_image'])) {
+            if (! empty($validated['mobile_image'])) {
                 $facility->clearMediaCollection('mobile_image');
                 $facility->addMedia($validated['mobile_image'])->toMediaCollection('mobile_image');
             }
-            if (!empty($validated['gallery_delete'])) {
+            if (! empty($validated['og_image'])) {
+                $facility->clearMediaCollection('og_image');
+                $facility->addMedia($validated['og_image'])->toMediaCollection('og_image');
+            } elseif (! empty($validated['og_image_delete'])) {
+                $facility->clearMediaCollection('og_image');
+            }
+            if (! empty($validated['gallery_delete'])) {
                 foreach ($validated['gallery_delete'] as $mediaId) {
                     $facility->deleteMedia((int) $mediaId);
                 }
             }
-            if (!empty($validated['gallery'])) {
+            if (! empty($validated['gallery'])) {
                 foreach ($validated['gallery'] as $file) {
                     $facility->addMedia($file)->toMediaCollection('gallery');
                 }
@@ -244,14 +252,15 @@ class UpdateFacilityAction
 
     private function normalizePhone(mixed $phone): ?array
     {
-        if (is_string($phone) && !empty($phone)) {
+        if (is_string($phone) && ! empty($phone)) {
             return [$phone];
         }
-        if (!is_array($phone) || empty($phone)) {
+        if (! is_array($phone) || empty($phone)) {
             return null;
         }
-        $phone = array_filter(array_map('trim', $phone), fn ($p) => !empty($p));
-        return !empty($phone) ? array_values($phone) : null;
+        $phone = array_filter(array_map('trim', $phone), fn ($p) => ! empty($p));
+
+        return ! empty($phone) ? array_values($phone) : null;
     }
 
     private function facilitySnapshot(Facility $facility): array
@@ -259,7 +268,12 @@ class UpdateFacilityAction
         return [
             'name' => $this->normalizeTranslatable($facility->getRawOriginal('name')),
             'description' => $this->normalizeTranslatable($facility->getRawOriginal('description')),
+            'meta_title' => $this->normalizeTranslatable($facility->getRawOriginal('meta_title')),
+            'meta_description' => $this->normalizeTranslatable($facility->getRawOriginal('meta_description')),
+            'meta_keywords' => $this->normalizeTranslatable($facility->getRawOriginal('meta_keywords')),
+            'canonical_url' => $facility->canonical_url,
             'facility_type_id' => $facility->facility_type_id,
+            'sales_id' => $facility->sales_id,
             'discount_percent' => $facility->discount_percent,
         ];
     }
@@ -285,10 +299,11 @@ class UpdateFacilityAction
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 }

@@ -6,3 +6,4 @@ export { default as GalleryImagesCard } from './GalleryImagesCard.vue';
 export { default as FamilyMemberCard } from './FamilyMemberCard.vue';
 export { default as FamilyMemberCreateCard } from './FamilyMemberCreateCard.vue';
 export { default as ChangePasswordCard } from './ChangePasswordCard.vue';
+export { default as MemberPaymentsCard } from './MemberPaymentsCard.vue';

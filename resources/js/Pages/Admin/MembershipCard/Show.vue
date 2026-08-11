@@ -164,7 +164,9 @@
             <CardPreview
               :membership="printedMembership(m)"
               :partner="effectivePartner"
+              :template="cardTemplate"
               :overrides="card.layout_overrides"
+              :contact="card.layout_overrides?.contact_text"
             />
             <button
               type="button"
@@ -301,7 +303,9 @@
           <CardPreview
             :membership="printedMembership(cardModal)"
             :partner="effectivePartner"
+            :template="cardTemplate"
             :overrides="card.layout_overrides"
+            :contact="card.layout_overrides?.contact_text"
           />
 
           <div class="flex flex-wrap items-center justify-center gap-2">
@@ -351,6 +355,7 @@ import { renderCardCanvas } from './_components/cardRenderer.js';
 const props = defineProps({
   card: { type: Object, required: true },
   partner: { type: Object, default: null },
+  cardTemplate: { type: Object, default: null },
 });
 
 // If a per-batch logo override was uploaded at creation, prefer it over the
@@ -418,7 +423,9 @@ async function downloadCardImage(m) {
     const canvas = await renderCardCanvas({
       membership: printedMembership(m),
       partner: effectivePartner.value,
+      template: props.cardTemplate,
       overrides: props.card?.layout_overrides ?? null,
+    contact: props.card?.layout_overrides?.contact_text ?? null,
     });
 
     const rawName = String(m.membership_number ?? `card-${m.id}`);
@@ -448,7 +455,9 @@ async function downloadCardPdf(m) {
     const canvas = await renderCardCanvas({
       membership: printedMembership(m),
       partner: effectivePartner.value,
+      template: props.cardTemplate,
       overrides: props.card?.layout_overrides ?? null,
+    contact: props.card?.layout_overrides?.contact_text ?? null,
     });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const pdf = new jsPDF({ unit: 'cm', format: [9.0, 5.6], orientation: 'landscape' });

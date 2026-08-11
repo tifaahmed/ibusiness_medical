@@ -18,10 +18,18 @@ class FacilityResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
-            'logo'         => $this->logo,
-            'mobile_logo'  => $this->mobile_logo,
-            'image'        => $this->image,
+            'logo' => $this->logo,
+            'mobile_logo' => $this->mobile_logo,
+            'image' => $this->image,
             'mobile_image' => $this->mobile_image,
+            // The rate and the tags are what a visitor scans a listing for, so
+            // they ship with the card rather than only on the detail page.
+            'discount_percent' => $this->discount_percent,
+            'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
+                'id' => $tag->id,
+                'name' => $tag->name,
+                'color' => $tag->color,
+            ])),
             'facility_type' => $this->whenLoaded('facilityType', function () {
                 return $this->facilityType ? [
                     'id' => $this->facilityType->id,
@@ -51,5 +59,3 @@ class FacilityResource extends JsonResource
         ];
     }
 }
-
-

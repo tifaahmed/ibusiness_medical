@@ -31,6 +31,9 @@ class Facility extends Model implements HasMedia
     public $translatable = [
         'name',
         'description',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
     ];
 
     /**
@@ -41,8 +44,13 @@ class Facility extends Model implements HasMedia
     protected $fillable = [
         'name',
         'description',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        'canonical_url',
         'slug',
         'facility_type_id',
+        'sales_id',
         'discount_percent',
         'created_by',
     ];
@@ -50,6 +58,17 @@ class Facility extends Model implements HasMedia
     protected $casts = [
         'discount_percent' => 'decimal:2',
     ];
+
+    /**
+     * Open Graph share image, kept in its own media collection so it can be
+     * swapped without touching the logo/cover images.
+     */
+    public function getOgImageAttribute(): string
+    {
+        $media = $this->getFirstMedia('og_image');
+
+        return $media ? $media->getUrl() : '';
+    }
 
     public function creator(): BelongsTo
     {
@@ -72,6 +91,14 @@ class Facility extends Model implements HasMedia
     public function facilityType(): BelongsTo
     {
         return $this->belongsTo(FacilityType::class);
+    }
+
+    /**
+     * Get the sales representative that owns the facility.
+     */
+    public function sales(): BelongsTo
+    {
+        return $this->belongsTo(Sales::class);
     }
 
     public function governorate(): BelongsTo
@@ -104,6 +131,4 @@ class Facility extends Model implements HasMedia
     {
         return $this->belongsToMany(Tag::class, 'facility_tag');
     }
-
 }
-

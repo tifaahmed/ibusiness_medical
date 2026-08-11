@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\MediaCollection;
 
 class MembershipCard extends Model implements HasMedia
 {
@@ -28,6 +27,7 @@ class MembershipCard extends Model implements HasMedia
         'membership_ids',
         'created_by',
         'partner_id',
+        'card_template_id',
     ];
 
     protected function casts(): array
@@ -64,6 +64,15 @@ class MembershipCard extends Model implements HasMedia
     }
 
     /**
+     * The card design this batch was cut from. `layout_overrides` are per-batch
+     * tweaks applied on top of the template's own layout.
+     */
+    public function cardTemplate(): BelongsTo
+    {
+        return $this->belongsTo(CardTemplate::class);
+    }
+
+    /**
      * Fetch the memberships referenced by membership_ids. Returns an empty
      * collection (not null) so callers can iterate without checks.
      */
@@ -73,6 +82,7 @@ class MembershipCard extends Model implements HasMedia
         if (empty($ids)) {
             return Membership::whereRaw('1 = 0');
         }
+
         return Membership::whereIn('id', $ids);
     }
 }

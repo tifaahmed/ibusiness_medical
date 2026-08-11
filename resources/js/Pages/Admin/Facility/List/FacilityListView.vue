@@ -59,7 +59,7 @@
           
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" @filter-change="handleFilterChange" />
+            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" @filter-change="handleFilterChange" />
           </div>
         </div>
 
@@ -95,9 +95,14 @@ const props = defineProps({
     default: () => ({
       search: '',
       facility_type_id: '',
+      sales_id: '',
     })
   },
   facilityTypes: {
+    type: Array,
+    default: () => []
+  },
+  salesOptions: {
     type: Array,
     default: () => []
   }
@@ -110,7 +115,7 @@ facilityStore.setFacilities(props.facilities);
 
 const facilities = computed(() => props.facilities);
 
-const filters = ref(props.filters || { search: '', facility_type_id: '' });
+const filters = ref(props.filters || { search: '', facility_type_id: '', sales_id: '' });
 
 const handleDelete = (facilitySlug) => {
   facilityStore.confirmDelete(facilitySlug);
@@ -125,6 +130,7 @@ const exportUrl = computed(() => {
   const f = filters.value || {};
   if (f.search) params.set('search', f.search);
   if (f.facility_type_id) params.set('facility_type_id', f.facility_type_id);
+  if (f.sales_id) params.set('sales_id', f.sales_id);
   params.set('include_branches', '1');
   const qs = params.toString();
   return route('admin.facility.export') + (qs ? '?' + qs : '');

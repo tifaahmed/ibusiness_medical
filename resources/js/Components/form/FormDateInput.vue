@@ -1,13 +1,17 @@
 <!-- components/FormDateInput.vue -->
 <template>
   <div>
-    <label
-      :for="id"
-      class="block text-sm font-medium text-white mb-1"
-    >
-      {{ label }}
-      <span v-if="required" class="text-destructive">*</span>
-    </label>
+    <div class="flex items-center justify-between gap-2 mb-1 min-h-[20px]">
+      <label
+        :for="id"
+        class="block text-sm font-medium text-white"
+      >
+        {{ label }}
+        <span v-if="required" class="text-destructive">*</span>
+      </label>
+      <!-- Optional shortcut button rendered on the label row, e.g. "+1 year". -->
+      <slot name="label-action" />
+    </div>
     <input
       :id="id"
       :value="modelValue"

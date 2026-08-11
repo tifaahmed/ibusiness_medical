@@ -26,6 +26,9 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center hidden sm:table-cell">
                   {{ t.facility?.discount_percent || 'Discount %' }}
                 </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center hidden lg:table-cell">
+                  {{ t.sales?.name || 'Sales' }}
+                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[180px] text-center hidden lg:table-cell">
                   {{ t.facility?.coverage || ((t.governorate?.label || 'Governorate') + ' / ' + (t.city?.label || 'City')) }}
                 </th>
@@ -99,6 +102,17 @@
                     class="relative inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium"
                   >
                     {{ facility.discount_percent }}%
+                  </span>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
+                <!-- Sales representative -->
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden lg:table-cell">
+                  <span
+                    v-if="facility.sales"
+                    data-slot="badge"
+                    class="relative inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium text-foreground"
+                  >
+                    {{ getTranslatedName(facility.sales.name) }}
                   </span>
                   <span v-else class="text-muted-foreground text-xs">—</span>
                 </td>

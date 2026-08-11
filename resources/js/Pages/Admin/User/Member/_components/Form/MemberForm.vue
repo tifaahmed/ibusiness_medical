@@ -22,18 +22,24 @@
               required
             />
             <FormInput
-              v-model="memberStore.form.phone"
+              v-model="phone"
               :label="t.common?.phone || 'Phone'"
               type="tel"
-              :error="memberStore.validationErrors?.phone"
+              inputmode="numeric"
+              :maxlength="PHONE_LENGTH"
+              :counter-max="PHONE_LENGTH"
+              :error="memberStore.validationErrors?.phone || phoneHint"
               :placeholder="t.member?.phone_placeholder || 'Enter phone number'"
               required
             />
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <FormInput
-              v-model="memberStore.form.national_id"
+              v-model="nationalId"
               :label="t.member?.national_id || 'National ID Number'"
+              inputmode="numeric"
+              :maxlength="NATIONAL_ID_LENGTH"
+              :counter-max="NATIONAL_ID_LENGTH"
               :error="memberStore.validationErrors?.national_id"
               :placeholder="t.member?.national_id_placeholder || 'Enter 14-digit National ID number'"
               required
@@ -225,7 +231,30 @@
               :label="t.member?.expiration_date || 'Expiration Date'"
               :error="memberStore.validationErrors?.expiration_date"
               required
-            />
+            >
+              <template #label-action>
+                <button
+                  type="button"
+                  :disabled="!memberStore.form.registration_date"
+                  @click="setExpirationOneYearOut"
+                  :title="memberStore.form.registration_date
+                    ? (t.member?.expiration_one_year_hint || 'Set to one year after the registration date')
+                    : (t.member?.expiration_needs_registration || 'Pick a registration date first')"
+                  :aria-label="t.member?.expiration_one_year_hint || 'Set to one year after the registration date'"
+                  class="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 2v4"></path>
+                    <path d="M16 2v4"></path>
+                    <rect width="18" height="18" x="3" y="4" rx="2"></rect>
+                    <path d="M3 10h18"></path>
+                    <path d="M12 14v4"></path>
+                    <path d="M10 16h4"></path>
+                  </svg>
+                  {{ t.member?.expiration_one_year || '+1 year' }}
+                </button>
+              </template>
+            </FormDateInput>
           </div>
           <div class="pt-2 space-y-4">
             <div>
@@ -383,6 +412,34 @@ watch(
 );
 const requiresPaidMonthlyFields = computed(() => Boolean(memberStore.form.is_paid) && memberStore.form.payment_type === 'monthly');
 
+// Phone and National ID are digit-only fields with a fixed length, so both are
+// sanitised as they're typed and surfaced with a live counter. Phone must be an
+// Egyptian mobile number, which always starts with 01.
+const PHONE_LENGTH = 11;
+const NATIONAL_ID_LENGTH = 14;
+const PHONE_PREFIX = '01';
+
+const digitsOnly = (value, max) => String(value ?? '').replace(/\D/g, '').slice(0, max);
+
+const phone = computed({
+  get: () => form.value.phone ?? '',
+  set: (value) => { form.value.phone = digitsOnly(value, PHONE_LENGTH); },
+});
+
+const nationalId = computed({
+  get: () => form.value.national_id ?? '',
+  set: (value) => { form.value.national_id = digitsOnly(value, NATIONAL_ID_LENGTH); },
+});
+
+const phoneHint = computed(() => {
+  const value = phone.value;
+  if (!value) return '';
+  if (!PHONE_PREFIX.startsWith(value) && !value.startsWith(PHONE_PREFIX)) {
+    return t.value.member?.phone_must_start_with || 'Phone number must start with 01.';
+  }
+  return '';
+});
+
 const paymentTypeOptions = computed(() => [
   { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
   { value: 'monthly', label: t.value.member?.payment_type_monthly || 'Monthly' },
@@ -405,14 +462,14 @@ watch(() => memberStore.form.is_paid, (isPaid) => {
 });
 
 // Payment card — same fields as the standalone member-payment create form.
-// On create, shown whenever the membership is paid. On edit, shown only when
-// the membership is still incomplete (no completed_at) and has never had a
-// payment recorded — i.e. the admin is finishing setup on an imported/staged
-// member and adding their first payment at the same time.
+// On create, shown whenever the membership is paid. On edit, shown as soon as
+// the admin marks the membership paid while it has no payment recorded yet, so
+// the first payment can be entered here instead of in a second trip to the
+// member-payment form. Once a payment exists it belongs to that module.
 const showInitialPaymentCard = computed(() => {
   if (!memberStore.form.is_paid) return false;
   if (!memberStore.form.id) return true;
-  return !memberStore.form.membership_completed_at && !memberStore.form.has_member_payments;
+  return !memberStore.form.has_member_payments;
 });
 
 const initialPaymentTypeOptions = computed(() => [
@@ -437,6 +494,14 @@ const recalcPaymentPeriod = () => {
   if (months <= 0 || !fromDate) return;
   memberStore.form.initial_payment_from_date = fromDate;
   memberStore.form.initial_payment_to_date = addMonths(fromDate, months);
+};
+
+// Shortcut on the Expiration Date label: the usual membership term is one year
+// from registration, so offer it in one click rather than making admins count.
+const setExpirationOneYearOut = () => {
+  const registration = memberStore.form.registration_date;
+  if (!registration) return;
+  memberStore.form.expiration_date = addMonths(registration, 12);
 };
 
 watch(() => memberStore.form.initial_payment_months_paid, recalcPaymentPeriod);

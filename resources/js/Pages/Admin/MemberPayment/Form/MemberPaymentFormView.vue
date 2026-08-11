@@ -434,6 +434,12 @@ onMounted(() => {
     memberPaymentStore.setPayment(props.payment);
   } else {
     memberPaymentStore.initializeForm();
+    // ?membership_id= lets other pages (e.g. the member edit Payments tab)
+    // land here with the membership already chosen.
+    const requested = new URLSearchParams(window.location.search).get('membership_id');
+    if (requested && props.memberships.some(m => String(m.id) === String(requested))) {
+      memberPaymentStore.form.membership_id = requested;
+    }
     autoCalcDates();
   }
 });

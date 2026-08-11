@@ -176,7 +176,21 @@
       "Bash(DB_DATABASE=ibm_migration_check php artisan migrate:fresh --force)",
       "Bash(DB_DATABASE=ibm_migration_check php artisan db:seed --force)",
       "Bash(awk '{print $1}')",
-      "Bash(xargs -n1 basename)"
+      "Bash(xargs -n1 basename)",
+      "Bash(perl -0pi -e 's/\\(:ref=\"el => setCardCanvas\\\\\\(el, membership\\\\.id, .\\(?:full|minimal\\).\\\\\\)\"\\\\n\\\\s*\\)width=\"1063\"\\\\n\\(\\\\s*\\)height=\"650\"/$1:width=\"CARD_W\"\\\\n$2:height=\"CARD_H\"/g; s/\\(:ref=\"el => setPopupCardCanvas\\\\\\(el\\\\\\)\"\\\\n\\\\s*\\)width=\"1063\"\\\\n\\(\\\\s*\\)height=\"650\"/$1:width=\"CARD_W\"\\\\n$2:height=\"CARD_H\"/g' resources/js/Pages/Admin/User/Membership/Show.vue)",
+      "Bash(sed 's|^export ||' resources/js/Pages/Admin/MembershipCard/_components/code128.js)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(perl -0pi -e 's/\\(:overrides=\"card\\\\.layout_overrides\"\\\\n\\)\\(\\\\s*\\)\\(\\\\/>\\)/$1$2:contact=\"card.layout_overrides?.contact_text\"\\\\n$2$3/g; s/\\(overrides: props\\\\.card\\\\?\\\\.layout_overrides \\\\?\\\\? null,\\\\n\\)\\(\\\\s*\\)\\(\\\\}\\\\\\);\\)/$1$2contact: props.card?.layout_overrides?.contact_text ?? null,\\\\n$2$3/g' resources/js/Pages/Admin/MembershipCard/Show.vue)",
+      "Bash(xargs -I{} sh -c 'echo \"== {}\"; head -30 {}')",
+      "Bash(perl -0pi -e ' *)",
+      "Bash(perl -0pi -e \"s/const isTextField = \\\\\\(key\\\\\\) => props\\\\.defaults\\\\.text_fields\\\\.includes\\\\\\(key\\\\\\);/const isTextField = \\(key\\) => props.defaults.text_fields.includes\\(key\\);\\\\nconst isImageField = \\(key\\) => props.defaults.image_fields.includes\\(key\\);/\" resources/js/Pages/Admin/CardTemplate/Edit.vue)",
+      "Bash(rm -f storage/app/public/card-templates/*.png)",
+      "Bash(rmdir storage/app/public/card-templates)",
+      "Bash(awk 'NR<=200 && /^    .[a-z_]+. => \\\\[/ {print NR\": \"$0}' lang/en/admin.php)",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(echo \"build exit=$?\")",
+      "Bash(awk 'NR>=326 && NR<=340' routes/web.php)",
+      "Bash(awk 'NR<=336 && /Route::middleware\\\\\\(.permission/ {print NR\": \"$0}' routes/web.php)"
     ]
   }
 }

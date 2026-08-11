@@ -26,11 +26,13 @@ const MARGIN_Y = (PAGE_H - ROWS * CARD_H - (ROWS - 1) * GAP_Y) / 2; // 0.25cm
  *
  * @param {Array<{ membership_number: string, slug: string }>} memberships
  * @param {object|null} partner
+ * @param {object|null} template card_templates row driving the layout
  * @param {(progress: number) => void} [onProgress]
  * @param {(idx0: number) => object|null} [overridesFor]
+ * @param {object|null} [contact] { facebook, website, phone } text overrides
  * @returns {Promise<{ batchPdf: Blob, zip: Blob }>}
  */
-export async function buildBatchAndZip(memberships, partner, onProgress, overridesFor = null) {
+export async function buildBatchAndZip(memberships, partner, template, onProgress, overridesFor = null, contact = null) {
   if (!memberships.length) {
     throw new Error('No memberships to render');
   }
@@ -41,8 +43,10 @@ export async function buildBatchAndZip(memberships, partner, onProgress, overrid
   for (let i = 0; i < memberships.length; i++) {
     const canvas = await renderCardCanvas({
       membership: memberships[i],
+      template,
       partner,
       overrides: overridesFor ? overridesFor(i) : null,
+      contact,
     });
     // JPEG at 0.92 keeps file size reasonable while staying visually crisp
     // at the print size we land on.

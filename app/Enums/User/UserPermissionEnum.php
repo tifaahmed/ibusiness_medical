@@ -16,65 +16,94 @@ namespace App\Enums\User;
 enum UserPermissionEnum
 {
     public const MANAGE_USERS = 'manage users';
+
     public const MANAGE_OWN_USERS = 'manage own users';
 
     public const MANAGE_ADMIN_USERS = 'manage admin users';
+
     public const MANAGE_OWN_ADMIN_USERS = 'manage own admin users';
 
     public const MANAGE_ROLES = 'manage roles';
+
     public const MANAGE_OWN_ROLES = 'manage own roles';
 
     public const MANAGE_MEMBERSHIPS = 'manage memberships';
+
     public const MANAGE_OWN_MEMBERSHIPS = 'manage own memberships';
 
     public const VIEW_MEMBERSHIP_CARD_PATCHES = 'view membership card patches';
+
     public const CREATE_MEMBERSHIP_CARD_PATCHES = 'create membership card patches';
+
     public const VIEW_OWN_MEMBERSHIP_CARD_PATCHES = 'view own membership card patches';
+
     public const CREATE_OWN_MEMBERSHIP_CARD_PATCHES = 'create own membership card patches';
 
+    /**
+     * Standalone permission: manage the reusable card designs in
+     * `card_templates`. Global design assets rather than per-admin records, so
+     * there is no creator-scoped "own" counterpart.
+     */
+    public const MANAGE_CARD_TEMPLATES = 'manage card templates';
+
     public const MANAGE_MEMBERSHIP_USAGES = 'manage membership usages';
+
     public const MANAGE_OWN_MEMBERSHIP_USAGES = 'manage own membership usages';
 
     public const MANAGE_OFFERS = 'manage offers';
+
     public const MANAGE_OWN_OFFERS = 'manage own offers';
 
     public const MANAGE_SERVICES = 'manage services';
+
     public const MANAGE_OWN_SERVICES = 'manage own services';
 
     public const MANAGE_CONTRACTS = 'manage contracts';
+
     public const MANAGE_OWN_CONTRACTS = 'manage own contracts';
 
     public const MANAGE_COMPANIES = 'manage companies';
+
     public const MANAGE_OWN_COMPANIES = 'manage own companies';
 
     public const MANAGE_FACILITIES = 'manage facilities';
+
     public const MANAGE_OWN_FACILITIES = 'manage own facilities';
 
     public const MANAGE_FACILITY_BRANCHES = 'manage facility branches';
+
     public const MANAGE_OWN_FACILITY_BRANCHES = 'manage own facility branches';
 
     public const MANAGE_GOVERNORATES = 'manage governorates';
+
     public const MANAGE_OWN_GOVERNORATES = 'manage own governorates';
 
     public const MANAGE_CONTACT_MESSAGES = 'manage contact messages';
+
     public const MANAGE_OWN_CONTACT_MESSAGES = 'manage own contact messages';
 
     public const MANAGE_FAQS = 'manage faqs';
+
     public const MANAGE_OWN_FAQS = 'manage own faqs';
 
     public const MANAGE_PARTNERS = 'manage partners';
+
     public const MANAGE_OWN_PARTNERS = 'manage own partners';
 
     public const MANAGE_PARTNER_OFFERS = 'manage partner offers';
+
     public const MANAGE_OWN_PARTNER_OFFERS = 'manage own partner offers';
 
     public const MANAGE_SALES = 'manage sales';
+
     public const MANAGE_OWN_SALES = 'manage own sales';
 
     public const MANAGE_NEWS_TICKERS = 'manage news tickers';
+
     public const MANAGE_OWN_NEWS_TICKERS = 'manage own news tickers';
 
     public const MANAGE_MEMBER_PAYMENTS = 'manage member payments';
+
     public const MANAGE_OWN_MEMBER_PAYMENTS = 'manage own member payments';
 
     /**
@@ -93,6 +122,7 @@ enum UserPermissionEnum
     public const MANAGE_PARTNER_MEMBER_PAYMENTS = 'manage partner member payments';
 
     public const VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES = 'view partner membership card patches';
+
     public const CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES = 'create partner membership card patches';
 
     /**
@@ -121,6 +151,7 @@ enum UserPermissionEnum
             self::MANAGE_PARTNER_MEMBER_PAYMENTS,
             self::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES,
+            self::MANAGE_CARD_TEMPLATES,
             self::MANAGE_PROFILE,
             self::VIEW_MEMBER_ACTIVE_HISTORIES,
         ];
@@ -167,6 +198,7 @@ enum UserPermissionEnum
         foreach (self::standalone() as $perm) {
             $out[] = $perm;
         }
+
         return $out;
     }
 
@@ -227,9 +259,11 @@ enum UserPermissionEnum
         foreach (self::pairs() as [$full, $own]) {
             if ($permission === $full || $permission === $own) {
                 $resource = trim(str_replace(['view own ', 'create own ', 'manage own ', 'view ', 'create ', 'manage '], '', $full));
+
                 return $resource;
             }
         }
+
         return null;
     }
 }

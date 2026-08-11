@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\User\Membership\List;
 
+use App\Models\CardLayout;
 use App\Models\MembershipCard;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -9,6 +10,18 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AdminUserMembershipListResource extends JsonResource
 {
     private static ?array $cardPatchBatchMap = null;
+
+    /** membership id => true, for the cards that no longer follow their design. */
+    private static ?array $customCardIds = null;
+
+    private static function customCardIds(): array
+    {
+        if (self::$customCardIds === null) {
+            self::$customCardIds = array_fill_keys(CardLayout::customisedMembershipIds(), true);
+        }
+
+        return self::$customCardIds;
+    }
 
     private static function getCardPatchBatchMap(): array
     {
@@ -60,6 +73,9 @@ class AdminUserMembershipListResource extends JsonResource
                 return [
                     'id' => $membership->id,
                     'card_patch_batch_names' => self::getCardPatchBatchMap()[(int) $membership->id] ?? [],
+                    // False means the card is drawn from its template, so it
+                    // changes whenever that design does.
+                    'has_custom_card' => isset(self::customCardIds()[(int) $membership->id]),
                     'membership_number' => $membership->membership_number,
                     'slug' => $membership->slug,
                     'registration_date' => $membership->registration_date?->format('Y-m-d H:i:s'),

@@ -45,19 +45,22 @@ class StoreMembershipCardRequest extends FormRequest
                     ? [Rule::in([(int) Auth::user()->partner_id])]
                     : []),
             ],
+            'card_template_id' => ['nullable', 'integer', 'exists:card_templates,id'],
             'layout_overrides' => ['nullable', 'array'],
-            'layout_overrides.qr' => ['nullable', 'array'],
-            'layout_overrides.qr.x' => ['nullable', 'numeric'],
-            'layout_overrides.qr.y' => ['nullable', 'numeric'],
-            'layout_overrides.qr.scale' => ['nullable', 'numeric'],
-            'layout_overrides.fields' => ['nullable', 'array'],
-            'layout_overrides.fields.x' => ['nullable', 'numeric'],
-            'layout_overrides.fields.y' => ['nullable', 'numeric'],
-            'layout_overrides.fields.scale' => ['nullable', 'numeric'],
-            'layout_overrides.partner' => ['nullable', 'array'],
-            'layout_overrides.partner.x' => ['nullable', 'numeric'],
-            'layout_overrides.partner.y' => ['nullable', 'numeric'],
-            'layout_overrides.partner.scale' => ['nullable', 'numeric'],
+            // qr / barcode / partner / contact are the four placeable elements
+            // on the blank card artwork.
+            ...collect(['qr', 'barcode', 'partner', 'contact'])
+                ->flatMap(fn (string $el) => [
+                    "layout_overrides.$el" => ['nullable', 'array'],
+                    "layout_overrides.$el.x" => ['nullable', 'numeric'],
+                    "layout_overrides.$el.y" => ['nullable', 'numeric'],
+                    "layout_overrides.$el.scale" => ['nullable', 'numeric'],
+                ])
+                ->all(),
+            'layout_overrides.contact_text' => ['nullable', 'array'],
+            'layout_overrides.contact_text.facebook' => ['nullable', 'string', 'max:120'],
+            'layout_overrides.contact_text.website' => ['nullable', 'string', 'max:120'],
+            'layout_overrides.contact_text.phone' => ['nullable', 'string', 'max:60'],
         ];
     }
 
@@ -74,7 +77,7 @@ class StoreMembershipCardRequest extends FormRequest
 
             $numbers = [];
             for ($i = 0; $i < $qty; $i++) {
-                $numbers[] = $prefix . (string) ($start + $i);
+                $numbers[] = $prefix.(string) ($start + $i);
             }
 
             // Check both live and soft-deleted rows so we never collide with
@@ -84,12 +87,12 @@ class StoreMembershipCardRequest extends FormRequest
                 ->pluck('membership_number')
                 ->all();
 
-            if (!empty($existing)) {
+            if (! empty($existing)) {
                 $sample = array_slice($existing, 0, 5);
-                $more = count($existing) > 5 ? ' (+' . (count($existing) - 5) . ' more)' : '';
+                $more = count($existing) > 5 ? ' (+'.(count($existing) - 5).' more)' : '';
                 $v->errors()->add(
                     'start_number',
-                    'Some codes in this range are already used: ' . implode(', ', $sample) . $more . '. Pick a different prefix or start number.'
+                    'Some codes in this range are already used: '.implode(', ', $sample).$more.'. Pick a different prefix or start number.'
                 );
             }
         });
@@ -113,6 +116,7 @@ class StoreMembershipCardRequest extends FormRequest
             || $user->hasPermissionTo(UserPermissionEnum::CREATE_OWN_MEMBERSHIP_CARD_PATCHES)) {
             return false;
         }
+
         return $user->hasPermissionTo(UserPermissionEnum::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES)
             || $user->hasPermissionTo(UserPermissionEnum::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES);
     }

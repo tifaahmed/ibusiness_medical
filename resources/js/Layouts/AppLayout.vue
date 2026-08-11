@@ -172,8 +172,6 @@ const getUserInitials = (name) => {
                     :href="route('admin.user.membership.list')"
                     :active="route().current('admin.user.membership.*')"
                     :is-collapsed="sidebarCollapsed"
-                    :badge="5"
-                    badge-variant="emerald"
                     icon-animation="animate-icon-breathe"
                     @click="closeSidebar"
                 >
@@ -234,6 +232,26 @@ const getUserInitials = (name) => {
                         </svg>
                     </template>
                     <template #label>{{ t.sidebar?.membership_card_patches || 'Membership Card Patches' }}</template>
+                </SidebarLink>
+
+                <SidebarLink
+                    v-if="can('manage card templates')"
+                    :href="route('admin.card-templates.index')"
+                    :active="route().current('admin.card-templates.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="16" rx="2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                            <circle cx="8.5" cy="9.5" r="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                            <line x1="13" y1="9" x2="18" y2="9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                            <line x1="13" y1="13" x2="18" y2="13" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                            <line x1="6" y1="16" x2="18" y2="16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.card_templates || 'Card Templates' }}</template>
                 </SidebarLink>
 
                 <SidebarLink

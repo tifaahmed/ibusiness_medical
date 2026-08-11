@@ -27,9 +27,18 @@ class AdminFacilityListResource extends JsonResource
                     'slug' => $this->facilityType->slug,
                 ] : null;
             }),
-            'logo'         => $this->logo,
-            'mobile_logo'  => $this->mobile_logo,
-            'image'        => $this->image,
+            'sales' => $this->whenLoaded('sales', function () {
+                return $this->sales ? [
+                    'id' => $this->sales->id,
+                    'name' => $this->sales->getTranslation('name', app()->getLocale())
+                        ?: $this->sales->getTranslation('name', 'ar')
+                        ?: $this->sales->getTranslation('name', 'en')
+                        ?: "#{$this->sales->id}",
+                ] : null;
+            }),
+            'logo' => $this->logo,
+            'mobile_logo' => $this->mobile_logo,
+            'image' => $this->image,
             'mobile_image' => $this->mobile_image,
             'branches_count' => $this->whenCounted('branches', $this->branches_count ?? $this->branches()->count()),
             // Full branch details for the list popup
@@ -90,5 +99,3 @@ class AdminFacilityListResource extends JsonResource
         ];
     }
 }
-
-

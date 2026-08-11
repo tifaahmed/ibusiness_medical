@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\CardGenerator;
 
+use App\Http\Controllers\Concerns\ProvidesCardTemplates;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Partner;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Inertia\Response;
 
 class AdminCardGeneratorController extends BaseController
 {
+    use ProvidesCardTemplates;
+
     public function __invoke(Request $request): Response
     {
         $partners = Partner::orderBy('title')
@@ -26,6 +29,10 @@ class AdminCardGeneratorController extends BaseController
 
         return Inertia::render('Admin/CardGenerator/Index', [
             'partners' => $partners,
+            // Selecting a partner switches the page to the `with_partner`
+            // design and clearing it switches to `no_partner`, so the artwork
+            // and slots come from /admin/card-templates.
+            'templates' => $this->cardTemplatesByStatus(),
             'initial' => [
                 'name' => $request->input('name', ''),
                 'policy' => $request->input('policy', ''),

@@ -22,6 +22,11 @@ class CardLayoutController extends Controller
         $validated = $request->validate([
             'mode' => ['nullable', 'string', 'in:full,minimal'],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
+            'card_template_id' => ['nullable', 'integer', 'exists:card_templates,id'],
+            // The whole per-card layout and the values typed into it — the
+            // generator positions every field on its own now.
+            'layout' => ['nullable', 'array'],
+            'field_values' => ['nullable', 'array'],
             'partner_x' => ['nullable', 'numeric'],
             'partner_y' => ['nullable', 'numeric'],
             'partner_scale' => ['nullable', 'numeric'],
@@ -39,6 +44,9 @@ class CardLayoutController extends Controller
             'qr_x' => ['nullable', 'numeric'],
             'qr_y' => ['nullable', 'numeric'],
             'qr_scale' => ['nullable', 'numeric'],
+            'barcode_x' => ['nullable', 'numeric'],
+            'barcode_y' => ['nullable', 'numeric'],
+            'barcode_scale' => ['nullable', 'numeric'],
             'image' => ['nullable', 'string'],
         ]);
 
@@ -47,11 +55,14 @@ class CardLayoutController extends Controller
         $layout = CardLayout::updateOrCreate(
             ['membership_id' => $membership->id, 'mode' => $mode],
             $request->only([
-                'partner_id', 'partner_x', 'partner_y', 'partner_scale',
+                'partner_id', 'card_template_id',
+                'partner_x', 'partner_y', 'partner_scale',
                 'photo_x', 'photo_y', 'photo_scale',
                 'name_x', 'name_y', 'name_scale', 'name_color',
                 'fields_x', 'fields_y', 'fields_scale', 'fields_color',
                 'qr_x', 'qr_y', 'qr_scale',
+                'barcode_x', 'barcode_y', 'barcode_scale',
+                'layout', 'field_values',
             ])
         );
 

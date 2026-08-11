@@ -27,7 +27,7 @@ class StoreMembershipCardAction
             $generated = [];
 
             for ($i = 0; $i < $quantity; $i++) {
-                $number = $prefix . (string) ($start + $i);
+                $number = $prefix.(string) ($start + $i);
 
                 // Placeholder user — name/email/phone are null. completed_at
                 // on the membership tracks the "still empty" state for the UI.
@@ -67,6 +67,7 @@ class StoreMembershipCardAction
                 'membership_ids' => array_column($generated, 'id'),
                 'created_by' => $createdBy,
                 'partner_id' => $validated['partner_id'] ?? null,
+                'card_template_id' => $validated['card_template_id'] ?? null,
             ]);
 
             return [

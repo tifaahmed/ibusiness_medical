@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\City;
 use App\Models\FacilityType;
 use App\Models\Governorate;
+use App\Models\Sales;
 use App\Models\Tag;
-use Illuminate\Http\Request;
+use App\Services\FacilitySeoGenerator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,6 +38,17 @@ class AdminFacilityCreateController extends BaseController
             ];
         });
 
+        $salesOptions = Sales::query()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Sales $sale) => [
+                'value' => $sale->id,
+                'label' => $sale->getTranslation('name', app()->getLocale())
+                    ?: $sale->getTranslation('name', 'ar')
+                    ?: $sale->getTranslation('name', 'en')
+                    ?: "#{$sale->id}",
+            ])->toArray();
+
         $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
 
         return Inertia::render('Admin/Facility/Create/FacilityCreateView', [
@@ -44,9 +56,8 @@ class AdminFacilityCreateController extends BaseController
             'governorates' => $governorates,
             'cities' => $cities,
             'tags' => $tags,
+            'salesOptions' => $salesOptions,
+            'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
         ]);
     }
 }
-
-
-

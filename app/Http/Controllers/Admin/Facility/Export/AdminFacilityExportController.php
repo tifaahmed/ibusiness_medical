@@ -19,6 +19,7 @@ use ZipArchive;
 class AdminFacilityExportController extends BaseController
 {
     private const MIN_CHUNK_SIZE = 1;
+
     private const MAX_CHUNK_SIZE = 10000;
 
     public function __invoke(Request $request): StreamedResponse
@@ -26,6 +27,7 @@ class AdminFacilityExportController extends BaseController
         $filters = [
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->filled('facility_type_id') ? (int) $request->input('facility_type_id') : null,
+            'sales_id' => $request->filled('sales_id') ? (int) $request->input('sales_id') : null,
             'governorate_id' => $request->filled('governorate_id') ? (int) $request->input('governorate_id') : null,
             'created_from' => $request->filled('created_from') ? $request->input('created_from') : null,
             'created_to' => $request->filled('created_to') ? $request->input('created_to') : null,
@@ -38,19 +40,20 @@ class AdminFacilityExportController extends BaseController
         $facilities = Facility::query()
             ->with(['facilityType', 'creator:id,name,email'])
             ->withCount('branches')
-            ->when($includeBranches, fn($q) => $q->with(['branches' => fn($bq) => $bq->with(['governorate', 'city'])->orderBy('created_at')]))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->when($includeBranches, fn ($q) => $q->with(['branches' => fn ($bq) => $bq->with(['governorate', 'city'])->orderBy('created_at')]))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($w) use ($filters) {
-                    $needle = '%' . $filters['search'] . '%';
+                    $needle = '%'.$filters['search'].'%';
                     $w->where('name->en', 'like', $needle)
-                      ->orWhere('name->ar', 'like', $needle)
-                      ->orWhere('slug', 'like', $needle);
+                        ->orWhere('name->ar', 'like', $needle)
+                        ->orWhere('slug', 'like', $needle);
                 });
             })
-            ->when($filters['facility_type_id'] !== null, fn($q) => $q->where('facility_type_id', $filters['facility_type_id']))
-            ->when($filters['governorate_id'] !== null, fn($q) => $q->where('governorate_id', $filters['governorate_id']))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
+            ->when($filters['facility_type_id'] !== null, fn ($q) => $q->where('facility_type_id', $filters['facility_type_id']))
+            ->when($filters['sales_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sales_id']))
+            ->when($filters['governorate_id'] !== null, fn ($q) => $q->where('governorate_id', $filters['governorate_id']))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest()
             ->get();
 
@@ -65,13 +68,14 @@ class AdminFacilityExportController extends BaseController
 
         if ($chunkSize === 0 || $facilities->count() <= $chunkSize) {
             $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $filters, $includeBranches);
-            $filename = ($includeBranches ? 'facilities_with_branches_' : 'facilities_export_') . $timestamp . '.xlsx';
+            $filename = ($includeBranches ? 'facilities_with_branches_' : 'facilities_export_').$timestamp.'.xlsx';
+
             return $this->streamXlsx($spreadsheet, $filename);
         }
 
         $chunks = $facilities->chunk($chunkSize)->values();
         $totalParts = $chunks->count();
-        $tmpDir = sys_get_temp_dir() . '/facilities_export_' . uniqid('', true);
+        $tmpDir = sys_get_temp_dir().'/facilities_export_'.uniqid('', true);
         mkdir($tmpDir, 0700, true);
 
         $partFiles = [];
@@ -85,7 +89,7 @@ class AdminFacilityExportController extends BaseController
                 $partNumber,
                 $totalParts
             );
-            $partPath = $tmpDir . '/' . $partFilename;
+            $partPath = $tmpDir.'/'.$partFilename;
             (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
             $partSpreadsheet->disconnectWorksheets();
             unset($partSpreadsheet);
@@ -98,8 +102,8 @@ class AdminFacilityExportController extends BaseController
             $timestamp,
             $chunkSize
         );
-        $zipPath = $tmpDir . '/' . $zipName;
-        $zip = new ZipArchive();
+        $zipPath = $tmpDir.'/'.$zipName;
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($partFiles as $part) {
             $zip->addFile($part['path'], $part['name']);
@@ -108,7 +112,7 @@ class AdminFacilityExportController extends BaseController
 
         return response()->stream(function () use ($zipPath, $tmpDir) {
             readfile($zipPath);
-            foreach (glob($tmpDir . '/*') as $f) {
+            foreach (glob($tmpDir.'/*') as $f) {
                 @unlink($f);
             }
             @rmdir($tmpDir);
@@ -141,14 +145,14 @@ class AdminFacilityExportController extends BaseController
         bool $includeBranches,
         ?string $partLabel = null
     ): Spreadsheet {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Facilities');
 
         // ------ Title block ------
         $title = $partLabel ? "FACILITIES EXPORT — {$partLabel}" : 'FACILITIES EXPORT';
         $sheet->setCellValue('A1', $title);
-$sheet->mergeCells('A1:I1');
+        $sheet->mergeCells('A1:I1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -233,7 +237,7 @@ $sheet->mergeCells('A1:I1');
 
             $creator = $facility->creator;
             $creatorCell = $creator
-                ? trim($creator->name . ($creator->email ? " <{$creator->email}>" : ''))
+                ? trim($creator->name.($creator->email ? " <{$creator->email}>" : ''))
                 : '';
 
             $sheet->setCellValue("A{$dataRow}", $rowIndex);
@@ -267,7 +271,7 @@ $sheet->mergeCells('A1:I1');
         }
 
         $footerRow = ($dataRow > $dataStart ? $dataRow : $dataStart) + 1;
-        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — ' . $facilities->count() . ' facility(ies) exported');
+        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$facilities->count().' facility(ies) exported');
         $sheet->mergeCells("A{$footerRow}:I{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
@@ -317,7 +321,7 @@ $sheet->mergeCells('A1:I1');
         $row = $headerRow + 1;
         $index = 0;
         foreach ($facilities as $facility) {
-            if (!$facility->relationLoaded('branches')) {
+            if (! $facility->relationLoaded('branches')) {
                 continue;
             }
             foreach ($facility->branches as $branch) {
@@ -362,7 +366,7 @@ $sheet->mergeCells('A1:I1');
         }
 
         $footerRow = $row + 1;
-        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — ' . $index . ' branch(es) exported');
+        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$index.' branch(es) exported');
         $sheet->mergeCells("A{$footerRow}:L{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],

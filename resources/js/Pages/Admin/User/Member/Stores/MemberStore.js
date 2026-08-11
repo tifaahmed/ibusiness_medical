@@ -25,7 +25,7 @@ export const useMemberStore = defineStore('member', {
             is_visible: true,  // Default to true
             is_paid: false,  // Default to false
             payment_type: '',
-            membership_completed_at: null,  // read-only, from server — gates the edit-mode Payment card
+            membership_completed_at: null,  // read-only, from server
             has_member_payments: false,     // read-only, from server — gates the edit-mode Payment card
             initial_payment_amount: '',
             initial_payment_type: 'commission',

@@ -10,7 +10,9 @@ use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
+use App\Models\Sales;
 use App\Models\Tag;
+use App\Services\FacilitySeoGenerator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,8 +21,15 @@ class AdminFacilityEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Show the form for editing the specified facility.
@@ -65,6 +74,17 @@ class AdminFacilityEditController extends BaseController
             'media_count' => $facility->media->count(),
         ]);
 
+        $salesOptions = Sales::query()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Sales $sale) => [
+                'value' => $sale->id,
+                'label' => $sale->getTranslation('name', app()->getLocale())
+                    ?: $sale->getTranslation('name', 'ar')
+                    ?: $sale->getTranslation('name', 'en')
+                    ?: "#{$sale->id}",
+            ])->toArray();
+
         $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
 
         $result = [
@@ -73,9 +93,10 @@ class AdminFacilityEditController extends BaseController
             'governorates' => $governorates,
             'cities' => $cities,
             'tags' => $tags,
+            'salesOptions' => $salesOptions,
+            'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
         ];
 
         return Inertia::render('Admin/Facility/Edit/FacilityEditView', $result);
     }
 }
-

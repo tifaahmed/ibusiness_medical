@@ -23,7 +23,16 @@
       ]"
       v-bind="$attrs"
     />
-    <p v-if="error" class="mt-1 text-sm text-destructive">{{ error }}</p>
+    <div v-if="error || counterMax" class="mt-1 flex items-start gap-2">
+      <p v-if="error" class="text-sm text-destructive flex-1">{{ error }}</p>
+      <p
+        v-if="counterMax"
+        class="text-xs tabular-nums ms-auto shrink-0 leading-5"
+        :class="counterComplete ? 'text-emerald-400' : 'text-white/70'"
+      >
+        {{ counterLength }}/{{ counterMax }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -36,9 +45,15 @@ const props = defineProps({
   type: { type: String, default: "text" },
   required: Boolean,
   error: String,
+  // When set, a "typed/max" counter is rendered under the field.
+  counterMax: [String, Number],
 });
 
 defineEmits(["update:modelValue"]);
+
+const counterMax = computed(() => Number(props.counterMax) || 0);
+const counterLength = computed(() => String(props.modelValue ?? "").length);
+const counterComplete = computed(() => counterLength.value === counterMax.value);
 
 const id = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`);
 const inputEl = ref(null);

@@ -23,7 +23,17 @@ class OfferResource extends JsonResource
             'image' => $this->mobile_image,
             'thumbnail' => $this->mobile_thumbnail,
             'offerable_type' => $this->offerable_type,
-            'offerable_name' => $this->whenLoaded('offerable', fn() => $this->offerable->name),
+            'offerable_name' => $this->whenLoaded('offerable', fn () => $this->offerable->name),
+            // The partner's mark, so an offer card can be attributed without a
+            // second lookup. Branches and other offerables may not carry one.
+            'offerable_logo' => $this->whenLoaded(
+                'offerable',
+                fn () => $this->offerable?->logo ?? null
+            ),
+            'offerable_slug' => $this->whenLoaded(
+                'offerable',
+                fn () => $this->offerable?->slug ?? null
+            ),
         ];
     }
 }

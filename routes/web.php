@@ -1,212 +1,192 @@
 <?php
 
-
-use App\Http\Controllers\Admin\Dashboard\DashboardController;
-use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
-use App\Http\Controllers\Guest\PartnerOfferRequestController;
-
-use App\Http\Controllers\Admin\User\Membership\List\AdminUserMembershipListController;
-use App\Http\Controllers\Admin\User\Membership\Create\AdminUserMembershipCreateController;
-use App\Http\Controllers\Admin\User\Membership\Store\AdminUserMembershipStoreController;
-use App\Http\Controllers\Admin\User\Membership\Show\AdminUserMembershipShowController;
-use App\Http\Controllers\Admin\User\Membership\Edit\AdminUserMembershipEditController;
-use App\Http\Controllers\Admin\User\Membership\Update\AdminUserMembershipUpdateController;
-use App\Http\Controllers\Admin\User\Membership\UpdatePassword\AdminUserMembershipUpdatePasswordController;
-use App\Http\Controllers\Admin\User\Membership\Delete\AdminUserMembershipDeleteController;
-use App\Http\Controllers\Admin\User\Membership\Trash\AdminUserMembershipTrashController;
-use App\Http\Controllers\Admin\User\Membership\Restore\AdminUserMembershipRestoreController;
-use App\Http\Controllers\Admin\User\Membership\ForceDelete\AdminUserMembershipForceDeleteController;
-use App\Http\Controllers\Admin\User\Membership\Export\AdminUserMembershipExportController;
-use App\Http\Controllers\Admin\User\Membership\Logs\AdminUserMembershipLogsController;
-use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
 use App\Http\Controllers\Admin\ActiveHistory\AdminActiveHistoryController;
-use App\Http\Controllers\Admin\User\Membership\FamilyMember\Store\AdminFamilyMemberStoreController;
-use App\Http\Controllers\Admin\User\Membership\FamilyMember\Update\AdminFamilyMemberUpdateController;
-use App\Http\Controllers\Admin\User\Membership\FamilyMember\Delete\AdminFamilyMemberDeleteController;
-use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPageController;
-use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPreviewController;
-use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportCommitController;
-use App\Http\Controllers\Admin\MembershipCard\List\AdminMembershipCardListController;
+use App\Http\Controllers\Admin\Company\Create\AdminCompanyCreateController;
+use App\Http\Controllers\Admin\Company\Delete\AdminCompanyDeleteController;
+use App\Http\Controllers\Admin\Company\Edit\AdminCompanyEditController;
+use App\Http\Controllers\Admin\Company\List\AdminCompanyListController;
+use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersController;
+use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersExportController;
+use App\Http\Controllers\Admin\Company\Store\AdminCompanyStoreController;
+use App\Http\Controllers\Admin\Company\Update\AdminCompanyUpdateController;
+use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
+use App\Http\Controllers\Admin\Contract\Create\AdminContractCreateController;
+use App\Http\Controllers\Admin\Contract\Delete\AdminContractDeleteController;
+use App\Http\Controllers\Admin\Contract\Edit\AdminContractEditController;
+use App\Http\Controllers\Admin\Contract\List\AdminContractListController;
+use App\Http\Controllers\Admin\Contract\Show\AdminContractShowController;
+use App\Http\Controllers\Admin\Contract\Store\AdminContractStoreController;
+use App\Http\Controllers\Admin\Contract\Update\AdminContractUpdateController;
+use App\Http\Controllers\Admin\Dashboard\DashboardController;
+use App\Http\Controllers\Admin\Facility\Create\AdminFacilityCreateController;
+use App\Http\Controllers\Admin\Facility\Delete\AdminFacilityDeleteController;
+use App\Http\Controllers\Admin\Facility\Edit\AdminFacilityEditController;
+use App\Http\Controllers\Admin\Facility\Export\AdminFacilityExportController;
+use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitController;
+use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
+use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
+use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
+use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
+use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
+use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
+use App\Http\Controllers\Admin\Facility\Store\AdminFacilityStoreController;
+use App\Http\Controllers\Admin\Facility\Update\AdminFacilityUpdateController;
+use App\Http\Controllers\Admin\FacilityBranch\Create\AdminFacilityBranchCreateController;
+use App\Http\Controllers\Admin\FacilityBranch\Delete\AdminFacilityBranchDeleteController;
+use App\Http\Controllers\Admin\FacilityBranch\Edit\AdminFacilityBranchEditController;
+use App\Http\Controllers\Admin\FacilityBranch\Export\AdminFacilityBranchExportController;
+// Governorate Routes
+use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportCommitController;
+use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPageController;
+use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPreviewController;
+use App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchListController;
+use App\Http\Controllers\Admin\FacilityBranch\Logs\AdminFacilityBranchLogsController;
+use App\Http\Controllers\Admin\FacilityBranch\Show\AdminFacilityBranchShowController;
+use App\Http\Controllers\Admin\FacilityBranch\Store\AdminFacilityBranchStoreController;
+// FacilityType Routes
+use App\Http\Controllers\Admin\FacilityBranch\Update\AdminFacilityBranchUpdateController;
+use App\Http\Controllers\Admin\FacilityType\Create\AdminFacilityTypeCreateController;
+use App\Http\Controllers\Admin\FacilityType\Delete\AdminFacilityTypeDeleteController;
+use App\Http\Controllers\Admin\FacilityType\Edit\AdminFacilityTypeEditController;
+use App\Http\Controllers\Admin\FacilityType\List\AdminFacilityTypeListController;
+use App\Http\Controllers\Admin\FacilityType\Show\AdminFacilityTypeShowController;
+use App\Http\Controllers\Admin\FacilityType\Store\AdminFacilityTypeStoreController;
+// Facility Routes
+use App\Http\Controllers\Admin\FacilityType\Update\AdminFacilityTypeUpdateController;
+use App\Http\Controllers\Admin\Faq\Create\AdminFaqCreateController;
+use App\Http\Controllers\Admin\Faq\Delete\AdminFaqDeleteController;
+use App\Http\Controllers\Admin\Faq\Edit\AdminFaqEditController;
+use App\Http\Controllers\Admin\Faq\List\AdminFaqListController;
+use App\Http\Controllers\Admin\Faq\Store\AdminFaqStoreController;
+use App\Http\Controllers\Admin\Faq\Update\AdminFaqUpdateController;
+use App\Http\Controllers\Admin\Governorate\Create\AdminGovernorateCreateController;
+use App\Http\Controllers\Admin\Governorate\Delete\AdminGovernorateDeleteController;
+use App\Http\Controllers\Admin\Governorate\Edit\AdminGovernorateEditController;
+use App\Http\Controllers\Admin\Governorate\List\AdminGovernorateListController;
+use App\Http\Controllers\Admin\Governorate\Show\AdminGovernorateShowController;
+// FacilityBranch Routes
+use App\Http\Controllers\Admin\Governorate\Store\AdminGovernorateStoreController;
+use App\Http\Controllers\Admin\Governorate\Update\AdminGovernorateUpdateController;
+use App\Http\Controllers\Admin\MemberPayment\Create\AdminMemberPaymentCreateController;
+use App\Http\Controllers\Admin\MemberPayment\Delete\AdminMemberPaymentDeleteController;
+use App\Http\Controllers\Admin\MemberPayment\Edit\AdminMemberPaymentEditController;
+use App\Http\Controllers\Admin\MemberPayment\Export\AdminMemberPaymentExportToPayController;
+use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportCommitController;
+use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportPageController;
+use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportPreviewController;
+use App\Http\Controllers\Admin\MemberPayment\List\AdminMemberPaymentListController;
+use App\Http\Controllers\Admin\MemberPayment\Show\AdminMemberPaymentShowController;
+use App\Http\Controllers\Admin\MemberPayment\Store\AdminMemberPaymentStoreController;
+// Offer Routes
+use App\Http\Controllers\Admin\MemberPayment\Update\AdminMemberPaymentUpdateController;
 use App\Http\Controllers\Admin\MembershipCard\Create\AdminMembershipCardCreateController;
+use App\Http\Controllers\Admin\MembershipCard\Delete\AdminMembershipCardDeleteController;
+use App\Http\Controllers\Admin\MembershipCard\List\AdminMembershipCardListController;
+use App\Http\Controllers\Admin\MembershipCard\Show\AdminMembershipCardShowController;
 use App\Http\Controllers\Admin\MembershipCard\Store\AdminMembershipCardStoreController;
 use App\Http\Controllers\Admin\MembershipCard\UploadPdf\AdminMembershipCardUploadPdfController;
-use App\Http\Controllers\Admin\MembershipCard\Show\AdminMembershipCardShowController;
-use App\Http\Controllers\Admin\MembershipCard\Delete\AdminMembershipCardDeleteController;
+// MembershipUsage Routes
+use App\Http\Controllers\Admin\MembershipUsage\Create\AdminMembershipUsageCreateController;
+use App\Http\Controllers\Admin\MembershipUsage\Delete\AdminMembershipUsageDeleteController;
+use App\Http\Controllers\Admin\MembershipUsage\Edit\AdminMembershipUsageEditController;
+use App\Http\Controllers\Admin\MembershipUsage\List\AdminMembershipUsageListController;
+use App\Http\Controllers\Admin\MembershipUsage\Show\AdminMembershipUsageShowController;
+use App\Http\Controllers\Admin\MembershipUsage\Store\AdminMembershipUsageStoreController;
+use App\Http\Controllers\Admin\MembershipUsage\Update\AdminMembershipUsageUpdateController;
+// MemberPayment Routes
+use App\Http\Controllers\Admin\NewsTicker\Create\AdminNewsTickerCreateController;
+use App\Http\Controllers\Admin\NewsTicker\Delete\AdminNewsTickerDeleteController;
+use App\Http\Controllers\Admin\NewsTicker\Edit\AdminNewsTickerEditController;
+use App\Http\Controllers\Admin\NewsTicker\List\AdminNewsTickerListController;
+use App\Http\Controllers\Admin\NewsTicker\Store\AdminNewsTickerStoreController;
+use App\Http\Controllers\Admin\NewsTicker\Update\AdminNewsTickerUpdateController;
+use App\Http\Controllers\Admin\Offer\Create\AdminOfferCreateController;
+use App\Http\Controllers\Admin\Offer\Delete\AdminOfferDeleteController;
+use App\Http\Controllers\Admin\Offer\Edit\AdminOfferEditController;
+use App\Http\Controllers\Admin\Offer\List\AdminOfferListController;
+use App\Http\Controllers\Admin\Offer\Show\AdminOfferShowController;
+// Company Routes
+use App\Http\Controllers\Admin\Offer\Store\AdminOfferStoreController;
+use App\Http\Controllers\Admin\Offer\Update\AdminOfferUpdateController;
+use App\Http\Controllers\Admin\Partner\Create\AdminPartnerCreateController;
+use App\Http\Controllers\Admin\Partner\Delete\AdminPartnerDeleteController;
+use App\Http\Controllers\Admin\Partner\Edit\AdminPartnerEditController;
+use App\Http\Controllers\Admin\Partner\List\AdminPartnerListController;
+use App\Http\Controllers\Admin\Partner\Store\AdminPartnerStoreController;
+use App\Http\Controllers\Admin\Partner\Update\AdminPartnerUpdateController;
+// Contract Routes
+use App\Http\Controllers\Admin\PartnerOffer\Create\AdminPartnerOfferCreateController;
+use App\Http\Controllers\Admin\PartnerOffer\Delete\AdminPartnerOfferDeleteController;
+use App\Http\Controllers\Admin\PartnerOffer\Edit\AdminPartnerOfferEditController;
+use App\Http\Controllers\Admin\PartnerOffer\ForceDelete\AdminPartnerOfferForceDeleteController;
+use App\Http\Controllers\Admin\PartnerOffer\List\AdminPartnerOfferListController;
+use App\Http\Controllers\Admin\PartnerOffer\Restore\AdminPartnerOfferRestoreController;
+use App\Http\Controllers\Admin\PartnerOffer\Store\AdminPartnerOfferStoreController;
+// FAQ Routes
+use App\Http\Controllers\Admin\PartnerOffer\Trash\AdminPartnerOfferTrashController;
+use App\Http\Controllers\Admin\PartnerOffer\Update\AdminPartnerOfferUpdateController;
+use App\Http\Controllers\Admin\PartnerOfferRequest\Delete\AdminPartnerOfferRequestDeleteController;
+use App\Http\Controllers\Admin\PartnerOfferRequest\List\AdminPartnerOfferRequestListController;
+use App\Http\Controllers\Admin\PartnerOfferRequest\Show\AdminPartnerOfferRequestShowController;
+use App\Http\Controllers\Admin\Sales\Create\AdminSalesCreateController;
+use App\Http\Controllers\Admin\Sales\Delete\AdminSalesDeleteController;
+use App\Http\Controllers\Admin\Sales\Edit\AdminSalesEditController;
+use App\Http\Controllers\Admin\Sales\List\AdminSalesListController;
+use App\Http\Controllers\Admin\Sales\Store\AdminSalesStoreController;
+use App\Http\Controllers\Admin\Sales\Update\AdminSalesUpdateController;
+use App\Http\Controllers\Admin\Service\Create\AdminServiceCreateController;
+// Partner Routes
+use App\Http\Controllers\Admin\Service\Delete\AdminServiceDeleteController;
+use App\Http\Controllers\Admin\Service\Edit\AdminServiceEditController;
+use App\Http\Controllers\Admin\Service\List\AdminServiceListController;
+use App\Http\Controllers\Admin\Service\Show\AdminServiceShowController;
+use App\Http\Controllers\Admin\Service\Store\AdminServiceStoreController;
+use App\Http\Controllers\Admin\Service\Update\AdminServiceUpdateController;
+// PartnerOffer Routes
+use App\Http\Controllers\Admin\ServiceType\Create\AdminServiceTypeCreateController;
+use App\Http\Controllers\Admin\ServiceType\Delete\AdminServiceTypeDeleteController;
+use App\Http\Controllers\Admin\ServiceType\Edit\AdminServiceTypeEditController;
+use App\Http\Controllers\Admin\ServiceType\List\AdminServiceTypeListController;
+use App\Http\Controllers\Admin\ServiceType\Show\AdminServiceTypeShowController;
+use App\Http\Controllers\Admin\ServiceType\Store\AdminServiceTypeStoreController;
+use App\Http\Controllers\Admin\ServiceType\Update\AdminServiceTypeUpdateController;
+use App\Http\Controllers\Admin\Tag\Create\AdminTagCreateController;
+use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
+// PartnerOfferRequest Routes
+use App\Http\Controllers\Admin\Tag\Edit\AdminTagEditController;
+use App\Http\Controllers\Admin\Tag\List\AdminTagListController;
+use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
+// Sales Routes
+use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
+use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
+use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
+use App\Http\Controllers\Admin\User\Membership\Create\AdminUserMembershipCreateController;
+use App\Http\Controllers\Admin\User\Membership\Delete\AdminUserMembershipDeleteController;
+use App\Http\Controllers\Admin\User\Membership\Edit\AdminUserMembershipEditController;
+// Service Routes
+use App\Http\Controllers\Admin\User\Membership\Export\AdminUserMembershipExportController;
+use App\Http\Controllers\Admin\User\Membership\FamilyMember\Delete\AdminFamilyMemberDeleteController;
+use App\Http\Controllers\Admin\User\Membership\FamilyMember\Store\AdminFamilyMemberStoreController;
+use App\Http\Controllers\Admin\User\Membership\FamilyMember\Update\AdminFamilyMemberUpdateController;
+use App\Http\Controllers\Admin\User\Membership\ForceDelete\AdminUserMembershipForceDeleteController;
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportCommitController;
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPageController;
+// ServiceType Routes
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPreviewController;
+use App\Http\Controllers\Admin\User\Membership\List\AdminUserMembershipListController;
+use App\Http\Controllers\Admin\User\Membership\Logs\AdminUserMembershipLogsController;
+use App\Http\Controllers\Admin\User\Membership\Restore\AdminUserMembershipRestoreController;
+use App\Http\Controllers\Admin\User\Membership\Show\AdminUserMembershipShowController;
+use App\Http\Controllers\Admin\User\Membership\Store\AdminUserMembershipStoreController;
+use App\Http\Controllers\Admin\User\Membership\Trash\AdminUserMembershipTrashController;
+// Tag Routes
+use App\Http\Controllers\Admin\User\Membership\Update\AdminUserMembershipUpdateController;
+use App\Http\Controllers\Admin\User\Membership\UpdatePassword\AdminUserMembershipUpdatePasswordController;
 use App\Http\Controllers\Api\MembershipNumberController;
 use App\Http\Controllers\Guest\MembershipController;
 use App\Http\Controllers\Guest\MembershipUsage\GuestMembershipUsageCreateController;
 use App\Http\Controllers\Guest\MembershipUsage\GuestMembershipUsageStoreController;
-
-// Governorate Routes
-use App\Http\Controllers\Admin\Governorate\List\AdminGovernorateListController;
-use App\Http\Controllers\Admin\Governorate\Create\AdminGovernorateCreateController;
-use App\Http\Controllers\Admin\Governorate\Store\AdminGovernorateStoreController;
-use App\Http\Controllers\Admin\Governorate\Show\AdminGovernorateShowController;
-use App\Http\Controllers\Admin\Governorate\Edit\AdminGovernorateEditController;
-use App\Http\Controllers\Admin\Governorate\Update\AdminGovernorateUpdateController;
-use App\Http\Controllers\Admin\Governorate\Delete\AdminGovernorateDeleteController;
-
-// FacilityType Routes
-use App\Http\Controllers\Admin\FacilityType\List\AdminFacilityTypeListController;
-use App\Http\Controllers\Admin\FacilityType\Create\AdminFacilityTypeCreateController;
-use App\Http\Controllers\Admin\FacilityType\Store\AdminFacilityTypeStoreController;
-use App\Http\Controllers\Admin\FacilityType\Show\AdminFacilityTypeShowController;
-use App\Http\Controllers\Admin\FacilityType\Edit\AdminFacilityTypeEditController;
-use App\Http\Controllers\Admin\FacilityType\Update\AdminFacilityTypeUpdateController;
-use App\Http\Controllers\Admin\FacilityType\Delete\AdminFacilityTypeDeleteController;
-
-// Facility Routes
-use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
-use App\Http\Controllers\Admin\Facility\Create\AdminFacilityCreateController;
-use App\Http\Controllers\Admin\Facility\Store\AdminFacilityStoreController;
-use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
-use App\Http\Controllers\Admin\Facility\Edit\AdminFacilityEditController;
-use App\Http\Controllers\Admin\Facility\Update\AdminFacilityUpdateController;
-use App\Http\Controllers\Admin\Facility\Delete\AdminFacilityDeleteController;
-use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
-use App\Http\Controllers\Admin\Facility\Export\AdminFacilityExportController;
-use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
-use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
-use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitController;
-
-// FacilityBranch Routes
-use App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchListController;
-use App\Http\Controllers\Admin\FacilityBranch\Create\AdminFacilityBranchCreateController;
-use App\Http\Controllers\Admin\FacilityBranch\Store\AdminFacilityBranchStoreController;
-use App\Http\Controllers\Admin\FacilityBranch\Show\AdminFacilityBranchShowController;
-use App\Http\Controllers\Admin\FacilityBranch\Edit\AdminFacilityBranchEditController;
-use App\Http\Controllers\Admin\FacilityBranch\Update\AdminFacilityBranchUpdateController;
-use App\Http\Controllers\Admin\FacilityBranch\Delete\AdminFacilityBranchDeleteController;
-use App\Http\Controllers\Admin\FacilityBranch\Logs\AdminFacilityBranchLogsController;
-use App\Http\Controllers\Admin\FacilityBranch\Export\AdminFacilityBranchExportController;
-use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPageController;
-use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPreviewController;
-use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportCommitController;
-
-// Offer Routes
-use App\Http\Controllers\Admin\Offer\List\AdminOfferListController;
-use App\Http\Controllers\Admin\Offer\Create\AdminOfferCreateController;
-use App\Http\Controllers\Admin\Offer\Store\AdminOfferStoreController;
-use App\Http\Controllers\Admin\Offer\Show\AdminOfferShowController;
-use App\Http\Controllers\Admin\Offer\Edit\AdminOfferEditController;
-use App\Http\Controllers\Admin\Offer\Update\AdminOfferUpdateController;
-use App\Http\Controllers\Admin\Offer\Delete\AdminOfferDeleteController;
-
-// MembershipUsage Routes
-use App\Http\Controllers\Admin\MembershipUsage\List\AdminMembershipUsageListController;
-use App\Http\Controllers\Admin\MembershipUsage\Create\AdminMembershipUsageCreateController;
-use App\Http\Controllers\Admin\MembershipUsage\Store\AdminMembershipUsageStoreController;
-use App\Http\Controllers\Admin\MembershipUsage\Show\AdminMembershipUsageShowController;
-use App\Http\Controllers\Admin\MembershipUsage\Edit\AdminMembershipUsageEditController;
-use App\Http\Controllers\Admin\MembershipUsage\Update\AdminMembershipUsageUpdateController;
-use App\Http\Controllers\Admin\MembershipUsage\Delete\AdminMembershipUsageDeleteController;
-
-// MemberPayment Routes
-use App\Http\Controllers\Admin\MemberPayment\List\AdminMemberPaymentListController;
-use App\Http\Controllers\Admin\MemberPayment\Create\AdminMemberPaymentCreateController;
-use App\Http\Controllers\Admin\MemberPayment\Store\AdminMemberPaymentStoreController;
-use App\Http\Controllers\Admin\MemberPayment\Show\AdminMemberPaymentShowController;
-use App\Http\Controllers\Admin\MemberPayment\Edit\AdminMemberPaymentEditController;
-use App\Http\Controllers\Admin\MemberPayment\Update\AdminMemberPaymentUpdateController;
-use App\Http\Controllers\Admin\MemberPayment\Delete\AdminMemberPaymentDeleteController;
-use App\Http\Controllers\Admin\MemberPayment\Export\AdminMemberPaymentExportToPayController;
-use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportPageController;
-use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportPreviewController;
-use App\Http\Controllers\Admin\MemberPayment\Import\AdminMemberPaymentImportCommitController;
-
-// Company Routes
-use App\Http\Controllers\Admin\Company\List\AdminCompanyListController;
-use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersController;
-use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersExportController;
-use App\Http\Controllers\Admin\Company\Create\AdminCompanyCreateController;
-use App\Http\Controllers\Admin\Company\Store\AdminCompanyStoreController;
-use App\Http\Controllers\Admin\Company\Edit\AdminCompanyEditController;
-use App\Http\Controllers\Admin\Company\Update\AdminCompanyUpdateController;
-use App\Http\Controllers\Admin\Company\Delete\AdminCompanyDeleteController;
-
-// Contract Routes
-use App\Http\Controllers\Admin\Contract\List\AdminContractListController;
-use App\Http\Controllers\Admin\Contract\Create\AdminContractCreateController;
-use App\Http\Controllers\Admin\Contract\Store\AdminContractStoreController;
-use App\Http\Controllers\Admin\Contract\Show\AdminContractShowController;
-use App\Http\Controllers\Admin\Contract\Edit\AdminContractEditController;
-use App\Http\Controllers\Admin\Contract\Update\AdminContractUpdateController;
-use App\Http\Controllers\Admin\Contract\Delete\AdminContractDeleteController;
-
-// FAQ Routes
-use App\Http\Controllers\Admin\Faq\List\AdminFaqListController;
-use App\Http\Controllers\Admin\Faq\Create\AdminFaqCreateController;
-use App\Http\Controllers\Admin\Faq\Store\AdminFaqStoreController;
-use App\Http\Controllers\Admin\Faq\Edit\AdminFaqEditController;
-use App\Http\Controllers\Admin\Faq\Update\AdminFaqUpdateController;
-use App\Http\Controllers\Admin\Faq\Delete\AdminFaqDeleteController;
-
-use App\Http\Controllers\Admin\NewsTicker\List\AdminNewsTickerListController;
-use App\Http\Controllers\Admin\NewsTicker\Create\AdminNewsTickerCreateController;
-use App\Http\Controllers\Admin\NewsTicker\Store\AdminNewsTickerStoreController;
-use App\Http\Controllers\Admin\NewsTicker\Edit\AdminNewsTickerEditController;
-use App\Http\Controllers\Admin\NewsTicker\Update\AdminNewsTickerUpdateController;
-use App\Http\Controllers\Admin\NewsTicker\Delete\AdminNewsTickerDeleteController;
-
-// Partner Routes
-use App\Http\Controllers\Admin\Partner\List\AdminPartnerListController;
-use App\Http\Controllers\Admin\Partner\Create\AdminPartnerCreateController;
-use App\Http\Controllers\Admin\Partner\Store\AdminPartnerStoreController;
-use App\Http\Controllers\Admin\Partner\Edit\AdminPartnerEditController;
-use App\Http\Controllers\Admin\Partner\Update\AdminPartnerUpdateController;
-use App\Http\Controllers\Admin\Partner\Delete\AdminPartnerDeleteController;
-
-// PartnerOffer Routes
-use App\Http\Controllers\Admin\PartnerOffer\List\AdminPartnerOfferListController;
-use App\Http\Controllers\Admin\PartnerOffer\Create\AdminPartnerOfferCreateController;
-use App\Http\Controllers\Admin\PartnerOffer\Store\AdminPartnerOfferStoreController;
-use App\Http\Controllers\Admin\PartnerOffer\Edit\AdminPartnerOfferEditController;
-use App\Http\Controllers\Admin\PartnerOffer\Update\AdminPartnerOfferUpdateController;
-use App\Http\Controllers\Admin\PartnerOffer\Delete\AdminPartnerOfferDeleteController;
-use App\Http\Controllers\Admin\PartnerOffer\Trash\AdminPartnerOfferTrashController;
-use App\Http\Controllers\Admin\PartnerOffer\Restore\AdminPartnerOfferRestoreController;
-use App\Http\Controllers\Admin\PartnerOffer\ForceDelete\AdminPartnerOfferForceDeleteController;
-
-// PartnerOfferRequest Routes
-use App\Http\Controllers\Admin\PartnerOfferRequest\List\AdminPartnerOfferRequestListController;
-use App\Http\Controllers\Admin\PartnerOfferRequest\Show\AdminPartnerOfferRequestShowController;
-use App\Http\Controllers\Admin\PartnerOfferRequest\Delete\AdminPartnerOfferRequestDeleteController;
-
-// Sales Routes
-use App\Http\Controllers\Admin\Sales\List\AdminSalesListController;
-use App\Http\Controllers\Admin\Sales\Create\AdminSalesCreateController;
-use App\Http\Controllers\Admin\Sales\Store\AdminSalesStoreController;
-use App\Http\Controllers\Admin\Sales\Edit\AdminSalesEditController;
-use App\Http\Controllers\Admin\Sales\Update\AdminSalesUpdateController;
-use App\Http\Controllers\Admin\Sales\Delete\AdminSalesDeleteController;
-
-// Service Routes
-use App\Http\Controllers\Admin\Service\List\AdminServiceListController;
-use App\Http\Controllers\Admin\Service\Create\AdminServiceCreateController;
-use App\Http\Controllers\Admin\Service\Store\AdminServiceStoreController;
-use App\Http\Controllers\Admin\Service\Show\AdminServiceShowController;
-use App\Http\Controllers\Admin\Service\Edit\AdminServiceEditController;
-use App\Http\Controllers\Admin\Service\Update\AdminServiceUpdateController;
-use App\Http\Controllers\Admin\Service\Delete\AdminServiceDeleteController;
-
-// ServiceType Routes
-use App\Http\Controllers\Admin\ServiceType\List\AdminServiceTypeListController;
-use App\Http\Controllers\Admin\ServiceType\Create\AdminServiceTypeCreateController;
-use App\Http\Controllers\Admin\ServiceType\Store\AdminServiceTypeStoreController;
-use App\Http\Controllers\Admin\ServiceType\Show\AdminServiceTypeShowController;
-use App\Http\Controllers\Admin\ServiceType\Edit\AdminServiceTypeEditController;
-use App\Http\Controllers\Admin\ServiceType\Update\AdminServiceTypeUpdateController;
-use App\Http\Controllers\Admin\ServiceType\Delete\AdminServiceTypeDeleteController;
-
-// Tag Routes
-use App\Http\Controllers\Admin\Tag\List\AdminTagListController;
-use App\Http\Controllers\Admin\Tag\Create\AdminTagCreateController;
-use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
-use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
-use App\Http\Controllers\Admin\Tag\Edit\AdminTagEditController;
-use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
-use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
-
+use App\Http\Controllers\Guest\PartnerOfferRequestController;
 use Illuminate\Support\Facades\Route;
 
 // There are no public landing pages. "/" sends guests to the login screen and
@@ -264,6 +244,37 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/user/membership/import/commit', AdminUserMembershipImportCommitController::class)->name('admin.user.membership.import.commit');
     });
 
+    // ---- Card Templates (reusable card designs backing every generated card) ----
+    // IMPORTANT: the static /statuses and /layout-defaults routes MUST come
+    // before the wildcard /{cardTemplate} route.
+    Route::middleware('permission:manage card templates')->group(function () {
+        // Dashboard pages. /create MUST come before the /{cardTemplate} wildcard.
+        Route::get('/admin/card-templates', \App\Http\Controllers\Admin\CardTemplate\Index\AdminCardTemplateIndexController::class)
+            ->name('admin.card-templates.index');
+        Route::get('/admin/card-templates/create', \App\Http\Controllers\Admin\CardTemplate\Edit\AdminCardTemplateEditController::class)
+            ->name('admin.card-templates.create');
+        Route::get('/admin/card-templates/{cardTemplate}/edit', \App\Http\Controllers\Admin\CardTemplate\Edit\AdminCardTemplateEditController::class)
+            ->name('admin.card-templates.edit');
+
+        Route::get('/api/card-templates/statuses', \App\Http\Controllers\Admin\CardTemplate\Meta\AdminCardTemplateStatusesController::class)
+            ->name('admin.card-templates.statuses');
+        Route::get('/api/card-templates/layout-defaults', \App\Http\Controllers\Admin\CardTemplate\Meta\AdminCardTemplateLayoutDefaultsController::class)
+            ->name('admin.card-templates.layout-defaults');
+        Route::post('/api/card-templates/{cardTemplate}/duplicate', \App\Http\Controllers\Admin\CardTemplate\Duplicate\AdminCardTemplateDuplicateController::class)
+            ->name('admin.card-templates.duplicate');
+
+        Route::get('/api/card-templates', \App\Http\Controllers\Admin\CardTemplate\List\AdminCardTemplateListController::class)
+            ->name('admin.card-templates.list');
+        Route::post('/api/card-templates', \App\Http\Controllers\Admin\CardTemplate\Store\AdminCardTemplateStoreController::class)
+            ->name('admin.card-templates.store');
+        Route::get('/api/card-templates/{cardTemplate}', \App\Http\Controllers\Admin\CardTemplate\Show\AdminCardTemplateShowController::class)
+            ->name('admin.card-templates.show');
+        Route::post('/api/card-templates/{cardTemplate}', \App\Http\Controllers\Admin\CardTemplate\Update\AdminCardTemplateUpdateController::class)
+            ->name('admin.card-templates.update');
+        Route::delete('/api/card-templates/{cardTemplate}', \App\Http\Controllers\Admin\CardTemplate\Delete\AdminCardTemplateDeleteController::class)
+            ->name('admin.card-templates.destroy');
+    });
+
     // ---- Membership Card Patches (batch generation) ----
     // Permissions split into view/create pairs. Row-level filtering is enforced
     // inside each controller via ScopesByMembershipCardCreator.
@@ -310,7 +321,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
         // ---- Active status history (view-only) ----
         Route::get('/admin/active-history', AdminActiveHistoryController::class)
-            ->middleware('permission:' . \App\Enums\User\UserPermissionEnum::VIEW_MEMBER_ACTIVE_HISTORIES)
+            ->middleware('permission:'.\App\Enums\User\UserPermissionEnum::VIEW_MEMBER_ACTIVE_HISTORIES)
             ->name('admin.active-history.list');
 
         // Membership number helpers (called from the admin form via axios).
@@ -376,6 +387,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility/import', AdminFacilityImportPageController::class)->name('admin.facility.import.page');
         Route::post('/admin/facility/import/preview', AdminFacilityImportPreviewController::class)->name('admin.facility.import.preview');
         Route::post('/admin/facility/import/commit', AdminFacilityImportCommitController::class)->name('admin.facility.import.commit');
+        // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
+        Route::post('/admin/facility/seo/generate', AdminFacilitySeoGenerateController::class)->name('admin.facility.seo.generate');
         Route::get('/admin/facility/{facility}', AdminFacilityShowController::class)->name('admin.facility.show');
         Route::get('/admin/facility/{facility}/edit', AdminFacilityEditController::class)->name('admin.facility.edit');
         Route::put('/admin/facility/{facility}', AdminFacilityUpdateController::class)->name('admin.facility.update');
@@ -573,5 +586,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 // Temporary DB backup download — remove after use
 Route::get('/download-db-backup', function () {
     $file = storage_path('app/ashhealthcare_backup_20260521_232602.sql');
+
     return response()->download($file, 'ashhealthcare_backup_20260521_232602.sql');
 })->name('db.backup.download');

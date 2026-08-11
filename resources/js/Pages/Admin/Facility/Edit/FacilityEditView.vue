@@ -7,9 +7,24 @@
       <div class="space-y-4">
         <div class="space-y-3">
           <form class="space-y-3" @submit.prevent="handleSubmit">
-            <div class="space-y-3">
-              <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" />
+            <TabBar v-model="activeTab" :tabs="tabs" :error-title="t.facility?.tab_has_errors || 'This tab has errors'" />
+
+            <div v-show="activeTab === 'details'" class="space-y-3">
+              <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" />
+            </div>
+
+            <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled
+                 values survive switching back to the details tab. -->
+            <div v-show="activeTab === 'seo'" class="space-y-3">
+              <FacilitySeoCard
+                :facility="facility"
+                :facility-types="facilityTypes"
+                :branches="branches"
+                :governorates="governorates"
+                :cities="cities"
+                :ai-enabled="seoAiEnabled"
+              />
             </div>
 
             <!-- Sticky Form Actions -->
@@ -54,7 +69,8 @@ import { watch, ref, computed } from "vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useFacilityStore } from "../Stores/FacilityStore";
-import { FacilityForm, FacilityBranchCard } from "../_components/Form";
+import { FacilityForm, FacilityBranchCard, FacilitySeoCard } from "../_components/Form";
+import TabBar from "@/Components/ui/TabBar.vue";
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -79,10 +95,39 @@ const props = defineProps({
   tags: {
     type: Array,
     default: () => []
+  },
+  salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  seoAiEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 
 const facilityStore = useFacilityStore();
+
+const activeTab = ref('details');
+
+// Server-side errors can land on a tab the admin isn't looking at, so flag it.
+const SEO_ERROR_KEYS = ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'];
+const isSeoErrorKey = (key) => SEO_ERROR_KEYS.some(field => key === field || key.startsWith(`${field}.`));
+
+const errorKeys = computed(() => Object.keys(facilityStore.validationErrors || {}));
+
+const tabs = computed(() => [
+  {
+    key: 'details',
+    label: t.value.facility?.tab_details || 'Details',
+    hasError: errorKeys.value.some(key => !isSeoErrorKey(key)),
+  },
+  {
+    key: 'seo',
+    label: t.value.facility?.tab_seo || 'SEO',
+    hasError: errorKeys.value.some(isSeoErrorKey),
+  },
+]);
 const branches = ref([]);
 
 // Set facility data when props are received

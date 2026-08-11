@@ -13,7 +13,7 @@ export const memberSchema = z.object({
         .or(z.literal('')),
     phone: z.string()
         .min(1, 'Phone is required')
-        .max(20, 'Phone must be less than 20 characters'),
+        .regex(/^01\d{9}$/, 'Phone number must start with 01 and be exactly 11 digits'),
     password: z.string()
         .optional()
         .refine((val) => {
@@ -143,7 +143,7 @@ export const memberUpdateSchema = z.object({
         .or(z.literal('')),
     phone: z.string()
         .min(1, 'Phone is required')
-        .max(20, 'Phone must be less than 20 characters'),
+        .regex(/^01\d{9}$/, 'Phone number must start with 01 and be exactly 11 digits'),
     password: z.string()
         .min(8, 'Password must be at least 8 characters')
         .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
@@ -235,10 +235,10 @@ export const memberUpdateSchema = z.object({
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required for a paid monthly membership', path: ['governorate_id'] });
     }
 }).superRefine((data, ctx) => {
-    // The first member-payment row is required when the admin is marking an
-    // incomplete, never-paid membership as paid — mirrors the edit form's
-    // Payment card, which only appears under these same conditions.
-    const requiresInitialPayment = data.is_paid && !data.membership_completed_at && !data.has_member_payments;
+    // The first member-payment row is required when the admin marks a
+    // never-paid membership as paid — mirrors the edit form's Payment card,
+    // which appears under these same conditions.
+    const requiresInitialPayment = data.is_paid && !data.has_member_payments;
     if (!requiresInitialPayment) return;
     if (data.initial_payment_type !== 'free') {
         const amount = parseFloat(data.initial_payment_amount);

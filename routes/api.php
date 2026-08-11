@@ -1,11 +1,9 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\LoginController as ApiLoginController;
 use App\Http\Controllers\Api\ContactMessageController;
-use App\Http\Controllers\Api\MembershipNumberController;
 use App\Http\Controllers\Api\V1\Guest\AboutController as V1AboutController;
+use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
 use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
 use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
@@ -15,12 +13,14 @@ use App\Http\Controllers\Api\V1\Guest\MembershipController as V1MembershipContro
 use App\Http\Controllers\Api\V1\Guest\MembershipUsageController as V1MembershipUsageController;
 use App\Http\Controllers\Api\V1\Guest\NewsTickerController as V1NewsTickerController;
 use App\Http\Controllers\Api\V1\Guest\OfferController as V1OfferController;
-use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\PartnerCompanyController as V1PartnerCompanyController;
-use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
 use App\Http\Controllers\Api\V1\Guest\PartnerOfferController as V1PartnerOfferController;
-use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
 use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1PartnerOfferRequestController;
+use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
+use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/login', ApiLoginController::class)->name('api.auth.login');
 Route::post('/v1/auth/login', [V1AuthController::class, 'login'])->name('api.v1.auth.login');
@@ -73,6 +73,31 @@ Route::prefix('v1')
         Route::get('/partner-offers', [V1PartnerOfferController::class, 'index'])->name('partner-offers.index');
         Route::get('/partner-offers/{id}', [V1PartnerOfferController::class, 'show'])->name('partner-offers.show');
         Route::post('/partner-offer-requests', [V1PartnerOfferRequestController::class, 'store'])->name('partner-offer-requests.store');
+
+        /*
+         * Server-to-server lookups for partner properties (the Deilar
+         * marketing site). Key-gated because, unlike everything above, the
+         * response carries member and family names.
+         */
+        Route::middleware(\App\Http\Middleware\VerifyPartnerApiKey::class)
+            ->prefix('partner')
+            ->name('partner.')
+            ->group(function () {
+                Route::get('/memberships/{membershipNumber}', [V1PartnerMembershipController::class, 'show'])
+                    ->name('memberships.show');
+
+                /*
+                 * The card artwork itself, as a PNG: the admin's generated
+                 * image when there is one, freshly rendered from the member's
+                 * layout when there is not. Same handler as the public
+                 * /memberships/{membership}/card above — it is repeated here so
+                 * partner properties have one key-gated contract to read
+                 * everything about a card through, rather than mixing an
+                 * authenticated lookup with an anonymous image fetch.
+                 */
+                Route::get('/memberships/{membership}/card', [V1MembershipCardController::class, 'show'])
+                    ->name('memberships.card');
+            });
 
         Route::post('/auth/login', [V1AuthController::class, 'login'])->name('auth.login');
         Route::middleware('auth:sanctum')->group(function () {

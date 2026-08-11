@@ -97,6 +97,19 @@
             <p v-if="partnerLocked" class="mt-1 text-[11px] text-muted-foreground">
               Locked to your assigned partner.
             </p>
+            <!-- The partner choice picks the design, so say which one. -->
+            <p class="mt-1 text-[11px] text-muted-foreground">
+              <template v-if="activeTemplate">
+                Design:
+                <Link :href="route('admin.card-templates.edit', activeTemplate.id)" class="underline hover:no-underline">
+                  {{ templateName(activeTemplate) }}
+                </Link>
+                — {{ activeTemplate.status === 'no_partner' ? 'no partner logo' : 'with a partner logo' }}.
+              </template>
+              <template v-else>
+                No card template exists yet — cards fall back to the bundled artwork.
+              </template>
+            </p>
           </div>
 
         </div>
@@ -182,55 +195,45 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <fieldset class="rounded-md border border-border bg-background p-2 space-y-1">
-              <legend class="text-xs font-semibold px-1">QR code</legend>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <fieldset
+              v-for="el in layoutElements"
+              :key="el.key"
+              class="rounded-md border border-border bg-background p-2 space-y-1"
+            >
+              <legend class="text-xs font-semibold px-1">{{ el.label }}</legend>
               <div class="grid grid-cols-3 gap-1">
                 <label class="text-[10px] text-muted-foreground">X
-                  <input v-model.number="layoutOverrides.qr.x" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
+                  <input v-model.number="layoutOverrides[el.key].x" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
                 </label>
                 <label class="text-[10px] text-muted-foreground">Y
-                  <input v-model.number="layoutOverrides.qr.y" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
+                  <input v-model.number="layoutOverrides[el.key].y" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
                 </label>
                 <label class="text-[10px] text-muted-foreground">Scale
-                  <input v-model.number="layoutOverrides.qr.scale" type="number" step="0.05" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
+                  <input v-model.number="layoutOverrides[el.key].scale" type="number" step="0.05" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
                 </label>
               </div>
-            </fieldset>
-
-            <fieldset class="rounded-md border border-border bg-background p-2 space-y-1">
-              <legend class="text-xs font-semibold px-1">Policy text</legend>
-              <div class="grid grid-cols-3 gap-1">
-                <label class="text-[10px] text-muted-foreground">X
-                  <input v-model.number="layoutOverrides.fields.x" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-                <label class="text-[10px] text-muted-foreground">Y
-                  <input v-model.number="layoutOverrides.fields.y" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-                <label class="text-[10px] text-muted-foreground">Scale
-                  <input v-model.number="layoutOverrides.fields.scale" type="number" step="0.05" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-              </div>
-            </fieldset>
-
-            <fieldset class="rounded-md border border-border bg-background p-2 space-y-1">
-              <legend class="text-xs font-semibold px-1">Partner logo</legend>
-              <div class="grid grid-cols-3 gap-1">
-                <label class="text-[10px] text-muted-foreground">X
-                  <input v-model.number="layoutOverrides.partner.x" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-                <label class="text-[10px] text-muted-foreground">Y
-                  <input v-model.number="layoutOverrides.partner.y" type="number" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-                <label class="text-[10px] text-muted-foreground">Scale
-                  <input v-model.number="layoutOverrides.partner.scale" type="number" step="0.05" class="w-full rounded border border-border bg-background px-1 py-0.5 text-xs" :disabled="busy" />
-                </label>
-              </div>
+              <p class="text-[10px] text-muted-foreground leading-tight">{{ el.hint }}</p>
             </fieldset>
           </div>
 
+          <fieldset class="rounded-md border border-border bg-background p-2 space-y-1">
+            <legend class="text-xs font-semibold px-1">Contact lines (printed next to the card icons)</legend>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label class="text-[10px] text-muted-foreground">Facebook
+                <input v-model="contactText.facebook" type="text" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy" />
+              </label>
+              <label class="text-[10px] text-muted-foreground">Website
+                <input v-model="contactText.website" type="text" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy" />
+              </label>
+              <label class="text-[10px] text-muted-foreground">Phone
+                <input v-model="contactText.phone" type="text" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy" />
+              </label>
+            </div>
+          </fieldset>
+
           <p class="text-[11px] text-muted-foreground">
-            Coordinates are pixels on a 1063 × 650 card. Preview updates live.
+            Coordinates are pixels on the {{ CARD_W }} × {{ CARD_H }} blank card artwork. Preview updates live.
           </p>
         </div>
       </div>
@@ -268,8 +271,10 @@
               v-for="(item, idx) in previewItems.slice(0, 10)"
               :key="item.display_number + ':' + (form.partner_id || '') + ':' + layoutKey(idx)"
               :membership="{ membership_number: item.display_number, slug: item.slug_preview }"
+              :template="activeTemplate"
               :partner="selectedPartner"
               :overrides="overridesForIndex(idx)"
+              :contact="contactText"
             />
           </div>
         </div>
@@ -285,13 +290,15 @@ import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import { buildBatchAndZip } from './_components/PdfBuilder.js';
-import { DEFAULT_LAYOUT_MINIMAL } from './_components/cardRenderer.js';
+import { DEFAULT_LAYOUT, DEFAULT_CONTACT, CARD_W, CARD_H } from './_components/cardRenderer.js';
 
 const props = defineProps({
   suggested_start: { type: Number, default: 1000 },
   partners: { type: Array, default: () => [] },
   partnerLocked: { type: Boolean, default: false },
   lockedPartnerId: { type: Number, default: null },
+  /** Card designs from /admin/card-templates, keyed by status. */
+  cardTemplates: { type: Object, default: () => ({}) },
 });
 
 const form = ref({
@@ -319,6 +326,25 @@ const selectedPartner = computed(() => {
   if (!form.value.partner_id) return null;
   return props.partners.find((p) => p.id === form.value.partner_id) || null;
 });
+
+// The design the batch is cut from: a batch with a partner uses the
+// `with_partner` template, one without uses `no_partner`. The chosen template's
+// id is what gets stored on the batch, so a card's own page renders it back
+// with the same design.
+const activeTemplate = computed(() => {
+  const wanted = form.value.partner_id ? 'with_partner' : 'no_partner';
+  return props.cardTemplates[wanted]
+    || props.cardTemplates.with_partner
+    || props.cardTemplates.no_partner
+    || null;
+});
+
+/** `name` is a translatable, so it arrives as {ar, en} unless it was a string. */
+function templateName(tpl) {
+  const name = tpl?.name;
+  if (!name) return 'Untitled';
+  return typeof name === 'string' ? name : (name.en || name.ar || 'Untitled');
+}
 
 const firstCode = computed(
   () => `${form.value.display_prefix || ''}${form.value.prefix || ''}${form.value.start_number}`,
@@ -376,18 +402,28 @@ const layoutPanelOpen = ref(false);
 const layoutMode = ref('all'); // 'all' | 'single'
 const layoutSingleIndex = ref(1); // 1-based card index within batch
 
+const layoutElements = [
+  { key: 'qr', label: 'QR code', hint: 'Top-left of the white QR frame.' },
+  { key: 'barcode', label: 'Barcode', hint: 'Top-left of the bars; the number prints underneath.' },
+  { key: 'partner', label: 'Partner logo', hint: 'Top-left of the logo box, above "Health Care".' },
+  { key: 'contact', label: 'Contact rows', hint: 'Text left edge + first baseline; rows are pitched to the printed icons.' },
+];
+
 function makeDefaultLayout() {
   return {
-    qr: { ...DEFAULT_LAYOUT_MINIMAL.qr },
-    fields: { ...DEFAULT_LAYOUT_MINIMAL.fields },
-    partner: { ...DEFAULT_LAYOUT_MINIMAL.partner },
+    qr: { ...DEFAULT_LAYOUT.qr },
+    barcode: { ...DEFAULT_LAYOUT.barcode },
+    partner: { ...DEFAULT_LAYOUT.partner },
+    contact: { ...DEFAULT_LAYOUT.contact },
   };
 }
 
 const layoutOverrides = ref(makeDefaultLayout());
+const contactText = ref({ ...DEFAULT_CONTACT });
 
 function resetLayout() {
   layoutOverrides.value = makeDefaultLayout();
+  contactText.value = { ...DEFAULT_CONTACT };
 }
 
 function toggleLayoutPanel() {
@@ -421,7 +457,8 @@ async function submit() {
       quantity: form.value.quantity,
       start_number: form.value.start_number,
       partner_id: form.value.partner_id,
-      layout_overrides: layoutOverrides.value,
+      card_template_id: activeTemplate.value?.id ?? null,
+      layout_overrides: { ...layoutOverrides.value, contact_text: contactText.value },
     });
 
     const dPrefix = form.value.display_prefix || '';
@@ -434,10 +471,12 @@ async function submit() {
     const { batchPdf, zip } = await buildBatchAndZip(
       printedMemberships,
       selectedPartner.value,
+      activeTemplate.value,
       (p) => {
         progressLabel.value = `Rendering (${Math.round(p * 100)}%)…`;
       },
       overridesForIndex,
+      contactText.value,
     );
 
     triggerDownload(zip, `batch-${data.card.id}.zip`);

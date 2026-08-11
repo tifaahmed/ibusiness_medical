@@ -1,27 +1,104 @@
-// Renders a single membership card to an offscreen canvas using the same
-// minimal-mode layout as resources/js/Pages/Admin/CardGenerator/Index.vue,
-// so batch-generated cards match what /admin/card-generator produces in
-// minimal mode (white template, partner logo + policy + QR, no name/photo).
+// Renders a single membership card from a card_templates row: the blank
+// artwork (`card_empty`) plus a `layout` that says where every generated field
+// lands on it, and `sample_data` holding the values that are fixed for the
+// whole template (the contact lines).
 //
-// Canvas size and coordinates are taken verbatim from the existing renderer.
+// Layout units mirror App\Support\CardTemplateLayoutDefaults:
+//   · x/y/width/height are fractions of the card (0..1)
+//   · font_size is pixels on an EDITOR_WIDTH-wide canvas, rescaled here
+//   · direction doubles as alignment — ltr | rtl | center
+//
+// With no template passed, FALLBACK_LAYOUT below keeps the renderer working
+// standalone; it is a copy of the PHP defaults.
 
 import QRCode from 'qrcode';
+import { publicMembershipBaseUrl } from '@/composables/usePublicMembershipUrl.js';
+import { drawBarcode } from './code128.js';
 
-const CW = 1063;
-const CH = 650;
-const BG_VERSION = '20260516b';
-const BG_MINIMAL = `/card-template_white.jpg?v=${BG_VERSION}`;
+/** Export width in px. Height follows the artwork's own aspect ratio. */
+export const CARD_W = 1579;
+export const CARD_H = 996;
+
+/** Must match CardTemplateLayoutDefaults::EDITOR_WIDTH. */
+const EDITOR_WIDTH = 700;
+
+const BG_VERSION = '20260810a';
+const FALLBACK_TEMPLATE_IMAGE = `/images/cards/deilar-card-blank.png?v=${BG_VERSION}`;
 const FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap';
 
-export const DEFAULT_LAYOUT_MINIMAL = {
-  qr: { x: 704, y: 107, scale: 0.6 },
-  fields: { x: 756, y: 368, scale: 1.2 },
-  partner: { x: -165, y: 313, scale: 2.65 },
+const INK = '#000000';
+const QR_FRAME_COLOR = '#0a1128';
+const QR_FRAME_BORDER = 5 / CARD_W; // as a fraction, so it scales with the card
+const QR_QUIET_ZONE = 22 / 281; // fraction of the QR box left white around the modules
+const QR_CORNER_RADIUS = 18 / 281;
+
+const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone'];
+const IMAGE_FIELDS = ['logo', 'partner_logo'];
+
+/** Mirrors CardTemplateLayoutDefaults::layout() — used when no template is given. */
+export const FALLBACK_LAYOUT = {
+  logo: { x: 0.1102, y: 0.1275, width: 0.2299, height: 0.2339 },
+  slogan: {
+    x: 0.1096, y: 0.507, width: 0.2267, height: 0.0512,
+    font_family: 'Tajawal', direction: 'center', color: '#0b1632', font_size: 22,
+  },
+  membership_number: {
+    x: 0.5212, y: 0.4468, width: 0.2464, height: 0.0231,
+    font_family: 'Tajawal', direction: 'center', color: INK, font_size: 10.6,
+  },
+  facebook: {
+    x: 0.468, y: 0.6702, width: 0.494, height: 0.0382,
+    font_family: 'Tajawal', direction: 'ltr', color: INK, font_size: 16.8,
+  },
+  website: {
+    x: 0.468, y: 0.7626, width: 0.494, height: 0.0382,
+    font_family: 'Tajawal', direction: 'ltr', color: INK, font_size: 16.8,
+  },
+  phone: {
+    x: 0.468, y: 0.8544, width: 0.494, height: 0.0382,
+    font_family: 'Tajawal', direction: 'ltr', color: INK, font_size: 16.8,
+  },
+  partner_logo: { x: 0.1393, y: 0.6175, width: 0.1875, height: 0.2359 },
+  qrcode: { x: 0.5516, y: 0.0392, width: 0.171, height: 0.2741 },
+  barcode: { x: 0.5212, y: 0.3394, width: 0.2464, height: 0.1054 },
 };
 
-let _bgPromise = null;
+export const FALLBACK_SAMPLE_DATA = {
+  logo: '/images/logo/dielar.png',
+  slogan: 'صحتك واكتر',
+  facebook: 'www.facebook.com/IEasybusiness',
+  website: 'www.deilar.com',
+  phone: '01020709993',
+};
+
+/**
+ * The per-batch override panel edits absolute pixels on the exported card, and
+ * groups the three contact rows under one key. This maps its keys onto layout
+ * field keys.
+ */
+export const OVERRIDE_TARGETS = {
+  qr: ['qrcode'],
+  barcode: ['barcode'],
+  partner: ['partner_logo'],
+  contact: ['facebook', 'website', 'phone'],
+};
+
+/**
+ * Default values for the per-batch override panel: the fallback layout
+ * resolved to pixels, in the {x, y, scale} shape the panel and the stored
+ * `layout_overrides` use.
+ */
+export const DEFAULT_LAYOUT = {
+  qr: { x: Math.round(FALLBACK_LAYOUT.qrcode.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.qrcode.y * CARD_H), scale: 1 },
+  barcode: { x: Math.round(FALLBACK_LAYOUT.barcode.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.barcode.y * CARD_H), scale: 1 },
+  partner: { x: Math.round(FALLBACK_LAYOUT.partner_logo.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.partner_logo.y * CARD_H), scale: 1 },
+  contact: { x: Math.round(FALLBACK_LAYOUT.facebook.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.facebook.y * CARD_H), scale: 1 },
+};
+
+export const DEFAULT_CONTACT = { ...FALLBACK_SAMPLE_DATA };
+
 let _fontPromise = null;
-const _partnerImgCache = new Map();
+const _imageCache = new Map();
 
 function ensureFontLoaded() {
   if (_fontPromise) return _fontPromise;
@@ -48,128 +125,303 @@ function ensureFontLoaded() {
   return _fontPromise;
 }
 
+/**
+ * Stored image paths are host-less ('/images/logo/dielar.png'). Rows written
+ * before the upload path added the leading slash hold a bare
+ * 'storage/card-templates/…', which a browser would resolve against the current
+ * admin URL and 404 — so root them here, mirroring the model's `*_url`
+ * accessors. Absolute URLs, data: and blob: previews pass through untouched.
+ */
+export function assetUrl(src) {
+  if (!src) return src;
+  return /^([a-z]+:|\/\/|\/)/i.test(src) ? src : `/${src}`;
+}
+
 function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  const url = assetUrl(src);
+  if (!url) return Promise.resolve(null);
+  if (_imageCache.has(url)) return _imageCache.get(url);
+  const p = new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = (e) => reject(e);
-    img.src = src;
+    img.onerror = () => resolve(null);
+    img.src = url;
   });
-}
-
-function ensureBg() {
-  if (!_bgPromise) {
-    _bgPromise = loadImage(BG_MINIMAL).catch(() => null);
-  }
-  return _bgPromise;
-}
-
-function loadPartnerImage(url) {
-  if (!url) return Promise.resolve(null);
-  if (_partnerImgCache.has(url)) return _partnerImgCache.get(url);
-  const p = loadImage(url).catch(() => null);
-  _partnerImgCache.set(url, p);
+  _imageCache.set(url, p);
   return p;
 }
 
-function partnerLayoutFor(partner, override) {
-  if (override) {
-    return {
-      x: Number(override.x),
-      y: Number(override.y),
-      scale: Number(override.scale),
-    };
-  }
-  if (partner && partner.card_x != null && partner.card_y != null) {
-    return {
-      x: Number(partner.card_x),
-      y: Number(partner.card_y),
-      scale: partner.card_scale != null ? Number(partner.card_scale) : DEFAULT_LAYOUT_MINIMAL.partner.scale,
-    };
-  }
-  return { ...DEFAULT_LAYOUT_MINIMAL.partner };
-}
-
-function resolveLayout(defaults, override) {
-  if (!override) return { ...defaults };
-  return {
-    x: Number(override.x),
-    y: Number(override.y),
-    scale: Number(override.scale),
-  };
+/**
+ * Overrides saved before the card moved onto the Deilar artwork were measured
+ * on a 1063 × 650 canvas and carried a `fields` element that no longer exists,
+ * so their numbers mean nothing here — fall back to the template's own layout.
+ */
+function isLegacyOverrides(o) {
+  if (!o || typeof o !== 'object') return false;
+  return 'fields' in o || !('barcode' in o || 'contact' in o);
 }
 
 /**
- * Render a single card to a freshly-allocated canvas. The canvas is
- * 1063×650 (the same pixel size the existing card-generator uses) so a
- * direct toDataURL() snapshot will be print-ready at 9×5.6cm.
- *
- * @param {object} opts
- * @param {{ membership_number: string, slug: string }} opts.membership
- * @param {object|null} opts.partner partner with image + card_x/card_y/card_scale
- * @param {string} opts.publicBaseUrl base for the QR code URL
- * @returns {Promise<HTMLCanvasElement>}
+ * Resolve a template's fractional layout into absolute pixels, drop whatever
+ * the template's status hides, then apply the per-batch overrides on top.
  */
-export async function renderCardCanvas({ membership, partner = null, publicBaseUrl = window.location.origin, overrides = null }) {
-  await ensureFontLoaded();
+function resolveFields(template, overrides, width, height) {
+  const layout = template?.layout || FALLBACK_LAYOUT;
+  const hidden = new Set(template?.hidden_fields || []);
 
-  const canvas = document.createElement('canvas');
-  canvas.width = CW;
-  canvas.height = CH;
-  const ctx = canvas.getContext('2d');
-
-  // Background — fall back to a white fill if the template fails to load.
-  const bg = await ensureBg();
-  if (bg) {
-    ctx.drawImage(bg, 0, 0, CW, CH);
-  } else {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, CW, CH);
+  const fields = {};
+  for (const [key, f] of Object.entries(layout)) {
+    if (hidden.has(key) || !f) continue;
+    fields[key] = {
+      left: Number(f.x) * width,
+      top: Number(f.y) * height,
+      width: Number(f.width) * width,
+      height: Number(f.height) * height,
+      fontSize: (Number(f.font_size) || 14) * (width / EDITOR_WIDTH),
+      fontFamily: f.font_family || 'Tajawal',
+      color: f.color || INK,
+      direction: f.direction || 'ltr',
+    };
   }
 
-  // Partner logo. Matches paintMinimal(): maxW = maxH = 260 * scale,
-  // aspect-ratio preserved.
-  if (partner && partner.image) {
-    const img = await loadPartnerImage(partner.image);
-    if (img) {
-      const prl = partnerLayoutFor(partner, overrides?.partner);
-      const maxW = 260 * prl.scale;
-      const maxH = 260 * prl.scale;
-      const ar = img.width / img.height;
-      let dw = maxW;
-      let dh = maxH;
-      if (ar > 1) dh = dw / ar; else dw = dh * ar;
-      ctx.drawImage(img, prl.x, prl.y, dw, dh);
+  if (!overrides) return fields;
+
+  for (const [overrideKey, targets] of Object.entries(OVERRIDE_TARGETS)) {
+    const ov = overrides[overrideKey];
+    if (!ov) continue;
+
+    const scale = Number.isFinite(Number(ov.scale)) ? Number(ov.scale) : 1;
+    const x = Number(ov.x);
+    const y = Number(ov.y);
+    // The contact rows move as a group: the panel's y positions the first row
+    // and the others keep their spacing from it.
+    const anchor = fields[targets[0]];
+    const dx = Number.isFinite(x) && anchor ? x - anchor.left : 0;
+    const dy = Number.isFinite(y) && anchor ? y - anchor.top : 0;
+
+    for (const key of targets) {
+      const field = fields[key];
+      if (!field) continue;
+      fields[key] = {
+        ...field,
+        left: field.left + dx,
+        top: field.top + dy,
+        width: field.width * scale,
+        height: field.height * scale,
+        fontSize: field.fontSize * scale,
+      };
     }
   }
 
-  // QR — minimal mode draws a white pad then the QR on top.
-  const qrUrl = `${publicBaseUrl}/membership/${membership.slug}`;
-  const qrSrc = document.createElement('canvas');
-  qrSrc.width = 200;
-  qrSrc.height = 200;
-  await QRCode.toCanvas(qrSrc, qrUrl, {
-    width: 200,
-    margin: 0,
-    color: { dark: '#000000', light: '#ffffff' },
-    errorCorrectionLevel: 'M',
-  });
-  const ql = resolveLayout(DEFAULT_LAYOUT_MINIMAL.qr, overrides?.qr);
-  const qs = 190 * ql.scale;
-  const pad = 14 * ql.scale;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(ql.x - pad, ql.y - pad, qs + pad * 2, qs + pad * 2);
-  ctx.drawImage(qrSrc, ql.x, ql.y, qs, qs);
+  return fields;
+}
 
-  // Policy number — minimal mode draws just the policy, no label.
-  const fl = resolveLayout(DEFAULT_LAYOUT_MINIMAL.fields, overrides?.fields);
-  const fSize = 34 * fl.scale;
-  ctx.font = `bold ${fSize}px Tajawal, Arial, sans-serif`;
-  ctx.fillStyle = '#1a1a2e';
-  ctx.textAlign = 'center';
-  ctx.direction = 'ltr';
-  ctx.fillText(String(membership.membership_number), fl.x, fl.y);
+/**
+ * The pixel box of every field a render would draw, at the given canvas size.
+ * Same resolution the renderer itself uses, exposed so an editor can draw
+ * handles over the canvas without re-deriving the maths.
+ *
+ * @returns {Record<string, {left:number, top:number, width:number, height:number}>}
+ */
+export function resolveFieldBoxes(template, overrides, width, height) {
+  return resolveFields(template, isLegacyOverrides(overrides) ? null : overrides, width, height);
+}
+
+/**
+ * The canvas size a render of this template lands on — the artwork's own
+ * proportions at CARD_W wide. Lets an editor place boxes before the first paint.
+ */
+export async function measureCardSize(template) {
+  const bg = await loadImage(template?.card_empty_url || FALLBACK_TEMPLATE_IMAGE);
+  return {
+    width: CARD_W,
+    height: bg && bg.width && bg.height ? Math.round(CARD_W / (bg.width / bg.height)) : CARD_H,
+  };
+}
+
+function roundedRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+/**
+ * Draw a text field. `direction` sets both the writing direction and the
+ * horizontal alignment inside the box; the text is centred vertically in the
+ * box, matching the flex centring the server-side renderer uses.
+ */
+function drawTextField(ctx, field, text) {
+  if (!text) return;
+
+  const maxWidth = field.width;
+  let size = field.fontSize;
+  ctx.font = `bold ${size}px ${field.fontFamily}, Arial, sans-serif`;
+  const measured = ctx.measureText(text).width;
+  if (measured > maxWidth && measured > 0) {
+    size *= maxWidth / measured;
+    ctx.font = `bold ${size}px ${field.fontFamily}, Arial, sans-serif`;
+  }
+
+  ctx.fillStyle = field.color;
+  ctx.textBaseline = 'middle';
+  ctx.direction = field.direction === 'rtl' ? 'rtl' : 'ltr';
+
+  let x = field.left;
+  if (field.direction === 'center') {
+    ctx.textAlign = 'center';
+    x = field.left + field.width / 2;
+  } else if (field.direction === 'rtl') {
+    ctx.textAlign = 'right';
+    x = field.left + field.width;
+  } else {
+    ctx.textAlign = 'left';
+  }
+
+  ctx.fillText(text, x, field.top + field.height / 2);
+}
+
+/** Contain-fit an image inside the field box, centred. */
+function drawImageField(ctx, field, img) {
+  if (!img || !img.width || !img.height) return;
+  const fit = Math.min(field.width / img.width, field.height / img.height);
+  const w = img.width * fit;
+  const h = img.height * fit;
+  ctx.drawImage(img, field.left + (field.width - w) / 2, field.top + (field.height - h) / 2, w, h);
+}
+
+/**
+ * Render a card to a freshly-allocated canvas, sized to CARD_W with the height
+ * taken from the artwork's own aspect ratio so an uploaded `card_empty` of any
+ * proportion renders undistorted.
+ *
+ * @param {object} opts
+ * @param {{ membership_number: string, slug: string }} opts.membership
+ * @param {object|null} opts.template card_templates row (layout, sample_data, card_empty_url, hidden_fields)
+ * @param {object|null} opts.partner partner with an `image` url
+ * @param {string} opts.publicBaseUrl base for the QR code URL — defaults to the
+ *   Deilar marketing site, which is where a scanned card should land
+ * @param {object|null} opts.overrides per-batch { x, y, scale } overrides
+ * @param {object|null} opts.contact { facebook, website, phone } text overrides
+ * @param {boolean} opts.placeholderPartnerLogo draw the template's own
+ *   partner_logo when there is no partner at all — for the layout editor, which
+ *   previews the design rather than a real member's card
+ * @param {object|null} opts.values explicit field values that win over
+ *   everything, including the membership-derived number, barcode and QR — used
+ *   by the single-card generator, where an admin types each field by hand
+ * @returns {Promise<HTMLCanvasElement>}
+ */
+export async function renderCardCanvas({
+  membership,
+  template = null,
+  partner = null,
+  publicBaseUrl = publicMembershipBaseUrl(),
+  overrides = null,
+  contact = null,
+  placeholderPartnerLogo = false,
+  values: valueOverrides = null,
+}) {
+  await ensureFontLoaded();
+
+  const bg = await loadImage(template?.card_empty_url || FALLBACK_TEMPLATE_IMAGE);
+
+  const width = CARD_W;
+  const height = bg && bg.width && bg.height
+    ? Math.round(width / (bg.width / bg.height))
+    : CARD_H;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  if (bg) {
+    ctx.drawImage(bg, 0, 0, width, height);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  const ov = isLegacyOverrides(overrides) ? null : overrides;
+  const fields = resolveFields(template, ov, width, height);
+
+  // Values: per-member fields come from the membership, the rest are the
+  // template's own sample_data (overridable per batch).
+  const number = String(membership?.membership_number ?? '');
+  const values = {
+    ...FALLBACK_SAMPLE_DATA,
+    ...(template?.sample_data || {}),
+    ...(contact || {}),
+    membership_number: number,
+    barcode: number,
+    qrcode: `${publicBaseUrl}/membership/${membership?.slug ?? ''}`,
+    // Only real values win — a blank one falls through to what the template
+    // already carries, so an empty box never blanks a field it did not mean to.
+    ...Object.fromEntries(Object.entries(valueOverrides || {}).filter(([, v]) => v !== '' && v != null)),
+  };
+
+  // The partner's own logo wins. The template's sample_data placeholder stands
+  // in for a partner that has none, and for the layout editor's preview — but
+  // never for a card with no partner at all, which prints no logo.
+  values.partner_logo = partner?.image
+    || ((partner || placeholderPartnerLogo) ? values.partner_logo : null);
+
+  // --- Images (partner logo) — drawn first so codes and text sit above.
+  for (const key of IMAGE_FIELDS) {
+    const field = fields[key];
+    if (!field || !values[key]) continue;
+    drawImageField(ctx, field, await loadImage(values[key]));
+  }
+
+  // --- QR code, inside the white rounded frame the reference card uses.
+  const qr = fields.qrcode;
+  if (qr && values.qrcode) {
+    const qrSrc = document.createElement('canvas');
+    await QRCode.toCanvas(qrSrc, values.qrcode, {
+      width: 512,
+      margin: 0,
+      color: { dark: template?.sample_data?.qrcode_color || INK, light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    });
+
+    const box = Math.min(qr.width, qr.height);
+    const inset = box * QR_QUIET_ZONE;
+
+    ctx.save();
+    roundedRectPath(ctx, qr.left, qr.top, qr.width, qr.height, box * QR_CORNER_RADIUS);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = QR_FRAME_BORDER * width;
+    ctx.strokeStyle = QR_FRAME_COLOR;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.drawImage(qrSrc, qr.left + inset, qr.top + inset, qr.width - inset * 2, qr.height - inset * 2);
+  }
+
+  // --- Barcode: the bars fill their box; the readable number is its own field.
+  const bars = fields.barcode;
+  if (bars && values.barcode) {
+    drawBarcode(ctx, values.barcode, {
+      x: bars.left,
+      y: bars.top,
+      width: bars.width,
+      height: bars.height,
+      color: INK,
+    });
+  }
+
+  // --- Text fields.
+  for (const key of TEXT_FIELDS) {
+    const field = fields[key];
+    if (!field) continue;
+    drawTextField(ctx, field, values[key]);
+  }
 
   return canvas;
 }

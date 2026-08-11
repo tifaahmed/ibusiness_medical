@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Facility;
 
 use App\Models\FacilityType;
+use App\Models\Sales;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreFacilityRequest extends FormRequest
@@ -27,7 +28,18 @@ class StoreFacilityRequest extends FormRequest
             'name.*' => 'required|string|max:255',
             'description' => 'nullable|array',
             'description.*' => 'nullable|string|max:5000',
-            'facility_type_id' => ['required', 'exists:' . FacilityType::class . ',id'],
+            // SEO tab. Lengths match what search engines actually render.
+            'meta_title' => 'nullable|array',
+            'meta_title.*' => 'nullable|string|max:60',
+            'meta_description' => 'nullable|array',
+            'meta_description.*' => 'nullable|string|max:160',
+            'meta_keywords' => 'nullable|array',
+            'meta_keywords.*' => 'nullable|string|max:255',
+            'canonical_url' => 'nullable|url|max:2048',
+            'og_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'og_image_delete' => 'nullable|boolean',
+            'facility_type_id' => ['required', 'exists:'.FacilityType::class.',id'],
+            'sales_id' => ['nullable', 'exists:'.Sales::class.',id'],
             'discount_percent' => ['nullable', 'numeric', 'between:0,100'],
             'branches' => 'nullable|array',
             'branches.*.id' => 'nullable|exists:facility_branches,id',
@@ -43,13 +55,13 @@ class StoreFacilityRequest extends FormRequest
             'branches.*.address.*' => 'nullable|string|max:500',
             'branches.*.phone' => 'nullable|array',
             'branches.*.phone.*' => 'nullable|string|max:20',
-            'logo'             => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'mobile_logo'      => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'image'            => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'mobile_image'     => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'gallery'          => 'nullable|array',
-            'gallery.*'        => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'gallery_delete'   => 'nullable|array',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'mobile_logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'mobile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'gallery' => 'nullable|array',
+            'gallery.*' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'gallery_delete' => 'nullable|array',
             'gallery_delete.*' => 'nullable|integer',
         ];
     }
@@ -68,8 +80,10 @@ class StoreFacilityRequest extends FormRequest
             'name.*.string' => 'Each language name must be a string.',
             'facility_type_id.required' => 'The facility type is required.',
             'facility_type_id.exists' => 'The selected facility type is invalid.',
+            'meta_title.*.max' => 'The meta title should stay under 60 characters.',
+            'meta_description.*.max' => 'The meta description should stay under 160 characters.',
+            'canonical_url.url' => 'The canonical URL must be a full URL, e.g. https://example.com/facility.',
+            'sales_id.exists' => 'The selected sales representative is invalid.',
         ];
     }
 }
-
-

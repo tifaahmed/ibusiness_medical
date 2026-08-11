@@ -12,6 +12,9 @@ class CardLayout extends Model
     protected $fillable = [
         'membership_id',
         'partner_id',
+        'card_template_id',
+        'layout',
+        'field_values',
         'partner_x',
         'partner_y',
         'partner_scale',
@@ -29,6 +32,9 @@ class CardLayout extends Model
         'qr_x',
         'qr_y',
         'qr_scale',
+        'barcode_x',
+        'barcode_y',
+        'barcode_scale',
         'generated_image_path',
         'mode',
     ];
@@ -51,7 +57,38 @@ class CardLayout extends Model
             'qr_x' => 'decimal:2',
             'qr_y' => 'decimal:2',
             'qr_scale' => 'decimal:3',
+            'barcode_x' => 'decimal:2',
+            'barcode_y' => 'decimal:2',
+            'barcode_scale' => 'decimal:3',
+            'layout' => 'array',
+            'field_values' => 'array',
         ];
+    }
+
+    /**
+     * Memberships whose card was changed away from its design and so no longer
+     * follows it — a saved layout of its own, or, for cards saved before the
+     * generator stored whole layouts, any of the old per-element positions.
+     *
+     * @return array<int, int>
+     */
+    public static function customisedMembershipIds(): array
+    {
+        return static::query()
+            ->where(function ($q) {
+                $q->whereNotNull('layout')
+                    ->orWhereNotNull('field_values')
+                    ->orWhereNotNull('partner_x')
+                    ->orWhereNotNull('qr_x')
+                    ->orWhereNotNull('barcode_x')
+                    ->orWhereNotNull('fields_x')
+                    ->orWhereNotNull('name_x')
+                    ->orWhereNotNull('photo_x');
+            })
+            ->distinct()
+            ->pluck('membership_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     public function membership(): BelongsTo
@@ -62,5 +99,10 @@ class CardLayout extends Model
     public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class);
+    }
+
+    public function cardTemplate(): BelongsTo
+    {
+        return $this->belongsTo(CardTemplate::class);
     }
 }

@@ -34,7 +34,8 @@ class DatabaseSeeder extends Seeder
             ServiceTypeSeeder::class,
             ServiceSeeder::class,
             PartnerOfferSeeder::class,
-            TagSeeder::class
+            TagSeeder::class,
+            CardTemplateSeeder::class,
         ]);
     }
 }

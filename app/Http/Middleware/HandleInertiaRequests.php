@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\NewsTicker;
+use App\Support\PublicMembershipUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Session;
@@ -54,6 +55,7 @@ class HandleInertiaRequests extends Middleware
 
         $newsTickers = NewsTicker::active()->ordered()->get()->map(function ($item) {
             $locale = app()->getLocale();
+
             return [
                 'category' => $item->category,
                 'categoryLabel' => $item->category,
@@ -77,6 +79,11 @@ class HandleInertiaRequests extends Middleware
                 'admin' => __('admin'),
             ],
             'newsTickers' => $newsTickers,
+            // Where a card's QR code points. Shared so the canvas renderers in
+            // the browser encode the same address the server-rendered PNG does
+            // — a preview that disagrees with the printed card is worse than no
+            // preview at all.
+            'publicMembershipBaseUrl' => PublicMembershipUrl::base(),
             'authUserPermissions' => $request->user()
                 ? $request->user()->getAllPermissions()->pluck('name')->values()->all()
                 : [],

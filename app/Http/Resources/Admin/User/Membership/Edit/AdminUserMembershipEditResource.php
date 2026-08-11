@@ -25,6 +25,7 @@ class AdminUserMembershipEditResource extends JsonResource
             'membership' => $this->whenLoaded('memberships', function () use ($request) {
                 // Get the first membership (ordered by active desc, then created_at desc in controller)
                 $membership = $this->memberships->first();
+
                 return $membership ? [
                     'id' => $membership->id,
                     'membership_number' => $membership->membership_number,
@@ -40,6 +41,18 @@ class AdminUserMembershipEditResource extends JsonResource
                     'payment_type' => $membership->payment_type,
                     'completed_at' => $membership->completed_at?->format('Y-m-d H:i:s'),
                     'has_member_payments' => ($membership->member_payments_count ?? 0) > 0,
+                    'member_payments' => $membership->relationLoaded('memberPayments')
+                        ? $membership->memberPayments->map(fn ($mp) => [
+                            'id' => $mp->id,
+                            'amount' => (float) $mp->amount,
+                            'type' => $mp->type,
+                            'months_paid' => $mp->months_paid,
+                            'from_date' => $mp->from_date?->format('Y-m-d'),
+                            'to_date' => $mp->to_date?->format('Y-m-d'),
+                            'notes' => $mp->notes,
+                            'created_at' => $mp->created_at?->format('Y-m-d H:i:s'),
+                        ])->values()->toArray()
+                        : [],
                     'contract_image_url' => optional($membership->getMedia('contract')->first())->getUrl(),
                     'gallery_images' => $membership->getMedia('gallery')->map(fn ($m) => [
                         'id' => $m->id,
@@ -72,4 +85,3 @@ class AdminUserMembershipEditResource extends JsonResource
         ];
     }
 }
-

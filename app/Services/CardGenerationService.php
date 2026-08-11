@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CardLayout;
 use App\Models\Membership;
+use App\Support\PublicMembershipUrl;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Encoding\Encoding;
@@ -15,27 +16,28 @@ use Illuminate\Support\Facades\Storage;
 class CardGenerationService
 {
     const CW = 1063;
+
     const CH = 650;
 
     const DEFAULT_FULL = [
-        'name'    => ['x' => 796, 'y' => 337, 'scale' => 1],
-        'photo'   => ['x' => 690, 'y' => 94,  'scale' => 1],
-        'fields'  => ['x' => 572, 'y' => 413, 'scale' => 1],
-        'qr'      => ['x' => 376, 'y' => 410, 'scale' => 0.65],
+        'name' => ['x' => 796, 'y' => 337, 'scale' => 1],
+        'photo' => ['x' => 690, 'y' => 94,  'scale' => 1],
+        'fields' => ['x' => 572, 'y' => 413, 'scale' => 1],
+        'qr' => ['x' => 376, 'y' => 410, 'scale' => 0.65],
         'partner' => ['x' => -87, 'y' => 361, 'scale' => 2.65],
     ];
 
     const DEFAULT_FULL_EMPTY = [
-        'name'    => ['x' => 796, 'y' => 337, 'scale' => 1],
-        'photo'   => ['x' => 690, 'y' => 94,  'scale' => 1],
-        'fields'  => ['x' => 779, 'y' => 442, 'scale' => 1.1],
-        'qr'      => ['x' => 376, 'y' => 410, 'scale' => 0.65],
+        'name' => ['x' => 796, 'y' => 337, 'scale' => 1],
+        'photo' => ['x' => 690, 'y' => 94,  'scale' => 1],
+        'fields' => ['x' => 779, 'y' => 442, 'scale' => 1.1],
+        'qr' => ['x' => 376, 'y' => 410, 'scale' => 0.65],
         'partner' => ['x' => 95,  'y' => 405, 'scale' => 1.16],
     ];
 
     const DEFAULT_MINIMAL = [
-        'qr'      => ['x' => 704, 'y' => 107, 'scale' => 0.6],
-        'fields'  => ['x' => 756, 'y' => 368, 'scale' => 1.2],
+        'qr' => ['x' => 704, 'y' => 107, 'scale' => 0.6],
+        'fields' => ['x' => 756, 'y' => 368, 'scale' => 1.2],
         'partner' => ['x' => -165, 'y' => 313, 'scale' => 2.65],
     ];
 
@@ -46,7 +48,7 @@ class CardGenerationService
             ? public_path('card-template_white.jpg')
             : public_path('card-template_pure.jpg');
 
-        if (!file_exists($templatePath)) {
+        if (! file_exists($templatePath)) {
             return null;
         }
 
@@ -65,10 +67,10 @@ class CardGenerationService
             $this->drawQrCode($image, $membership, $layout, self::DEFAULT_MINIMAL);
         }
 
-        $filename = 'cards/card-' . $membership->id . '-' . time() . '.png';
+        $filename = 'cards/card-'.$membership->id.'-'.time().'.png';
         $storagePath = Storage::disk('public')->path($filename);
         $dir = dirname($storagePath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -90,18 +92,20 @@ class CardGenerationService
     protected function drawPartnerLogo($image, Membership $membership, ?CardLayout $layout, array $defaults): void
     {
         $partner = $membership->partner;
-        if (!$partner || !$partner->image) {
+        if (! $partner || ! $partner->image) {
             return;
         }
 
         $partnerImagePath = public_path(ltrim(parse_url($partner->image, PHP_URL_PATH) ?: $partner->image, '/'));
-        if (!file_exists($partnerImagePath)) {
+        if (! file_exists($partnerImagePath)) {
             return;
         }
 
         $partnerImg = null;
         $info = getimagesize($partnerImagePath);
-        if (!$info) return;
+        if (! $info) {
+            return;
+        }
 
         $ext = strtolower(pathinfo($partnerImagePath, PATHINFO_EXTENSION));
         if ($ext === 'png') {
@@ -112,7 +116,9 @@ class CardGenerationService
             $partnerImg = imagecreatefromwebp($partnerImagePath);
         }
 
-        if (!$partnerImg) return;
+        if (! $partnerImg) {
+            return;
+        }
 
         $key = 'partner';
         $l = $layout ? [
@@ -147,21 +153,22 @@ class CardGenerationService
     protected function drawMemberPhoto($image, Membership $membership, ?CardLayout $layout): void
     {
         $user = $membership->user;
-        if (!$user || !$user->avatar_url) {
+        if (! $user || ! $user->avatar_url) {
             return;
         }
 
         $photoUrl = $user->avatar_url;
         $photoContent = @file_get_contents($photoUrl);
-        if (!$photoContent) {
+        if (! $photoContent) {
             return;
         }
 
         $tempPath = tempnam(sys_get_temp_dir(), 'photo_');
         file_put_contents($tempPath, $photoContent);
         $photoImg = imagecreatefromstring($photoContent);
-        if (!$photoImg) {
+        if (! $photoImg) {
             @unlink($tempPath);
+
             return;
         }
 
@@ -211,7 +218,7 @@ class CardGenerationService
     protected function drawName($image, Membership $membership, ?CardLayout $layout, string $mode): void
     {
         $user = $membership->user;
-        if (!$user || !$user->name) {
+        if (! $user || ! $user->name) {
             return;
         }
 
@@ -224,22 +231,28 @@ class CardGenerationService
         ] : $defaults[$key];
 
         $color = $layout->name_color ?? '#000000';
-        list($r, $g, $b) = sscanf($color, '#%02x%02x%02x');
+        [$r, $g, $b] = sscanf($color, '#%02x%02x%02x');
         $textColor = imagecolorallocate($image, $r, $g, $b);
 
         $fontPath = storage_path('app/public/fonts/Tajawal-Bold.ttf');
-        if (!file_exists($fontPath)) {
+        if (! file_exists($fontPath)) {
             $fontPath = null;
         }
 
-        $emptyMode = !$membership->job_title && !$membership->company_name;
+        $emptyMode = ! $membership->job_title && ! $membership->company_name;
         $fontSize = (int) (($emptyMode ? 46 : 34) * $l['scale']);
 
-        $bbox = imagettfbbox($fontSize, 0, $fontPath, $user->name);
-        $textW = $bbox[2] - $bbox[0];
-        $textX = (int) $l['x'] - (int) ($textW / 2);
-
         if ($fontPath) {
+            /*
+             * Only measurable with a font in hand — imagettfbbox() is fatal on
+             * a null path, and the bundled Tajawal is missing on installs where
+             * storage/app/public has never been populated. The fallback below
+             * measures the built-in font its own way.
+             */
+            $bbox = imagettfbbox($fontSize, 0, $fontPath, $user->name);
+            $textW = $bbox[2] - $bbox[0];
+            $textX = (int) $l['x'] - (int) ($textW / 2);
+
             imagettftext($image, $fontSize, 0, $textX, (int) $l['y'], $textColor, $fontPath, $user->name);
         } else {
             $fontSize = max(1, (int) ($fontSize / 8));
@@ -259,11 +272,11 @@ class CardGenerationService
         ] : $defaults[$key];
 
         $color = $layout->fields_color ?? '#000000';
-        list($r, $g, $b) = sscanf($color, '#%02x%02x%02x');
+        [$r, $g, $b] = sscanf($color, '#%02x%02x%02x');
         $textColor = imagecolorallocate($image, $r, $g, $b);
 
         $fontPath = storage_path('app/public/fonts/Tajawal-Regular.ttf');
-        if (!file_exists($fontPath)) {
+        if (! file_exists($fontPath)) {
             $fontPath = null;
         }
 
@@ -275,7 +288,9 @@ class CardGenerationService
         $valid = $membership->expiration_date?->format('F j, Y');
 
         if ($mode === 'minimal') {
-            if (!$policy) return;
+            if (! $policy) {
+                return;
+            }
             $fSize = (int) (34 * $l['scale']);
             if ($fontPath) {
                 $bbox = imagettfbbox($fSize, 0, $fontPath, (string) $policy);
@@ -287,21 +302,22 @@ class CardGenerationService
                 $textX = (int) $l['x'] - (int) (strlen($policy) * $fs * 0.6 / 2);
                 imagestring($image, $fs, $textX, (int) $l['y'] - 10, (string) $policy, $textColor);
             }
+
             return;
         }
 
-        $emptyMode = !$member && !$status;
+        $emptyMode = ! $member && ! $status;
         $items = $emptyMode
             ? array_filter([
-                'Policy no / ' . $policy => $policy,
-                'Valid to / ' . $valid => $valid,
-            ], fn($v) => !!$v)
+                'Policy no / '.$policy => $policy,
+                'Valid to / '.$valid => $valid,
+            ], fn ($v) => (bool) $v)
             : array_filter([
-                'Policy no / ' . $policy => $policy,
-                'Member / ' . $member => $member,
-                'Status / ' . $status => $status,
-                'Valid to / ' . $valid => $valid,
-            ], fn($v) => !!$v);
+                'Policy no / '.$policy => $policy,
+                'Member / '.$member => $member,
+                'Status / '.$status => $status,
+                'Valid to / '.$valid => $valid,
+            ], fn ($v) => (bool) $v);
 
         $fSize = $emptyMode ? (int) (34 * $l['scale']) : (int) (32 * $l['scale']);
         $lineH = $emptyMode ? (int) (75 * $l['scale']) : (int) (47 * $l['scale']);
@@ -336,14 +352,14 @@ class CardGenerationService
             'scale' => $layout->qr_scale ?? $defaults[$key]['scale'],
         ] : $defaults[$key];
 
-        $qrUrl = config('app.url') . '/membership/' . $membership->slug;
+        $qrUrl = PublicMembershipUrl::forSlug($membership->slug);
         $qrSize = (int) (190 * $l['scale']);
         $pad = (int) (14 * $l['scale']);
 
         try {
-            $builder = new Builder();
+            $builder = new Builder;
             $result = $builder->build(
-                new PngWriter(),
+                new PngWriter,
                 null,
                 null,
                 $qrUrl,
@@ -386,16 +402,24 @@ class CardGenerationService
                 $isCorner = false;
                 if ($x < $radius && $y < $radius) {
                     $dist = sqrt(($radius - $x) ** 2 + ($radius - $y) ** 2);
-                    if ($dist > $radius) $isCorner = true;
+                    if ($dist > $radius) {
+                        $isCorner = true;
+                    }
                 } elseif ($x >= $w - $radius && $y < $radius) {
                     $dist = sqrt(($radius - ($w - 1 - $x)) ** 2 + ($radius - $y) ** 2);
-                    if ($dist > $radius) $isCorner = true;
+                    if ($dist > $radius) {
+                        $isCorner = true;
+                    }
                 } elseif ($x < $radius && $y >= $h - $radius) {
                     $dist = sqrt(($radius - $x) ** 2 + ($radius - ($h - 1 - $y)) ** 2);
-                    if ($dist > $radius) $isCorner = true;
+                    if ($dist > $radius) {
+                        $isCorner = true;
+                    }
                 } elseif ($x >= $w - $radius && $y >= $h - $radius) {
                     $dist = sqrt(($radius - ($w - 1 - $x)) ** 2 + ($radius - ($h - 1 - $y)) ** 2);
-                    if ($dist > $radius) $isCorner = true;
+                    if ($dist > $radius) {
+                        $isCorner = true;
+                    }
                 }
                 if ($isCorner) {
                     imagesetpixel($image, $x, $y, $black);

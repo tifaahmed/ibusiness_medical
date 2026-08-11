@@ -32,6 +32,8 @@ class AdminUserMembershipEditController extends BaseController
                 $scopeFilter($query);
             }
             $query->with('creator:id,name,email');
+            // Rows (not just the count) so the edit page's Payments tab can list them.
+            $query->with(['memberPayments' => fn ($q) => $q->orderBy('from_date', 'desc')->orderBy('id', 'desc')]);
             $query->withCount('memberPayments');
             $query->orderBy('is_active', 'desc')->orderBy('created_at', 'desc');
         }];
@@ -47,7 +49,7 @@ class AdminUserMembershipEditController extends BaseController
         $this->assertCanManageUser($user);
         $locale = app()->getLocale();
 
-        $companies = Company::orderBy('slug')->get()->map(fn($c) => [
+        $companies = Company::orderBy('slug')->get()->map(fn ($c) => [
             'value' => $c->id,
             'label' => $c->getTranslation('name', $locale) ?: $c->getTranslation('name', 'ar') ?: $c->getTranslation('name', 'en'),
         ])->toArray();
@@ -56,10 +58,10 @@ class AdminUserMembershipEditController extends BaseController
         $adminPartnerId = $this->currentAdminPartnerId();
 
         $partners = Partner::query()
-            ->when($partnerLocked, fn($q) => $q->where('id', $adminPartnerId ?? -1))
+            ->when($partnerLocked, fn ($q) => $q->where('id', $adminPartnerId ?? -1))
             ->orderBy('title')
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'value' => $p->id,
                 'label' => $p->title,
             ])->toArray();
@@ -67,18 +69,18 @@ class AdminUserMembershipEditController extends BaseController
         $salesOptions = Sales::query()
             ->orderBy('name')
             ->get()
-            ->map(fn($s) => [
+            ->map(fn ($s) => [
                 'value' => $s->id,
                 'label' => $s->name,
             ])->toArray();
 
-        $governorates = Governorate::with(['cities' => fn($q) => $q->orderBy('slug')])
+        $governorates = Governorate::with(['cities' => fn ($q) => $q->orderBy('slug')])
             ->orderBy('slug')
             ->get()
-            ->map(fn(Governorate $g) => [
+            ->map(fn (Governorate $g) => [
                 'value' => $g->id,
                 'label' => $g->getTranslation('name', $locale) ?: $g->getTranslation('name', 'ar') ?: $g->getTranslation('name', 'en'),
-                'cities' => $g->cities->map(fn($c) => [
+                'cities' => $g->cities->map(fn ($c) => [
                     'value' => $c->id,
                     'label' => $c->getTranslation('name', $locale) ?: $c->getTranslation('name', 'ar') ?: $c->getTranslation('name', 'en'),
                 ])->values(),
@@ -95,7 +97,7 @@ class AdminUserMembershipEditController extends BaseController
             'partnerLocked' => $partnerLocked,
             'lockedPartnerId' => $partnerLocked ? $adminPartnerId : null,
         ];
+
         return Inertia::render('Admin/User/Member/Edit/MemberEditView', $result);
     }
 }
-
