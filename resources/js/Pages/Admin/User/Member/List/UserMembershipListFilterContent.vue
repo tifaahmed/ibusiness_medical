@@ -290,6 +290,50 @@
         </div>
       </div>
 
+      <!-- Card Filter (Custom / Default look) -->
+      <div :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
+        <div class="flex flex-col gap-1.5 sm:gap-2 w-full">
+          <label
+            data-slot="label"
+            class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          >
+            {{ t.card_label || 'Card' }}
+          </label>
+          <div class="flex gap-2 w-full">
+            <button
+              data-slot="button"
+              @click="handleCardFilter(1)"
+              :title="t.card_custom_hint || 'Changed from the design — updates to the design will not reach it.'"
+              :class="[
+                'flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2',
+                filters.has_custom_card === 1 || filters.has_custom_card === '1' || filters.has_custom_card === true ? 'bg-primary text-primary-foreground' : ''
+              ]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+              </svg>
+              <span>{{ t.card_custom || 'Custom' }}</span>
+            </button>
+            <button
+              data-slot="button"
+              @click="handleCardFilter(0)"
+              :title="t.card_default_hint || 'Drawn from its card template — follows every change to the design.'"
+              :class="[
+                'flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2',
+                filters.has_custom_card === 0 || filters.has_custom_card === '0' || filters.has_custom_card === false ? 'bg-primary text-primary-foreground' : ''
+              ]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <path d="M2 10h20"></path>
+              </svg>
+              <span>{{ t.card_default || 'Default' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Email -->
       <div :class="['min-w-0', showAdvanced ? '' : 'hidden sm:block']">
         <label
@@ -688,6 +732,7 @@ const props = defineProps({
     is_active: null,
     is_paid: null,
     is_from_card_patch: null,
+    has_custom_card: null,
     partner_id: null,
     creator_id: null,
     sale_id: null,
@@ -734,6 +779,7 @@ const getInitialFilters = () => {
       is_active: normalizeBool(props.initialFilters.is_active),
       is_paid: normalizeBool(props.initialFilters.is_paid),
       is_from_card_patch: normalizeBool(props.initialFilters.is_from_card_patch),
+      has_custom_card: normalizeBool(props.initialFilters.has_custom_card),
       partner_id: normalizePartnerId(props.initialFilters.partner_id),
       creator_id: normalizeId(props.initialFilters.creator_id),
       sale_id: normalizePartnerId(props.initialFilters.sale_id),
@@ -767,6 +813,7 @@ const getInitialFilters = () => {
       is_active: isActiveParam !== null ? Number(isActiveParam) : null,
       is_paid: isPaidParam !== null ? Number(isPaidParam) : null,
       is_from_card_patch: urlParams.get('is_from_card_patch') !== null ? Number(urlParams.get('is_from_card_patch')) : null,
+      has_custom_card: urlParams.get('has_custom_card') !== null ? Number(urlParams.get('has_custom_card')) : null,
       partner_id: normalizePartnerId(urlParams.get('partner_id')),
       creator_id: normalizeId(urlParams.get('creator_id')),
       sale_id: normalizePartnerId(urlParams.get('sale_id')),
@@ -812,6 +859,7 @@ const hasActiveFilters = computed(() => {
     || (filters.value.is_active !== null && filters.value.is_active !== undefined)
     || (filters.value.is_paid !== null && filters.value.is_paid !== undefined)
     || (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined)
+    || (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined)
     || filters.value.partner_id
     || filters.value.creator_id
     || filters.value.sale_id
@@ -838,6 +886,7 @@ const advancedActiveCount = computed(() => {
   if (filters.value.is_active !== null && filters.value.is_active !== undefined) n++;
   if (filters.value.is_paid !== null && filters.value.is_paid !== undefined) n++;
   if (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined) n++;
+  if (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined) n++;
   if (filters.value.partner_id) n++;
   if (filters.value.creator_id) n++;
   if (filters.value.sale_id) n++;
@@ -1104,6 +1153,12 @@ const handleSourceFilter = (isFromCardPatch) => {
   applyFilters();
 };
 
+/** Custom = pinned to its own look, Default = still following its template. */
+const handleCardFilter = (hasCustomCard) => {
+  filters.value.has_custom_card = filters.value.has_custom_card === hasCustomCard ? null : hasCustomCard;
+  applyFilters();
+};
+
 const handleReset = () => {
   filters.value = {
     search: '',
@@ -1155,6 +1210,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.is_from_card_patch !== null && currentFilters.is_from_card_patch !== undefined) {
     params.is_from_card_patch = currentFilters.is_from_card_patch;
+  }
+  if (currentFilters.has_custom_card !== null && currentFilters.has_custom_card !== undefined) {
+    params.has_custom_card = currentFilters.has_custom_card;
   }
   if (currentFilters.partner_id !== null && currentFilters.partner_id !== undefined && currentFilters.partner_id !== '') {
     params.partner_id = currentFilters.partner_id;
@@ -1227,6 +1285,7 @@ watch(() => props.initialFilters, (newFilters) => {
       is_active: normalizeBool(newFilters.is_active, filters.value.is_active),
       is_paid: normalizeBool(newFilters.is_paid, filters.value.is_paid),
       is_from_card_patch: normalizeBool(newFilters.is_from_card_patch, filters.value.is_from_card_patch),
+      has_custom_card: normalizeBool(newFilters.has_custom_card, filters.value.has_custom_card),
       partner_id: normalizePartnerId(newFilters.partner_id),
       creator_id: normalizeId(newFilters.creator_id),
       sale_id: normalizePartnerId(newFilters.sale_id),

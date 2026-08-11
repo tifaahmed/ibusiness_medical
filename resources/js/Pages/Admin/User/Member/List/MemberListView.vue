@@ -413,6 +413,9 @@ const buildExportUrl = (extraParams = {}) => {
   if (f.is_from_card_patch !== null && f.is_from_card_patch !== undefined && f.is_from_card_patch !== '') {
     params.set('is_from_card_patch', f.is_from_card_patch ? 1 : 0);
   }
+  if (f.has_custom_card !== null && f.has_custom_card !== undefined && f.has_custom_card !== '') {
+    params.set('has_custom_card', f.has_custom_card ? 1 : 0);
+  }
   if (f.partner_id !== null && f.partner_id !== undefined && f.partner_id !== '') {
     params.set('partner_id', f.partner_id);
   }
@@ -478,6 +481,9 @@ const exportToPayUrl = computed(() => {
   if (f.expiration_date_to) params.set('expiration_date_to', f.expiration_date_to);
   if (f.is_from_card_patch !== null && f.is_from_card_patch !== undefined && f.is_from_card_patch !== '') {
     params.set('is_from_card_patch', f.is_from_card_patch ? 1 : 0);
+  }
+  if (f.has_custom_card !== null && f.has_custom_card !== undefined && f.has_custom_card !== '') {
+    params.set('has_custom_card', f.has_custom_card ? 1 : 0);
   }
   const qs = params.toString();
   const base = route('admin.member-payment.export-to-pay');

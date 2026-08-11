@@ -49,6 +49,9 @@
                   <th v-if="cols.source" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
                     {{ t.column_source || 'Source' }}
                   </th>
+                  <th v-if="cols.card" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
+                    {{ t.column_card || 'Card' }}
+                  </th>
                   <th v-if="cols.created" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center">
                     <button
                       type="button"
@@ -331,6 +334,24 @@
                   </div>
                   <span v-else class="text-muted-foreground text-xs sm:text-sm">—</span>
                 </td>
+                <td v-if="cols.card" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                  <!-- A custom card is pinned to its own look; a default one is
+                       drawn from its template and follows every change to it. -->
+                  <span
+                    v-if="member.membership?.has_custom_card"
+                    class="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-300"
+                    :title="t.card_custom_hint || 'Changed from the design — updates to the design will not reach it.'"
+                  >
+                    {{ t.card_custom || 'Custom' }}
+                  </span>
+                  <span
+                    v-else
+                    class="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-muted-foreground"
+                    :title="t.card_default_hint || 'Drawn from its card template — follows every change to the design.'"
+                  >
+                    {{ t.card_default || 'Default' }}
+                  </span>
+                </td>
                 <td v-if="cols.created" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <span class="text-muted-foreground text-xs sm:text-sm" :title="formatFullDate(member.created_at)">
                     {{ formatDate(member.created_at) }}
@@ -604,6 +625,7 @@ const defaultCols = {
   creator: true,
   sales: true,
   source: true,
+  card: true,
   amount_paid: true,
   days_covered: true,
   outstanding_days: true,
@@ -622,6 +644,7 @@ const columnOptions = [
   { key: 'creator', label: 'Creator' },
   { key: 'sales', label: 'Sales' },
   { key: 'source', label: 'Source' },
+  { key: 'card', label: 'Card' },
   { key: 'amount_paid', label: 'Amount Paid' },
   { key: 'days_covered', label: 'Days Covered' },
   { key: 'outstanding_days', label: 'Outstanding Days' },
