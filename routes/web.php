@@ -26,6 +26,9 @@ use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitControll
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
 use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
+use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationExportController;
+use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationImportController;
+use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationPageController;
 use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
 use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
@@ -387,6 +390,18 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility/import', AdminFacilityImportPageController::class)->name('admin.facility.import.page');
         Route::post('/admin/facility/import/preview', AdminFacilityImportPreviewController::class)->name('admin.facility.import.preview');
         Route::post('/admin/facility/import/commit', AdminFacilityImportCommitController::class)->name('admin.facility.import.commit');
+        // Site-to-site migration: a lossless package (data + image files) rather
+        // than the human-readable xlsx report above.
+        Route::get('/admin/facility/migration', AdminFacilityMigrationPageController::class)->name('admin.facility.migration.page');
+        Route::get('/admin/facility/migration/export', AdminFacilityMigrationExportController::class)->name('admin.facility.migration.export');
+        Route::get('/admin/facility/migration/export/plan', [AdminFacilityMigrationExportController::class, 'plan'])->name('admin.facility.migration.export.plan');
+        // The restore runs as a session the browser steps through, so neither the
+        // request nor the progress bar has to survive the whole package at once.
+        Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
+        Route::post('/admin/facility/migration/begin', [AdminFacilityMigrationImportController::class, 'begin'])->name('admin.facility.migration.begin');
+        Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
+        Route::post('/admin/facility/migration/finish', [AdminFacilityMigrationImportController::class, 'finish'])->name('admin.facility.migration.finish');
+        Route::post('/admin/facility/migration/cancel', [AdminFacilityMigrationImportController::class, 'cancel'])->name('admin.facility.migration.cancel');
         // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
         Route::post('/admin/facility/seo/generate', AdminFacilitySeoGenerateController::class)->name('admin.facility.seo.generate');
         Route::get('/admin/facility/{facility}', AdminFacilityShowController::class)->name('admin.facility.show');
