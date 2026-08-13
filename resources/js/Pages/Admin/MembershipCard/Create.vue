@@ -287,7 +287,7 @@
             <CardPreview
               v-for="(item, idx) in previewItems.slice(0, 10)"
               :key="item.display_number + ':' + (form.partner_id || '') + ':' + layoutKey(idx)"
-              :membership="{ membership_number: item.display_number, slug: item.slug_preview }"
+              :membership="{ membership_number: item.display_number, stored_number: item.membership_number, slug: item.slug_preview }"
               :template="activeTemplate"
               :partner="selectedPartner"
               :overrides="overridesForIndex(idx)"
@@ -498,9 +498,12 @@ async function submit() {
     });
 
     const dPrefix = form.value.display_prefix || '';
+    // The prefix is printed, never stored — the bars keep the stored number so
+    // a scan still finds the membership.
     const printedMemberships = data.memberships.map((m) => ({
       ...m,
       membership_number: `${dPrefix}${m.membership_number}`,
+      stored_number: m.membership_number,
     }));
 
     progressLabel.value = 'Rendering (0%)…';

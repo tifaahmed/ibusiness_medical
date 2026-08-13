@@ -329,9 +329,16 @@ export function cardQrValue(membership, publicBaseUrl = publicMembershipBaseUrl(
   return withSlugQuery(`${publicBaseUrl}/membership/${slug}`, slug);
 }
 
-/** What this card's bars encode: the membership number, exactly as printed. */
+/**
+ * What this card's bars encode: the stored membership number.
+ *
+ * A batch can print a display prefix in front of the number for the eye, but
+ * bars get scanned against the database — so they carry `stored_number` when
+ * the card was given one, and the printed number only when the two are the
+ * same thing.
+ */
 export function cardBarcodeValue(membership) {
-  return String(membership?.membership_number ?? '');
+  return String(membership?.stored_number ?? membership?.membership_number ?? '');
 }
 
 /**

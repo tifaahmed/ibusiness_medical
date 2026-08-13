@@ -471,6 +471,9 @@ function printedMembership(m) {
   return {
     ...m,
     membership_number: `${dPrefix}${m.membership_number}`,
+    // The prefix is printed, never stored — the bars keep the stored number so
+    // a scan still finds the membership.
+    stored_number: m.membership_number,
   };
 }
 
