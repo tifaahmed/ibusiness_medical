@@ -433,7 +433,7 @@
 import { ref, computed, watch } from "vue";
 import { Link, usePage } from "@inertiajs/vue3";
 import QRCode from "qrcode";
-import { publicMembershipUrl } from "@/composables/usePublicMembershipUrl.js";
+import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import Modal from "@/Components/Modal.vue";
 import GuestMembershipCard from "./_components/GuestMembershipCard.vue";
 import GuestMembershipCardCanvas from "./_components/GuestMembershipCardCanvas.vue";
@@ -472,7 +472,7 @@ const generateQRCode = async () => {
     // The Deilar marketing site, matching the code printed on the card — a
     // member who scans the screen and a member who scans their card should
     // land in the same place.
-    membershipUrl.value = publicMembershipUrl(props.membership.slug);
+    membershipUrl.value = membershipQrUrl(props.membership.slug);
 
     if (qrcodeCanvas.value) {
       await QRCode.toCanvas(qrcodeCanvas.value, membershipUrl.value, {

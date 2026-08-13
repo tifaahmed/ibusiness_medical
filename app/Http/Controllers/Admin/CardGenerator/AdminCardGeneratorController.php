@@ -44,6 +44,9 @@ class AdminCardGeneratorController extends BaseController
                 'status_en' => $request->input('status_en', ''),
                 'valid' => $request->input('valid', ''),
                 'url' => $request->input('url', ''),
+                // The member's slug, so the page can tag the QR address with
+                // `?slug=` even when the link was made before it carried one.
+                'slug' => $request->input('slug', ''),
                 'avatar' => $request->input('avatar', ''),
                 'partner' => $request->input('partner', ''),
             ],

@@ -733,7 +733,7 @@ import MemberLayout from "../Member/MemberLayout.vue";
 import Modal from "@/Components/Modal.vue";
 import MembershipCard from "./_components/MembershipCard.vue";
 import { renderCardCanvas, CARD_W, CARD_H } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
-import { publicMembershipUrl } from "@/composables/usePublicMembershipUrl.js";
+import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const props = defineProps({
   user: {
@@ -806,7 +806,8 @@ const getCardGeneratorUrl = (member) => {
     params.set('valid', `${d.getMonth() + 1} / ${d.getFullYear()}`);
   }
   if (member.membership?.slug) {
-    params.set('url', publicMembershipUrl(member.membership.slug));
+    params.set('slug', member.membership.slug);
+    params.set('url', membershipQrUrl(member.membership.slug));
   }
   if (member.avatar_url) params.set('avatar', member.avatar_url);
   if (member.membership?.job_title_ar) params.set('member_ar', member.membership.job_title_ar);

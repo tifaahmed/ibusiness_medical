@@ -48,4 +48,21 @@ class PublicMembershipUrl
 
         return self::base().'/membership/'.rawurlencode($slug);
     }
+
+    /**
+     * What a card's QR code encodes: the same public page, with the slug
+     * repeated as a `?slug=` query so whatever handles the scan can read the
+     * membership straight off the address instead of parsing the path.
+     *
+     * Kept in step with membershipQrUrl() in
+     * resources/js/composables/usePublicMembershipUrl.js, which is what the
+     * browser-side renderers encode.
+     */
+    public static function qrForSlug(?string $slug): string
+    {
+        $slug = trim((string) $slug);
+        $url = self::forSlug($slug);
+
+        return $slug === '' ? $url : $url.'?slug='.rawurlencode($slug);
+    }
 }

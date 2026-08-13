@@ -1075,6 +1075,7 @@ return [
         'font' => 'Font',
         'align' => 'Align',
         'font_note' => 'Font size is pixels on a 700px-wide card and scales with the render.',
+        'barcode_help_number' => 'The bars encode the membership number above — change the number to change them.',
         'barcode_help' => 'Code 128 — numeric values encode in subset C, which gives wider, more scannable bars.',
         'live_render' => 'Live render',
         'live_render_hint' => 'The real canvas output, exactly as this card will print.',

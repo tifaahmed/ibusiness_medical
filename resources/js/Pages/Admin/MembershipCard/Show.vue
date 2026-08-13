@@ -161,13 +161,20 @@
         </div>
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-center">
           <div v-for="m in filteredMemberships" :key="m.id" class="flex flex-col items-center gap-1.5">
-            <CardPreview
-              :membership="printedMembership(m)"
-              :partner="effectivePartner"
-              :template="cardTemplate"
-              :overrides="card.layout_overrides"
-              :contact="card.layout_overrides?.contact_text"
-            />
+            <button
+              type="button"
+              class="cursor-zoom-in"
+              title="Click to see the card full size"
+              @click="zoomed = m"
+            >
+              <CardPreview
+                :membership="printedMembership(m)"
+                :partner="effectivePartner"
+                :template="cardTemplate"
+                :overrides="card.layout_overrides"
+                :contact="card.layout_overrides?.contact_text"
+              />
+            </button>
             <button
               type="button"
               class="inline-flex items-center gap-1 rounded-md bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
@@ -238,6 +245,12 @@
             </div>
           </section>
 
+          <!-- What the card's codes encode -->
+          <section>
+            <h3 class="text-xs uppercase font-semibold text-muted-foreground mb-1">Card codes</h3>
+            <CardCodes :membership="printedMembership(detail)" />
+          </section>
+
           <!-- Family -->
           <section>
             <h3 class="text-xs uppercase font-semibold text-muted-foreground mb-1">
@@ -300,13 +313,25 @@
         </div>
 
         <div class="p-4 flex flex-col items-center gap-4">
-          <CardPreview
-            :membership="printedMembership(cardModal)"
-            :partner="effectivePartner"
-            :template="cardTemplate"
-            :overrides="card.layout_overrides"
-            :contact="card.layout_overrides?.contact_text"
-          />
+          <button
+            type="button"
+            class="cursor-zoom-in"
+            title="Click to see the card full size"
+            @click="zoomed = cardModal"
+          >
+            <CardPreview
+              :membership="printedMembership(cardModal)"
+              :partner="effectivePartner"
+              :template="cardTemplate"
+              :overrides="card.layout_overrides"
+              :contact="card.layout_overrides?.contact_text"
+            />
+          </button>
+          <p class="-mt-2 text-[11px] text-muted-foreground">Click the card to see it full size.</p>
+
+          <div class="w-full">
+            <CardCodes :membership="printedMembership(cardModal)" />
+          </div>
 
           <div class="flex flex-wrap items-center justify-center gap-2">
             <button
@@ -341,15 +366,54 @@
         </div>
       </div>
     </div>
+
+    <!-- Full-size card. Sits above the card modal it can be opened from, so
+         closing it drops back to that modal rather than out of both. -->
+    <div
+      v-if="zoomed"
+      class="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-black/85 p-4"
+      @click.self="zoomed = null"
+    >
+      <!-- Sized so the whole card fits the viewport: the card's own aspect
+           ratio turns a height limit into a width one. -->
+      <div class="flex flex-col gap-3" :style="{ width: 'min(1400px, 92vw, 120vh)' }" @click.self="zoomed = null">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold text-white">
+            Card <span class="font-mono">{{ printedMembership(zoomed).membership_number }}</span>
+          </h2>
+          <button
+            type="button"
+            class="rounded-md border border-white/30 px-2 py-1 text-xs text-white hover:bg-white/10 cursor-pointer"
+            @click="zoomed = null"
+          >
+            Close ✕
+          </button>
+        </div>
+
+        <CardPreview
+          :membership="printedMembership(zoomed)"
+          :partner="effectivePartner"
+          :template="cardTemplate"
+          :overrides="card.layout_overrides"
+          :contact="card.layout_overrides?.contact_text"
+          display-width="100%"
+        />
+
+        <div class="bg-popover text-popover-foreground rounded-md">
+          <CardCodes :membership="printedMembership(zoomed)" />
+        </div>
+      </div>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { jsPDF } from 'jspdf';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
+import CardCodes from './_components/CardCodes.vue';
 import { renderCardCanvas } from './_components/cardRenderer.js';
 
 const props = defineProps({
@@ -414,6 +478,20 @@ const cardModal = ref(null);
 function openCard(m) {
   cardModal.value = m;
 }
+
+/** The card being shown full size, opened from a preview or the card modal. */
+const zoomed = ref(null);
+
+// Escape closes the topmost layer only, so zooming out of a card leaves the
+// card modal it was opened from still standing.
+function onKeydown(event) {
+  if (event.key !== 'Escape') return;
+  if (zoomed.value) zoomed.value = null;
+  else if (cardModal.value) cardModal.value = null;
+  else if (detail.value) detail.value = null;
+}
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 const downloadingImageId = ref(null);
 async function downloadCardImage(m) {

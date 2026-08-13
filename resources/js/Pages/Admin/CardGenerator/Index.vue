@@ -187,8 +187,11 @@
             <template v-else-if="selected === 'barcode'">
               <label class="block text-[10px] text-muted-foreground uppercase">
                 {{ t.field_barcode || 'Barcode' }}
-                <input v-model="values.barcode" type="text" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy" />
+                <input :value="values.barcode" type="text" readonly class="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs" />
               </label>
+              <p class="text-[10px] text-muted-foreground">
+                {{ t.barcode_help_number || 'The bars encode the membership number above — change the number to change them.' }}
+              </p>
               <p class="text-[10px] text-muted-foreground">
                 {{ t.barcode_help || 'Code 128 — numeric values encode in subset C, which gives wider, more scannable bars.' }}
               </p>
@@ -373,6 +376,7 @@ import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from '@/Pages/Admin/MembershipCard/_components/CardPreview.vue';
 import { drawBarcode } from '@/Pages/Admin/MembershipCard/_components/code128.js';
 import { assetUrl, FALLBACK_LAYOUT, FALLBACK_SAMPLE_DATA } from '@/Pages/Admin/MembershipCard/_components/cardRenderer.js';
+import { membershipQrUrl, withSlugQuery } from '@/composables/usePublicMembershipUrl.js';
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.card_generator || {});
@@ -454,15 +458,53 @@ const layout = reactive(clone(activeTemplate.value?.layout || FALLBACK_LAYOUT));
 // --- This card's own values, seeded from the template and the query string.
 const values = reactive({});
 
+/**
+ * The barcode is not seeded or reset from the design — it is the membership
+ * number, kept in step by the watcher below.
+ */
+const SEEDED_FIELDS = [...TEXT_FIELDS, 'qrcode'];
+
 function seedValues(template) {
   const base = { ...FALLBACK_SAMPLE_DATA, ...(template?.sample_data || {}) };
-  for (const key of [...TEXT_FIELDS, ...CODE_FIELDS]) {
+  for (const key of SEEDED_FIELDS) {
     if (values[key] === undefined) values[key] = base[key] ?? '';
   }
 }
 seedValues(activeTemplate.value);
 if (props.initial.policy) values.membership_number = String(props.initial.policy);
-if (props.initial.url) values.qrcode = String(props.initial.url);
+
+/**
+ * Which member this card is for. The link carries the slug of its own; an
+ * older link that only carries the address still gives it up in the last
+ * segment of the path.
+ */
+const memberSlug = (() => {
+  const passed = String(props.initial.slug || '').trim();
+  if (passed) return passed;
+
+  const path = String(props.initial.url || '').split(/[?#]/)[0].replace(/\/+$/, '');
+  const last = path.split('/').pop() || '';
+  if (last === '' || last === 'membership') return '';
+
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+})();
+
+// The QR address always carries `?slug=`, whether it arrived on the link or is
+// built here — a card is printed once and has to keep scanning the same way.
+if (props.initial.url) values.qrcode = withSlugQuery(String(props.initial.url), memberSlug);
+else if (memberSlug) values.qrcode = membershipQrUrl(memberSlug);
+
+// The barcode is the membership number: the two say the same thing on a card,
+// and bars that scan to anything else make the card lie about who it is for.
+watch(
+  () => values.membership_number,
+  (number) => { values.barcode = String(number ?? ''); },
+  { immediate: true },
+);
 
 // What identifies this card rather than the design — kept across a reset, so
 // resetting never loses which member the card is for.
@@ -543,7 +585,7 @@ function resetLayout() {
 function resetAll() {
   resetLayout();
   const base = { ...FALLBACK_SAMPLE_DATA, ...(activeTemplate.value?.sample_data || {}) };
-  for (const key of [...TEXT_FIELDS, ...CODE_FIELDS]) values[key] = base[key] ?? '';
+  for (const key of SEEDED_FIELDS) values[key] = base[key] ?? '';
   // The member's own number and QR address are not the template's to restore.
   values.membership_number = identity.membership_number;
   if (identity.qrcode) values.qrcode = identity.qrcode;

@@ -352,7 +352,7 @@ class CardGenerationService
             'scale' => $layout->qr_scale ?? $defaults[$key]['scale'],
         ] : $defaults[$key];
 
-        $qrUrl = PublicMembershipUrl::forSlug($membership->slug);
+        $qrUrl = PublicMembershipUrl::qrForSlug($membership->slug);
         $qrSize = (int) (190 * $l['scale']);
         $pad = (int) (14 * $l['scale']);
 

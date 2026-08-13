@@ -104,7 +104,7 @@ class CardTemplateLayoutDefaults
             'website' => 'www.deilar.com',
             'phone' => '01020709993',
             'barcode' => 'MEM-1000',
-            'qrcode' => PublicMembershipUrl::forSlug('mem-1000'),
+            'qrcode' => PublicMembershipUrl::qrForSlug('mem-1000'),
             'qrcode_color' => '#000000',
         ];
     }

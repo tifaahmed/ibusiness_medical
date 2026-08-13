@@ -44,4 +44,23 @@ class PublicMembershipUrlTest extends TestCase
         $this->assertSame('https://deilar.test/membership', PublicMembershipUrl::forSlug(null));
         $this->assertSame('https://deilar.test/membership', PublicMembershipUrl::forSlug('  '));
     }
+
+    /** @test */
+    public function a_qr_code_carries_the_slug_as_a_query(): void
+    {
+        config(['services.deilar.url' => 'https://deilar.test']);
+
+        $this->assertSame(
+            'https://deilar.test/membership/mem-1000?slug=mem-1000',
+            PublicMembershipUrl::qrForSlug('mem-1000'),
+        );
+    }
+
+    /** @test */
+    public function a_qr_code_for_a_member_with_no_slug_has_nothing_to_tag(): void
+    {
+        config(['services.deilar.url' => 'https://deilar.test']);
+
+        $this->assertSame('https://deilar.test/membership', PublicMembershipUrl::qrForSlug(null));
+    }
 }

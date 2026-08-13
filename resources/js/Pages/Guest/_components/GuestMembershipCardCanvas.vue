@@ -150,7 +150,7 @@
 import { ref, onMounted, computed, watch, nextTick } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import QRCode from "qrcode";
-import { publicMembershipUrl } from "@/composables/usePublicMembershipUrl.js";
+import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const CW = 1063;
 const CH = 650;
@@ -563,7 +563,7 @@ function paintFull(refOverride) {
 }
 
 async function generateQR() {
-  const qrUrl = publicMembershipUrl(props.membership.slug);
+  const qrUrl = membershipQrUrl(props.membership.slug);
   const qrSize = 200 * DPR;
   const off = document.createElement("canvas");
   off.width = qrSize;

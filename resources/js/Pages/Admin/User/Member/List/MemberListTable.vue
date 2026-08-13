@@ -601,7 +601,7 @@
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { publicMembershipUrl } from "@/composables/usePublicMembershipUrl.js";
+import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
@@ -810,7 +810,8 @@ const getCardGeneratorUrl = (member) => {
     params.set('valid', `${d.getMonth() + 1} / ${d.getFullYear()}`);
   }
   if (member.membership?.slug) {
-    params.set('url', publicMembershipUrl(member.membership.slug));
+    params.set('slug', member.membership.slug);
+    params.set('url', membershipQrUrl(member.membership.slug));
   }
   if (member.avatar_url) params.set('avatar', member.avatar_url);
   if (member.membership?.job_title_ar) params.set('member_ar', member.membership.job_title_ar);

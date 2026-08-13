@@ -12,7 +12,7 @@
 // standalone; it is a copy of the PHP defaults.
 
 import QRCode from 'qrcode';
-import { publicMembershipBaseUrl } from '@/composables/usePublicMembershipUrl.js';
+import { publicMembershipBaseUrl, withSlugQuery } from '@/composables/usePublicMembershipUrl.js';
 import { drawBarcode } from './code128.js';
 
 /** Export width in px. Height follows the artwork's own aspect ratio. */
@@ -296,6 +296,22 @@ function drawImageField(ctx, field, img) {
 }
 
 /**
+ * What this card's QR code encodes for a membership — the public page tagged
+ * with `?slug=`. Exported so a screen can show the value without guessing at
+ * it: what is displayed and what is drawn come from the same call.
+ */
+export function cardQrValue(membership, publicBaseUrl = publicMembershipBaseUrl()) {
+  const slug = membership?.slug ?? '';
+
+  return withSlugQuery(`${publicBaseUrl}/membership/${slug}`, slug);
+}
+
+/** What this card's bars encode: the membership number, exactly as printed. */
+export function cardBarcodeValue(membership) {
+  return String(membership?.membership_number ?? '');
+}
+
+/**
  * Render a card to a freshly-allocated canvas, sized to CARD_W with the height
  * taken from the artwork's own aspect ratio so an uploaded `card_empty` of any
  * proportion renders undistorted.
@@ -358,8 +374,8 @@ export async function renderCardCanvas({
     ...(template?.sample_data || {}),
     ...(contact || {}),
     membership_number: number,
-    barcode: number,
-    qrcode: `${publicBaseUrl}/membership/${membership?.slug ?? ''}`,
+    barcode: cardBarcodeValue(membership),
+    qrcode: cardQrValue(membership, publicBaseUrl),
     // Only real values win — a blank one falls through to what the template
     // already carries, so an empty box never blanks a field it did not mean to.
     ...Object.fromEntries(Object.entries(valueOverrides || {}).filter(([, v]) => v !== '' && v != null)),
