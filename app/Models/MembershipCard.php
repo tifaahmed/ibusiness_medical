@@ -21,6 +21,7 @@ class MembershipCard extends Model implements HasMedia
         'batch_name',
         'prefix',
         'display_prefix',
+        'display_groups',
         'layout_overrides',
         'quantity',
         'start_number',

@@ -53,6 +53,27 @@
             />
           </div>
           <div>
+            <label class="block text-xs font-medium mb-1">
+              Number grouping
+              <span class="text-muted-foreground font-normal">(printed only, not stored)</span>
+            </label>
+            <input
+              v-model="form.display_groups"
+              type="text"
+              maxlength="32"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-white"
+              placeholder="e.g. 3-3-3"
+              :disabled="busy"
+            />
+            <p class="mt-1 text-[11px] text-muted-foreground">
+              Group lengths, written the way the result reads — type
+              <button type="button" class="font-mono underline hover:no-underline cursor-pointer" @click="form.display_groups = '3-3-3'">3-3-3</button>
+              or
+              <button type="button" class="font-mono underline hover:no-underline cursor-pointer" @click="form.display_groups = '1-3-3-2'">1-3-3-2</button>.
+              Leave empty for no dashes.
+            </p>
+          </div>
+          <div>
             <label class="block text-xs font-medium mb-1">Quantity *</label>
             <input
               v-model.number="form.quantity"
@@ -114,12 +135,22 @@
 
         </div>
 
-        <div class="text-xs text-muted-foreground">
-          Will generate codes:
-          <span class="font-mono font-semibold">{{ firstCode }}</span>
-          →
-          <span class="font-mono font-semibold">{{ lastCode }}</span>
-          ({{ form.quantity }} cards · {{ pageCount }} PDF page{{ pageCount === 1 ? '' : 's' }} + {{ form.quantity }} single-card PDFs zipped)
+        <div class="text-xs text-muted-foreground space-y-0.5">
+          <div>
+            Printed on the card:
+            <span class="font-mono font-semibold">{{ firstCode }}</span>
+            →
+            <span class="font-mono font-semibold">{{ lastCode }}</span>
+            ({{ form.quantity }} cards · {{ pageCount }} PDF page{{ pageCount === 1 ? '' : 's' }} + {{ form.quantity }} single-card PDFs zipped)
+          </div>
+          <!-- What actually lands in the database, spelled out next to the
+               decorated form so the two are never confused. -->
+          <div>
+            Stored in the database (and encoded in the barcode):
+            <span class="font-mono font-semibold">{{ firstStored }}</span>
+            →
+            <span class="font-mono font-semibold">{{ lastStored }}</span>
+          </div>
         </div>
 
         <div v-if="serverError" class="rounded-md bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">
@@ -307,7 +338,7 @@ import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import { buildBatchAndZip } from './_components/PdfBuilder.js';
-import { overridePanelDefaults, templateContactText, CARD_W, CARD_H } from './_components/cardRenderer.js';
+import { cardPrintedNumber, overridePanelDefaults, templateContactText, CARD_W, CARD_H } from './_components/cardRenderer.js';
 
 const props = defineProps({
   suggested_start: { type: Number, default: 1000 },
@@ -321,6 +352,7 @@ const props = defineProps({
 const form = ref({
   batch_name: '',
   display_prefix: '',
+  display_groups: '',
   prefix: '',
   quantity: 10,
   start_number: props.suggested_start,
@@ -363,14 +395,26 @@ function templateName(tpl) {
   return typeof name === 'string' ? name : (name.en || name.ar || 'Untitled');
 }
 
-const firstCode = computed(
-  () => `${form.value.display_prefix || ''}${form.value.prefix || ''}${form.value.start_number}`,
-);
-const lastCode = computed(() => {
+/**
+ * How a stored number reads on the card: grouped for the eye, behind the
+ * display prefix. Neither mark is stored — the database keeps the number whole.
+ */
+function printedNumber(stored) {
+  return cardPrintedNumber(stored, {
+    displayPrefix: form.value.display_prefix,
+    groups: form.value.display_groups,
+  });
+}
+
+const firstStored = computed(() => `${form.value.prefix || ''}${form.value.start_number}`);
+const lastStored = computed(() => {
   const q = Number(form.value.quantity) || 0;
   const s = Number(form.value.start_number) || 0;
-  return `${form.value.display_prefix || ''}${form.value.prefix || ''}${s + Math.max(0, q - 1)}`;
+  return `${form.value.prefix || ''}${s + Math.max(0, q - 1)}`;
 });
+
+const firstCode = computed(() => printedNumber(firstStored.value));
+const lastCode = computed(() => printedNumber(lastStored.value));
 
 const pageCount = computed(() => {
   const q = Number(form.value.quantity) || 0;
@@ -387,12 +431,11 @@ const previewItems = computed(() => {
   if (!canPreview.value) return [];
   const items = [];
   const prefix = form.value.prefix || '';
-  const dPrefix = form.value.display_prefix || '';
   for (let i = 0; i < form.value.quantity; i++) {
     const stored = `${prefix}${form.value.start_number + i}`;
     items.push({
       membership_number: stored,
-      display_number: `${dPrefix}${stored}`,
+      display_number: printedNumber(stored),
       slug_preview: stored.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
     });
   }
@@ -483,6 +526,7 @@ async function submit() {
       batch_name: form.value.batch_name || null,
       prefix: form.value.prefix || null,
       display_prefix: form.value.display_prefix || null,
+      display_groups: form.value.display_groups || null,
       quantity: form.value.quantity,
       start_number: form.value.start_number,
       partner_id: form.value.partner_id,
@@ -497,12 +541,11 @@ async function submit() {
         : null,
     });
 
-    const dPrefix = form.value.display_prefix || '';
-    // The prefix is printed, never stored — the bars keep the stored number so
-    // a scan still finds the membership.
+    // The prefix and the dashes are printed, never stored — the bars keep the
+    // stored number so a scan still finds the membership.
     const printedMemberships = data.memberships.map((m) => ({
       ...m,
-      membership_number: `${dPrefix}${m.membership_number}`,
+      membership_number: printedNumber(m.membership_number),
       stored_number: m.membership_number,
     }));
 

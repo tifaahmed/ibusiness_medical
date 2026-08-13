@@ -20,6 +20,7 @@ class AdminMembershipCardShowResource extends JsonResource
             'batch_name' => $this->batch_name,
             'prefix' => $this->prefix,
             'display_prefix' => $this->display_prefix,
+            'display_groups' => $this->display_groups,
             'layout_overrides' => $this->layout_overrides,
             'quantity' => (int) $this->quantity,
             'start_number' => (int) $this->start_number,

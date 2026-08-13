@@ -57,10 +57,12 @@ class StoreMembershipCardAction
             }
 
             $displayPrefix = (string) ($validated['display_prefix'] ?? '');
+            $displayGroups = trim((string) ($validated['display_groups'] ?? ''));
             $card = MembershipCard::create([
                 'batch_name' => $validated['batch_name'] ?? null,
                 'prefix' => $prefix !== '' ? $prefix : null,
                 'display_prefix' => $displayPrefix !== '' ? $displayPrefix : null,
+                'display_groups' => $displayGroups !== '' ? $displayGroups : null,
                 'layout_overrides' => $validated['layout_overrides'] ?? null,
                 'quantity' => $quantity,
                 'start_number' => $start,

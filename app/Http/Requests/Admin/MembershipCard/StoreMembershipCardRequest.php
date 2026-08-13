@@ -35,6 +35,9 @@ class StoreMembershipCardRequest extends FormRequest
             'batch_name' => ['nullable', 'string', 'max:255'],
             'prefix' => ['nullable', 'string', 'max:32'],
             'display_prefix' => ['nullable', 'string', 'max:32'],
+            // Group lengths for the printed number, written the way the result
+            // reads: '3-3-3', '1-3-3-2'. Decoration only — see the migration.
+            'display_groups' => ['nullable', 'string', 'max:32', 'regex:/^\d+([^0-9]+\d+)*$/'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
             'start_number' => ['required', 'integer', 'min:1'],
             'partner_id' => [

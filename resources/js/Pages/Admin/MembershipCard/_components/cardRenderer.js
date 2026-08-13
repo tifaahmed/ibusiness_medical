@@ -342,6 +342,46 @@ export function cardBarcodeValue(membership) {
 }
 
 /**
+ * Break a number into dash-separated groups for the eye: `groups` is the run
+ * of group lengths, written the way the result reads — '3-3-3' turns
+ * 123456789 into 123-456-789, '1-3-3-2' into 1-234-567-89.
+ *
+ * Anything left over after the last group stays attached to it, so a number
+ * longer than the pattern still prints in full rather than being cut short.
+ */
+export function groupNumber(value, groups) {
+  const text = String(value ?? '');
+  const sizes = String(groups ?? '')
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => n > 0);
+
+  if (text === '' || sizes.length === 0) return text;
+
+  const parts = [];
+  let at = 0;
+  for (const size of sizes) {
+    if (at >= text.length) break;
+    parts.push(text.slice(at, at + size));
+    at += size;
+  }
+  if (at < text.length) parts.push(text.slice(at));
+
+  return parts.join('-');
+}
+
+/**
+ * The number as the card prints it: the stored number grouped for reading,
+ * behind the batch's display prefix. Neither the dashes nor the prefix are
+ * part of the membership number — they exist on the card and nowhere else,
+ * which is why the bars keep reading `stored_number`.
+ */
+export function cardPrintedNumber(storedNumber, { displayPrefix = '', groups = '' } = {}) {
+  return `${displayPrefix || ''}${groupNumber(storedNumber, groups)}`;
+}
+
+/**
  * Render a card to a freshly-allocated canvas, sized to CARD_W with the height
  * taken from the artwork's own aspect ratio so an uploaded `card_empty` of any
  * proportion renders undistorted.

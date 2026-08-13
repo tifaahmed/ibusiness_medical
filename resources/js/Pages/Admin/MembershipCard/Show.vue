@@ -14,13 +14,17 @@
             <span class="font-mono">{{ card.end_number }}</span>
             · created by {{ card.creator?.name || '—' }} on {{ card.created_at }}
           </div>
-          <div v-if="card.prefix || card.display_prefix" class="text-xs text-muted-foreground mt-0.5">
+          <div v-if="card.prefix || card.display_prefix || card.display_groups" class="text-xs text-muted-foreground mt-0.5">
             <template v-if="card.prefix">
               stored prefix: <span class="font-mono font-medium">{{ card.prefix }}</span>
             </template>
-            <template v-if="card.prefix && card.display_prefix"> · </template>
+            <template v-if="card.prefix && (card.display_prefix || card.display_groups)"> · </template>
             <template v-if="card.display_prefix">
               display prefix (printed only): <span class="font-mono font-medium">{{ card.display_prefix }}</span>
+            </template>
+            <template v-if="card.display_prefix && card.display_groups"> · </template>
+            <template v-if="card.display_groups">
+              number grouping (printed only): <span class="font-mono font-medium">{{ card.display_groups }}</span>
             </template>
           </div>
         </div>
@@ -414,7 +418,7 @@ import { jsPDF } from 'jspdf';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import CardCodes from './_components/CardCodes.vue';
-import { renderCardCanvas } from './_components/cardRenderer.js';
+import { cardPrintedNumber, renderCardCanvas } from './_components/cardRenderer.js';
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -461,18 +465,21 @@ const filteredMemberships = computed(() => {
   if (!q) return props.card?.memberships || [];
   return (props.card?.memberships || []).filter((m) => {
     const stored = String(m.membership_number || '').toLowerCase();
-    const printed = String(`${props.card?.display_prefix || ''}${m.membership_number || ''}`).toLowerCase();
+    // Typing the number the way it reads on the card has to find it too.
+    const printed = String(printedMembership(m).membership_number).toLowerCase();
     return stored.includes(q) || printed.includes(q);
   });
 });
 
 function printedMembership(m) {
-  const dPrefix = props.card?.display_prefix || '';
   return {
     ...m,
-    membership_number: `${dPrefix}${m.membership_number}`,
-    // The prefix is printed, never stored — the bars keep the stored number so
-    // a scan still finds the membership.
+    membership_number: cardPrintedNumber(m.membership_number, {
+      displayPrefix: props.card?.display_prefix,
+      groups: props.card?.display_groups,
+    }),
+    // The prefix and the dashes are printed, never stored — the bars keep the
+    // stored number so a scan still finds the membership.
     stored_number: m.membership_number,
   };
 }
