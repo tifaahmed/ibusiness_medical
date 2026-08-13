@@ -191,7 +191,7 @@
               @click="resetLayout"
               :disabled="busy"
             >
-              Reset to defaults
+              Reset to the design
             </button>
           </div>
 
@@ -235,6 +235,23 @@
           <p class="text-[11px] text-muted-foreground">
             Coordinates are pixels on the {{ CARD_W }} × {{ CARD_H }} blank card artwork. Preview updates live.
           </p>
+          <!-- Whether this batch prints the design or its own thing, said
+               before the cards are cut rather than after. -->
+          <p
+            class="text-[11px]"
+            :class="layoutChanged || contactChanged ? 'text-amber-700' : 'text-muted-foreground'"
+          >
+            <template v-if="layoutChanged || contactChanged">
+              These cards will print differently from
+              <span class="font-medium">{{ templateName(activeTemplate) }}</span
+              >. Reset to go back to the design.
+            </template>
+            <template v-else>
+              These fields start from
+              <span class="font-medium">{{ templateName(activeTemplate) }}</span
+              >, so the batch prints exactly what that design says. Nothing is overridden until you change one.
+            </template>
+          </p>
         </div>
       </div>
 
@@ -274,7 +291,7 @@
               :template="activeTemplate"
               :partner="selectedPartner"
               :overrides="overridesForIndex(idx)"
-              :contact="contactText"
+              :contact="contactForRender"
             />
           </div>
         </div>
@@ -284,13 +301,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import { buildBatchAndZip } from './_components/PdfBuilder.js';
-import { DEFAULT_LAYOUT, DEFAULT_CONTACT, CARD_W, CARD_H } from './_components/cardRenderer.js';
+import { overridePanelDefaults, templateContactText, CARD_W, CARD_H } from './_components/cardRenderer.js';
 
 const props = defineProps({
   suggested_start: { type: Number, default: 1000 },
@@ -409,28 +426,40 @@ const layoutElements = [
   { key: 'contact', label: 'Contact rows', hint: 'Text left edge + first baseline; rows are pitched to the printed icons.' },
 ];
 
-function makeDefaultLayout() {
-  return {
-    qr: { ...DEFAULT_LAYOUT.qr },
-    barcode: { ...DEFAULT_LAYOUT.barcode },
-    partner: { ...DEFAULT_LAYOUT.partner },
-    contact: { ...DEFAULT_LAYOUT.contact },
-  };
-}
+// The panel starts from the selected design, so an untouched batch is the
+// design itself — the same card a member gets anywhere else in the admin.
+const layoutDefaults = computed(() => overridePanelDefaults(activeTemplate.value));
+const contactDefaults = computed(() => templateContactText(activeTemplate.value));
 
-const layoutOverrides = ref(makeDefaultLayout());
-const contactText = ref({ ...DEFAULT_CONTACT });
+const layoutOverrides = ref(structuredClone(layoutDefaults.value));
+const contactText = ref({ ...contactDefaults.value });
 
 function resetLayout() {
-  layoutOverrides.value = makeDefaultLayout();
-  contactText.value = { ...DEFAULT_CONTACT };
+  layoutOverrides.value = structuredClone(layoutDefaults.value);
+  contactText.value = { ...contactDefaults.value };
 }
+
+// Picking a partner switches the design, so the panel starts over from the new
+// one rather than carrying the old design's numbers onto it.
+watch(activeTemplate, resetLayout);
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Nothing touched means nothing to override: the batch is rendered straight
+ * from the design, with no rounded pixel positions or copied contact rows
+ * standing between it and the template.
+ */
+const layoutChanged = computed(() => !same(layoutOverrides.value, layoutDefaults.value));
+const contactChanged = computed(() => !same(contactText.value, contactDefaults.value));
+const contactForRender = computed(() => (contactChanged.value ? contactText.value : null));
 
 function toggleLayoutPanel() {
   layoutPanelOpen.value = !layoutPanelOpen.value;
 }
 
 function overridesForIndex(idx0) {
+  if (!layoutChanged.value) return null;
   if (layoutMode.value === 'all') return layoutOverrides.value;
   if (layoutMode.value === 'single' && idx0 === (Number(layoutSingleIndex.value) - 1)) {
     return layoutOverrides.value;
@@ -458,7 +487,14 @@ async function submit() {
       start_number: form.value.start_number,
       partner_id: form.value.partner_id,
       card_template_id: activeTemplate.value?.id ?? null,
-      layout_overrides: { ...layoutOverrides.value, contact_text: contactText.value },
+      // Stored only when this batch actually departs from its design; a null
+      // keeps the saved batch rendering from the template itself.
+      layout_overrides: layoutChanged.value || contactChanged.value
+        ? {
+          ...(layoutChanged.value ? layoutOverrides.value : {}),
+          ...(contactChanged.value ? { contact_text: contactText.value } : {}),
+        }
+        : null,
     });
 
     const dPrefix = form.value.display_prefix || '';
@@ -476,7 +512,7 @@ async function submit() {
         progressLabel.value = `Rendering (${Math.round(p * 100)}%)…`;
       },
       overridesForIndex,
-      contactText.value,
+      contactForRender.value,
     );
 
     triggerDownload(zip, `batch-${data.card.id}.zip`);

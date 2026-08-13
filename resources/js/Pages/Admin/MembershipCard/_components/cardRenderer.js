@@ -84,18 +84,41 @@ export const OVERRIDE_TARGETS = {
 };
 
 /**
- * Default values for the per-batch override panel: the fallback layout
- * resolved to pixels, in the {x, y, scale} shape the panel and the stored
- * `layout_overrides` use.
+ * Where the per-batch override panel starts for a given design: each element's
+ * anchor field taken from that design's own layout and resolved to pixels, in
+ * the {x, y, scale} shape the panel and the stored `layout_overrides` use.
+ *
+ * A batch is cut from a design, so it has to start where the design puts
+ * things. Seeding the panel from the bundled fallback instead is what made
+ * batch cards print differently from every other card drawn from the same
+ * template.
  */
-export const DEFAULT_LAYOUT = {
-  qr: { x: Math.round(FALLBACK_LAYOUT.qrcode.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.qrcode.y * CARD_H), scale: 1 },
-  barcode: { x: Math.round(FALLBACK_LAYOUT.barcode.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.barcode.y * CARD_H), scale: 1 },
-  partner: { x: Math.round(FALLBACK_LAYOUT.partner_logo.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.partner_logo.y * CARD_H), scale: 1 },
-  contact: { x: Math.round(FALLBACK_LAYOUT.facebook.x * CARD_W), y: Math.round(FALLBACK_LAYOUT.facebook.y * CARD_H), scale: 1 },
-};
+export function overridePanelDefaults(template) {
+  const layout = template?.layout || FALLBACK_LAYOUT;
+  const defaults = {};
 
-export const DEFAULT_CONTACT = { ...FALLBACK_SAMPLE_DATA };
+  for (const [key, targets] of Object.entries(OVERRIDE_TARGETS)) {
+    const field = layout[targets[0]] || FALLBACK_LAYOUT[targets[0]];
+    defaults[key] = {
+      x: Math.round(Number(field.x) * CARD_W),
+      y: Math.round(Number(field.y) * CARD_H),
+      scale: 1,
+    };
+  }
+
+  return defaults;
+}
+
+/** The contact rows a design prints, for the panel to start from. */
+export function templateContactText(template) {
+  const data = { ...FALLBACK_SAMPLE_DATA, ...(template?.sample_data || {}) };
+
+  return {
+    facebook: data.facebook ?? '',
+    website: data.website ?? '',
+    phone: data.phone ?? '',
+  };
+}
 
 let _fontPromise = null;
 const _imageCache = new Map();
