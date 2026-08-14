@@ -522,7 +522,7 @@ class FacilityMigrationImporter
             'meta_description' => $this->translatableOrNull($data['meta_description'] ?? []),
             'meta_keywords' => $this->translatableOrNull($data['meta_keywords'] ?? []),
         ]);
-        $facility->forceFill([
+        $fill = [
             'canonical_url' => $data['canonical_url'] ?? null,
             'discount_percent' => $data['discount_percent'] ?? null,
             'facility_type_id' => $this->resolveFacilityType($data['facility_type'] ?? null),
@@ -532,7 +532,13 @@ class FacilityMigrationImporter
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
-        ]);
+        ];
+        if (! $existing && ! empty($data['id'])) {
+            // Only fresh rows take the source id; an existing row must never
+            // have its primary key rewritten (child rows reference it).
+            $fill['id'] = $data['id'];
+        }
+        $facility->forceFill($fill);
         $facility->save();
 
         $this->stampRow($facility, $slug, $data['created_at'] ?? null, $data['updated_at'] ?? null, $nulls);
@@ -557,7 +563,7 @@ class FacilityMigrationImporter
         $existing = null;
 
         if ($mode === self::MODE_MERGE) {
-            $existing = $slug ? FacilityBranch::where('slug', $slug)->first() : null;
+            $existing = ! empty($data['id']) ? FacilityBranch::where('id', $data['id'])->first() : null;
             if (! $existing) {
                 $nameEn = $data['name']['en'] ?? null;
                 if ($nameEn) {
@@ -575,7 +581,7 @@ class FacilityMigrationImporter
             'name' => $this->translatableOrNull($data['name'] ?? []),
             'address' => $this->translatableOrNull($data['address'] ?? []),
         ]);
-        $branch->forceFill([
+        $fill = [
             'facility_id' => $facility->id,
             'phone' => $this->normalizePhone($data['phone'] ?? null),
             'governorate_id' => $this->resolveGovernorate($data['governorate'] ?? null),
@@ -583,7 +589,11 @@ class FacilityMigrationImporter
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
-        ]);
+        ];
+        if (! $existing && ! empty($data['id'])) {
+            $fill['id'] = $data['id'];
+        }
+        $branch->forceFill($fill);
         $branch->setRelation('facility', $facility); // slug generation reads it
         $branch->save();
 
@@ -601,7 +611,7 @@ class FacilityMigrationImporter
     {
         foreach ($offers as $data) {
             $slug = $data['slug'] ?? null;
-            $existing = $slug ? Offer::where('slug', $slug)->first() : null;
+            $existing = ! empty($data['id']) ? Offer::where('id', $data['id'])->first() : null;
 
             $offer = $existing ?: new Offer;
             $nulls = $this->applyTranslatables($offer, [
@@ -609,13 +619,17 @@ class FacilityMigrationImporter
                 'short_description' => $this->translatableOrNull($data['short_description'] ?? []),
                 'full_description' => $this->translatableOrNull($data['full_description'] ?? []),
             ]);
-            $offer->forceFill([
+            $fill = [
                 'offerable_id' => $owner->getKey(),
                 'offerable_type' => $owner->getMorphClass(),
                 'phone' => $data['phone'] ?? null,
                 'price' => $data['price'] ?? null,
                 'old_price' => $data['old_price'] ?? null,
-            ]);
+            ];
+            if (! $existing && ! empty($data['id'])) {
+                $fill['id'] = $data['id'];
+            }
+            $offer->forceFill($fill);
             $offer->save();
 
             $this->stampRow($offer, $slug, $data['created_at'] ?? null, $data['updated_at'] ?? null, $nulls);
@@ -1027,10 +1041,10 @@ class FacilityMigrationImporter
         }
 
         if ($createdAt) {
-            $updates['created_at'] = $createdAt;
+            $updates['created_at'] = $this->normalizeTimestamp($createdAt);
         }
         if ($updatedAt) {
-            $updates['updated_at'] = $updatedAt;
+            $updates['updated_at'] = $this->normalizeTimestamp($updatedAt);
         }
 
         if ($updates === []) {
@@ -1042,6 +1056,19 @@ class FacilityMigrationImporter
         // Re-sync the in-memory model, minus the nulled translatable columns —
         // pushing null back through HasTranslations would rebuild {"en": null}.
         $model->forceFill(array_diff_key($updates, array_flip($nullColumns)))->syncOriginal();
+    }
+
+    private function normalizeTimestamp(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        // '2026-01-09T22:51:26+02:00' or '2026-01-09T22:51:26.123+02:00'
+        // -> '2026-01-09 22:51:26' so strict-mode MySQL DATETIME accepts it.
+        $value = preg_replace('/[T](\d{2}:\d{2}:\d{2}).*$/', ' $1', trim($value)) ?? $value;
+
+        return $value === '' ? null : $value;
     }
 
     private function forceSlug(Model $model, ?string $slug): void
@@ -1183,10 +1210,10 @@ class FacilityMigrationImporter
      */
     private function findExistingFacility(array $data): ?Facility
     {
-        if (! empty($data['slug'])) {
-            $bySlug = Facility::where('slug', $data['slug'])->first();
-            if ($bySlug) {
-                return $bySlug;
+        if (! empty($data['id'])) {
+            $byId = Facility::where('id', $data['id'])->first();
+            if ($byId) {
+                return $byId;
             }
         }
         foreach (($data['name'] ?? []) as $locale => $value) {
