@@ -226,12 +226,14 @@ class FacilityMigrationImporter
                 if ($this->dryRun) {
                     DB::rollBack();
                     $this->cleanupFiles($addedMediaPaths);
+                    $this->resetLookupCaches();
                 } else {
                     DB::commit();
                 }
             } catch (\Throwable $e) {
                 DB::rollBack();
                 $this->cleanupFiles($addedMediaPaths);
+                $this->resetLookupCaches();
 
                 $label = $data['slug'] ?? ($data['name']['en'] ?? "#{$index}");
                 $state['errors'][] = ['facility' => $label, 'message' => $e->getMessage()];
@@ -1123,6 +1125,18 @@ class FacilityMigrationImporter
     {
         $this->stats = [];
         $this->warnings = [];
+        $this->resetLookupCaches();
+    }
+
+    /**
+     * Lookup ids resolved in a rolled-back transaction no longer exist — a
+     * facility that shares a type/governorate/city created moments ago by an
+     * earlier row in the same chunk would otherwise reuse a stale id and blow
+     * up on the foreign key. A dry run rolls every facility back, and a failed
+     * facility does too, so the caches are dropped whenever that happens.
+     */
+    private function resetLookupCaches(): void
+    {
         $this->typeCache = [];
         $this->governorateCache = [];
         $this->cityCache = [];
