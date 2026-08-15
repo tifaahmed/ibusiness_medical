@@ -172,6 +172,84 @@ class FacilityMigrationTest extends TestCase
         $this->assertSame(4, Facility::first()->media()->count());
     }
 
+    public function test_timestamps_are_normalized_for_strict_mode_mysql(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        // The exporter serialises timestamps as ISO-8601 with an offset
+        // ("2026-01-09T22:51:26+02:00"), which strict-mode MySQL DATETIME
+        // columns reject. The importer must write back plain "Y-m-d H:i:s".
+        Facility::query()->whereKey($facility->id)->update([
+            'created_at' => '2026-01-09 22:51:26',
+            'updated_at' => '2026-01-09 22:51:30',
+        ]);
+        $package = $this->buildPackage();
+        $this->wipeFacilityData();
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $raw = \Illuminate\Support\Facades\DB::table('facilities')->value('created_at');
+        $this->assertSame('2026-01-09 22:51:26', $raw);
+        $this->assertSame('2026-01-09 22:51:30', \Illuminate\Support\Facades\DB::table('facilities')->value('updated_at'));
+
+        $restored = Facility::first();
+        $this->assertSame('2026-01-09 22:51:26', $restored->created_at->toDateTimeString());
+        $this->assertSame('2026-01-09 22:51:30', $restored->updated_at->toDateTimeString());
+    }
+
+    public function test_reimport_matches_by_id_and_restores_the_original_id(): void
+    {
+        Storage::fake('public');
+        $source = $this->seedFacility();
+        $sourceId = $source->getKey();
+        $package = $this->buildPackage();
+        $this->wipeFacilityData();
+
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+        $importer->import($package, ['mode' => 'merge']);
+
+        // The original id is preserved, even though a fresh row is inserted.
+        $this->assertSame(1, Facility::count());
+        $this->assertSame($sourceId, Facility::first()->getKey());
+        $this->assertSame('sunrise-clinic', Facility::first()->slug);
+
+        // Target drifts: the slug is renamed locally. Re-importing must still
+        // find the row by id and restore the package slug, not create a second
+        // facility because the slug no longer matches.
+        Facility::query()->update(['slug' => 'renamed-locally']);
+        $importer->import($package, ['mode' => 'merge']);
+
+        $this->assertSame(1, Facility::count());
+        $this->assertSame('sunrise-clinic', Facility::first()->slug);
+    }
+
+    public function test_merge_never_rewrites_an_existing_facility_id(): void
+    {
+        Storage::fake('public');
+        $source = $this->seedFacility();
+        $sourceId = $source->getKey();
+        $package = $this->buildPackage();
+        $this->wipeFacilityData();
+
+        // Target already holds the same facility under a fresh, different id
+        // (as happens when merging into a half-imported database).
+        $type = FacilityType::create(['name' => ['en' => 'Clinic', 'ar' => 'عيادة']]);
+        $alreadyThere = Facility::create([
+            'name' => ['en' => 'Sunrise Clinic', 'ar' => 'عيادة الشروق'],
+            'facility_type_id' => $type->id,
+        ]);
+        $this->assertNotSame($sourceId, $alreadyThere->getKey());
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        // No 1451: the row is updated in place and keeps its target id.
+        $this->assertSame(1, Facility::count());
+        $this->assertSame($alreadyThere->getKey(), Facility::first()->getKey());
+        $this->assertSame('sunrise-clinic', Facility::first()->slug);
+    }
+
     public function test_dry_run_writes_nothing(): void
     {
         Storage::fake('public');
