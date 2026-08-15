@@ -1238,16 +1238,7 @@ class FacilityMigrationImporter
     private function findExistingFacility(array $data): ?Facility
     {
         if (! empty($data['id'])) {
-            $byId = Facility::where('id', $data['id'])->first();
-            if ($byId) {
-                return $byId;
-            }
-        }
-        foreach (($data['name'] ?? []) as $locale => $value) {
-            $match = $this->whereTranslationEquals(Facility::query(), $locale, $value)?->first();
-            if ($match) {
-                return $match;
-            }
+            return Facility::where('id', $data['id'])->first();
         }
 
         return null;
