@@ -12,6 +12,7 @@ use App\Models\Sales;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -1026,6 +1027,9 @@ class FacilityMigrationImporter
             }
         }
 
+        $createdAt = $this->normalizeDateTime($createdAt);
+        $updatedAt = $this->normalizeDateTime($updatedAt);
+
         if ($createdAt) {
             $updates['created_at'] = $createdAt;
         }
@@ -1047,6 +1051,29 @@ class FacilityMigrationImporter
     private function forceSlug(Model $model, ?string $slug): void
     {
         $this->stampRow($model, $slug, null, null);
+    }
+
+    /**
+     * Package timestamps arrive as ISO-8601 strings carrying an offset
+     * ("2026-01-09T22:51:26+02:00"). MySQL datetime columns accept no offset,
+     * so convert to the app timezone and format for the column. The instant is
+     * preserved exactly — only the representation changes.
+     */
+    private function normalizeDateTime(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)
+                ->setTimezone(config('app.timezone', 'UTC'))
+                ->format('Y-m-d H:i:s');
+        } catch (\Throwable) {
+            $this->warnings[] = sprintf('Unparseable timestamp "%s" skipped.', $value);
+
+            return null;
+        }
     }
 
     /**

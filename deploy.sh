@@ -45,12 +45,9 @@ else
     echo "[4/8] Skipping npm build (--skip-build passed)."
 fi
 
-# 5. Cache config, routes, and views for production performance
-#    route:cache is critical — it bypasses web.php entirely so OPcache
-#    of web.php can never cause stale-route problems again.
-echo "[5/8] Caching config, routes, and views for production..."
+# 5. Cache config and views for production performance
+echo "[5/8] Caching config and views for production..."
 php artisan config:cache
-php artisan route:cache
 php artisan view:cache
 echo "      Done."
 

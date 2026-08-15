@@ -190,7 +190,14 @@
       "Bash(echo \"--- exit: $? ---\")",
       "Bash(echo \"build exit=$?\")",
       "Bash(awk 'NR>=326 && NR<=340' routes/web.php)",
-      "Bash(awk 'NR<=336 && /Route::middleware\\\\\\(.permission/ {print NR\": \"$0}' routes/web.php)"
+      "Bash(awk 'NR<=336 && /Route::middleware\\\\\\(.permission/ {print NR\": \"$0}' routes/web.php)",
+      "Bash(./bin/php artisan *)",
+      "Bash(./bin/composer install *)",
+      "Bash(./bin/npm install *)",
+      "Bash(mysqldump -h 127.0.0.1 -u u351109640_card_root -p'|j!:g;h@6+8N' u351109640_card)",
+      "Bash(./bin/npm run *)",
+      "Bash(echo \"---exit $?\")",
+      "Bash(./bin/artisan migrate:status)"
     ]
   }
 }

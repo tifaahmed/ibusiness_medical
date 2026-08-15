@@ -42,6 +42,7 @@
         "html2canvas": "^1.4.1",
         "jspdf": "^4.2.1",
         "jszip": "^3.10.1",
+        "opencode-ai": "^1.18.18",
         "pinia": "^3.0.4",
         "qrcode": "^1.5.4",
         "quill": "^2.0.3",
