@@ -124,7 +124,7 @@ class CompanyExcelImportTest extends TestCase
         $this->assertSame(1, $commit['updated']);
 
         $this->assertSame('Sunrise Clinic Renamed', $existing->refresh()->getTranslation('name', 'en'));
-        $this->assertSame('Brand New Clinic', Company::where('slug', 'brand-new-clinic')->value('name->en'));
+        $this->assertSame('Brand New Clinic', Company::where('slug', 'brand-new-clinic')->first()->getTranslation('name', 'en'));
     }
 
     public function test_create_only_skips_existing_rows(): void

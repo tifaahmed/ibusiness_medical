@@ -32,27 +32,39 @@ trait ExportsCompanyColumns
     /**
      * Accepted synonyms for each column header when parsing an uploaded file.
      * Values are matched against the normalized header (lowercased, all
-     * non-alphanumeric characters removed).
+     * punctuation removed, Arabic diacritics/hamza variants folded).
+     * Both English and Arabic labels are accepted, since the export writes the
+     * labels in whatever locale the admin UI is currently in.
      */
     protected function companyColumnAliases(): array
     {
         return [
-            'id'               => ['id'],
-            'name_en'          => ['nameenglish', 'nameen', 'name'],
-            'name_ar'          => ['namearabic', 'namear', 'arabicname'],
-            'slug'             => ['slug'],
-            'created_by_email' => ['createdbyemail', 'createdby', 'creator', 'creatorname'],
-            'created_at'       => ['createdat', 'createdate', 'creationdate'],
-            'updated_at'       => ['updatedat', 'updatedate'],
+            'id'               => ['id', 'المعرّف'],
+            'name_en'          => ['nameenglish', 'nameen', 'name', 'الاسم (إنجليزي)', 'الاسم (انجليزي)', 'الاسم'],
+            'name_ar'          => ['namearabic', 'namear', 'arabicname', 'الاسم (عربي)', 'الاسم (العربية)', 'اسم عربي'],
+            'slug'             => ['slug', 'الرابط المختصر', 'الرابط'],
+            'created_by_email' => ['createdbyemail', 'createdby', 'creator', 'creatorname', 'المنشئ (البريد الإلكتروني)', 'المنشئ', 'البريد الإلكتروني'],
+            'created_at'       => ['createdat', 'createdate', 'creationdate', 'تاريخ الإنشاء'],
+            'updated_at'       => ['updatedat', 'updatedate', 'تاريخ التحديث'],
         ];
     }
 
     /**
      * Normalize an Excel header cell so it can be matched against the aliases
      * above regardless of case, spaces, parentheses or other punctuation.
+     * Arabic text is kept, with diacritics stripped and the common hamza/alef
+     * and ta-marbuta variants folded onto their base letter.
      */
     protected function normalizeHeader(string $header): string
     {
-        return (string) preg_replace('/[^a-z0-9]/', '', mb_strtolower(trim($header)));
+        $s = mb_strtolower(trim($header));
+        $s = str_replace(
+            ['أ', 'إ', 'آ', 'ٱ', 'ؤ', 'ئ', 'ة'],
+            ['ا', 'ا', 'ا', 'ا', 'و', 'ي', 'ه'],
+            $s
+        );
+        $s = (string) preg_replace('/[\x{064B}-\x{0655}\x{0670}]/u', '', $s);
+
+        return (string) preg_replace('/[^\p{L}\p{N}]/u', '', $s);
     }
 }

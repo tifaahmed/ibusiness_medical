@@ -82,7 +82,6 @@ class AdminCompanyImportPreviewController extends BaseController
         if ($extension === 'csv' || $extension === 'txt') {
             $reader = new CsvReader();
             $reader->setInputEncoding('UTF-8');
-            $reader->setDelimiter(',');
         } else {
             $reader = IOFactory::createReaderForFile($path);
         }
