@@ -30,6 +30,9 @@
                   >
                     {{ getTranslatedName(company.name) }}
                   </Link>
+                  <div v-if="getOtherLocaleName(company.name)" class="text-xs text-muted-foreground" dir="auto">
+                    {{ getOtherLocaleName(company.name) }}
+                  </div>
                   <div class="text-xs text-muted-foreground font-mono">{{ company.slug }}</div>
                 </div>
               </td>
@@ -477,6 +480,13 @@ const getTranslatedName = (name) => {
     return name[locale] || name['ar'] || name['en'] || Object.values(name)[0] || '';
   }
   return '';
+};
+
+const getOtherLocaleName = (name) => {
+  if (typeof name !== 'object' || name === null) return '';
+  const primary = name[locale] || name['ar'] || name['en'] || '';
+  const others = Object.values(name).filter((v) => v && v !== primary);
+  return others[0] || '';
 };
 
 const handlePerPageChange = (event) => {

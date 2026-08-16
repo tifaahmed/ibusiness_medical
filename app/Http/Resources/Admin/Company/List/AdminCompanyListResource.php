@@ -11,7 +11,7 @@ class AdminCompanyListResource extends JsonResource
     {
         return [
             'id'                => $this->id,
-            'name'              => $this->name,
+            'name'              => $this->getTranslations('name'),
             'slug'              => $this->slug,
             'memberships_count' => $this->whenCounted('memberships', $this->memberships_count ?? $this->memberships()->count()),
             'created_at'        => $this->created_at?->format('Y-m-d H:i:s'),
