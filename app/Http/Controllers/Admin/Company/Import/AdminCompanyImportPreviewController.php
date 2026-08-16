@@ -32,10 +32,14 @@ class AdminCompanyImportPreviewController extends BaseController
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
         ]);
 
-        $rows = $this->parseSpreadsheet(
-            $request->file('file')->getRealPath(),
-            $request->file('file')->getClientOriginalExtension()
-        );
+        try {
+            $rows = $this->parseSpreadsheet(
+                $request->file('file')->getRealPath(),
+                $request->file('file')->getClientOriginalExtension()
+            );
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         $preview = [];
         foreach ($rows as $i => $raw) {
@@ -125,7 +129,10 @@ class AdminCompanyImportPreviewController extends BaseController
             }
         }
         if ($headerRow === null) {
-            return [];
+            throw new \RuntimeException(
+                'No header row found. The file needs a row with at least two known column names ' .
+                '(e.g. "ID", "Name (English)", "Name (Arabic)") — export a companies file to see the expected format.'
+            );
         }
 
         $headerMap = [];
