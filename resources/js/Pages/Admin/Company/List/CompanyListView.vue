@@ -12,17 +12,47 @@
                 <span class="text-sm sm:text-base truncate">Companies Management</span>
               </div>
             </div>
-            <Link
-              :href="route('admin.company.create')"
-              data-slot="button"
-              class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
-                <path d="M5 12h14"/><path d="M12 5v14"/>
-              </svg>
-              <span class="hidden sm:inline">Add New Company</span>
-              <span class="sm:hidden">Add</span>
-            </Link>
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <a
+                :href="route('admin.company.export')"
+                data-slot="button"
+                title="Export all companies to Excel"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border bg-background shadow-xs hover:bg-accent h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 text-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <path d="m7 10 5 5 5-5"/>
+                  <path d="M12 15V3"/>
+                </svg>
+                <span class="hidden sm:inline">Export Excel</span>
+                <span class="sm:hidden">Export</span>
+              </a>
+              <Link
+                :href="route('admin.company.import')"
+                data-slot="button"
+                title="Import companies from an Excel file"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border bg-background shadow-xs hover:bg-accent h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 text-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <path d="M17 8l-5-5-5 5"/>
+                  <path d="M12 3v12"/>
+                </svg>
+                <span class="hidden sm:inline">Import Excel</span>
+                <span class="sm:hidden">Import</span>
+              </Link>
+              <Link
+                :href="route('admin.company.create')"
+                data-slot="button"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 btn-golden"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                  <path d="M5 12h14"/><path d="M12 5v14"/>
+                </svg>
+                <span class="hidden sm:inline">Add New Company</span>
+                <span class="sm:hidden">Add</span>
+              </Link>
+            </div>
           </div>
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
             <CompanyListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />

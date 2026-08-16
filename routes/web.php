@@ -4,6 +4,11 @@ use App\Http\Controllers\Admin\ActiveHistory\AdminActiveHistoryController;
 use App\Http\Controllers\Admin\Company\Create\AdminCompanyCreateController;
 use App\Http\Controllers\Admin\Company\Delete\AdminCompanyDeleteController;
 use App\Http\Controllers\Admin\Company\Edit\AdminCompanyEditController;
+use App\Http\Controllers\Admin\Company\Export\AdminCompanyExportController;
+use App\Http\Controllers\Admin\Company\Import\AdminCompanyImportCommitController;
+use App\Http\Controllers\Admin\Company\Import\AdminCompanyImportPageController;
+use App\Http\Controllers\Admin\Company\Import\AdminCompanyImportPreviewController;
+use App\Http\Controllers\Admin\Company\Import\AdminCompanyImportTemplateController;
 use App\Http\Controllers\Admin\Company\List\AdminCompanyListController;
 use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersController;
 use App\Http\Controllers\Admin\Company\List\AdminCompanyMembersExportController;
@@ -134,6 +139,11 @@ use App\Http\Controllers\Admin\PartnerOfferRequest\Show\AdminPartnerOfferRequest
 use App\Http\Controllers\Admin\Sales\Create\AdminSalesCreateController;
 use App\Http\Controllers\Admin\Sales\Delete\AdminSalesDeleteController;
 use App\Http\Controllers\Admin\Sales\Edit\AdminSalesEditController;
+use App\Http\Controllers\Admin\Sales\Export\AdminSalesExportController;
+use App\Http\Controllers\Admin\Sales\Import\AdminSalesImportCommitController;
+use App\Http\Controllers\Admin\Sales\Import\AdminSalesImportPageController;
+use App\Http\Controllers\Admin\Sales\Import\AdminSalesImportPreviewController;
+use App\Http\Controllers\Admin\Sales\Import\AdminSalesImportTemplateController;
 use App\Http\Controllers\Admin\Sales\List\AdminSalesListController;
 use App\Http\Controllers\Admin\Sales\Store\AdminSalesStoreController;
 use App\Http\Controllers\Admin\Sales\Update\AdminSalesUpdateController;
@@ -555,6 +565,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     // ---- Sales (manage sales OR own) ----
     Route::middleware('permission:manage sales|manage own sales')->group(function () {
+        Route::get('/admin/sales/export', AdminSalesExportController::class)->name('admin.sales.export');
+        Route::get('/admin/sales/import/template', AdminSalesImportTemplateController::class)->name('admin.sales.import.template');
+        Route::get('/admin/sales/import', AdminSalesImportPageController::class)->name('admin.sales.import.page');
+        Route::post('/admin/sales/import/preview', AdminSalesImportPreviewController::class)->name('admin.sales.import.preview');
+        Route::post('/admin/sales/import/commit', AdminSalesImportCommitController::class)->name('admin.sales.import.commit');
         Route::get('/admin/sales', AdminSalesListController::class)->name('admin.sales.list');
         Route::get('/admin/sales/create', AdminSalesCreateController::class)->name('admin.sales.create');
         Route::post('/admin/sales', AdminSalesStoreController::class)->name('admin.sales.store');
@@ -566,6 +581,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // ---- Company (manage companies OR own) ----
     Route::middleware('permission:manage companies|manage own companies')->group(function () {
         Route::get('/admin/company', AdminCompanyListController::class)->name('admin.company.list');
+        Route::get('/admin/company/export', AdminCompanyExportController::class)->name('admin.company.export');
+        Route::get('/admin/company/import', AdminCompanyImportPageController::class)->name('admin.company.import');
+        Route::get('/admin/company/import/template', AdminCompanyImportTemplateController::class)->name('admin.company.import.template');
+        Route::post('/admin/company/import/preview', AdminCompanyImportPreviewController::class)->name('admin.company.import.preview');
+        Route::post('/admin/company/import', AdminCompanyImportCommitController::class)->name('admin.company.import.run');
         Route::get('/admin/company/create', AdminCompanyCreateController::class)->name('admin.company.create');
         Route::post('/admin/company', AdminCompanyStoreController::class)->name('admin.company.store');
         Route::get('/admin/company/{company}/edit', AdminCompanyEditController::class)->name('admin.company.edit');

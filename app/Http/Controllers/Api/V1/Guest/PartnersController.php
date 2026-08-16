@@ -23,7 +23,25 @@ class PartnersController extends Controller
             'governorate_id' => $request->input('governorate_id'),
         ];
 
-        $facilities = Facility::with(['facilityType', 'branches', 'media', 'tags'])
+        $with = ['facilityType', 'branches.governorate', 'branches.city', 'media', 'tags'];
+
+        /*
+         * A card leads with a branch, and the moment a visitor filters by
+         * governorate is exactly when order matters: a facility whose head
+         * office sits in another governorate would otherwise lead with a branch
+         * in the wrong place. Matching branches come first; the rest keep
+         * their natural order.
+         */
+        if (! empty($filters['governorate_id'])) {
+            $governorateId = (int) $filters['governorate_id'];
+
+            $with['branches'] = function ($query) use ($governorateId) {
+                $query->orderByRaw('CASE WHEN governorate_id = ? THEN 0 ELSE 1 END', [$governorateId])
+                    ->orderBy('id');
+            };
+        }
+
+        $facilities = Facility::with($with)
             ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $locale = app()->getLocale();
                 $normalized = $this->normalizeSearch($filters['search']);
