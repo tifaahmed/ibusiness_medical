@@ -405,6 +405,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility/migration', AdminFacilityMigrationPageController::class)->name('admin.facility.migration.page');
         Route::get('/admin/facility/migration/export', AdminFacilityMigrationExportController::class)->name('admin.facility.migration.export');
         Route::get('/admin/facility/migration/export/plan', [AdminFacilityMigrationExportController::class, 'plan'])->name('admin.facility.migration.export.plan');
+        Route::get('/admin/facility/migration/template/example', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'example'])->name('admin.facility.migration.template.example');
+        Route::get('/admin/facility/migration/template/blank', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'blank'])->name('admin.facility.migration.template.blank');
         // The restore runs as a session the browser steps through, so neither the
         // request nor the progress bar has to survive the whole package at once.
         Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
