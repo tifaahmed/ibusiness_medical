@@ -2,13 +2,20 @@ import './bootstrap';
 import '../css/app.css';
 
 import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createPinia } from 'pinia';
 import { setToastInstance } from './composables/useNotification';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+router.on('invalid', (event) => {
+    if (event.detail?.response?.status === 419) {
+        event.preventDefault();
+        window.location.reload();
+    }
+});
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
