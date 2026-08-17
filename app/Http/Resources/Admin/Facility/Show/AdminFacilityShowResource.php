@@ -20,6 +20,7 @@ class AdminFacilityShowResource extends JsonResource
             'description' => $this->description,
             'slug' => $this->slug,
             'discount_percent' => $this->discount_percent,
+            'banner_config' => $this->banner_config,
             'facility_type' => $this->whenLoaded('facilityType', function () {
                 return $this->facilityType ? [
                     'id' => $this->facilityType->id,
@@ -27,7 +28,7 @@ class AdminFacilityShowResource extends JsonResource
                     'slug' => $this->facilityType->slug,
                 ] : null;
             }),
-            'branches' => $this->whenLoaded('branches', function () use ($request) {
+            'branches' => $this->whenLoaded('branches', function () {
                 return $this->branches->map(function ($branch) {
                     return [
                         'id' => $branch->id,
@@ -56,5 +57,3 @@ class AdminFacilityShowResource extends JsonResource
         ];
     }
 }
-
-

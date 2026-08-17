@@ -208,10 +208,6 @@ enum UserPermissionEnum
     public static function superAdminOnly(): array
     {
         return [
-            self::MANAGE_USERS,
-            self::MANAGE_OWN_USERS,
-            self::MANAGE_ADMIN_USERS,
-            self::MANAGE_OWN_ADMIN_USERS,
             self::MANAGE_ROLES,
             self::MANAGE_OWN_ROLES,
         ];

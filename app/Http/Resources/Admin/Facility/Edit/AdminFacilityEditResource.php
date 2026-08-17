@@ -31,6 +31,7 @@ class AdminFacilityEditResource extends JsonResource
             'facility_type_id' => $this->facility_type_id,
             'sales_id' => $this->sales_id,
             'discount_percent' => $this->discount_percent,
+            'banner_config' => $this->banner_config,
             'branches' => $this->whenLoaded('branches', function () {
                 return $this->branches->map(function ($branch) {
                     return [

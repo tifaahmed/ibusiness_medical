@@ -78,6 +78,243 @@
       </div>
     </div>
 
+    <!-- Banner Card -->
+    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
+      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+        <div data-slot="card-title" class="leading-none font-semibold title-golden">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          {{ t.facility?.banner || 'Banner' }}
+        </div>
+      </div>
+      <div data-slot="card-content" class="px-6 space-y-4">
+        <!-- Enable Toggle -->
+        <div class="flex items-center gap-3">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="bannerEnabled"
+              @change="toggleBanner"
+              class="sr-only peer"
+            />
+            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-golden-yellow"></div>
+          </label>
+          <span class="text-sm font-medium text-white">{{ t.facility?.enable_banner || 'Enable Banner' }}</span>
+        </div>
+
+        <!-- Config fields (shown when enabled) -->
+        <div v-if="bannerEnabled" class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_days || 'Number of Days' }}
+            </label>
+            <input
+              type="number"
+              :value="bannerConfig.days"
+              @input="updateBannerConfig('days', Number($event.target.value))"
+              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+              min="1"
+              max="365"
+              placeholder="30"
+            />
+            <p class="text-xs text-muted-foreground mt-1">
+              {{ t.facility?.banner_days_hint || 'Banner will be hidden automatically after this many days from today.' }}
+              <br v-if="bannerConfig.days" />
+              <span v-if="bannerConfig.days" class="text-golden-yellow font-medium">
+                {{ bannerEndDate }}
+              </span>
+            </p>
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_ar || 'Message (Arabic)' }}
+            </label>
+            <input
+              type="text"
+              :value="bannerConfig.message_ar"
+              @input="updateBannerConfig('message_ar', $event.target.value)"
+              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+              placeholder="قريباً"
+            />
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_en || 'Message (English)' }}
+            </label>
+            <input
+              type="text"
+              :value="bannerConfig.message_en"
+              @input="updateBannerConfig('message_en', $event.target.value)"
+              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+              placeholder="COMING SOON"
+            />
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_text_color || 'Text Color' }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                type="color"
+                :value="hex6(bannerConfig.text_color)"
+                @input="setColorWithOpacity('text_color', $event.target.value)"
+                class="h-9 w-12 rounded-md border border-input cursor-pointer bg-transparent"
+              />
+              <input
+                type="text"
+                :value="bannerConfig.text_color"
+                @input="updateBannerConfig('text_color', $event.target.value)"
+                class="flex h-9 w-28 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none font-mono"
+                placeholder="#ffffff"
+              />
+              <div class="flex items-center gap-1.5 flex-1">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">Opacity</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  :value="hexToOpacity(bannerConfig.text_color)"
+                  @input="setOpacity('text_color', $event.target.value)"
+                  class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-golden-yellow"
+                />
+                <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.text_color) }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_bg_color || 'Background Color' }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                type="color"
+                :value="hex6(bannerConfig.bg_color)"
+                @input="setColorWithOpacity('bg_color', $event.target.value)"
+                class="h-9 w-12 rounded-md border border-input cursor-pointer bg-transparent"
+              />
+              <input
+                type="text"
+                :value="bannerConfig.bg_color"
+                @input="updateBannerConfig('bg_color', $event.target.value)"
+                class="flex h-9 w-28 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none font-mono"
+                placeholder="#dc2626"
+              />
+              <div class="flex items-center gap-1.5 flex-1">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">Opacity</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  :value="hexToOpacity(bannerConfig.bg_color)"
+                  @input="setOpacity('bg_color', $event.target.value)"
+                  class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-golden-yellow"
+                />
+                <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.bg_color) }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_font_size || 'Font Size (px)' }}
+            </label>
+            <input
+              type="number"
+              :value="bannerConfig.font_size"
+              @input="updateBannerConfig('font_size', Number($event.target.value))"
+              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+              min="8"
+              max="72"
+              placeholder="15"
+            />
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_angle || 'Angle (deg)' }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="360"
+                :value="bannerConfig.angle"
+                @input="updateBannerConfig('angle', Number($event.target.value))"
+                class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-golden-yellow"
+              />
+              <span class="text-xs text-muted-foreground w-8 text-right">{{ bannerConfig.angle }}°</span>
+            </div>
+          </div>
+
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_shadow_color || 'Shadow Color' }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                type="color"
+                :value="hex6(bannerConfig.shadow_color)"
+                @input="setColorWithOpacity('shadow_color', $event.target.value)"
+                class="h-9 w-12 rounded-md border border-input cursor-pointer bg-transparent"
+              />
+              <input
+                type="text"
+                :value="bannerConfig.shadow_color"
+                @input="updateBannerConfig('shadow_color', $event.target.value)"
+                class="flex h-9 w-28 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none font-mono"
+                placeholder="#00000033"
+              />
+              <div class="flex items-center gap-1.5 flex-1">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">Opacity</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  :value="hexToOpacity(bannerConfig.shadow_color)"
+                  @input="setOpacity('shadow_color', $event.target.value)"
+                  class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-golden-yellow"
+                />
+                <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.shadow_color) }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Preview -->
+          <div data-slot="form-item" class="grid gap-1">
+            <label class="block text-sm font-medium text-white mb-1">
+              {{ t.facility?.banner_preview || 'Preview' }}
+            </label>
+            <div class="relative h-20 rounded-lg border border-border overflow-hidden bg-muted/30">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span
+                  :style="{
+                    backgroundColor: bannerConfig.bg_color,
+                    color: bannerConfig.text_color,
+                    fontSize: bannerConfig.font_size + 'px',
+                    fontWeight: 900,
+                    padding: '4px 24px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    transform: 'rotate(-' + bannerConfig.angle + 'deg)',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 4px 12px ' + bannerConfig.shadow_color,
+                  }"
+                >
+                  {{ currentLocale === 'ar' ? bannerConfig.message_ar : bannerConfig.message_en }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Tags Card -->
     <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
       <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
@@ -338,6 +575,7 @@ const facilityStore = useFacilityStore();
 const { form } = storeToRefs(facilityStore);
 const page = usePage();
 const locale = computed(() => page.props.locale || 'ar');
+const currentLocale = computed(() => page.props.locale || 'ar');
 const t = computed(() => page.props.translations?.admin || {});
 
 // Image error states
@@ -384,6 +622,80 @@ const formDescription = computed({
     form.value.description = value;
   }
 });
+
+const DEFAULT_BANNER = {
+  enabled: false,
+  message_ar: 'قريباً',
+  message_en: 'COMING SOON',
+  text_color: '#ffffff',
+  bg_color: '#dc2626ff',
+  font_size: 15,
+  angle: 45,
+  shadow_color: '#00000033',
+  days: 30,
+};
+
+const bannerConfig = computed(() => {
+  const cfg = form.value.banner_config;
+  if (!cfg || typeof cfg !== 'object') return { ...DEFAULT_BANNER };
+  return { ...DEFAULT_BANNER, ...cfg };
+});
+
+const bannerEnabled = computed(() => Boolean(bannerConfig.value.enabled));
+
+const bannerEndDate = computed(() => {
+  const days = bannerConfig.value.days;
+  if (!days || days <= 0) return '';
+  const end = new Date();
+  end.setDate(end.getDate() + days);
+  return end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+});
+
+const toggleBanner = (e) => {
+  const current = bannerConfig.value;
+  form.value.banner_config = { ...current, enabled: e.target.checked };
+};
+
+const updateBannerConfig = (key, value) => {
+  const current = bannerConfig.value;
+  form.value.banner_config = { ...current, [key]: value };
+};
+
+// Hex opacity helpers: colors are stored as 8-digit hex (#rrggbbaa)
+const hex6 = (color) => {
+  if (!color || typeof color !== 'string') return '#000000';
+  const clean = color.replace('#', '');
+  if (clean.length === 8) return '#' + clean.substring(0, 6);
+  if (clean.length === 6) return '#' + clean;
+  return '#000000';
+};
+
+const hexToOpacity = (color) => {
+  if (!color || typeof color !== 'string') return 100;
+  const clean = color.replace('#', '');
+  if (clean.length === 8) {
+    return Math.round((parseInt(clean.substring(6, 8), 16) / 255) * 100);
+  }
+  return 100;
+};
+
+const opacityToHex = (opacity) => {
+  const val = Math.round(Math.min(100, Math.max(0, Number(opacity))) * 2.55);
+  return val.toString(16).padStart(2, '0');
+};
+
+const setColorWithOpacity = (key, hex6Value) => {
+  const current = bannerConfig.value;
+  const opacity = hexToOpacity(current[key]);
+  const clean = hex6Value.replace('#', '').substring(0, 6);
+  form.value.banner_config = { ...current, [key]: '#' + clean + opacityToHex(opacity) };
+};
+
+const setOpacity = (key, opacity) => {
+  const current = bannerConfig.value;
+  const rgb = hex6(current[key]).replace('#', '');
+  form.value.banner_config = { ...current, [key]: '#' + rgb + opacityToHex(opacity) };
+};
 
 // Existing gallery filtered by pending deletions
 const existingGallery = computed(() => {

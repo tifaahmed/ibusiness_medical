@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Guest;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,9 +23,8 @@ class FacilityResource extends JsonResource
             'mobile_logo' => $this->mobile_logo,
             'image' => $this->image,
             'mobile_image' => $this->mobile_image,
-            // The rate and the tags are what a visitor scans a listing for, so
-            // they ship with the card rather than only on the detail page.
             'discount_percent' => $this->discount_percent,
+            'banner_config' => $this->resolvedBannerConfig(),
             'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,
@@ -57,5 +57,31 @@ class FacilityResource extends JsonResource
                 });
             }),
         ];
+    }
+
+    /**
+     * Return the banner config only when it is enabled and not yet expired.
+     */
+    private function resolvedBannerConfig(): ?array
+    {
+        $config = $this->banner_config;
+
+        if (! is_array($config) || empty($config['enabled'])) {
+            return null;
+        }
+
+        $days = $config['days'] ?? null;
+
+        if ($days === null) {
+            return $config;
+        }
+
+        $endDate = Carbon::parse($this->created_at)->addDays((int) $days);
+
+        if (Carbon::now()->gt($endDate)) {
+            return null;
+        }
+
+        return $config;
     }
 }

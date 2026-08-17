@@ -52,11 +52,13 @@ class Facility extends Model implements HasMedia
         'facility_type_id',
         'sales_id',
         'discount_percent',
+        'banner_config',
         'created_by',
     ];
 
     protected $casts = [
         'discount_percent' => 'decimal:2',
+        'banner_config' => 'array',
     ];
 
     /**

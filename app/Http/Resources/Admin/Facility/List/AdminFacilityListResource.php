@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\Facility\List;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,9 @@ class AdminFacilityListResource extends JsonResource
             'description' => $this->description,
             'slug' => $this->slug,
             'discount_percent' => $this->discount_percent,
+            'banner_config' => $this->banner_config,
+            'banner_end_date' => $this->computedBannerEndDate(),
+            'banner_days_left' => $this->computedBannerDaysLeft(),
             'facility_type' => $this->whenLoaded('facilityType', function () {
                 return $this->facilityType ? [
                     'id' => $this->facilityType->id,
@@ -97,5 +101,33 @@ class AdminFacilityListResource extends JsonResource
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
+    }
+
+    private function computedBannerEndDate(): ?string
+    {
+        $config = $this->banner_config;
+
+        if (! is_array($config) || empty($config['enabled']) || empty($config['days'])) {
+            return null;
+        }
+
+        return Carbon::parse($this->created_at)->addDays((int) $config['days'])->toDateTimeString();
+    }
+
+    private function computedBannerDaysLeft(): ?int
+    {
+        $config = $this->banner_config;
+
+        if (! is_array($config) || empty($config['enabled']) || empty($config['days'])) {
+            return null;
+        }
+
+        $endDate = Carbon::parse($this->created_at)->addDays((int) $config['days']);
+
+        if (Carbon::now()->gt($endDate)) {
+            return 0;
+        }
+
+        return (int) Carbon::now()->diffInDays($endDate, false);
     }
 }

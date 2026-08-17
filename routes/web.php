@@ -31,10 +31,10 @@ use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitControll
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
 use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
+use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationExportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationImportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationPageController;
-use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
 use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
 use App\Http\Controllers\Admin\Facility\Store\AdminFacilityStoreController;
@@ -595,11 +595,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/company/{company}/members/export', AdminCompanyMembersExportController::class)->name('admin.company.members.export');
     });
 
-    // ---- Admin user management (super_admin only) ----
+    // ---- Client error logs (super_admin only) ----
     Route::middleware('role:super_admin')->group(function () {
         Route::get('/admin/client-error-logs', [\App\Http\Controllers\Admin\ClientErrorLogController::class, 'index'])->name('admin.client-error-logs.index');
         Route::delete('/admin/client-error-logs/{clientErrorLog}', [\App\Http\Controllers\Admin\ClientErrorLogController::class, 'destroy'])->name('admin.client-error-logs.destroy');
+    });
 
+    // ---- Admin user management (permission-based) ----
+    Route::middleware('permission:manage users|manage admin users')->group(function () {
         Route::get('/admin/admin-users', \App\Http\Controllers\Admin\AdminUser\Index\AdminUserIndexController::class)->name('admin.admin-users.index');
         Route::get('/admin/admin-users/create', \App\Http\Controllers\Admin\AdminUser\Create\AdminUserCreateController::class)->name('admin.admin-users.create');
         Route::post('/admin/admin-users', \App\Http\Controllers\Admin\AdminUser\Store\AdminUserStoreController::class)->name('admin.admin-users.store');
@@ -607,8 +610,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/admin-users/{adminUser}/edit', \App\Http\Controllers\Admin\AdminUser\Edit\AdminUserEditController::class)->name('admin.admin-users.edit');
         Route::put('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Update\AdminUserUpdateController::class)->name('admin.admin-users.update');
         Route::delete('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Delete\AdminUserDeleteController::class)->name('admin.admin-users.destroy');
+    });
 
-        // Role management
+    // ---- Role management (super_admin only) ----
+    Route::middleware('role:super_admin')->group(function () {
         Route::get('/admin/roles', \App\Http\Controllers\Admin\Role\Index\AdminRoleIndexController::class)->name('admin.roles.index');
         Route::get('/admin/roles/create', \App\Http\Controllers\Admin\Role\Create\AdminRoleCreateController::class)->name('admin.roles.create');
         Route::post('/admin/roles', \App\Http\Controllers\Admin\Role\Store\AdminRoleStoreController::class)->name('admin.roles.store');

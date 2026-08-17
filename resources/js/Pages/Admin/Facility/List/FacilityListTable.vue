@@ -26,6 +26,9 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center hidden sm:table-cell">
                   {{ t.facility?.discount_percent || 'Discount %' }}
                 </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center hidden sm:table-cell">
+                    {{ t.facility?.banner || 'Banner' }}
+                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center hidden lg:table-cell">
                   {{ t.sales?.name || 'Sales' }}
                 </th>
@@ -103,6 +106,34 @@
                   >
                     {{ facility.discount_percent }}%
                   </span>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden sm:table-cell">
+                  <div
+                    v-if="facility.banner_config?.enabled"
+                    class="flex flex-col items-center gap-0.5"
+                  >
+                    <span
+                      v-if="facility.banner_config?.message_ar"
+                      class="text-xs font-medium text-foreground leading-tight"
+                      dir="rtl"
+                    >
+                      {{ facility.banner_config.message_ar }}
+                    </span>
+                    <span
+                      v-if="facility.banner_config?.message_en"
+                      class="text-xs font-medium text-foreground leading-tight"
+                      dir="ltr"
+                    >
+                      {{ facility.banner_config.message_en }}
+                    </span>
+                    <span v-if="facility.banner_end_date && formatCountdown(facility.banner_end_date)" class="text-[10px] text-muted-foreground font-mono">
+                      {{ formatCountdown(facility.banner_end_date) }}
+                    </span>
+                    <span v-else-if="facility.banner_days_left === 0" class="text-[10px] text-red-400 font-medium">
+                      {{ t.facility?.expired || 'Expired' }}
+                    </span>
+                  </div>
                   <span v-else class="text-muted-foreground text-xs">—</span>
                 </td>
                 <!-- Sales representative -->
@@ -341,7 +372,7 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
   facilities: {
@@ -415,5 +446,43 @@ const handlePerPageChange = (event) => {
     preserveState: false,
     preserveScroll: false,
   });
+};
+
+// Live countdown ticker
+const now = ref(Date.now());
+let countdownInterval = null;
+
+onMounted(() => {
+  countdownInterval = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+});
+
+const formatCountdown = (endDateStr) => {
+  if (!endDateStr) return '';
+
+  const end = new Date(endDateStr).getTime();
+  const diff = end - now.value;
+
+  if (diff <= 0) return '';
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+
+  return parts.join(' ');
 };
 </script>

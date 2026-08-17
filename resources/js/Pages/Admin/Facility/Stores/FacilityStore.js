@@ -18,6 +18,7 @@ export const useFacilityStore = defineStore('facility', {
             facility_type_id: '',
             sales_id: '',
             discount_percent: null,
+            banner_config: null,
             logo: null,
             mobile_logo: null,
             image: null,
@@ -45,16 +46,17 @@ export const useFacilityStore = defineStore('facility', {
                 facility_type_id: '',
                 sales_id: '',
                 discount_percent: null,
+                banner_config: null,
                 logo: null,
                 mobile_logo: null,
                 image: null,
                 mobile_image: null,
-            tag_ids: [],
-            gallery: [],
-            gallery_delete: [],
-        });
-        this.validationErrors = null;
-    },
+                tag_ids: [],
+                gallery: [],
+                gallery_delete: [],
+            });
+            this.validationErrors = null;
+        },
 
         setFacilities(facilities) {
             this.facilities = facilities;
@@ -89,6 +91,7 @@ export const useFacilityStore = defineStore('facility', {
                 facility_type_id: facility.facility_type_id || '',
                 sales_id: facility.sales_id ?? '',
                 discount_percent: facility.discount_percent ?? null,
+                banner_config: facility.banner_config ?? null,
                 tag_ids: (facility.tags || []).map(t => t.id),
                 logo: null,
                 mobile_logo: null,

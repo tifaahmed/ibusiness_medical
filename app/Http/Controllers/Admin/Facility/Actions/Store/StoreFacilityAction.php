@@ -33,6 +33,7 @@ class StoreFacilityAction
                 'facility_type_id' => $validated['facility_type_id'],
                 'sales_id' => $validated['sales_id'] ?? null,
                 'discount_percent' => $validated['discount_percent'] ?? null,
+                'banner_config' => $validated['banner_config'] ?? null,
                 'created_by' => Auth::id(),
             ]);
 
@@ -174,6 +175,7 @@ class StoreFacilityAction
             'facility_type_id' => $facility->facility_type_id,
             'sales_id' => $facility->sales_id,
             'discount_percent' => $facility->discount_percent,
+            'banner_config' => $facility->banner_config,
         ];
     }
 
