@@ -33,15 +33,35 @@ class AdminUserMembershipImportPreviewController extends BaseController
         );
 
         // Pre-fetch lookup tables once.
-        $companies = Company::all()->keyBy(fn ($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'en'))))
-            ->merge(Company::all()->keyBy(fn ($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'ar')))))
-            ->merge(Company::all()->keyBy(fn ($c) => (string) $c->id));
-        $partners = Partner::all()->keyBy(fn ($p) => mb_strtolower(trim((string) $p->title)))
-            ->merge(Partner::all()->keyBy(fn ($p) => (string) $p->id));
+        // NOTE: We avoid Collection::merge() + keyBy() because PHP's array_merge()
+        // re-indexes integer keys, destroying string-keyed entries.
+        $allCompanies = Company::all();
+        $companyByName = [];
+        foreach ($allCompanies as $c) {
+            $en = mb_strtolower(trim((string) $c->getTranslation('name', 'en')));
+            $ar = mb_strtolower(trim((string) $c->getTranslation('name', 'ar')));
+            if ($en !== '') {
+                $companyByName[$en] = $c;
+            }
+            if ($ar !== '' && $ar !== $en) {
+                $companyByName[$ar] = $c;
+            }
+        }
+        $companyById = $allCompanies->keyBy(fn ($c) => $c->id);
+
+        $allPartners = Partner::all();
+        $partnerByName = [];
+        foreach ($allPartners as $p) {
+            $key = mb_strtolower(trim((string) $p->title));
+            if ($key !== '') {
+                $partnerByName[$key] = $p;
+            }
+        }
+        $partnerById = $allPartners->keyBy(fn ($p) => $p->id);
 
         $preview = [];
         foreach ($rows as $i => $raw) {
-            $parsed = $this->parseRow($raw, $companies, $partners);
+            $parsed = $this->parseRow($raw, $companyByName, $companyById, $partnerByName, $partnerById);
             $errors = $this->validateRow($parsed);
 
             $match = null;
@@ -341,23 +361,23 @@ class AdminUserMembershipImportPreviewController extends BaseController
      * Normalize raw cell values into the shape the controllers expect.
      * Resolves company/partner names to IDs and parses dates.
      */
-    private function parseRow(array $raw, $companies, $partners): array
+    private function parseRow(array $raw, array $companyByName, $companyById, array $partnerByName, $partnerById): array
     {
         $companyId = null;
         if (! empty($raw['company_id_raw']) && is_numeric(trim($raw['company_id_raw']))) {
-            $companyId = $companies->get(trim($raw['company_id_raw']))?->id;
+            $companyId = $companyById->get((int) trim($raw['company_id_raw']))?->id;
         }
         if (! $companyId && ! empty($raw['company'])) {
             $key = mb_strtolower(trim($raw['company']));
-            $companyId = $companies->get($key)?->id;
+            $companyId = $companyByName[$key]?->id ?? null;
         }
         $partnerId = null;
         if (! empty($raw['partner_id_raw']) && is_numeric(trim($raw['partner_id_raw']))) {
-            $partnerId = $partners->get(trim($raw['partner_id_raw']))?->id;
+            $partnerId = $partnerById->get((int) trim($raw['partner_id_raw']))?->id;
         }
         if (! $partnerId && ! empty($raw['partner'])) {
             $key = mb_strtolower(trim($raw['partner']));
-            $partnerId = $partners->get($key)?->id;
+            $partnerId = $partnerByName[$key]?->id ?? null;
         }
 
         return [
