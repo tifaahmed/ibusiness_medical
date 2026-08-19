@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Facility\Migration;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Services\FacilityMigration\FacilityMigrationImporter;
+use App\Services\FacilityMigration\XlsxToMigrationZip;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +31,7 @@ class AdminFacilityMigrationImportController extends BaseController
     public function inspect(Request $request): JsonResponse
     {
         $request->validate([
-            'package' => ['required_without:server_path', 'file'],
+            'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
         ]);
 
@@ -42,12 +43,82 @@ class AdminFacilityMigrationImportController extends BaseController
     }
 
     /**
+     * Unpack the package and return all facilities for preview/editing.
+     * Creates an import session so the operator can edit data before importing.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        $request->validate([
+            'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
+            'server_path' => ['required_without:package', 'nullable', 'string'],
+        ]);
+
+        try {
+            $session = $this->importer->beginSession($this->packagePath($request), [
+                'mode' => 'merge',
+                'dry_run' => false,
+                'skip_media' => false,
+            ]);
+
+            $dir = storage_path('app/facility-migration/sessions/'.$session['token'].'/facilities');
+            $facilities = [];
+            $total = $session['total'];
+            for ($i = 0; $i < $total; $i++) {
+                $file = sprintf('%s/%06d.json', $dir, $i);
+                if (is_file($file)) {
+                    $facilities[] = array_merge(
+                        json_decode(file_get_contents($file), true) ?: [],
+                        ['_index' => $i]
+                    );
+                }
+            }
+
+            return response()->json([
+                'token' => $session['token'],
+                'total' => $total,
+                'facilities' => $facilities,
+                'source' => $session['source'],
+                'generated_at' => $session['generated_at'],
+                'counts' => $session['counts'],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Facility migration preview failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Save an edited facility back to the session before importing.
+     */
+    public function edit(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'index' => ['required', 'integer', 'min:0'],
+            'data' => ['required', 'array'],
+        ]);
+
+        try {
+            $this->importer->writeFacilityFile(
+                $validated['token'],
+                (int) $validated['index'],
+                $validated['data']
+            );
+
+            return response()->json(['message' => 'Facility updated.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * Unpack the package and hand back a token to step through.
      */
     public function begin(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'package' => ['required_without:server_path', 'file'],
+            'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
             'mode' => ['required', 'in:fresh,merge'],
             'dry_run' => ['nullable', 'boolean'],
@@ -148,7 +219,17 @@ class AdminFacilityMigrationImportController extends BaseController
     private function packagePath(Request $request): string
     {
         if ($request->hasFile('package')) {
-            return $request->file('package')->getRealPath();
+            $file = $request->file('package');
+            $ext = strtolower($file->getClientOriginalExtension());
+
+            // Convert spreadsheet to migration zip on the fly
+            if (in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
+                $converter = app(XlsxToMigrationZip::class);
+
+                return $converter->convert($file->getRealPath());
+            }
+
+            return $file->getRealPath();
         }
 
         $root = realpath(storage_path('app/facility-migration'));
@@ -162,6 +243,14 @@ class AdminFacilityMigrationImportController extends BaseController
 
         if (! $resolved || ! is_file($resolved) || ! str_starts_with($resolved, $root.DIRECTORY_SEPARATOR)) {
             abort(422, 'The package must be a file inside storage/app/facility-migration.');
+        }
+
+        // Convert spreadsheet server files too
+        $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
+        if (in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
+            $converter = app(XlsxToMigrationZip::class);
+
+            return $converter->convert($resolved);
         }
 
         return $resolved;

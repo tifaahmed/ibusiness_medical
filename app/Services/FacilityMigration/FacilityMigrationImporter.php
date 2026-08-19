@@ -68,11 +68,11 @@ class FacilityMigrationImporter
 
     /**
      * @param  array<string, mixed>  $options
-     *                                        - mode: "fresh" | "merge" (default "merge")
-     *                                        - dry_run: bool — parse and report, write nothing
-     *                                        - media_path: absolute path to an unzipped storage/app/public
-     *                                        to pull image files from when the package has no media/ dir
-     *                                        - skip_media: bool — restore rows but no image files
+     *                                         - mode: "fresh" | "merge" (default "merge")
+     *                                         - dry_run: bool — parse and report, write nothing
+     *                                         - media_path: absolute path to an unzipped storage/app/public
+     *                                         to pull image files from when the package has no media/ dir
+     *                                         - skip_media: bool — restore rows but no image files
      * @return array<string, mixed>
      */
     public function import(string $packagePath, array $options = []): array
@@ -306,6 +306,20 @@ class FacilityMigrationImporter
         if (is_dir($dir)) {
             $this->deleteDirectory($dir);
         }
+    }
+
+    /**
+     * Overwrite a single facility's JSON file inside an open session.
+     * Used by the preview/edit flow so the operator can fix data before importing.
+     */
+    public function writeFacilityFile(string $token, int $index, array $facilityData): void
+    {
+        $dir = $this->sessionDir($token);
+        $file = sprintf('%s/facilities/%06d.json', $dir, $index);
+        if (! is_file($file)) {
+            throw new RuntimeException("Facility file not found: {$index}");
+        }
+        file_put_contents($file, json_encode($facilityData, JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -784,13 +798,19 @@ class FacilityMigrationImporter
     // ------------------------------------------------------------ resolvers
 
     /**
-     * @param  array<string, mixed>|null  $ref
+     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
      */
     private function resolveFacilityType(?array $ref): ?int
     {
         if (! $ref) {
             return $this->fallbackFacilityTypeId();
         }
+
+        // Accept a plain numeric ID directly
+        if (! empty($ref['id']) && is_numeric($ref['id'])) {
+            return (int) $ref['id'];
+        }
+
         $key = $this->refKey($ref);
         if (isset($this->typeCache[$key])) {
             return $this->typeCache[$key];
@@ -818,13 +838,18 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref
+     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
      */
     private function resolveGovernorate(?array $ref): ?int
     {
         if (! $ref) {
             return null;
         }
+
+        if (! empty($ref['id']) && is_numeric($ref['id'])) {
+            return (int) $ref['id'];
+        }
+
         $key = $this->refKey($ref);
         if (isset($this->governorateCache[$key])) {
             return $this->governorateCache[$key];
@@ -837,7 +862,7 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref
+     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
      * @param  array<string, mixed>|null  $governorateRef
      */
     private function resolveCity(?array $ref, ?array $governorateRef): ?int
@@ -845,6 +870,11 @@ class FacilityMigrationImporter
         if (! $ref) {
             return null;
         }
+
+        if (! empty($ref['id']) && is_numeric($ref['id'])) {
+            return (int) $ref['id'];
+        }
+
         $key = $this->refKey($ref);
         if (isset($this->cityCache[$key])) {
             return $this->cityCache[$key];
@@ -880,10 +910,18 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref
+     * @param  array<string, mixed>|null  $ref  Accepts: { id: N } or { name: "..." }
      */
     private function resolveSales(?array $ref): ?int
     {
+        if (! $ref) {
+            return null;
+        }
+
+        if (! empty($ref['id']) && is_numeric($ref['id'])) {
+            return (int) $ref['id'];
+        }
+
         $name = trim((string) ($ref['name'] ?? ''));
         if ($name === '') {
             return null;

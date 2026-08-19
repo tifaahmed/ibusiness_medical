@@ -94,12 +94,12 @@
                   <label class="text-xs font-medium text-white">{{ t.member?.qr_link || 'QR Code Link' }}</label>
                   <div class="mt-0.5 flex flex-wrap items-center gap-2">
                     <a
-                      :href="membershipPublicUrl(membership)"
+                      :href="publicMembershipUrl(membership.slug)"
                       target="_blank"
                       rel="noopener"
                       class="text-xs font-mono break-all text-white hover:underline"
                     >
-                      {{ membershipPublicUrl(membership) }}
+                      {{ publicMembershipUrl(membership.slug) }}
                     </a>
                     <button
                       type="button"
@@ -114,6 +114,9 @@
                     </button>
                   </div>
                 </div>
+
+                <!-- Card codes: barcode value & QR code encoded URL -->
+                <CardCodes :membership="membership" />
 
                 <!-- Status badges -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-sm">
@@ -427,77 +430,10 @@
             Cards — {{ membership.membership_number }}
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Full Design -->
-            <div class="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-white">Full Design</span>
-                <span v-if="getCardLayout(membership, 'full')" class="text-xs text-emerald-400">&#10003; Generated</span>
-                <span v-else class="text-xs text-amber-400">Default layout</span>
-              </div>
-              <div class="card-flip-outer" @click="openAdminCardPopup(membership, 'full')">
-                <div class="card-flip-container-admin" :style="{ aspectRatio: '1063 / 650' }">
-                  <div class="card-flip-inner-admin" :class="{ flipped: flipState[membership.id + '-full'] }">
-                    <div class="card-face-admin card-face-front">
-                      <img
-                        v-if="getCardLayout(membership, 'full')?.image_url"
-                        :src="getCardLayout(membership, 'full').image_url"
-                        class="max-w-full h-auto rounded shadow"
-                        style="max-height: 220px"
-                        alt="Full design card"
-                      />
-                      <canvas
-                        v-else
-                        :ref="el => setCardCanvas(el, membership.id, 'full')"
-                        :width="CARD_W"
-                        :height="CARD_H"
-                        class="max-w-full h-auto rounded shadow"
-                        style="max-height: 220px; width: auto"
-                      ></canvas>
-                    </div>
-                    <div class="card-face-admin card-face-back">
-                      <img
-                        src="/card-template_back_side.png"
-                        class="max-w-full h-auto rounded shadow"
-                        style="max-height: 220px"
-                        alt="Card back side"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="flex justify-end gap-2">
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/30 text-white hover:bg-muted/50 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors cursor-pointer"
-                  @click="toggleCardFlip(membership.id, 'full')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                  Flip
-                </button>
-                <a
-                  v-if="getCardLayout(membership, 'full')?.image_url"
-                  :href="getCardLayout(membership, 'full').image_url"
-                  download
-                  class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Download
-                </a>
-                <button
-                  v-else
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors cursor-pointer"
-                  @click="downloadCardCanvas(membership, 'full')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Download
-                </button>
-              </div>
-            </div>
             <!-- Minimal Design -->
             <div class="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-white">Minimal Design</span>
+                <span class="text-sm font-medium text-white">Card Design</span>
                 <span v-if="getCardLayout(membership, 'minimal')" class="text-xs text-emerald-400">&#10003; Generated</span>
                 <span v-else class="text-xs text-amber-400">Default layout</span>
               </div>
@@ -505,15 +441,7 @@
                 <div class="card-flip-container-admin" :style="{ aspectRatio: '1063 / 650' }">
                   <div class="card-flip-inner-admin" :class="{ flipped: flipState[membership.id + '-minimal'] }">
                     <div class="card-face-admin card-face-front">
-                      <img
-                        v-if="getCardLayout(membership, 'minimal')?.image_url"
-                        :src="getCardLayout(membership, 'minimal').image_url"
-                        class="max-w-full h-auto rounded shadow"
-                        style="max-height: 220px"
-                        alt="Minimal design card"
-                      />
                       <canvas
-                        v-else
                         :ref="el => setCardCanvas(el, membership.id, 'minimal')"
                         :width="CARD_W"
                         :height="CARD_H"
@@ -541,17 +469,7 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                   Flip
                 </button>
-                <a
-                  v-if="getCardLayout(membership, 'minimal')?.image_url"
-                  :href="getCardLayout(membership, 'minimal').image_url"
-                  download
-                  class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Download
-                </a>
                 <button
-                  v-else
                   type="button"
                   class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors cursor-pointer"
                   @click="downloadCardCanvas(membership, 'minimal')"
@@ -661,7 +579,7 @@
       <div class="p-4 sm:p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-white">
-            {{ adminPopupMode === 'full' ? 'Full Design' : 'Minimal Design' }} — {{ adminPopupMembership?.membership_number }}
+            {{ 'Card Design' }} — {{ adminPopupMembership?.membership_number }}
           </h2>
           <button
             @click="showAdminCardPopup = false"
@@ -732,8 +650,9 @@ import html2canvas from "html2canvas";
 import MemberLayout from "../Member/MemberLayout.vue";
 import Modal from "@/Components/Modal.vue";
 import MembershipCard from "./_components/MembershipCard.vue";
+import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
 import { renderCardCanvas, CARD_W, CARD_H } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
-import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
+import { publicMembershipUrl, membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const props = defineProps({
   user: {
@@ -749,7 +668,7 @@ const showCardModal = ref(false);
 const showQRCodeModal = ref(false);
 const showAdminCardPopup = ref(false);
 const adminPopupMembership = ref(null);
-const adminPopupMode = ref('full');
+const adminPopupMode = ref('minimal');
 const qrcodeCanvas = ref(null);
 const membershipCardRef = ref(null);
 const membershipUrl = ref("");
@@ -832,29 +751,8 @@ const getLogsRoute = (slug) => {
   }
 };
 
-// The public page a membership's QR code points at. Returned absolute so the
-// value shown on screen is exactly what gets encoded into the card and what
-// someone scanning it will land on.
-const membershipPublicUrl = (membership) => {
-  const slug = typeof membership === "string" ? membership : membership?.slug;
-  if (!slug) {
-    return "";
-  }
-
-  let url = route("guest.membership.show", slug);
-
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    if (!url.startsWith("/")) {
-      url = "/" + url;
-    }
-    url = window.location.origin + url;
-  }
-
-  return url;
-};
-
 const copyMembershipUrl = async (membership) => {
-  const url = membershipPublicUrl(membership);
+  const url = publicMembershipUrl(membership?.slug);
   if (!url) {
     return;
   }
@@ -888,7 +786,7 @@ const generateQRCode = async () => {
   }
 
   try {
-    membershipUrl.value = membershipPublicUrl(activeMembership.value);
+    membershipUrl.value = membershipQrUrl(activeMembership.value?.slug);
 
     if (qrcodeCanvas.value) {
       await QRCode.toCanvas(qrcodeCanvas.value, membershipUrl.value, {
@@ -977,10 +875,6 @@ function getCardLayout(membership, mode) {
   if (!membership.card_layouts) return null;
   const layout = membership.card_layouts.find((cl) => cl.mode === mode) || null;
   if (!layout) return null;
-  // For minimal mode, only consider layout as valid if it has actual position data
-  if (mode === 'minimal' && layout.qr_x == null && layout.fields_x == null && layout.partner_x == null) {
-    return null;
-  }
   return layout;
 }
 
@@ -1004,9 +898,12 @@ async function renderMembershipCard(membershipId, mode) {
         }
       : null;
 
+    const template = layout?.card_template || null;
+
     try {
       const rendered = await renderCardCanvas({
         membership: { membership_number: membership.membership_number, slug: membership.slug },
+        template,
         partner,
         overrides,
       });
@@ -1023,7 +920,6 @@ async function renderMembershipCard(membershipId, mode) {
     if (!canvas || !membership) return;
 
     const layout = getCardLayout(membership, mode);
-    if (layout?.image_url) return;
 
     const partner = membership.partner_id
       ? { image: membership.partner_image }
@@ -1036,9 +932,12 @@ async function renderMembershipCard(membershipId, mode) {
         }
       : null;
 
+    const template = layout?.card_template || null;
+
     try {
       const rendered = await renderCardCanvas({
         membership: { membership_number: membership.membership_number, slug: membership.slug },
+        template,
         partner,
         overrides,
       });

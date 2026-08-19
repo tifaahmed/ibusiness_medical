@@ -183,9 +183,11 @@ use App\Http\Controllers\Admin\User\Membership\FamilyMember\Store\AdminFamilyMem
 use App\Http\Controllers\Admin\User\Membership\FamilyMember\Update\AdminFamilyMemberUpdateController;
 use App\Http\Controllers\Admin\User\Membership\ForceDelete\AdminUserMembershipForceDeleteController;
 use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportCommitController;
-use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPageController;
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportExportController;
 // ServiceType Routes
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPageController;
 use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportPreviewController;
+use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportTemplateController;
 use App\Http\Controllers\Admin\User\Membership\List\AdminUserMembershipListController;
 use App\Http\Controllers\Admin\User\Membership\Logs\AdminUserMembershipLogsController;
 use App\Http\Controllers\Admin\User\Membership\Restore\AdminUserMembershipRestoreController;
@@ -255,6 +257,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/user/membership/import', AdminUserMembershipImportPageController::class)->name('admin.user.membership.import.page');
         Route::post('/admin/user/membership/import/preview', AdminUserMembershipImportPreviewController::class)->name('admin.user.membership.import.preview');
         Route::post('/admin/user/membership/import/commit', AdminUserMembershipImportCommitController::class)->name('admin.user.membership.import.commit');
+        Route::get('/admin/user/membership/import/template', AdminUserMembershipImportTemplateController::class)->name('admin.user.membership.import.template');
+        Route::get('/admin/user/membership/import/export', AdminUserMembershipImportExportController::class)->name('admin.user.membership.import.export');
     });
 
     // ---- Card Templates (reusable card designs backing every generated card) ----
@@ -407,9 +411,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility/migration/export/plan', [AdminFacilityMigrationExportController::class, 'plan'])->name('admin.facility.migration.export.plan');
         Route::get('/admin/facility/migration/template/example', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'example'])->name('admin.facility.migration.template.example');
         Route::get('/admin/facility/migration/template/blank', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'blank'])->name('admin.facility.migration.template.blank');
+        Route::get('/admin/facility/migration/template/zip/example', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'zipExample'])->name('admin.facility.migration.template.zip.example');
+        Route::get('/admin/facility/migration/template/zip/blank', [\App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTemplateController::class, 'zipBlank'])->name('admin.facility.migration.template.zip.blank');
         // The restore runs as a session the browser steps through, so neither the
         // request nor the progress bar has to survive the whole package at once.
         Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
+        Route::post('/admin/facility/migration/preview', [AdminFacilityMigrationImportController::class, 'preview'])->name('admin.facility.migration.preview');
+        Route::post('/admin/facility/migration/edit', [AdminFacilityMigrationImportController::class, 'edit'])->name('admin.facility.migration.edit');
         Route::post('/admin/facility/migration/begin', [AdminFacilityMigrationImportController::class, 'begin'])->name('admin.facility.migration.begin');
         Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
         Route::post('/admin/facility/migration/finish', [AdminFacilityMigrationImportController::class, 'finish'])->name('admin.facility.migration.finish');
@@ -614,8 +622,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::delete('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Delete\AdminUserDeleteController::class)->name('admin.admin-users.destroy');
     });
 
-    // ---- Role management (super_admin only) ----
-    Route::middleware('role:super_admin')->group(function () {
+    // ---- Role management (permission-based) ----
+    Route::middleware('permission:manage roles')->group(function () {
         Route::get('/admin/roles', \App\Http\Controllers\Admin\Role\Index\AdminRoleIndexController::class)->name('admin.roles.index');
         Route::get('/admin/roles/create', \App\Http\Controllers\Admin\Role\Create\AdminRoleCreateController::class)->name('admin.roles.create');
         Route::post('/admin/roles', \App\Http\Controllers\Admin\Role\Store\AdminRoleStoreController::class)->name('admin.roles.store');

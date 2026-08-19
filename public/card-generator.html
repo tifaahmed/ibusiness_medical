@@ -85,7 +85,7 @@ body{font-family:Tajawal,Arial,sans-serif;background:#1a1a2e;min-height:100vh;di
   </div>
   <div class="card-panel">
     <h2>Preview</h2>
-    <canvas id="cardCanvas" width="1063" height="661"></canvas>
+    <canvas id="cardCanvas" width="1579" height="996"></canvas>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -159,11 +159,11 @@ function setLang(field,lang){
   window._hasAvatar=!!avatarUrl;
 })();
 
-var CW=1063,CH=661,photoImg=null,partnerImg=null,bgReady=false;
+var CW=1579,CH=996,photoImg=null,partnerImg=null,bgReady=false;
 var bgImgPure=new Image();
 bgImgPure.onload=function(){bgReady=true;drawBase();if(window._autoGenerate&&!window._hasAvatar)generateCard();};
-bgImgPure.onerror=function(){console.error("Failed to load /card-template_pure.jpg");bgReady=true;drawBase();};
-bgImgPure.src="/card-template_pure.jpg";
+bgImgPure.onerror=function(){console.error("Failed to load /images/cards/deilar-card-blank.png");bgReady=true;drawBase();};
+bgImgPure.src="/images/cards/deilar-card-blank.png";
 
 var partnersList=[];
 function loadPartners(){

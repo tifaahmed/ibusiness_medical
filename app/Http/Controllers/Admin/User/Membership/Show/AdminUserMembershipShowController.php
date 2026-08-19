@@ -35,7 +35,7 @@ class AdminUserMembershipShowController extends BaseController
                 'sales',
                 'governorate',
                 'city',
-                'cardLayouts',
+                'cardLayouts.cardTemplate',
                 'memberPayments',
             ]);
             $query->orderBy('created_at', 'desc');
@@ -53,7 +53,7 @@ class AdminUserMembershipShowController extends BaseController
         $result = [
             'user' => (new AdminUserMembershipShowResource($user))->toArray($request),
         ];
+
         return Inertia::render('Admin/User/Membership/Show', $result);
     }
 }
-

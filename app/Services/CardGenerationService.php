@@ -15,9 +15,13 @@ use Illuminate\Support\Facades\Storage;
 
 class CardGenerationService
 {
-    const CW = 1063;
+    /**
+     * Reference canvas size the DEFAULT_* coordinates were designed for.
+     * Coordinates are scaled proportionally when the actual image differs.
+     */
+    const REFERENCE_W = 1063;
 
-    const CH = 650;
+    const REFERENCE_H = 650;
 
     const DEFAULT_FULL = [
         'name' => ['x' => 796, 'y' => 337, 'scale' => 1],
@@ -44,27 +48,71 @@ class CardGenerationService
     public function generate(Membership $membership, string $mode = 'full'): ?string
     {
         $layout = $membership->cardLayouts()->where('mode', $mode)->first();
-        $templatePath = $mode === 'minimal'
-            ? public_path('card-template_white.jpg')
-            : public_path('card-template_pure.jpg');
+
+        // Use the actual card template's background when available.
+        $cardTemplate = $layout && $layout->relationLoaded('cardTemplate') ? $layout->cardTemplate : null;
+        if (! $cardTemplate) {
+            $cardTemplate = $layout?->cardTemplate;
+        }
+
+        $templatePath = null;
+        if ($cardTemplate && $cardTemplate->card_empty) {
+            $candidate = public_path(ltrim($cardTemplate->card_empty, '/'));
+            if (file_exists($candidate)) {
+                $templatePath = $candidate;
+            }
+        }
+
+        if (! $templatePath) {
+            $templatePath = $mode === 'minimal'
+                ? public_path('card-template_white.jpg')
+                : public_path('card-template_pure.jpg');
+        }
 
         if (! file_exists($templatePath)) {
             return null;
         }
 
-        $image = imagecreatefromjpeg($templatePath);
+        $image = imagecreatefromjpeg($templatePath) ?: imagecreatefrompng($templatePath);
+        if (! $image) {
+            return null;
+        }
         imagesavealpha($image, true);
 
+        // Determine which fields the template hides (e.g. partner_logo for no_partner).
+        $hiddenFields = $cardTemplate ? ($cardTemplate->hidden_fields ?? []) : [];
+        $hidePartner = in_array('partner_logo', $hiddenFields);
+
+        // Use the template's effective layout when available, converting normalised
+        // coordinates (0‑1) to pixel positions on this canvas.
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $tplLayout = $cardTemplate ? $cardTemplate->effectiveLayout() : [];
+
+        $pixelLayout = [];
+        foreach ($tplLayout as $key => $box) {
+            $pixelLayout[$key] = [
+                'x' => (float) ($box['x'] ?? 0) * $width,
+                'y' => (float) ($box['y'] ?? 0) * $height,
+                'width' => (float) ($box['width'] ?? 0) * $width,
+                'height' => (float) ($box['height'] ?? 0) * $height,
+            ];
+        }
+
         if ($mode === 'full') {
-            $this->drawPartnerLogo($image, $membership, $layout, self::DEFAULT_FULL);
-            $this->drawMemberPhoto($image, $membership, $layout);
-            $this->drawName($image, $membership, $layout, $mode);
-            $this->drawFields($image, $membership, $layout, $mode);
-            $this->drawQrCode($image, $membership, $layout, self::DEFAULT_FULL);
+            if (! $hidePartner) {
+                $this->drawPartnerLogo($image, $membership, $layout, self::DEFAULT_FULL, $pixelLayout, $width, $height);
+            }
+            $this->drawMemberPhoto($image, $membership, $layout, $width, $height);
+            $this->drawName($image, $membership, $layout, $mode, $width, $height);
+            $this->drawFields($image, $membership, $layout, $mode, $width, $height);
+            $this->drawQrCode($image, $membership, $layout, self::DEFAULT_FULL, $pixelLayout);
         } else {
-            $this->drawPartnerLogo($image, $membership, $layout, self::DEFAULT_MINIMAL);
-            $this->drawFields($image, $membership, $layout, $mode);
-            $this->drawQrCode($image, $membership, $layout, self::DEFAULT_MINIMAL);
+            if (! $hidePartner) {
+                $this->drawPartnerLogo($image, $membership, $layout, self::DEFAULT_MINIMAL, $pixelLayout, $width, $height);
+            }
+            $this->drawFields($image, $membership, $layout, $mode, $width, $height);
+            $this->drawQrCode($image, $membership, $layout, self::DEFAULT_MINIMAL, $pixelLayout);
         }
 
         $filename = 'cards/card-'.$membership->id.'-'.time().'.png';
@@ -89,7 +137,7 @@ class CardGenerationService
         return Storage::disk('public')->url($filename);
     }
 
-    protected function drawPartnerLogo($image, Membership $membership, ?CardLayout $layout, array $defaults): void
+    protected function drawPartnerLogo($image, Membership $membership, ?CardLayout $layout, array $defaults, array $pixelLayout = [], int $imgW = 0, int $imgH = 0): void
     {
         $partner = $membership->partner;
         if (! $partner || ! $partner->image) {
@@ -121,14 +169,30 @@ class CardGenerationService
         }
 
         $key = 'partner';
-        $l = $layout ? [
-            'x' => $layout->partner_x ?? $defaults[$key]['x'],
-            'y' => $layout->partner_y ?? $defaults[$key]['y'],
-            'scale' => $layout->partner_scale ?? $defaults[$key]['scale'],
-        ] : $defaults[$key];
+        $scaleX = $imgW > 0 ? $imgW / self::REFERENCE_W : 1;
+        $scaleY = $imgH > 0 ? $imgH / self::REFERENCE_H : 1;
 
-        $maxW = (int) (170 * $l['scale']);
-        $maxH = (int) (170 * $l['scale']);
+        // Template pixel layout takes precedence, then layout overrides, then defaults.
+        if (isset($pixelLayout['partner_logo'])) {
+            $pl = $pixelLayout['partner_logo'];
+            $x = (int) $pl['x'];
+            $y = (int) $pl['y'];
+            $scaleW = (int) $pl['width'];
+            $scaleH = (int) $pl['height'];
+        } elseif ($layout && $layout->partner_x != null) {
+            $x = (int) $layout->partner_x;
+            $y = (int) $layout->partner_y;
+            $scaleW = (int) (170 * ($layout->partner_scale ?? $defaults[$key]['scale']));
+            $scaleH = $scaleW;
+        } else {
+            $x = (int) ($defaults[$key]['x'] * $scaleX);
+            $y = (int) ($defaults[$key]['y'] * $scaleY);
+            $scaleW = (int) (170 * $defaults[$key]['scale'] * $scaleX);
+            $scaleH = $scaleW;
+        }
+
+        $maxW = $scaleW;
+        $maxH = $scaleH;
         $srcW = imagesx($partnerImg);
         $srcH = imagesy($partnerImg);
         $ar = $srcW / $srcH;
@@ -144,13 +208,13 @@ class CardGenerationService
         imagesavealpha($resized, true);
         imagealphablending($resized, false);
         imagecopyresampled($resized, $partnerImg, 0, 0, 0, 0, $dw, $dh, $srcW, $srcH);
-        imagecopy($image, $resized, (int) $l['x'], (int) $l['y'], 0, 0, $dw, $dh);
+        imagecopy($image, $resized, $x, $y, 0, 0, $dw, $dh);
 
         imagedestroy($partnerImg);
         imagedestroy($resized);
     }
 
-    protected function drawMemberPhoto($image, Membership $membership, ?CardLayout $layout): void
+    protected function drawMemberPhoto($image, Membership $membership, ?CardLayout $layout, int $imgW = 0, int $imgH = 0): void
     {
         $user = $membership->user;
         if (! $user || ! $user->avatar_url) {
@@ -174,11 +238,17 @@ class CardGenerationService
 
         $key = 'photo';
         $defaults = self::DEFAULT_FULL;
+        $scaleX = $imgW > 0 ? $imgW / self::REFERENCE_W : 1;
+        $scaleY = $imgH > 0 ? $imgH / self::REFERENCE_H : 1;
         $l = $layout ? [
             'x' => $layout->photo_x ?? $defaults[$key]['x'],
             'y' => $layout->photo_y ?? $defaults[$key]['y'],
             'scale' => $layout->photo_scale ?? $defaults[$key]['scale'],
-        ] : $defaults[$key];
+        ] : [
+            'x' => $defaults[$key]['x'] * $scaleX,
+            'y' => $defaults[$key]['y'] * $scaleY,
+            'scale' => $defaults[$key]['scale'] * max($scaleX, $scaleY),
+        ];
 
         $pw = (int) (178 * $l['scale']);
         $ph = (int) (178 * $l['scale']);
@@ -215,7 +285,7 @@ class CardGenerationService
         @unlink($tempPath);
     }
 
-    protected function drawName($image, Membership $membership, ?CardLayout $layout, string $mode): void
+    protected function drawName($image, Membership $membership, ?CardLayout $layout, string $mode, int $imgW = 0, int $imgH = 0): void
     {
         $user = $membership->user;
         if (! $user || ! $user->name) {
@@ -224,11 +294,17 @@ class CardGenerationService
 
         $defaults = $mode === 'full' ? self::DEFAULT_FULL : [];
         $key = 'name';
+        $scaleX = $imgW > 0 ? $imgW / self::REFERENCE_W : 1;
+        $scaleY = $imgH > 0 ? $imgH / self::REFERENCE_H : 1;
         $l = $layout ? [
             'x' => $layout->name_x ?? $defaults[$key]['x'],
             'y' => $layout->name_y ?? $defaults[$key]['y'],
             'scale' => $layout->name_scale ?? $defaults[$key]['scale'],
-        ] : $defaults[$key];
+        ] : [
+            'x' => ($defaults[$key]['x'] ?? 0) * $scaleX,
+            'y' => ($defaults[$key]['y'] ?? 0) * $scaleY,
+            'scale' => ($defaults[$key]['scale'] ?? 1) * max($scaleX, $scaleY),
+        ];
 
         $color = $layout->name_color ?? '#000000';
         [$r, $g, $b] = sscanf($color, '#%02x%02x%02x');
@@ -261,15 +337,21 @@ class CardGenerationService
         }
     }
 
-    protected function drawFields($image, Membership $membership, ?CardLayout $layout, string $mode): void
+    protected function drawFields($image, Membership $membership, ?CardLayout $layout, string $mode, int $imgW = 0, int $imgH = 0): void
     {
         $defaults = $mode === 'minimal' ? self::DEFAULT_MINIMAL : self::DEFAULT_FULL;
         $key = 'fields';
+        $scaleX = $imgW > 0 ? $imgW / self::REFERENCE_W : 1;
+        $scaleY = $imgH > 0 ? $imgH / self::REFERENCE_H : 1;
         $l = $layout ? [
             'x' => $layout->fields_x ?? $defaults[$key]['x'],
             'y' => $layout->fields_y ?? $defaults[$key]['y'],
             'scale' => $layout->fields_scale ?? $defaults[$key]['scale'],
-        ] : $defaults[$key];
+        ] : [
+            'x' => $defaults[$key]['x'] * $scaleX,
+            'y' => $defaults[$key]['y'] * $scaleY,
+            'scale' => $defaults[$key]['scale'] * max($scaleX, $scaleY),
+        ];
 
         $color = $layout->fields_color ?? '#000000';
         [$r, $g, $b] = sscanf($color, '#%02x%02x%02x');
@@ -343,18 +425,27 @@ class CardGenerationService
         }
     }
 
-    protected function drawQrCode($image, Membership $membership, ?CardLayout $layout, array $defaults): void
+    protected function drawQrCode($image, Membership $membership, ?CardLayout $layout, array $defaults, array $pixelLayout = []): void
     {
         $key = 'qr';
-        $l = $layout ? [
-            'x' => $layout->qr_x ?? $defaults[$key]['x'],
-            'y' => $layout->qr_y ?? $defaults[$key]['y'],
-            'scale' => $layout->qr_scale ?? $defaults[$key]['scale'],
-        ] : $defaults[$key];
+
+        if (isset($pixelLayout['qrcode'])) {
+            $pl = $pixelLayout['qrcode'];
+            $qrX = (int) $pl['x'];
+            $qrY = (int) $pl['y'];
+            $qrSize = (int) min($pl['width'], $pl['height']);
+        } elseif ($layout && $layout->qr_x != null) {
+            $qrX = (int) $layout->qr_x;
+            $qrY = (int) $layout->qr_y;
+            $qrSize = (int) (190 * ($layout->qr_scale ?? $defaults[$key]['scale']));
+        } else {
+            $qrX = (int) $defaults[$key]['x'];
+            $qrY = (int) $defaults[$key]['y'];
+            $qrSize = (int) (190 * $defaults[$key]['scale']);
+        }
 
         $qrUrl = PublicMembershipUrl::qrForSlug($membership->slug);
-        $qrSize = (int) (190 * $l['scale']);
-        $pad = (int) (14 * $l['scale']);
+        $pad = (int) ($qrSize * 0.074);
 
         try {
             $builder = new Builder;
@@ -379,13 +470,13 @@ class CardGenerationService
                 $bgColor = imagecolorallocate($image, 255, 255, 255);
                 imagefilledrectangle(
                     $image,
-                    (int) $l['x'] - $pad,
-                    (int) $l['y'] - $pad,
-                    (int) $l['x'] + $qrSize + $pad,
-                    (int) $l['y'] + $qrSize + $pad,
+                    $qrX - $pad,
+                    $qrY - $pad,
+                    $qrX + $qrSize + $pad,
+                    $qrY + $qrSize + $pad,
                     $bgColor
                 );
-                imagecopy($image, $qrImage, (int) $l['x'], (int) $l['y'], 0, 0, $qrSize, $qrSize);
+                imagecopy($image, $qrImage, $qrX, $qrY, 0, 0, $qrSize, $qrSize);
                 imagedestroy($qrImage);
             }
 

@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Admin\User\Membership\Import;
 
 use App\Enums\FamilyMember\RelationshipEnum;
 use App\Http\Controllers\Controller as BaseController;
-use App\Models\FamilyMember;
+use App\Models\MemberPayment;
 use App\Models\Membership;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +48,13 @@ class AdminUserMembershipImportCommitController extends BaseController
             'rows.*.families.*.phone' => ['nullable', 'string', 'max:50'],
             'rows.*.families.*.email' => ['nullable', 'email', 'max:255'],
             'rows.*.families.*.is_active' => ['nullable', 'boolean'],
+            'rows.*.payments' => ['nullable', 'array'],
+            'rows.*.payments.*.amount' => ['required_with:rows.*.payments', 'numeric', 'min:0'],
+            'rows.*.payments.*.months_paid' => ['required_with:rows.*.payments', 'integer', 'min:1'],
+            'rows.*.payments.*.from_date' => ['required_with:rows.*.payments', 'date'],
+            'rows.*.payments.*.to_date' => ['required_with:rows.*.payments', 'date'],
+            'rows.*.payments.*.notes' => ['nullable', 'string'],
+            'rows.*.payments.*.type' => ['nullable', 'string', 'max:20'],
         ]);
 
         $validRelationships = RelationshipEnum::values();
@@ -58,10 +64,10 @@ class AdminUserMembershipImportCommitController extends BaseController
 
         // Membership numbers must be unique within the import payload itself.
         $numbers = array_column($rows, 'membership_number');
-        $duplicates = array_filter(array_count_values($numbers), fn($n) => $n > 1);
-        if (!empty($duplicates)) {
+        $duplicates = array_filter(array_count_values($numbers), fn ($n) => $n > 1);
+        if (! empty($duplicates)) {
             return response()->json([
-                'message' => 'Duplicate membership numbers in import: ' . implode(', ', array_keys($duplicates)),
+                'message' => 'Duplicate membership numbers in import: '.implode(', ', array_keys($duplicates)),
             ], 422);
         }
 
@@ -75,14 +81,15 @@ class AdminUserMembershipImportCommitController extends BaseController
             if ($mode === 'clear') {
                 $cleared = User::whereHas('memberships')->whereNull('deleted_at')->count();
                 // Soft-delete only — admins can restore from trash if this was a mistake.
-                User::whereHas('memberships')->whereNull('deleted_at')->each(fn($u) => $u->delete());
-                Membership::whereNull('deleted_at')->each(fn($m) => $m->delete());
+                User::whereHas('memberships')->whereNull('deleted_at')->each(fn ($u) => $u->delete());
+                Membership::whereNull('deleted_at')->each(fn ($m) => $m->delete());
+                MemberPayment::query()->delete();
             }
 
             foreach ($rows as $i => $row) {
                 try {
-                    $email = !empty($row['email']) ? mb_strtolower(trim($row['email'])) : null;
-                    $jobTitle = !empty($row['job_title'])
+                    $email = ! empty($row['email']) ? mb_strtolower(trim($row['email'])) : null;
+                    $jobTitle = ! empty($row['job_title'])
                         ? ['ar' => $row['job_title'], 'en' => $row['job_title']]
                         : null;
 
@@ -91,7 +98,7 @@ class AdminUserMembershipImportCommitController extends BaseController
                         $existing = Membership::with('user')
                             ->where('membership_number', $row['membership_number'])
                             ->first();
-                        if (!$existing && $email) {
+                        if (! $existing && $email) {
                             $user = User::where('email', $email)->first();
                             $existing = $user?->memberships()->orderBy('is_active', 'desc')->orderBy('created_at', 'desc')->first();
                         }
@@ -138,6 +145,7 @@ class AdminUserMembershipImportCommitController extends BaseController
                     }
 
                     $this->syncFamilyMembers($membership, $row['families'] ?? [], $validRelationships);
+                    $this->syncPayments($membership, $row['payments'] ?? []);
                 } catch (\Throwable $e) {
                     $errors[] = [
                         'index' => $i,
@@ -147,8 +155,9 @@ class AdminUserMembershipImportCommitController extends BaseController
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'message' => 'Some rows failed; nothing was saved.',
                     'errors' => $errors,
@@ -159,7 +168,8 @@ class AdminUserMembershipImportCommitController extends BaseController
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Membership import commit failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([
@@ -181,7 +191,7 @@ class AdminUserMembershipImportCommitController extends BaseController
         if (empty($families)) {
             return;
         }
-        $existing = $membership->familyMembers()->get()->keyBy(fn($f) => mb_strtolower(trim((string) $f->name)));
+        $existing = $membership->familyMembers()->get()->keyBy(fn ($f) => mb_strtolower(trim((string) $f->name)));
 
         foreach ($families as $f) {
             $name = trim((string) ($f['name'] ?? ''));
@@ -190,7 +200,7 @@ class AdminUserMembershipImportCommitController extends BaseController
             }
             $key = mb_strtolower($name);
             $relationship = mb_strtolower(trim((string) ($f['relationship'] ?? '')));
-            if (!in_array($relationship, $validRelationships, true)) {
+            if (! in_array($relationship, $validRelationships, true)) {
                 $relationship = $validRelationships[0] ?? 'other';
             }
             $payload = [
@@ -205,6 +215,49 @@ class AdminUserMembershipImportCommitController extends BaseController
                 $existing[$key]->update($payload);
             } else {
                 $membership->familyMembers()->create($payload);
+            }
+        }
+    }
+
+    /**
+     * Upsert payments for a membership by matching from_date + to_date.
+     * Existing payments not present in the import are left alone.
+     */
+    private function syncPayments(Membership $membership, array $payments): void
+    {
+        if (empty($payments)) {
+            return;
+        }
+
+        $existing = $membership->memberPayments()->get()->keyBy(
+            fn ($p) => $p->from_date->format('Y-m-d').'|'.$p->to_date->format('Y-m-d')
+        );
+
+        foreach ($payments as $p) {
+            $amount = $p['amount'] ?? null;
+            $monthsPaid = $p['months_paid'] ?? null;
+            $fromDate = $p['from_date'] ?? null;
+            $toDate = $p['to_date'] ?? null;
+
+            if ($amount === null || $monthsPaid === null || $fromDate === null || $toDate === null) {
+                continue;
+            }
+
+            $key = $fromDate.'|'.$toDate;
+            $payload = [
+                'amount' => $amount,
+                'months_paid' => $monthsPaid,
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+                'notes' => $p['notes'] ?? null,
+                'type' => $p['type'] ?? 'commission',
+                'created_by' => Auth::id(),
+            ];
+
+            if (isset($existing[$key])) {
+                $existing[$key]->update($payload);
+            } else {
+                $membership->memberPayments()->create($payload);
             }
         }
     }

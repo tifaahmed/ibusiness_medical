@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { Link, watch as watchProp } from "@inertiajs/vue3";
+import { Link } from "@inertiajs/vue3";
 import { watch } from "vue";
 import CompanyLayout from "../CompanyLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";

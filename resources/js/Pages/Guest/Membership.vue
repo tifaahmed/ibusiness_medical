@@ -51,7 +51,7 @@
         </Link>
       </div>
 
-      <!-- Generated Membership Cards — TOP SECTION -->
+      <!-- Generated Membership Card — TOP SECTION -->
       <div v-if="showCardsSection" class="bg-card text-card-foreground rounded-xl border border-border shadow-lg p-4 sm:p-8 mb-3 sm:mb-6">
         <div class="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
           <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
@@ -61,32 +61,25 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-lg sm:text-xl font-bold text-card-foreground">{{ t.membership_cards || 'Membership Cards' }}</h2>
-            <p class="text-[11px] sm:text-xs text-muted-foreground">{{ t.cards_subtitle || 'Full & Minimal card designs' }}</p>
+            <h2 class="text-lg sm:text-xl font-bold text-card-foreground">{{ t.membership_cards || 'Membership Card' }}</h2>
+            <p class="text-[11px] sm:text-xs text-muted-foreground">{{ t.cards_subtitle || 'Your membership card' }}</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-          <div class="flex flex-col items-center">
-            <h3 class="text-xs sm:text-sm font-semibold text-card-foreground mb-2 sm:mb-3">{{ t.full_card || 'Full Design' }}</h3>
-            <GuestMembershipCardCanvas
-              :membership="membership"
-              :partner="membership.partner"
-              :card-layout="fullCardLayout"
-              mode="full"
-              :translations="t"
-            />
-          </div>
-          <div class="flex flex-col items-center">
-            <h3 class="text-xs sm:text-sm font-semibold text-card-foreground mb-2 sm:mb-3">{{ t.minimal_card || 'Minimal Design' }}</h3>
-            <GuestMembershipCardCanvas
-              :membership="membership"
-              :partner="membership.partner"
-              :card-layout="minimalCardLayout"
-              mode="minimal"
-              :translations="t"
-            />
-          </div>
+        <div class="flex justify-center">
+          <GuestMembershipCardCanvas
+            :membership="membership"
+            :partner="membership.partner"
+            :card-layout="minimalCardLayout"
+            :card-template="minimalCardTemplate"
+            mode="minimal"
+            :translations="t"
+          />
+        </div>
+
+        <!-- Card codes: barcode value & QR code encoded URL -->
+        <div class="mt-4">
+          <CardCodes :membership="membership" />
         </div>
       </div>
 
@@ -437,6 +430,7 @@ import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import Modal from "@/Components/Modal.vue";
 import GuestMembershipCard from "./_components/GuestMembershipCard.vue";
 import GuestMembershipCardCanvas from "./_components/GuestMembershipCardCanvas.vue";
+import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
 
 const props = defineProps({
   membership: {
@@ -453,12 +447,12 @@ const showCardModal = ref(false);
 const showQRCodeModal = ref(false);
 const showUsagesModal = ref(false);
 const showCardsSection = ref(true);
-const fullCardLayout = computed(() => {
-  return (props.membership.card_layouts || []).find(l => l.mode === 'full') || null;
-});
-
 const minimalCardLayout = computed(() => {
   return (props.membership.card_layouts || []).find(l => l.mode === 'minimal') || null;
+});
+
+const minimalCardTemplate = computed(() => {
+  return minimalCardLayout.value?.card_template || null;
 });
 const qrcodeCanvas = ref(null);
 const membershipUrl = ref("");

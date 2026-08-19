@@ -1,6 +1,6 @@
 <template>
   <div class="guest-card-flip-wrapper" @click="handleCardClick">
-    <div class="card-flip-container" :style="{ aspectRatio: '1063 / 650' }">
+    <div class="card-flip-container" :style="{ aspectRatio: '1579 / 996' }">
       <div class="card-flip-inner" :class="{ flipped: isFlipped }">
         <div class="card-face card-front">
           <img
@@ -12,8 +12,8 @@
           <canvas
             v-else
             ref="canvasRef"
-            width="1063"
-            height="650"
+            width="1579"
+            height="996"
             class="guest-card-canvas"
           ></canvas>
         </div>
@@ -75,7 +75,7 @@
           <div
             class="card-flip-container card-fs-flip"
             :class="{ 'fs-dragging': dragging }"
-            :style="[{ aspectRatio: '1063 / 650' }, fsTransformStyle]"
+            :style="[{ aspectRatio: '1579 / 996' }, fsTransformStyle]"
             @mousedown="onDragStart"
             @touchstart.prevent="onDragStart"
           >
@@ -90,8 +90,8 @@
                 <canvas
                   v-else
                   ref="fsCanvasRef"
-                  width="1063"
-                  height="650"
+                  width="1579"
+                  height="996"
                   class="guest-card-canvas"
                 ></canvas>
               </div>
@@ -151,12 +151,13 @@ import { ref, onMounted, computed, watch, nextTick } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import QRCode from "qrcode";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
+import { renderCardCanvas } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
 
-const CW = 1063;
-const CH = 650;
+const CW = 1579;
+const CH = 996;
 const DPR = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 2;
-const BG_VERSION = "20260516b";
-const BG_FULL = `/card-template_pure.jpg?v=${BG_VERSION}`;
+const BG_VERSION = "20260810a";
+const BG_FULL = `/images/cards/deilar-card-blank.png?v=${BG_VERSION}`;
 const BG_MINIMAL = `/card-template_white.jpg?v=${BG_VERSION}`;
 const FONTS_HREF = "https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap";
 
@@ -193,6 +194,7 @@ const props = defineProps({
   membership: { type: Object, required: true },
   partner: { type: Object, default: null },
   cardLayout: { type: Object, default: null },
+  cardTemplate: { type: Object, default: null },
   mode: { type: String, required: true, validator: (v) => ["full", "minimal"].includes(v) },
   translations: { type: Object, default: () => ({}) },
 });
@@ -366,9 +368,12 @@ function getColor(key) {
 }
 
 function loadImage(src) {
+  if (!src) return Promise.resolve(null);
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (/^https?:\/\//.test(src)) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = src;
@@ -406,7 +411,12 @@ function paintMinimal(refOverride) {
   const ctx = getCtx(refOverride);
   if (!ctx) return;
 
-  ctx.drawImage(bgImg, 0, 0, CW, CH);
+  if (bgImg) {
+    ctx.drawImage(bgImg, 0, 0, CW, CH);
+  } else {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CW, CH);
+  }
 
   if (partnerImg) {
     const prl = getLayout("partner");
@@ -445,7 +455,12 @@ function paintFull(refOverride) {
   const ctx = getCtx(refOverride);
   if (!ctx) return;
 
-  ctx.drawImage(bgImg, 0, 0, CW, CH);
+  if (bgImg) {
+    ctx.drawImage(bgImg, 0, 0, CW, CH);
+  } else {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CW, CH);
+  }
   const emptyMode = !props.membership.job_title && !props.membership.company_name;
 
   if (partnerImg) {
@@ -611,13 +626,38 @@ async function renderCard() {
 }
 
 onMounted(() => {
+  if (props.cardTemplate) {
+    renderWithTemplate();
+    return;
+  }
+
   const layout = props.cardLayout;
   if (layout && layout.generated_image_url) {
     generatedImageUrl.value = layout.generated_image_url;
     return;
   }
-  renderCard();
+
+  renderWithTemplate();
 });
+
+async function renderWithTemplate() {
+  const layout = props.cardLayout;
+  const overrides = layout
+    ? {
+        qr: layout.qr_x != null ? { x: Number(layout.qr_x), y: Number(layout.qr_y), scale: Number(layout.qr_scale) } : undefined,
+        fields: layout.fields_x != null ? { x: Number(layout.fields_x), y: Number(layout.fields_y), scale: Number(layout.fields_scale) } : undefined,
+        partner: layout.partner_x != null ? { x: Number(layout.partner_x), y: Number(layout.partner_y), scale: Number(layout.partner_scale) } : undefined,
+      }
+    : null;
+
+  const canvas = await renderCardCanvas({
+    membership: props.membership,
+    template: props.cardTemplate,
+    partner: props.partner,
+    overrides,
+  });
+  generatedImageUrl.value = canvas.toDataURL("image/png");
+}
 
 async function renderFullscreenCard() {
   const canvas = fsCanvasRef.value;

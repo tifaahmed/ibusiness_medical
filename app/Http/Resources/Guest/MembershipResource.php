@@ -77,10 +77,31 @@ class MembershipResource extends JsonResource
             }),
             'card_layouts' => $this->whenLoaded('cardLayouts', function () {
                 return $this->cardLayouts->map(function ($layout) {
+                    $cardTemplate = null;
+                    if ($layout->relationLoaded('cardTemplate') && $layout->cardTemplate) {
+                        $cardTemplate = [
+                            'id' => $layout->cardTemplate->id,
+                            'name' => $layout->cardTemplate->getTranslation('name', app()->getLocale())
+                                ?: $layout->cardTemplate->getTranslation('name', 'ar')
+                                ?: $layout->cardTemplate->getTranslation('name', 'en'),
+                            'slug' => $layout->cardTemplate->slug,
+                            'status' => $layout->cardTemplate->status?->value,
+                            'card_empty_url' => $layout->cardTemplate->card_empty_url,
+                            'sample_card_url' => $layout->cardTemplate->sample_card_url,
+                            'layout' => $layout->cardTemplate->effectiveLayout(),
+                            'sample_data' => $layout->cardTemplate->sample_data,
+                            'hidden_fields' => $layout->cardTemplate->hidden_fields,
+                        ];
+                    }
+
                     return [
                         'id' => $layout->id,
                         'mode' => $layout->mode,
                         'partner_id' => $layout->partner_id,
+                        'card_template_id' => $layout->card_template_id,
+                        'card_template' => $cardTemplate,
+                        'layout' => $layout->layout,
+                        'field_values' => $layout->field_values,
                         'partner_x' => $layout->partner_x ? (float) $layout->partner_x : null,
                         'partner_y' => $layout->partner_y ? (float) $layout->partner_y : null,
                         'partner_scale' => $layout->partner_scale ? (float) $layout->partner_scale : null,
@@ -108,8 +129,9 @@ class MembershipResource extends JsonResource
             'card_url' => $this->when($this->relationLoaded('cardLayouts'), function () {
                 $cardUrl = null;
                 if ($this->slug) {
-                    $cardUrl = url('/api/v1/memberships/' . $this->slug . '/card?mode=full');
+                    $cardUrl = url('/api/v1/memberships/'.$this->slug.'/card?mode=full');
                 }
+
                 return $cardUrl;
             }),
         ];

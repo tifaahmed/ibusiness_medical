@@ -13,7 +13,7 @@ class MembershipCardController extends Controller
     public function show(Request $request, string $membership)
     {
         $membershipModel = Membership::visible()
-            ->with(['user', 'partner', 'company', 'cardLayouts'])
+            ->with(['user', 'partner', 'company', 'cardLayouts.cardTemplate'])
             ->where(function ($query) use ($membership) {
                 $query->where('slug', $membership)
                     ->orWhere('membership_number', $membership);
@@ -22,40 +22,37 @@ class MembershipCardController extends Controller
 
         $mode = in_array($request->input('mode'), ['full', 'minimal']) ? $request->input('mode') : 'full';
 
-        $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
-
-        if ($layout && $layout->generated_image_path && Storage::disk('public')->exists($layout->generated_image_path)) {
-            $path = Storage::disk('public')->path($layout->generated_image_path);
-        } else {
-            $service = new CardGenerationService();
-            $url = $service->generate($membershipModel, $mode);
-            if (!$url) {
-                return response()->json(['error' => 'Failed to generate card'], 500);
-            }
-            $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
-            if (!$layout || !$layout->generated_image_path) {
-                return response()->json(['error' => 'Failed to generate card'], 500);
-            }
-            $path = Storage::disk('public')->path($layout->generated_image_path);
+        // Always regenerate so the card reflects the current partner and template.
+        $service = new CardGenerationService;
+        $url = $service->generate($membershipModel, $mode);
+        if (! $url) {
+            return response()->json(['error' => 'Failed to generate card'], 500);
         }
 
-        if (!file_exists($path)) {
+        $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
+        if (! $layout || ! $layout->generated_image_path) {
+            return response()->json(['error' => 'Failed to generate card'], 500);
+        }
+
+        $path = Storage::disk('public')->path($layout->generated_image_path);
+
+        if (! file_exists($path)) {
             return response()->json(['error' => 'Card not found'], 404);
         }
 
         $prefix = $membershipModel->membership_number ?? 'membership-card';
-        $filename = $prefix . '-' . $mode . '.png';
+        $filename = $prefix.'-'.$mode.'.png';
 
         return response()->file($path, [
             'Content-Type' => 'image/png',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
     public function url(Request $request, string $membership)
     {
         $membershipModel = Membership::visible()
-            ->with(['cardLayouts'])
+            ->with(['user', 'partner', 'company', 'cardLayouts.cardTemplate'])
             ->where(function ($query) use ($membership) {
                 $query->where('slug', $membership)
                     ->orWhere('membership_number', $membership);
@@ -64,16 +61,10 @@ class MembershipCardController extends Controller
 
         $mode = in_array($request->input('mode'), ['full', 'minimal']) ? $request->input('mode') : 'full';
 
-        $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
-
-        if ($layout && $layout->generated_image_path && Storage::disk('public')->exists($layout->generated_image_path)) {
-            $cardUrl = Storage::disk('public')->url($layout->generated_image_path);
-        } else {
-            $service = new CardGenerationService();
-            $cardUrl = $service->generate($membershipModel, $mode);
-            if (!$cardUrl) {
-                return response()->json(['error' => 'Failed to generate card'], 500);
-            }
+        $service = new CardGenerationService;
+        $cardUrl = $service->generate($membershipModel, $mode);
+        if (! $cardUrl) {
+            return response()->json(['error' => 'Failed to generate card'], 500);
         }
 
         return response()->json([

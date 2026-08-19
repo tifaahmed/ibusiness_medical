@@ -104,30 +104,57 @@ class AdminUserMembershipShowResource extends JsonResource
                             'email' => $membership->creator->email,
                         ] : null,
                         'card_layouts' => $membership->relationLoaded('cardLayouts')
-                            ? $membership->cardLayouts->map(fn ($cl) => [
-                                'id' => $cl->id,
-                                'mode' => $cl->mode,
-                                'partner_x' => $cl->partner_x,
-                                'partner_y' => $cl->partner_y,
-                                'partner_scale' => $cl->partner_scale,
-                                'photo_x' => $cl->photo_x,
-                                'photo_y' => $cl->photo_y,
-                                'photo_scale' => $cl->photo_scale,
-                                'name_x' => $cl->name_x,
-                                'name_y' => $cl->name_y,
-                                'name_scale' => $cl->name_scale,
-                                'name_color' => $cl->name_color,
-                                'fields_x' => $cl->fields_x,
-                                'fields_y' => $cl->fields_y,
-                                'fields_scale' => $cl->fields_scale,
-                                'fields_color' => $cl->fields_color,
-                                'qr_x' => $cl->qr_x,
-                                'qr_y' => $cl->qr_y,
-                                'qr_scale' => $cl->qr_scale,
-                                'image_url' => $cl->generated_image_path
-                                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($cl->generated_image_path)
-                                    : null,
-                            ])->values()->toArray()
+                            ? $membership->cardLayouts->map(function ($cl) {
+                                $cardTemplate = null;
+                                if ($cl->relationLoaded('cardTemplate') && $cl->cardTemplate) {
+                                    $cardTemplate = [
+                                        'id' => $cl->cardTemplate->id,
+                                        'name' => $cl->cardTemplate->getTranslation('name', app()->getLocale())
+                                            ?: $cl->cardTemplate->getTranslation('name', 'ar')
+                                            ?: $cl->cardTemplate->getTranslation('name', 'en'),
+                                        'slug' => $cl->cardTemplate->slug,
+                                        'status' => $cl->cardTemplate->status?->value,
+                                        'card_empty_url' => $cl->cardTemplate->card_empty_url,
+                                        'sample_card_url' => $cl->cardTemplate->sample_card_url,
+                                        'layout' => $cl->cardTemplate->effectiveLayout(),
+                                        'sample_data' => $cl->cardTemplate->sample_data,
+                                        'hidden_fields' => $cl->cardTemplate->hidden_fields,
+                                    ];
+                                }
+
+                                return [
+                                    'id' => $cl->id,
+                                    'mode' => $cl->mode,
+                                    'partner_id' => $cl->partner_id,
+                                    'card_template_id' => $cl->card_template_id,
+                                    'card_template' => $cardTemplate,
+                                    'layout' => $cl->layout,
+                                    'field_values' => $cl->field_values,
+                                    'partner_x' => $cl->partner_x ? (float) $cl->partner_x : null,
+                                    'partner_y' => $cl->partner_y ? (float) $cl->partner_y : null,
+                                    'partner_scale' => $cl->partner_scale ? (float) $cl->partner_scale : null,
+                                    'photo_x' => $cl->photo_x ? (float) $cl->photo_x : null,
+                                    'photo_y' => $cl->photo_y ? (float) $cl->photo_y : null,
+                                    'photo_scale' => $cl->photo_scale ? (float) $cl->photo_scale : null,
+                                    'name_x' => $cl->name_x ? (float) $cl->name_x : null,
+                                    'name_y' => $cl->name_y ? (float) $cl->name_y : null,
+                                    'name_scale' => $cl->name_scale ? (float) $cl->name_scale : null,
+                                    'name_color' => $cl->name_color,
+                                    'fields_x' => $cl->fields_x ? (float) $cl->fields_x : null,
+                                    'fields_y' => $cl->fields_y ? (float) $cl->fields_y : null,
+                                    'fields_scale' => $cl->fields_scale ? (float) $cl->fields_scale : null,
+                                    'fields_color' => $cl->fields_color,
+                                    'qr_x' => $cl->qr_x ? (float) $cl->qr_x : null,
+                                    'qr_y' => $cl->qr_y ? (float) $cl->qr_y : null,
+                                    'qr_scale' => $cl->qr_scale ? (float) $cl->qr_scale : null,
+                                    'image_url' => $cl->generated_image_path
+                                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($cl->generated_image_path)
+                                        : null,
+                                    'generated_image_url' => $cl->generated_image_path
+                                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($cl->generated_image_path)
+                                        : null,
+                                ];
+                            })->values()->toArray()
                             : [],
                     ];
                 })->toArray();

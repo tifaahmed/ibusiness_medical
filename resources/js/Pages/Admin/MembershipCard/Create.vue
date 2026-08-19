@@ -315,19 +315,78 @@
         <div>
           <div class="text-xs text-muted-foreground mb-2">Visual preview (first {{ Math.min(previewItems.length, 10) }} of {{ previewItems.length }}):</div>
           <div class="flex flex-wrap gap-3">
-            <CardPreview
+            <div
               v-for="(item, idx) in previewItems.slice(0, 10)"
               :key="item.display_number + ':' + (form.partner_id || '') + ':' + layoutKey(idx)"
-              :membership="{ membership_number: item.display_number, stored_number: item.membership_number, slug: item.slug_preview }"
-              :template="activeTemplate"
-              :partner="selectedPartner"
-              :overrides="overridesForIndex(idx)"
-              :contact="contactForRender"
-            />
+              class="cursor-pointer group"
+              @click="openCardModal(item, idx)"
+            >
+              <div class="relative">
+                <CardPreview
+                  :membership="{ membership_number: item.display_number, stored_number: item.membership_number, slug: item.slug_preview }"
+                  :template="activeTemplate"
+                  :partner="selectedPartner"
+                  :overrides="overridesForIndex(idx)"
+                  :contact="contactForRender"
+                />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-[0.3cm] flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <span class="bg-black/70 text-white text-[11px] px-2 py-1 rounded font-medium">Click to open</span>
+                </div>
+              </div>
+              <div class="mt-1.5 px-1 text-[10px] space-y-0.5">
+                <div class="flex items-center gap-1">
+                  <span class="text-muted-foreground shrink-0">Barcode:</span>
+                  <span class="font-mono break-all" dir="ltr">{{ cardBarcodeValue({ membership_number: item.display_number, stored_number: item.membership_number }) }}</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-muted-foreground shrink-0">QR:</span>
+                  <span class="font-mono break-all text-blue-600 truncate" dir="ltr">{{ cardQrValue({ slug: item.slug_preview }) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Card popup modal -->
+    <Modal :show="cardModal !== null" max-width="2xl" @close="cardModal = null">
+      <div class="p-4 flex flex-col items-center gap-4">
+        <div class="flex items-center justify-between w-full">
+          <h2 class="text-sm font-semibold">
+            Card <span class="font-mono">{{ cardModal?.display_number }}</span>
+          </h2>
+          <button
+            type="button"
+            class="text-muted-foreground hover:text-foreground text-lg leading-none cursor-pointer"
+            @click="cardModal = null"
+          >✕</button>
+        </div>
+
+        <CardPreview
+          :membership="modalMembership()"
+          :template="activeTemplate"
+          :partner="selectedPartner"
+          :overrides="overridesForIndex(cardModal?.idx ?? 0)"
+          :contact="contactForRender"
+          display-width="100%"
+        />
+
+        <div class="w-full">
+          <CardCodes :membership="modalMembership()" />
+        </div>
+
+        <div class="flex justify-end w-full">
+          <button
+            type="button"
+            class="rounded-md h-9 px-3 text-sm border border-border hover:bg-muted cursor-pointer"
+            @click="cardModal = null"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
   </AppLayout>
 </template>
 
@@ -337,8 +396,10 @@ import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
+import CardCodes from './_components/CardCodes.vue';
+import Modal from '@/Components/Modal.vue';
 import { buildBatchAndZip } from './_components/PdfBuilder.js';
-import { cardPrintedNumber, overridePanelDefaults, templateContactText, CARD_W, CARD_H } from './_components/cardRenderer.js';
+import { cardPrintedNumber, overridePanelDefaults, templateContactText, cardQrValue, cardBarcodeValue, CARD_W, CARD_H } from './_components/cardRenderer.js';
 
 const props = defineProps({
   suggested_start: { type: Number, default: 1000 },
@@ -513,6 +574,22 @@ function overridesForIndex(idx0) {
 function layoutKey(idx0) {
   const o = overridesForIndex(idx0);
   return o ? JSON.stringify(o) : 'def';
+}
+
+// --- Card popup modal ---
+const cardModal = ref(null);
+
+function openCardModal(item, idx) {
+  cardModal.value = { ...item, idx };
+}
+
+function modalMembership() {
+  if (!cardModal.value) return {};
+  return {
+    membership_number: cardModal.value.display_number,
+    stored_number: cardModal.value.membership_number,
+    slug: cardModal.value.slug_preview,
+  };
 }
 
 async function submit() {

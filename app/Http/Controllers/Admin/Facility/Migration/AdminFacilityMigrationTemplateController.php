@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\Admin\Facility\Migration;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Models\City;
+use App\Models\FacilityType;
+use App\Models\Governorate;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Font;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class AdminFacilityMigrationTemplateController extends BaseController
 {
@@ -18,11 +21,13 @@ class AdminFacilityMigrationTemplateController extends BaseController
     {
         $spreadsheet = new Spreadsheet;
 
-        // ── Sheet 1: Instructions (default sheet) ──
-        $this->buildInstructionsSheet($spreadsheet);
-
-        // ── Sheet 2: Example ──
+        // ── Sheet 1: Example (active sheet) ──
         $this->buildExampleSheet($spreadsheet);
+
+        // ── Sheet 2: Branch Examples ── (built inside buildExampleSheet)
+
+        // ── Sheet 3: Instructions ──
+        $this->buildInstructionsSheet($spreadsheet);
 
         $filename = 'facility_import_example_'.now()->format('Y-m-d').'.xlsx';
 
@@ -106,13 +111,149 @@ class AdminFacilityMigrationTemplateController extends BaseController
         ]);
     }
 
+    public function zipExample(Request $request): StreamedResponse
+    {
+        $spreadsheet = new Spreadsheet;
+        $this->buildExampleSheet($spreadsheet);
+        $this->buildInstructionsSheet($spreadsheet);
+
+        $tmpDir = storage_path('app/facility-migration/tmp');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+
+        $xlsxPath = $tmpDir.'/facility_import_example_'.now()->format('Y-m-d_His').'.xlsx';
+        $zipPath = $tmpDir.'/facility_import_example_'.now()->format('Y-m-d_His').'.zip';
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save($xlsxPath);
+        $spreadsheet->disconnectWorksheets();
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFile($xlsxPath, basename($xlsxPath));
+        $zip->close();
+
+        $filename = 'facility_import_example_'.now()->format('Y-m-d').'.zip';
+
+        return response()->stream(function () use ($zipPath, $xlsxPath) {
+            $out = fopen('php://output', 'wb');
+            $in = fopen($zipPath, 'rb');
+            while (! feof($in)) {
+                fwrite($out, fread($in, 8192));
+            }
+            fclose($in);
+            fclose($out);
+            @unlink($zipPath);
+            @unlink($xlsxPath);
+        }, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Length' => (string) filesize($zipPath),
+            'Cache-Control' => 'no-store, no-cache',
+        ]);
+    }
+
+    public function zipBlank(Request $request): StreamedResponse
+    {
+        $spreadsheet = new Spreadsheet;
+
+        // ── Sheet 1: Facilities (empty) ──
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Facilities');
+
+        $columns = [
+            'A' => 'Name',
+            'B' => 'Name (AR)',
+            'C' => 'Slug',
+            'D' => 'Facility Type',
+            'E' => 'Governorate',
+            'F' => 'City',
+            'G' => 'Latitude',
+            'H' => 'Longitude',
+        ];
+
+        foreach ($columns as $col => $label) {
+            $sheet->setCellValue("{$col}1", $label);
+        }
+        $this->styleHeaderRow($sheet, 1, 'H');
+
+        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 14, 'H' => 14];
+        foreach ($widths as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        // ── Sheet 2: Branches (empty) ──
+        $branchSheet = $spreadsheet->createSheet();
+        $branchSheet->setTitle('Branches');
+
+        $branchColumns = [
+            'A' => 'Facility Name',
+            'B' => 'Branch Name',
+            'C' => 'Branch Name (AR)',
+            'D' => 'Address',
+            'E' => 'Address (AR)',
+            'F' => 'Phone',
+            'G' => 'Governorate',
+            'H' => 'City',
+            'I' => 'Latitude',
+            'J' => 'Longitude',
+        ];
+
+        foreach ($branchColumns as $col => $label) {
+            $branchSheet->setCellValue("{$col}1", $label);
+        }
+        $this->styleHeaderRow($branchSheet, 1, 'J');
+
+        $branchWidths = ['A' => 30, 'B' => 28, 'C' => 28, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14];
+        foreach ($branchWidths as $col => $w) {
+            $branchSheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        $tmpDir = storage_path('app/facility-migration/tmp');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+
+        $xlsxPath = $tmpDir.'/facility_import_template_'.now()->format('Y-m-d_His').'.xlsx';
+        $zipPath = $tmpDir.'/facility_import_template_'.now()->format('Y-m-d_His').'.zip';
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save($xlsxPath);
+        $spreadsheet->disconnectWorksheets();
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFile($xlsxPath, basename($xlsxPath));
+        $zip->close();
+
+        $filename = 'facility_import_template_'.now()->format('Y-m-d').'.zip';
+
+        return response()->stream(function () use ($zipPath, $xlsxPath) {
+            $out = fopen('php://output', 'wb');
+            $in = fopen($zipPath, 'rb');
+            while (! feof($in)) {
+                fwrite($out, fread($in, 8192));
+            }
+            fclose($in);
+            fclose($out);
+            @unlink($zipPath);
+            @unlink($xlsxPath);
+        }, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Length' => (string) filesize($zipPath),
+            'Cache-Control' => 'no-store, no-cache',
+        ]);
+    }
+
     private function buildInstructionsSheet(Spreadsheet $spreadsheet): void
     {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Instructions');
 
         $sheet->setCellValue('A1', 'FACILITY IMPORT — INSTRUCTIONS');
-        $sheet->mergeCells('A1:F1');
+        $sheet->mergeCells('A1:H1');
         $sheet->getRowDimension(1)->setRowHeight(36);
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']],
@@ -131,6 +272,11 @@ class AdminFacilityMigrationTemplateController extends BaseController
             '• The "Facilities" sheet requires at minimum: Name, Name (AR), and Facility Type.',
             '• The "Branches" sheet is optional — only add rows if the facility has physical branches.',
             '',
+            'LOOKUP FIELDS — You can use the ID, English name, Arabic name, or slug for any lookup field:',
+            '  Facility type: { "id": 1 } or { "name": { "en": "Clinic" } } or { "slug": "clinic" }',
+            '  Governorate:   { "id": 5 } or { "name": { "en": "Cairo" } } or { "slug": "cairo" }',
+            '  City:          { "id": 12 } or { "name": { "en": "Nasr City" } } or { "slug": "nasr-city" }',
+            '',
             'FACILITIES SHEET — COLUMN GUIDE',
             '',
             'Name',
@@ -146,16 +292,16 @@ class AdminFacilityMigrationTemplateController extends BaseController
             '  Example: "el-gouna-medical-center"',
             '',
             'Facility Type',
-            '  Must match an existing facility type name (EN or AR).',
-            '  Example: "Clinic" or "عيادة"',
+            '  Must match an existing facility type by ID, name (EN or AR), or slug.',
+            '  See "FACILITY TYPES" table below for all available types.',
             '',
             'Governorate',
-            '  Must match an existing governorate name (EN or AR).',
-            '  Example: "Red Sea" or "البحر الأحمر"',
+            '  Must match an existing governorate by ID, name (EN or AR), or slug.',
+            '  See "GOVERNORATES" table below for all available governorates.',
             '',
             'City',
-            '  Must match an existing city name (EN or AR). Optional.',
-            '  Example: "El Gouna" or "الغردقة"',
+            '  Must match an existing city by ID, name (EN or AR), or slug.',
+            '  See "CITIES" table below for all available cities.',
             '',
             'Latitude',
             '  Decimal number between -90 and 90. Optional.',
@@ -184,7 +330,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
             '  Comma-separated phone numbers. Example: "+20 123 456 7890, +20 987 654 3210"',
             '',
             'Governorate / City',
-            '  Must match existing names.',
+            '  Must match existing names (ID, EN, AR, or slug).',
             '',
             'Latitude / Longitude',
             '  Decimal coordinates.',
@@ -204,7 +350,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
         }
 
         // Style section headers
-        $headers = ['GENERAL', 'FACILITIES SHEET — COLUMN GUIDE', 'BRANCHES SHEET — COLUMN GUIDE', 'IMPORTANT NOTES'];
+        $headers = ['GENERAL', 'LOOKUP FIELDS — You can use the ID, English name, Arabic name, or slug for any lookup field:', 'FACILITIES SHEET — COLUMN GUIDE', 'BRANCHES SHEET — COLUMN GUIDE', 'IMPORTANT NOTES'];
         foreach ($instructions as $i => $line) {
             $r = $i + 2;
             if (in_array($line, $headers, true)) {
@@ -218,11 +364,159 @@ class AdminFacilityMigrationTemplateController extends BaseController
                 ]);
             }
         }
+
+        // ── Reference tables ──────────────────────────────────────────────
+        $tableStartRow = $row + 2;
+        $colId = 'A';
+        $colNameEn = 'B';
+        $colNameAr = 'C';
+        $colSlug = 'D';
+
+        // ── Facility Types table ──
+        $tableStartRow = $this->buildReferenceTable(
+            $sheet, $tableStartRow, 'FACILITY TYPES',
+            FacilityType::orderBy('id')->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'name_en' => $t->getTranslation('name', 'en') ?? '',
+                    'name_ar' => $t->getTranslation('name', 'ar') ?? '',
+                    'slug' => $t->slug ?? '',
+                ])->all()
+        );
+
+        $tableStartRow += 1;
+
+        // ── Governorates table ──
+        $tableStartRow = $this->buildReferenceTable(
+            $sheet, $tableStartRow, 'GOVERNORATES',
+            Governorate::orderBy('id')->get()
+                ->map(fn ($g) => [
+                    'id' => $g->id,
+                    'name_en' => $g->getTranslation('name', 'en') ?? '',
+                    'name_ar' => $g->getTranslation('name', 'ar') ?? '',
+                    'slug' => $g->slug ?? '',
+                ])->all()
+        );
+
+        $tableStartRow += 1;
+
+        // ── Cities table ──
+        $cities = City::with('governorate')->orderBy('id')->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name_en' => $c->getTranslation('name', 'en') ?? '',
+                'name_ar' => $c->getTranslation('name', 'ar') ?? '',
+                'slug' => $c->slug ?? '',
+                'governorate' => $c->governorate ? $c->governorate->getTranslation('name', 'en') ?? '' : '',
+            ])->all();
+
+        $tableStartRow = $this->buildCitiesTable($sheet, $tableStartRow, 'CITIES', $cities);
+    }
+
+    /**
+     * Build a 4-column reference table (ID | Name EN | Name AR | Slug).
+     */
+    private function buildReferenceTable(Spreadsheet $sheet, int $startRow, string $title, array $rows): int
+    {
+        // Title row
+        $sheet->mergeCells("A{$startRow}:D{$startRow}");
+        $sheet->setCellValue("A{$startRow}", $title);
+        $sheet->getStyle("A{$startRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $startRow++;
+
+        // Header row
+        $headers = ['ID', 'Name (EN)', 'Name (AR)', 'Slug'];
+        foreach ($headers as $col => $label) {
+            $sheet->setCellValue("{$col}1", '');
+            $colLetter = chr(ord('A') + $col);
+            $sheet->setCellValue("{$colLetter}{$startRow}", $label);
+        }
+        $this->styleHeaderRow($sheet, $startRow, 'D');
+        $startRow++;
+
+        // Data rows
+        foreach ($rows as $i => $row) {
+            $sheet->setCellValue("A{$startRow}", $row['id']);
+            $sheet->setCellValue("B{$startRow}", $row['name_en']);
+            $sheet->setCellValue("C{$startRow}", $row['name_ar']);
+            $sheet->setCellValue("D{$startRow}", $row['slug']);
+
+            $stripe = ($i % 2 === 0) ? 'F0F9FF' : 'FFFFFF';
+            $sheet->getStyle("A{$startRow}:D{$startRow}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+            $startRow++;
+        }
+
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(8);
+        $sheet->getColumnDimension('B')->setWidth(35);
+        $sheet->getColumnDimension('C')->setWidth(35);
+        $sheet->getColumnDimension('D')->setWidth(28);
+
+        return $startRow;
+    }
+
+    /**
+     * Build a 5-column cities table (ID | Name EN | Name AR | Slug | Governorate).
+     */
+    private function buildCitiesTable(Spreadsheet $sheet, int $startRow, string $title, array $rows): int
+    {
+        // Title row
+        $sheet->mergeCells("A{$startRow}:E{$startRow}");
+        $sheet->setCellValue("A{$startRow}", $title);
+        $sheet->getStyle("A{$startRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $startRow++;
+
+        // Header row
+        $headers = ['ID', 'Name (EN)', 'Name (AR)', 'Slug', 'Governorate'];
+        foreach ($headers as $col => $label) {
+            $colLetter = chr(ord('A') + $col);
+            $sheet->setCellValue("{$colLetter}{$startRow}", $label);
+        }
+        $this->styleHeaderRow($sheet, $startRow, 'E');
+        $startRow++;
+
+        // Data rows
+        foreach ($rows as $i => $row) {
+            $sheet->setCellValue("A{$startRow}", $row['id']);
+            $sheet->setCellValue("B{$startRow}", $row['name_en']);
+            $sheet->setCellValue("C{$startRow}", $row['name_ar']);
+            $sheet->setCellValue("D{$startRow}", $row['slug']);
+            $sheet->setCellValue("E{$startRow}", $row['governorate']);
+
+            $stripe = ($i % 2 === 0) ? 'F0F9FF' : 'FFFFFF';
+            $sheet->getStyle("A{$startRow}:E{$startRow}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+            $startRow++;
+        }
+
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(8);
+        $sheet->getColumnDimension('B')->setWidth(30);
+        $sheet->getColumnDimension('C')->setWidth(30);
+        $sheet->getColumnDimension('D')->setWidth(28);
+        $sheet->getColumnDimension('E')->setWidth(30);
+
+        return $startRow;
     }
 
     private function buildExampleSheet(Spreadsheet $spreadsheet): void
     {
-        $sheet = $spreadsheet->createSheet();
+        $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Example');
 
         $columns = [

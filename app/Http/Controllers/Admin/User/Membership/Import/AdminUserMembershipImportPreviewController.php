@@ -27,15 +27,17 @@ class AdminUserMembershipImportPreviewController extends BaseController
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
         ]);
 
-        ['members' => $rows, 'families' => $familiesByNumber] = $this->parseSpreadsheet(
+        ['members' => $rows, 'families' => $familiesByNumber, 'payments' => $paymentsByNumber] = $this->parseSpreadsheet(
             $request->file('file')->getRealPath(),
             $request->file('file')->getClientOriginalExtension()
         );
 
         // Pre-fetch lookup tables once.
-        $companies = Company::all()->keyBy(fn($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'en'))))
-            ->merge(Company::all()->keyBy(fn($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'ar')))));
-        $partners = Partner::all()->keyBy(fn($p) => mb_strtolower(trim((string) $p->title)));
+        $companies = Company::all()->keyBy(fn ($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'en'))))
+            ->merge(Company::all()->keyBy(fn ($c) => mb_strtolower(trim((string) $c->getTranslation('name', 'ar')))))
+            ->merge(Company::all()->keyBy(fn ($c) => (string) $c->id));
+        $partners = Partner::all()->keyBy(fn ($p) => mb_strtolower(trim((string) $p->title)))
+            ->merge(Partner::all()->keyBy(fn ($p) => (string) $p->id));
 
         $preview = [];
         foreach ($rows as $i => $raw) {
@@ -44,13 +46,13 @@ class AdminUserMembershipImportPreviewController extends BaseController
 
             $match = null;
             $matchedUser = null;
-            if (!empty($parsed['membership_number'])) {
+            if (! empty($parsed['membership_number'])) {
                 $match = Membership::with('user', 'company', 'partner')
                     ->where('membership_number', $parsed['membership_number'])
                     ->first();
             }
-            if (!$match && !empty($parsed['email'])) {
-                $matchedUser = User::with(['memberships' => fn($q) => $q->orderBy('is_active', 'desc')->orderBy('created_at', 'desc')->with(['company', 'partner'])])
+            if (! $match && ! empty($parsed['email'])) {
+                $matchedUser = User::with(['memberships' => fn ($q) => $q->orderBy('is_active', 'desc')->orderBy('created_at', 'desc')->with(['company', 'partner'])])
                     ->where('email', $parsed['email'])
                     ->first();
                 $match = $matchedUser?->memberships->first();
@@ -59,9 +61,9 @@ class AdminUserMembershipImportPreviewController extends BaseController
             }
 
             $diff = $match ? $this->buildDiff($matchedUser, $match, $parsed) : [];
-            $hasChanges = collect($diff)->contains(fn($d) => $d['changed']);
+            $hasChanges = collect($diff)->contains(fn ($d) => $d['changed']);
 
-            $status = !empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
+            $status = ! empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
 
             // Prefer the live DB avatar over whatever was in the file (older
             // exports didn't carry an Avatar URL column at all).
@@ -72,14 +74,17 @@ class AdminUserMembershipImportPreviewController extends BaseController
             // Pick up family members from the second sheet, keyed by membership #.
             $families = $familiesByNumber[$parsed['membership_number']] ?? [];
 
+            // Pick up payments from the third sheet, keyed by membership #.
+            $payments = $paymentsByNumber[$parsed['membership_number']] ?? [];
+
             // Same fallback for family photos: if we matched the membership,
             // use each existing family member's live photo URL when the row
             // doesn't carry one.
             if ($match && $match->relationLoaded('familyMembers') === false) {
                 $match->load('familyMembers');
             }
-            if (!empty($families) && $match) {
-                $existingByName = $match->familyMembers->keyBy(fn($f) => mb_strtolower(trim((string) $f->name)));
+            if (! empty($families) && $match) {
+                $existingByName = $match->familyMembers->keyBy(fn ($f) => mb_strtolower(trim((string) $f->name)));
                 foreach ($families as $fi => $f) {
                     if (empty($f['photo_url'])) {
                         $key = mb_strtolower(trim((string) $f['name']));
@@ -88,6 +93,25 @@ class AdminUserMembershipImportPreviewController extends BaseController
                             $families[$fi]['photo_url'] = get_image_url($existing, 'photo');
                         }
                     }
+                }
+            }
+
+            // For existing memberships, also load existing payments from DB
+            // so the frontend can show them when the import has no payment rows.
+            if ($match) {
+                if (! $match->relationLoaded('memberPayments')) {
+                    $match->load('memberPayments');
+                }
+                if (empty($payments)) {
+                    $payments = $match->memberPayments->map(fn ($p) => [
+                        'amount' => (string) $p->amount,
+                        'months_paid' => (string) $p->months_paid,
+                        'from_date' => $p->from_date?->format('Y-m-d'),
+                        'to_date' => $p->to_date?->format('Y-m-d'),
+                        'notes' => $p->notes ?? '',
+                        'type' => $p->type ?? 'commission',
+                        'existing_id' => $p->id,
+                    ])->toArray();
                 }
             }
 
@@ -107,16 +131,18 @@ class AdminUserMembershipImportPreviewController extends BaseController
                 ] : null,
                 'diff' => $diff,
                 'families' => $families,
+                'payments' => $payments,
             ];
         }
 
         return response()->json([
             'rows' => $preview,
-            'companyOptions' => Company::orderBy('id')->get()->map(fn($c) => [
+            'companyOptions' => Company::orderBy('id')->get()->map(fn ($c) => [
                 'value' => $c->id,
-                'label' => $c->getTranslation('name', app()->getLocale()) ?: $c->getTranslation('name', 'en'),
+                'label' => $c->getTranslation('name', app()->getLocale())
+                    ?: ($c->getTranslation('name', 'ar') ?: ($c->getTranslation('name', 'en') ?: "#{$c->id}")),
             ])->values(),
-            'partnerOptions' => Partner::orderBy('title')->get()->map(fn($p) => [
+            'partnerOptions' => Partner::orderBy('title')->get()->map(fn ($p) => [
                 'value' => $p->id,
                 'label' => $p->title,
             ])->values(),
@@ -132,7 +158,7 @@ class AdminUserMembershipImportPreviewController extends BaseController
     {
         $extension = strtolower($extension);
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
             $reader->setDelimiter(',');
         } else {
@@ -154,7 +180,9 @@ class AdminUserMembershipImportPreviewController extends BaseController
                 'visibility' => ['visibility'],
                 'job_title' => ['job title', 'job_title'],
                 'company' => ['company'],
+                'company_id_raw' => ['company id', 'company_id'],
                 'partner' => ['partner'],
+                'partner_id_raw' => ['partner id', 'partner_id'],
                 'registration_date' => ['registration date', 'registration_date'],
                 'expiration_date' => ['expiration date', 'expiration_date'],
                 'avatar_url' => ['avatar url', 'avatar_url'],
@@ -196,8 +224,41 @@ class AdminUserMembershipImportPreviewController extends BaseController
             }
         }
 
+        $payments = [];
+        $paymentsSheet = $spreadsheet->getSheetByName('Payments');
+        if ($paymentsSheet) {
+            $paymentRows = $this->extractRowsFromSheet(
+                $paymentsSheet,
+                ['membership #', 'membership_number'],
+                [
+                    'membership_number' => ['membership #', 'membership_number'],
+                    'amount' => ['amount'],
+                    'months_paid' => ['months paid', 'months_paid'],
+                    'from_date' => ['from date', 'from_date'],
+                    'to_date' => ['to date', 'to_date'],
+                    'notes' => ['notes'],
+                    'type' => ['type'],
+                ]
+            );
+            foreach ($paymentRows as $p) {
+                $key = $p['membership_number'];
+                if ($key === '') {
+                    continue;
+                }
+                $payments[$key][] = [
+                    'amount' => $p['amount'],
+                    'months_paid' => $p['months_paid'],
+                    'from_date' => $this->parseDate($p['from_date']),
+                    'to_date' => $this->parseDate($p['to_date']),
+                    'notes' => $p['notes'] !== '' ? $p['notes'] : null,
+                    'type' => $p['type'] !== '' ? $p['type'] : 'commission',
+                ];
+            }
+        }
+
         $spreadsheet->disconnectWorksheets();
-        return ['members' => $members, 'families' => $families];
+
+        return ['members' => $members, 'families' => $families, 'payments' => $payments];
     }
 
     /**
@@ -253,11 +314,12 @@ class AdminUserMembershipImportPreviewController extends BaseController
             foreach ($columnAliases as $key => $candidates) {
                 $row[$key] = $this->cell($sheet, $headerMap, $candidates, $r);
             }
-            if (collect($row)->filter(fn($v) => $v !== '')->isEmpty()) {
+            if (collect($row)->filter(fn ($v) => $v !== '')->isEmpty()) {
                 continue;
             }
             $rows[] = $row;
         }
+
         return $rows;
     }
 
@@ -267,9 +329,11 @@ class AdminUserMembershipImportPreviewController extends BaseController
             $key = mb_strtolower($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
@@ -280,12 +344,18 @@ class AdminUserMembershipImportPreviewController extends BaseController
     private function parseRow(array $raw, $companies, $partners): array
     {
         $companyId = null;
-        if (!empty($raw['company'])) {
+        if (! empty($raw['company_id_raw']) && is_numeric(trim($raw['company_id_raw']))) {
+            $companyId = $companies->get(trim($raw['company_id_raw']))?->id;
+        }
+        if (! $companyId && ! empty($raw['company'])) {
             $key = mb_strtolower(trim($raw['company']));
             $companyId = $companies->get($key)?->id;
         }
         $partnerId = null;
-        if (!empty($raw['partner'])) {
+        if (! empty($raw['partner_id_raw']) && is_numeric(trim($raw['partner_id_raw']))) {
+            $partnerId = $partners->get(trim($raw['partner_id_raw']))?->id;
+        }
+        if (! $partnerId && ! empty($raw['partner'])) {
             $key = mb_strtolower(trim($raw['partner']));
             $partnerId = $partners->get($key)?->id;
         }
@@ -311,6 +381,7 @@ class AdminUserMembershipImportPreviewController extends BaseController
     private function parseBool(string $raw, array $map, bool $default): bool
     {
         $key = mb_strtolower(trim($raw));
+
         return $map[$key] ?? $default;
     }
 
@@ -353,19 +424,20 @@ class AdminUserMembershipImportPreviewController extends BaseController
         if (empty($parsed['expiration_date'])) {
             $errors['expiration_date'] = 'Expiration date is required.';
         }
-        if (!empty($parsed['email']) && !filter_var($parsed['email'], FILTER_VALIDATE_EMAIL)) {
+        if (! empty($parsed['email']) && ! filter_var($parsed['email'], FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Invalid email format.';
         }
         if ($parsed['registration_date'] && $parsed['expiration_date']
             && strtotime($parsed['expiration_date']) <= strtotime($parsed['registration_date'])) {
             $errors['expiration_date'] = 'Expiration must be after registration.';
         }
-        if (!empty($parsed['company_name_input']) && $parsed['company_id'] === null) {
+        if (! empty($parsed['company_name_input']) && $parsed['company_id'] === null) {
             $errors['company'] = "Company \"{$parsed['company_name_input']}\" not found.";
         }
-        if (!empty($parsed['partner_name_input']) && $parsed['partner_id'] === null) {
+        if (! empty($parsed['partner_name_input']) && $parsed['partner_id'] === null) {
             $errors['partner'] = "Partner \"{$parsed['partner_name_input']}\" not found.";
         }
+
         return $errors;
     }
 
@@ -395,10 +467,12 @@ class AdminUserMembershipImportPreviewController extends BaseController
             ['field' => 'registration_date', 'label' => 'Registration', 'old' => $membership?->registration_date?->format('Y-m-d'), 'new' => $parsed['registration_date']],
             ['field' => 'expiration_date', 'label' => 'Expiration', 'old' => $membership?->expiration_date?->format('Y-m-d'), 'new' => $parsed['expiration_date']],
         ];
+
         return array_map(function ($f) {
             $oldNorm = (string) ($f['old'] ?? '');
             $newNorm = (string) ($f['new'] ?? '');
             $f['changed'] = $oldNorm !== $newNorm;
+
             return $f;
         }, $fields);
     }
