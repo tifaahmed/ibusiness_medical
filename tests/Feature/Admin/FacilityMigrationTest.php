@@ -250,6 +250,86 @@ class FacilityMigrationTest extends TestCase
         $this->assertSame('sunrise-clinic', Facility::first()->slug);
     }
 
+    public function test_preview_marks_what_the_site_already_has(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $package = $this->buildPackage();
+
+        // The site drifts away from the package after it was built: the preview
+        // has to show the number the branch carries *here*, not the packaged one.
+        FacilityBranch::query()->update(['phone' => ['0999999999']]);
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.facility.migration.preview'),
+            ['server_path' => basename($package)]
+        );
+
+        $response->assertOk();
+        $facility = $response->json('facilities.0');
+        $branch = $facility['branches'][0];
+
+        $this->assertSame('Sunrise Clinic', $facility['_existing']['name']['en']);
+        $this->assertSame('Clinic', $facility['_existing']['facility_type']['label']);
+        $this->assertSame(1, $facility['_existing']['branches_count']);
+
+        $this->assertSame(['0999999999'], $branch['_existing']['phone']);
+        $this->assertSame('Cairo', $branch['_existing']['governorate']['label']);
+        // The package itself is untouched — the old value only travels alongside.
+        $this->assertSame(['0100000000', '0111111111'], $branch['phone']);
+    }
+
+    public function test_preview_marks_rows_the_site_does_not_have_as_new(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $package = $this->buildPackage();
+        $this->wipeFacilityData();
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.facility.migration.preview'),
+            ['server_path' => basename($package)]
+        );
+
+        $response->assertOk();
+        $this->assertNull($response->json('facilities.0._existing'));
+        $this->assertNull($response->json('facilities.0.branches.0._existing'));
+    }
+
+    public function test_merge_matches_an_existing_facility_by_slug_without_any_id(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+
+        // What a spreadsheet import looks like: names and a slug, no ids at all.
+        $payload = [
+            'format' => 'ibusiness-medical/facility-migration',
+            'format_version' => 1,
+            'facilities' => [[
+                'slug' => 'sunrise-clinic',
+                'name' => ['en' => 'Sunrise Clinic', 'ar' => 'عيادة الشروق'],
+                'branches' => [[
+                    'name' => ['en' => 'Main Branch', 'ar' => 'الفرع الرئيسي'],
+                    'phone' => ['0100000000'],
+                ]],
+            ]],
+        ];
+        $json = tempnam(sys_get_temp_dir(), 'facility-sheet').'.json';
+        file_put_contents($json, json_encode($payload, JSON_UNESCAPED_UNICODE));
+
+        try {
+            app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+                ->import($json, ['mode' => 'merge']);
+        } finally {
+            @unlink($json);
+        }
+
+        // Updated in place rather than stacked as a second copy.
+        $this->assertSame(1, Facility::count());
+        $this->assertSame(1, FacilityBranch::count());
+        $this->assertSame(['0100000000'], FacilityBranch::first()->phone);
+    }
+
     public function test_dry_run_writes_nothing(): void
     {
         Storage::fake('public');

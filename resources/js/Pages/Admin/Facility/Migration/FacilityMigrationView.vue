@@ -252,9 +252,27 @@
         <!-- Step 1.5: preview / edit -->
         <div v-if="importStep === 'preview'" class="space-y-4">
           <div class="bg-card border border-border rounded-xl p-4 flex flex-wrap items-center gap-4">
-            <p class="text-sm font-medium">
-              {{ previewData.facilities.length }} facilities loaded — review and edit before importing.
-            </p>
+            <div class="space-y-1">
+              <p class="text-sm font-medium">
+                {{ previewData.facilities.length }} facilities loaded — review and edit before importing.
+              </p>
+              <div class="flex flex-wrap gap-1.5 text-[11px]">
+                <span class="rounded bg-emerald-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.facilitiesNew }} new facilit{{ previewCounts.facilitiesNew === 1 ? 'y' : 'ies' }}
+                </span>
+                <span class="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.facilitiesExisting }} facilit{{ previewCounts.facilitiesExisting === 1 ? 'y' : 'ies' }}
+                  already here — will be updated
+                </span>
+                <span class="rounded bg-emerald-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.branchesNew }} new branch{{ previewCounts.branchesNew === 1 ? '' : 'es' }}
+                </span>
+                <span class="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.branchesExisting }} branch{{ previewCounts.branchesExisting === 1 ? '' : 'es' }}
+                  already here
+                </span>
+              </div>
+            </div>
             <div class="ml-auto flex items-center gap-3 text-sm">
               <label class="flex items-center gap-1.5 cursor-pointer">
                 <input type="radio" value="merge" v-model="importMode" /> Merge
@@ -267,6 +285,10 @@
 
           <div v-if="importMode === 'fresh' && !dryRun" class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
             <strong class="text-destructive">Fresh mode deletes every existing facility, branch and image file.</strong>
+            <span class="text-muted-foreground">
+              The “already here” marks below describe a merge — in fresh mode every row is deleted and
+              created again, and the values shown as “now” go with them.
+            </span>
             <label class="mt-2 flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="confirmWipe" /> I understand — wipe and replace.
             </label>
@@ -277,6 +299,7 @@
               <thead class="bg-muted/50">
                 <tr class="border-b border-border">
                   <th class="px-2 py-2 text-left font-semibold w-10 sticky left-0 bg-muted/80 backdrop-blur z-10">#</th>
+                  <th class="px-2 py-2 text-left font-semibold w-28">Status</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (EN)</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (AR)</th>
                   <th class="px-2 py-2 text-left font-semibold w-40">Facility type</th>
@@ -302,8 +325,29 @@
                         {{ facility.branches.length }} br
                       </button>
                     </td>
-                    <td class="px-2 py-1"><input v-model="facility.name.en" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input v-model="facility.name.ar" :class="previewInputCls" /></td>
+                    <td class="px-2 py-1 align-top">
+                      <span :class="['inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', rowStateCls(facility)]">
+                        {{ rowStateLabel(facility) }}
+                      </span>
+                      <p v-if="facility._existing" class="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                        updates #{{ facility._existing.id }} ·
+                        {{ facility._existing.branches_count }} branch{{ facility._existing.branches_count === 1 ? '' : 'es' }} here now
+                      </p>
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      <input
+                        v-model="facility.name.en"
+                        :class="previewFieldCls(facility._existing, 'name.en', facility.name.en)"
+                      />
+                      <ExistingValueHint :existing="facility._existing" path="name.en" :current="facility.name.en" />
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      <input
+                        v-model="facility.name.ar"
+                        :class="previewFieldCls(facility._existing, 'name.ar', facility.name.ar)"
+                      />
+                      <ExistingValueHint :existing="facility._existing" path="name.ar" :current="facility.name.ar" />
+                    </td>
                     <td class="px-2 py-1 align-top">
                       <SearchableSelect
                         :model-value="facility._facility_typeChoice"
@@ -311,6 +355,12 @@
                         :search-keys="LOOKUP_SEARCH_KEYS"
                         placeholder="— use default type —"
                         @change="setFacilityType(facility, $event)"
+                      />
+                      <ExistingValueHint
+                        :existing="facility._existing"
+                        path="facility_type"
+                        :current="facility._facility_typeChoice"
+                        choice
                       />
                       <p
                         v-if="facility._facility_typeChoice === NEW_LOOKUP"
@@ -371,24 +421,47 @@
                               :class="branchIssues(br).length ? 'bg-red-500/5' : ''"
                             >
                               <td class="px-3 py-1">
-                                <input v-model="br.name.en" :class="[previewInputCls, branchIssues(br).length ? 'border-red-500' : '']" />
+                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', rowStateCls(br)]">
+                                  {{ rowStateLabel(br) }}
+                                  <template v-if="br._existing">#{{ br._existing.id }}</template>
+                                </span>
+                                <p v-if="movedFrom(facility, br)" class="mb-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400">
+                                  Sits under facility #{{ movedFrom(facility, br) }} today — importing moves it here.
+                                </p>
+                                <input
+                                  v-model="br.name.en"
+                                  :class="branchIssues(br).length
+                                    ? [previewInputCls, 'border-red-500']
+                                    : previewFieldCls(br._existing, 'name.en', br.name.en)"
+                                />
                                 <p v-if="branchIssues(br).length" class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
                                   {{ branchIssues(br).join(' · ') }}
                                 </p>
+                                <ExistingValueHint :existing="br._existing" path="name.en" :current="br.name.en" />
                               </td>
-                              <td class="px-3 py-1"><input v-model="br.name.ar" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input v-model="br.address.en" :class="previewInputCls" /></td>
+                              <td class="px-3 py-1">
+                                <input v-model="br.name.ar" :class="previewFieldCls(br._existing, 'name.ar', br.name.ar)" />
+                                <ExistingValueHint :existing="br._existing" path="name.ar" :current="br.name.ar" />
+                              </td>
+                              <td class="px-3 py-1">
+                                <input v-model="br.address.en" :class="previewFieldCls(br._existing, 'address.en', br.address.en)" />
+                                <ExistingValueHint :existing="br._existing" path="address.en" :current="br.address.en" />
+                              </td>
                               <td class="px-3 py-1">
                                 <textarea
                                   :value="br._phoneText"
                                   @input="setBranchPhones(br, $event.target.value)"
                                   rows="2"
                                   placeholder="One phone per line"
-                                  :class="[previewInputCls, 'min-w-[9rem] resize-y font-mono leading-tight']"
+                                  :class="[
+                                    previewFieldCls(br._existing, 'phone', br.phone),
+                                    'min-w-[9rem] resize-y font-mono leading-tight',
+                                  ]"
                                 ></textarea>
                                 <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
                                   {{ br.phone.length }} numbers
                                 </p>
+                                <ExistingValueHint :existing="br._existing" path="phone" :current="br.phone" />
                               </td>
                               <td class="px-3 py-1">
                                 <SearchableSelect
@@ -407,6 +480,12 @@
                                   “{{ br._governorateLabel }}” — not on this site yet. Pick one above, or leave it
                                   to be created on import.
                                 </p>
+                                <ExistingValueHint
+                                  :existing="br._existing"
+                                  path="governorate"
+                                  :current="br._governorateChoice"
+                                  choice
+                                />
                               </td>
                               <td class="px-3 py-1">
                                 <SearchableSelect
@@ -425,10 +504,43 @@
                                   “{{ br._cityLabel }}” — not among this governorate’s cities. Pick one above, or
                                   leave it to be matched or created on import.
                                 </p>
+                                <ExistingValueHint
+                                  :existing="br._existing"
+                                  path="city"
+                                  :current="br._cityChoice"
+                                  choice
+                                />
                               </td>
-                              <td class="px-3 py-1"><input type="number" step="any" v-model="br.latitude" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input type="number" step="any" v-model="br.longitude" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input v-model="br.google_location_url" :class="previewInputCls" placeholder="https://maps.app.goo.gl/..." /></td>
+                              <td class="px-3 py-1">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  v-model="br.latitude"
+                                  :class="previewFieldCls(br._existing, 'latitude', br.latitude, false, true)"
+                                />
+                                <ExistingValueHint :existing="br._existing" path="latitude" :current="br.latitude" numeric />
+                              </td>
+                              <td class="px-3 py-1">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  v-model="br.longitude"
+                                  :class="previewFieldCls(br._existing, 'longitude', br.longitude, false, true)"
+                                />
+                                <ExistingValueHint :existing="br._existing" path="longitude" :current="br.longitude" numeric />
+                              </td>
+                              <td class="px-3 py-1">
+                                <input
+                                  v-model="br.google_location_url"
+                                  placeholder="https://maps.app.goo.gl/..."
+                                  :class="previewFieldCls(br._existing, 'google_location_url', br.google_location_url)"
+                                />
+                                <ExistingValueHint
+                                  :existing="br._existing"
+                                  path="google_location_url"
+                                  :current="br.google_location_url"
+                                />
+                              </td>
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
                               </td>
@@ -539,6 +651,8 @@
 import { Link } from '@inertiajs/vue3';
 import FacilityLayout from '../FacilityLayout.vue';
 import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
+import ExistingValueHint from './ExistingValueHint.vue';
+import { oldValue } from './existingValue.js';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
 import { computed, ref } from 'vue';
 
@@ -665,7 +779,12 @@ const paginatedFacilities = computed(() => {
   const start = previewPage.value * previewPageSize;
   return previewData.value.facilities.slice(start, start + previewPageSize);
 });
-const previewInputCls = 'w-full px-1.5 py-1 rounded border border-input bg-background text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary';
+/* The text colour travels with the background rather than sitting in the base:
+   this theme's --foreground is near-white in light mode too — the admin sits on
+   a purple gradient — so a field painted a light colour has to say outright
+   which ink it wants, or it writes white on cream. */
+const previewInputBase = 'w-full px-1.5 py-1 rounded border placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary';
+const previewInputCls = `${previewInputBase} border-input bg-background text-foreground`;
 
 /* A package may spell a translatable field as { en, ar }, as a bare string
    (spreadsheet imports) or leave it out entirely — the editable inputs below
@@ -860,6 +979,52 @@ const setBranchCity = (branch, choice) => {
     applyChoice(branch, 'governorate', city.governorate_id, props.governorates);
   }
 };
+
+/* --------------------------- new or already here --------------------------- */
+
+/* The preview edits the package, so a facility that this site already knows
+   looks exactly like one it has never seen. `_existing` — put on the row by the
+   preview endpoint, using the same matching the import itself does — is what
+   tells them apart: the row a merge would land on, with the values it carries
+   today. It is stripped again before the edits go back. */
+
+const isExisting = (row) => !!row?._existing;
+
+const rowStateLabel = (row) => (isExisting(row) ? 'already here' : 'new');
+
+// Solid fills rather than tints: the preview table sits on a card whose own
+// background changes with the theme, and a 15%-opacity badge disappears into it.
+const rowStateCls = (row) =>
+  (isExisting(row) ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white');
+
+/* An input whose value the import would overwrite says so in its own colour
+   too — the old value alone under it is easy to read past on a wide table.
+   The amber is swapped in rather than tacked on: two border-colour utilities on
+   one element carry the same weight, so whichever the stylesheet happens to
+   define last would win, not the one meant to. */
+const previewInputChangedCls = `${previewInputBase} border-amber-600 bg-amber-100 text-amber-950 placeholder:text-amber-700 dark:border-amber-400 dark:bg-amber-900/50 dark:text-amber-50 dark:placeholder:text-amber-200`;
+
+const previewFieldCls = (existing, path, current, choice = false, numeric = false) =>
+  (oldValue(existing, path, current, choice, numeric) ? previewInputChangedCls : previewInputCls);
+
+// A branch can be found under another facility; merging moves it across.
+const movedFrom = (facility, branch) =>
+  (branch._existing && branch._existing.facility_id !== facility._existing?.id
+    ? branch._existing.facility_id
+    : null);
+
+const previewCounts = computed(() => {
+  const counts = { facilitiesNew: 0, facilitiesExisting: 0, branchesNew: 0, branchesExisting: 0 };
+
+  previewData.value.facilities.forEach((facility) => {
+    counts[isExisting(facility) ? 'facilitiesExisting' : 'facilitiesNew'] += 1;
+    (facility.branches || []).forEach((branch) => {
+      counts[isExisting(branch) ? 'branchesExisting' : 'branchesNew'] += 1;
+    });
+  });
+
+  return counts;
+});
 
 /* ------------------------------ branch health ------------------------------ */
 

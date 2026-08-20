@@ -87,7 +87,10 @@
           </div>
 
           <!-- Options list -->
-          <div class="max-h-[240px] overflow-y-auto p-1 select-dropdown-scrollbar">
+          <div
+            class="overflow-y-auto p-1 select-dropdown-scrollbar"
+            :style="{ maxHeight: `${listMaxHeight}px` }"
+          >
             <!-- Clear / placeholder option -->
             <div
               v-if="placeholder"
@@ -157,12 +160,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
+/* The menu is fixed-positioned, so it has to be told where to go. A trigger low
+   on a long page has no room under it — the menu would hang off the bottom of
+   the window, out of reach — so it opens upwards instead whenever that is where
+   the space actually is, and the list shrinks to whatever is left either way. */
+const DROPDOWN_GAP = 4;
+const SEARCH_BOX_HEIGHT = 53; // the search row, its padding and bottom border
+const LIST_MAX_HEIGHT = 240;
+const LIST_MIN_HEIGHT = 120;
+
 const isOpen = ref(false);
 const query = ref('');
 const selectContainer = ref(null);
 const dropdownMenu = ref(null);
 const searchInput = ref(null);
 const dropdownStyle = ref({});
+const listMaxHeight = ref(LIST_MAX_HEIGHT);
 
 const fuse = computed(() => new Fuse(props.options, {
   keys: props.searchKeys,
@@ -196,11 +209,33 @@ const selectFirst = () => {
 
 const updatePosition = () => {
   if (!selectContainer.value || !isOpen.value) return;
+
   const rect = selectContainer.value.getBoundingClientRect();
+  const below = window.innerHeight - rect.bottom - DROPDOWN_GAP * 2;
+  const above = rect.top - DROPDOWN_GAP * 2;
+
+  // Downwards is the default; flip only when the menu would not fit there and
+  // there is genuinely more room overhead.
+  const flip = below < LIST_MAX_HEIGHT + SEARCH_BOX_HEIGHT && above > below;
+  const room = flip ? above : below;
+
+  listMaxHeight.value = Math.max(
+    LIST_MIN_HEIGHT,
+    Math.min(LIST_MAX_HEIGHT, room - SEARCH_BOX_HEIGHT)
+  );
+
+  // Flipped, the menu hangs from its bottom edge, so a short list still sits
+  // right above the trigger instead of floating away from it.
+  const vertical = flip
+    ? { bottom: `${window.innerHeight - rect.top + DROPDOWN_GAP}px` }
+    : { top: `${rect.bottom + DROPDOWN_GAP}px` };
+
+  const width = Math.max(rect.width, 128); // the menu's own min-w-[8rem]
+
   dropdownStyle.value = {
     position: 'fixed',
-    top: `${rect.bottom + 4}px`,
-    left: `${rect.left}px`,
+    ...vertical,
+    left: `${Math.max(DROPDOWN_GAP, Math.min(rect.left, window.innerWidth - width - DROPDOWN_GAP))}px`,
     width: `${rect.width}px`,
     zIndex: 9999,
   };

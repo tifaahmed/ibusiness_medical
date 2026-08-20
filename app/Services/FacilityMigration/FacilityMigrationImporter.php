@@ -57,6 +57,15 @@ class FacilityMigrationImporter
     /** @var array<string, int|null> */
     private array $userCache = [];
 
+    /**
+     * Every facility already on this site, folded to the spellings a package
+     * could name it by. Built once per run: giving each incoming facility its
+     * own full-table scan would make a large package quadratic.
+     *
+     * @var array{slug: array<string, int>, strict: array<string, int>, loose: array<string, int>}|null
+     */
+    private ?array $facilityIndex = null;
+
     /** @var array<string, array<string, mixed>> cities lookup block, keyed by slug */
     private array $cityLookup = [];
 
@@ -550,6 +559,9 @@ class FacilityMigrationImporter
             // Deletes the facility's media files too; branches go by FK cascade.
             $facility->delete();
         }
+
+        // Nothing is left to match against.
+        $this->facilityIndex = null;
     }
 
     /**
@@ -591,6 +603,12 @@ class FacilityMigrationImporter
         $this->stampRow($facility, $slug, $data['created_at'] ?? null, $data['updated_at'] ?? null, $nulls);
         $this->bump($existing ? 'facilities_updated' : 'facilities_created');
 
+        // A package that names the same facility twice must land on one row, so
+        // what this run just created has to be findable by the next payload.
+        if (! $existing && $this->facilityIndex !== null) {
+            $this->addToFacilityIndex($this->facilityIndex, $facility);
+        }
+
         $this->syncTags($facility, $data['tags'] ?? []);
         $this->restoreMedia($facility, $data['media'] ?? [], $addedMediaPaths);
         $this->restoreOffers($facility, $data['offers'] ?? [], $addedMediaPaths);
@@ -610,13 +628,7 @@ class FacilityMigrationImporter
         $existing = null;
 
         if ($mode === self::MODE_MERGE) {
-            $existing = ! empty($data['id']) ? FacilityBranch::where('id', $data['id'])->first() : null;
-            if (! $existing) {
-                $nameEn = $data['name']['en'] ?? null;
-                if ($nameEn) {
-                    $existing = $facility->branches()->where('name->en', $nameEn)->first();
-                }
-            }
+            $existing = $this->findExistingBranch($facility, $data);
             // A branch found under a different facility still belongs to this one.
             if ($existing && $existing->facility_id !== $facility->id) {
                 $existing->facility_id = $facility->id;
@@ -1446,6 +1458,7 @@ class FacilityMigrationImporter
         $this->salesCache = [];
         $this->tagCache = [];
         $this->userCache = [];
+        $this->facilityIndex = null;
     }
 
     /**
@@ -1487,9 +1500,212 @@ class FacilityMigrationImporter
     private function findExistingFacility(array $data): ?Facility
     {
         if (! empty($data['id'])) {
-            return Facility::where('id', $data['id'])->first();
+            $byId = Facility::where('id', $data['id'])->first();
+            if ($byId) {
+                return $byId;
+            }
+        }
+
+        // Merge is advertised as "update by slug, insert what is missing", and a
+        // package built from a spreadsheet carries no ids at all — so the slug
+        // and the name have to be able to find the row too, or every re-import
+        // would stack a second copy of the same facility.
+        $id = $this->facilityIndexLookup([
+            'slug' => $data['slug'] ?? null,
+            'name' => $this->arrayOrEmpty($data['name'] ?? []),
+        ]);
+
+        return $id ? Facility::find($id) : null;
+    }
+
+    /**
+     * The branch a merge would land on: the id it carries, else the one this
+     * facility already keeps under that slug or name.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function findExistingBranch(?Facility $facility, array $data): ?FacilityBranch
+    {
+        if (! empty($data['id'])) {
+            $byId = FacilityBranch::where('id', $data['id'])->first();
+            if ($byId) {
+                return $byId;
+            }
+        }
+
+        if (! $facility || ! $facility->exists) {
+            return null;
+        }
+
+        $match = $this->matchBySlugOrName(
+            FacilityBranch::query()->where('facility_id', $facility->id),
+            [
+                'slug' => $data['slug'] ?? null,
+                'name' => $this->arrayOrEmpty($data['name'] ?? []),
+            ]
+        );
+
+        return $match instanceof FacilityBranch ? $match : null;
+    }
+
+    /**
+     * What this site already holds for a facility payload: the row a merge
+     * would land on and the values it carries today, branch by branch. Writes
+     * nothing.
+     *
+     * The preview screen reads it to mark each row new or existing and to print
+     * the current value under every input it is about to overwrite — so it has
+     * to answer with exactly the rows the import itself would touch, which is
+     * why the matching lives here rather than in the controller.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{facility: array<string, mixed>|null, branches: array<int, array<string, mixed>|null>}
+     */
+    public function describeTarget(array $data): array
+    {
+        $facility = $this->findExistingFacility($data);
+        $branches = [];
+
+        foreach (array_values($this->arrayOrEmpty($data['branches'] ?? [])) as $i => $branchData) {
+            $match = $this->findExistingBranch($facility, $this->arrayOrEmpty($branchData));
+            $branches[$i] = $match ? $this->branchSnapshot($match) : null;
+        }
+
+        return [
+            'facility' => $facility ? $this->facilitySnapshot($facility) : null,
+            'branches' => $branches,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function facilitySnapshot(Facility $facility): array
+    {
+        $facility->loadMissing('facilityType');
+
+        return [
+            'id' => $facility->id,
+            'slug' => $facility->slug,
+            'name' => $this->snapshotTranslations($facility, 'name'),
+            'facility_type' => $facility->facilityType
+                ? ['id' => $facility->facilityType->getKey(), 'label' => $this->snapshotLabel($facility->facilityType)]
+                : null,
+            'branches_count' => $facility->branches()->count(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function branchSnapshot(FacilityBranch $branch): array
+    {
+        $branch->loadMissing(['governorate', 'city']);
+
+        return [
+            'id' => $branch->id,
+            'slug' => $branch->slug,
+            'facility_id' => $branch->facility_id,
+            'name' => $this->snapshotTranslations($branch, 'name'),
+            'address' => $this->snapshotTranslations($branch, 'address'),
+            'phone' => array_values(array_map('strval', $this->arrayOrEmpty($branch->phone))),
+            'governorate' => $branch->governorate
+                ? ['id' => $branch->governorate->getKey(), 'label' => $this->snapshotLabel($branch->governorate)]
+                : null,
+            'city' => $branch->city
+                ? ['id' => $branch->city->getKey(), 'label' => $this->snapshotLabel($branch->city)]
+                : null,
+            'latitude' => $branch->latitude === null ? null : (string) $branch->latitude,
+            'longitude' => $branch->longitude === null ? null : (string) $branch->longitude,
+            'google_location_url' => $branch->google_location_url,
+        ];
+    }
+
+    /**
+     * The stored translations as they are — no locale fallback, because the
+     * preview puts each one under its own input.
+     *
+     * @return array<string, string>
+     */
+    private function snapshotTranslations(Model $model, string $column): array
+    {
+        $all = $model->getTranslations($column);
+
+        return ['en' => (string) ($all['en'] ?? ''), 'ar' => (string) ($all['ar'] ?? '')];
+    }
+
+    private function snapshotLabel(Model $model): string
+    {
+        $en = (string) $model->getTranslation('name', 'en');
+        $ar = (string) $model->getTranslation('name', 'ar');
+        $current = (string) $model->getTranslation('name', app()->getLocale());
+
+        return $current ?: ($en ?: $ar);
+    }
+
+    /**
+     * Which existing facility a slug or name points at.
+     *
+     * @param  array{slug: string|null, name: array<string, mixed>}  $ref
+     */
+    private function facilityIndexLookup(array $ref): ?int
+    {
+        $index = $this->facilityIndex ??= $this->buildFacilityIndex();
+
+        $slug = $ref['slug'] ?? null;
+        if ($slug && isset($index['slug'][$slug])) {
+            return $index['slug'][$slug];
+        }
+
+        $want = $this->foldedSpellings(array_merge(array_values($ref['name'] ?? []), [$slug]));
+
+        // Exact spellings across the whole site first, so a loose neighbour can
+        // never take a row the package names outright.
+        foreach (['strict', 'loose'] as $pass) {
+            foreach ($want[$pass] as $spelling) {
+                if (isset($index[$pass][$spelling])) {
+                    return $index[$pass][$spelling];
+                }
+            }
         }
 
         return null;
+    }
+
+    /**
+     * @return array{slug: array<string, int>, strict: array<string, int>, loose: array<string, int>}
+     */
+    private function buildFacilityIndex(): array
+    {
+        $index = ['slug' => [], 'strict' => [], 'loose' => []];
+
+        Facility::query()->select(['id', 'name', 'slug'])->cursor()->each(
+            function (Facility $facility) use (&$index): void {
+                $this->addToFacilityIndex($index, $facility);
+            }
+        );
+
+        return $index;
+    }
+
+    /**
+     * @param  array{slug: array<string, int>, strict: array<string, int>, loose: array<string, int>}  $index
+     */
+    private function addToFacilityIndex(array &$index, Facility $facility): void
+    {
+        if ($facility->slug) {
+            $index['slug'][$facility->slug] ??= $facility->id;
+        }
+
+        $spellings = $this->foldedSpellings(array_merge(
+            array_values($facility->getTranslations('name')),
+            [$facility->slug]
+        ));
+
+        foreach (['strict', 'loose'] as $pass) {
+            foreach ($spellings[$pass] as $spelling) {
+                $index[$pass][$spelling] ??= $facility->id;
+            }
+        }
     }
 }

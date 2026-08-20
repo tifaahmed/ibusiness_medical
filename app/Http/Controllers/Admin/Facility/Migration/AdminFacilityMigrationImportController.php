@@ -66,8 +66,9 @@ class AdminFacilityMigrationImportController extends BaseController
             for ($i = 0; $i < $total; $i++) {
                 $file = sprintf('%s/%06d.json', $dir, $i);
                 if (is_file($file)) {
+                    $facility = json_decode(file_get_contents($file), true) ?: [];
                     $facilities[] = array_merge(
-                        json_decode(file_get_contents($file), true) ?: [],
+                        $this->withExistingRows($facility),
                         ['_index' => $i]
                     );
                 }
@@ -242,6 +243,34 @@ class AdminFacilityMigrationImportController extends BaseController
         $this->importer->endSession($validated['token']);
 
         return response()->json(['message' => 'Import session discarded.']);
+    }
+
+    /**
+     * Mark up a facility payload with what this site already holds for it: the
+     * facility row a merge would land on, and the same for each of its
+     * branches. Both come back under `_existing` — a key the preview screen
+     * strips again before sending its edits back, so it never reaches the
+     * session files or the import itself.
+     *
+     * @param  array<string, mixed>  $facility
+     * @return array<string, mixed>
+     */
+    private function withExistingRows(array $facility): array
+    {
+        $target = $this->importer->describeTarget($facility);
+
+        $facility['_existing'] = $target['facility'];
+
+        if (is_array($facility['branches'] ?? null)) {
+            $facility['branches'] = array_values($facility['branches']);
+            foreach ($facility['branches'] as $i => $branch) {
+                if (is_array($branch)) {
+                    $facility['branches'][$i]['_existing'] = $target['branches'][$i] ?? null;
+                }
+            }
+        }
+
+        return $facility;
     }
 
     /**

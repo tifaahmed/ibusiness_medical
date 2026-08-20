@@ -195,8 +195,25 @@ class XlsxToMigrationZip
             'city' => ['city'],
             'latitude' => ['latitude', 'lat'],
             'longitude' => ['longitude', 'lng', 'long'],
-            'google_location_url' => ['google_location_url', 'google url', 'location url', 'map url'],
+            'google_location_url' => [
+                'google location url', 'google_location_url', 'google url', 'location url',
+                'map url', 'google maps url', 'google map url', 'google maps link', 'map link',
+                'google maps', 'google map', 'google location',
+            ],
         ]);
+    }
+
+    /**
+     * One column heading, reduced to the words in it. A heading and the alias
+     * it is meant to match are often the same words dressed differently — the
+     * template writes "Google Location URL" while the alias reads
+     * "google_location_url" — and comparing the raw labels means a filled-in
+     * column is read as empty. Spaces, underscores, dashes and brackets all
+     * become one separator, so every dressing of the same heading lands here.
+     */
+    private function headerKey(string $label): string
+    {
+        return trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower(trim($label))));
     }
 
     private function extractRows($sheet, array $columnAliases): array
@@ -208,7 +225,7 @@ class XlsxToMigrationZip
         $knownHeaders = [];
         foreach ($columnAliases as $candidates) {
             foreach ($candidates as $c) {
-                $knownHeaders[mb_strtolower($c)] = true;
+                $knownHeaders[$this->headerKey($c)] = true;
             }
         }
 
@@ -216,8 +233,8 @@ class XlsxToMigrationZip
         $headerRow = null;
         for ($r = 1; $r <= min($highestRow, 10); $r++) {
             for ($col = 'A'; $col <= $highestCol; $col++) {
-                $val = mb_strtolower(trim((string) $sheet->getCell("{$col}{$r}")->getValue()));
-                if ($val === '#' || isset($knownHeaders[$val])) {
+                $val = trim((string) $sheet->getCell("{$col}{$r}")->getValue());
+                if ($val === '#' || isset($knownHeaders[$this->headerKey($val)])) {
                     $headerRow = $r;
                     break 2;
                 }
@@ -233,7 +250,7 @@ class XlsxToMigrationZip
         for ($col = 'A'; $col <= $highestCol; $col++) {
             $val = trim((string) $sheet->getCell("{$col}{$headerRow}")->getValue());
             if ($val !== '') {
-                $headerMap[mb_strtolower($val)] = $col;
+                $headerMap[$this->headerKey($val)] = $col;
             }
         }
 
@@ -248,8 +265,9 @@ class XlsxToMigrationZip
             foreach ($columnAliases as $key => $candidates) {
                 $row[$key] = '';
                 foreach ($candidates as $candidate) {
-                    if (isset($headerMap[mb_strtolower($candidate)])) {
-                        $v = $sheet->getCell("{$headerMap[mb_strtolower($candidate)]}{$r}")->getValue();
+                    $column = $headerMap[$this->headerKey($candidate)] ?? null;
+                    if ($column !== null) {
+                        $v = $sheet->getCell("{$column}{$r}")->getValue();
                         $row[$key] = trim((string) ($v ?? ''));
                         break;
                     }
