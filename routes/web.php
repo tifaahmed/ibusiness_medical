@@ -70,6 +70,16 @@ use App\Http\Controllers\Admin\ProductType\List\AdminProductTypeListController;
 use App\Http\Controllers\Admin\ProductType\Show\AdminProductTypeShowController;
 use App\Http\Controllers\Admin\ProductType\Store\AdminProductTypeStoreController;
 use App\Http\Controllers\Admin\ProductType\Update\AdminProductTypeUpdateController;
+
+// Product Routes
+use App\Http\Controllers\Admin\Product\Create\AdminProductCreateController;
+use App\Http\Controllers\Admin\Product\Delete\AdminProductDeleteController;
+use App\Http\Controllers\Admin\Product\Edit\AdminProductEditController;
+use App\Http\Controllers\Admin\Product\List\AdminProductListController;
+use App\Http\Controllers\Admin\Product\Show\AdminProductShowController;
+use App\Http\Controllers\Admin\Product\Store\AdminProductStoreController;
+use App\Http\Controllers\Admin\Product\Update\AdminProductUpdateController;
+
 use App\Http\Controllers\Admin\Faq\Create\AdminFaqCreateController;
 use App\Http\Controllers\Admin\Faq\Delete\AdminFaqDeleteController;
 use App\Http\Controllers\Admin\Faq\Edit\AdminFaqEditController;
@@ -432,6 +442,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
         Route::post('/admin/facility/migration/finish', [AdminFacilityMigrationImportController::class, 'finish'])->name('admin.facility.migration.finish');
         Route::post('/admin/facility/migration/cancel', [AdminFacilityMigrationImportController::class, 'cancel'])->name('admin.facility.migration.cancel');
+        // The preview refuses to import a branch pointing at a governorate or
+        // city this site lacks; this makes the missing one without leaving it.
+        Route::post('/admin/facility/migration/lookup', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationLookupController::class)->name('admin.facility.migration.lookup.store');
         // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
         Route::post('/admin/facility/seo/generate', AdminFacilitySeoGenerateController::class)->name('admin.facility.seo.generate');
         Route::get('/admin/facility/{facility}', AdminFacilityShowController::class)->name('admin.facility.show');
@@ -489,6 +502,17 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/product-type/{productType}/edit', AdminProductTypeEditController::class)->name('admin.product-type.edit');
         Route::put('/admin/product-type/{productType}', AdminProductTypeUpdateController::class)->name('admin.product-type.update');
         Route::delete('/admin/product-type/{productType}', AdminProductTypeDeleteController::class)->name('admin.product-type.destroy');
+    });
+
+    // ---- Product (manage products OR own) ----
+    Route::middleware('permission:manage products|manage own products')->group(function () {
+        Route::get('/admin/product', AdminProductListController::class)->name('admin.product.list');
+        Route::get('/admin/product/create', AdminProductCreateController::class)->name('admin.product.create');
+        Route::post('/admin/product', AdminProductStoreController::class)->name('admin.product.store');
+        Route::get('/admin/product/{product}', AdminProductShowController::class)->name('admin.product.show');
+        Route::get('/admin/product/{product}/edit', AdminProductEditController::class)->name('admin.product.edit');
+        Route::put('/admin/product/{product}', AdminProductUpdateController::class)->name('admin.product.update');
+        Route::delete('/admin/product/{product}', AdminProductDeleteController::class)->name('admin.product.destroy');
     });
 
     // ---- Offer (manage offers OR own) ----

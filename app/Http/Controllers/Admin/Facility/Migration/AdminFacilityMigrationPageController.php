@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Facility\Migration;
 
+use App\Http\Controllers\Admin\Facility\Migration\Concerns\LookupOptions;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\City;
 use App\Models\Facility;
@@ -9,13 +10,14 @@ use App\Models\FacilityBranch;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminFacilityMigrationPageController extends BaseController
 {
+    use LookupOptions;
+
     public function __invoke(): Response
     {
         return Inertia::render('Admin/Facility/Migration/FacilityMigrationView', [
@@ -40,24 +42,5 @@ class AdminFacilityMigrationPageController extends BaseController
                 'label' => $s->getRawOriginal('name'),
             ])->values(),
         ]);
-    }
-
-    /**
-     * One dropdown option for a translatable lookup row.
-     *
-     * @return array<string, mixed>
-     */
-    private function option(Model $model): array
-    {
-        $en = $model->getTranslation('name', 'en');
-        $ar = $model->getTranslation('name', 'ar');
-
-        return [
-            'value' => $model->getKey(),
-            'label' => $model->getTranslation('name', app()->getLocale()) ?: ($en ?: $ar),
-            'name_en' => $en ?: null,
-            'name_ar' => $ar ?: null,
-            'slug' => $model->slug ?? null,
-        ];
     }
 }

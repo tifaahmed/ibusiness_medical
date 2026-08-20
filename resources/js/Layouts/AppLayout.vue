@@ -358,12 +358,12 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarDropdown
-                    v-if="canAny('manage product types', 'manage own product types')"
+                    v-if="canAny('manage product types', 'manage own product types', 'manage products', 'manage own products')"
                     :label="t.sidebar?.products || 'Products'"
                     :is-collapsed="sidebarCollapsed"
-                    :active="route().current('admin.product-type.*')"
+                    :active="route().current('admin.product-type.*') || route().current('admin.product.*')"
                     icon-animation="animate-icon-breathe"
-                    :auto-open="['/admin/product-type']"
+                    :auto-open="['/admin/product-type', '/admin/product']"
                 >
                     <template #icon>
                         <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,11 +372,21 @@ const getUserInitials = (name) => {
                     </template>
 
                     <SidebarSubLink
+                        v-if="canAny('manage product types', 'manage own product types')"
                         :href="route('admin.product-type.list')"
                         :active="route().current('admin.product-type.*')"
                         @click="closeSidebar"
                     >
                         {{ t.sidebar?.product_types || 'Product Types' }}
+                    </SidebarSubLink>
+
+                    <SidebarSubLink
+                        v-if="canAny('manage products', 'manage own products')"
+                        :href="route('admin.product.list')"
+                        :active="route().current('admin.product.*')"
+                        @click="closeSidebar"
+                    >
+                        {{ t.sidebar?.products_list || 'Products' }}
                     </SidebarSubLink>
                 </SidebarDropdown>
 

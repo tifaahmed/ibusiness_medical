@@ -74,6 +74,10 @@ enum UserPermissionEnum
 
     public const MANAGE_OWN_PRODUCT_TYPES = 'manage own product types';
 
+    public const MANAGE_PRODUCTS = 'manage products';
+
+    public const MANAGE_OWN_PRODUCTS = 'manage own products';
+
     public const MANAGE_FACILITY_BRANCHES = 'manage facility branches';
 
     public const MANAGE_OWN_FACILITY_BRANCHES = 'manage own facility branches';
@@ -181,6 +185,7 @@ enum UserPermissionEnum
             [self::MANAGE_FACILITIES, self::MANAGE_OWN_FACILITIES],
             [self::MANAGE_FACILITY_BRANCHES, self::MANAGE_OWN_FACILITY_BRANCHES],
             [self::MANAGE_PRODUCT_TYPES, self::MANAGE_OWN_PRODUCT_TYPES],
+            [self::MANAGE_PRODUCTS, self::MANAGE_OWN_PRODUCTS],
             [self::MANAGE_GOVERNORATES, self::MANAGE_OWN_GOVERNORATES],
             [self::MANAGE_CONTACT_MESSAGES, self::MANAGE_OWN_CONTACT_MESSAGES],
             [self::MANAGE_FAQS, self::MANAGE_OWN_FAQS],

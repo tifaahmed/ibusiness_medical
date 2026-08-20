@@ -45,4 +45,12 @@ class Tag extends Model
     {
         return $this->belongsToMany(Facility::class, 'facility_tag');
     }
+
+    /**
+     * Get the products that have this tag.
+     */
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'product_tag');
+    }
 }

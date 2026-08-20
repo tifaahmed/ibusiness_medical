@@ -477,8 +477,15 @@
                                   v-if="br._governorateChoice === NEW_LOOKUP"
                                   class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
                                 >
-                                  “{{ br._governorateLabel }}” — not on this site yet. Pick one above, or leave it
-                                  to be created on import.
+                                  "{{ br._governorateLabel }}" — not on this site yet.
+                                  <button
+                                    type="button"
+                                    class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
+                                    :disabled="quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}`"
+                                    @click="quickCreateLookup(br, 'governorate', br)"
+                                  >
+                                    {{ quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
+                                  </button>
                                 </p>
                                 <ExistingValueHint
                                   :existing="br._existing"
@@ -501,8 +508,15 @@
                                   v-if="br._cityChoice === NEW_LOOKUP"
                                   class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
                                 >
-                                  “{{ br._cityLabel }}” — not among this governorate’s cities. Pick one above, or
-                                  leave it to be matched or created on import.
+                                  "{{ br._cityLabel }}" — not among this governorate's cities.
+                                  <button
+                                    type="button"
+                                    class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
+                                    :disabled="quickCreateLoading === `city-${br.name?.en || br.name?.ar}` || !br._governorateChoice || br._governorateChoice === NEW_LOOKUP"
+                                    @click="quickCreateLookup(br, 'city', br)"
+                                  >
+                                    {{ quickCreateLoading === `city-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
+                                  </button>
                                 </p>
                                 <ExistingValueHint
                                   :existing="br._existing"
@@ -574,7 +588,7 @@
             <button
               type="button"
               @click="startImportFromPreview"
-              :disabled="busy || previewData.facilities.length === 0 || (importMode === 'fresh' && !dryRun && !confirmWipe)"
+              :disabled="busy || previewData.facilities.length === 0 || hasLookupIssues || (importMode === 'fresh' && !dryRun && !confirmWipe)"
               class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-9 px-4 disabled:opacity-50 btn-golden cursor-pointer"
             >
               {{ busy ? 'Saving edits…' : 'Start import' }}
@@ -835,6 +849,12 @@ const setBranchPhones = (branch, text) => {
 
 const NEW_LOOKUP = '__new__';
 
+/* The page loads the governorates and cities this site has today, but the
+   preview can add to them: a place the package names and this site lacks is
+   created from the row that needs it, and joins the pickers straight away. */
+const governorateList = ref([...props.governorates]);
+const cityList = ref([...props.cities]);
+
 // What the package calls this row, for display and for creating it if kept.
 const refLabel = (ref) => String(ref?.name?.en || ref?.name?.ar || ref?.slug || '').trim();
 
@@ -900,7 +920,9 @@ const applyChoice = (owner, field, choice, options) => {
   owner[`${prefix}Choice`] = String(choice);
 
   if (choice === NEW_LOOKUP) {
-    owner[field] = { name: { en: owner[`${prefix}Label`], ar: '' } };
+    // Both spellings the package carried, not just the one the label shows —
+    // creating the row from an Arabic name should not drop its English one.
+    owner[field] = { name: { ...(owner[`${prefix}Names`] || { en: owner[`${prefix}Label`], ar: '' }) } };
 
     return;
   }
@@ -921,8 +943,50 @@ const normalizeLookup = (owner, field, raw, options) => {
   const match = findLookup(ref, options);
 
   owner[`_${field}Label`] = label;
+  owner[`_${field}Names`] = { en: ref.name?.en || '', ar: ref.name?.ar || '' };
   owner[`_${field}Unknown`] = label !== '' && !match;
   applyChoice(owner, field, match ? match.value : (label !== '' ? NEW_LOOKUP : ''), options);
+};
+
+/* Quick-create a governorate or city that the package named but this site
+   does not have yet. The backend deduplicates, so two branches pointing at
+   the same missing city both end up with one shared row. */
+const quickCreateLoading = ref(null);
+
+const quickCreateLookup = async (owner, field, branch) => {
+  const type = field === 'governorate' ? 'governorate' : 'city';
+  const label = branch[`_${field}Label`];
+  if (!label) return;
+
+  const names = branch[`_${field}Names`] || {};
+  const payload = { type, name_en: names.en || label, name_ar: names.ar || '' };
+  if (type === 'city') {
+    payload.governorate_id = branch._governorateChoice;
+  }
+
+  const key = `${field}-${branch.name?.en || branch.name?.ar || ''}`;
+  quickCreateLoading.value = key;
+  try {
+    const { data } = await axios.post(route('admin.facility.migration.lookup.store'), payload);
+    const option = data.option;
+
+    // Push into the global list so the select can see it.
+    const list = field === 'governorate' ? governorateList : cityList;
+    if (!list.value.some(o => String(o.value) === String(option.value))) {
+      list.value.push(option);
+    }
+
+    applyChoice(branch, field, option.value, list.value);
+
+    // If we just created a governorate, the city list changed — re-normalize.
+    if (type === 'governorate') {
+      normalizeLookup(branch, 'city', branch.city, citiesFor(branch));
+    }
+  } catch (e) {
+    importError.value = e.response?.data?.message || `Could not create the ${type}.`;
+  } finally {
+    quickCreateLoading.value = null;
+  }
 };
 
 const setFacilityType = (facility, choice) =>
@@ -938,7 +1002,7 @@ const facilityTypeOptions = (facility) =>
   withNewOption(props.facilityTypes, facility._facility_typeUnknown, facility._facility_typeLabel);
 
 const governorateOptions = (branch) =>
-  withNewOption(props.governorates, branch._governorateUnknown, branch._governorateLabel);
+  withNewOption(governorateList.value, branch._governorateUnknown, branch._governorateLabel);
 
 const cityOptions = (branch) =>
   withNewOption(citiesFor(branch), branch._cityUnknown, branch._cityLabel);
@@ -954,7 +1018,7 @@ const lookupError = (choice) => (choice === '' ? 'Nothing picked' : null);
    the branch is set to — and a city that no longer fits it is dropped rather
    than quietly importing under the wrong one. */
 const citiesFor = (branch) => {
-  const cities = props.cities || [];
+  const cities = cityList.value;
   const gov = branch._governorateChoice;
   if (!gov || gov === NEW_LOOKUP) return cities;
 
@@ -962,21 +1026,21 @@ const citiesFor = (branch) => {
 };
 
 const setBranchGovernorate = (branch, choice) => {
-  applyChoice(branch, 'governorate', choice, props.governorates);
+  applyChoice(branch, 'governorate', choice, governorateList.value);
 
-  const city = (props.cities || []).find(c => String(c.value) === String(branch._cityChoice));
+  const city = cityList.value.find(c => String(c.value) === String(branch._cityChoice));
   if (city && !citiesFor(branch).includes(city)) {
     setBranchCity(branch, branch._cityLabel ? NEW_LOOKUP : '');
   }
 };
 
 const setBranchCity = (branch, choice) => {
-  applyChoice(branch, 'city', choice, props.cities);
+  applyChoice(branch, 'city', choice, cityList.value);
 
   // Picking a city that belongs elsewhere settles the governorate too.
-  const city = (props.cities || []).find(c => String(c.value) === String(choice));
+  const city = cityList.value.find(c => String(c.value) === String(choice));
   if (city && String(branch._governorateChoice) !== String(city.governorate_id)) {
-    applyChoice(branch, 'governorate', city.governorate_id, props.governorates);
+    applyChoice(branch, 'governorate', city.governorate_id, governorateList.value);
   }
 };
 
@@ -1060,6 +1124,14 @@ const branchBadgeCls = (facility) =>
     ? 'bg-red-600 text-white'
     : 'bg-emerald-600 text-white';
 
+const hasLookupIssues = computed(() =>
+  previewData.value.facilities.some(f =>
+    (f.branches || []).some(b =>
+      b._governorateChoice === NEW_LOOKUP || b._cityChoice === NEW_LOOKUP
+    )
+  )
+);
+
 const inspectPackage = async () => {
   busy.value = true;
   importError.value = '';
@@ -1084,7 +1156,7 @@ const inspectPackage = async () => {
             };
 
             // Governorate first: it decides which cities the city picker offers.
-            normalizeLookup(branch, 'governorate', b.governorate, props.governorates);
+            normalizeLookup(branch, 'governorate', b.governorate, governorateList.value);
             normalizeLookup(branch, 'city', b.city, citiesFor(branch));
 
             return branch;
