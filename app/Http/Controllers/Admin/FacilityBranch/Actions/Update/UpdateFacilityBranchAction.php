@@ -44,6 +44,7 @@ class UpdateFacilityBranchAction
                 'city_id' => $validated['city_id'] ?? null,
                 'latitude' => $validated['latitude'] ?? null,
                 'longitude' => $validated['longitude'] ?? null,
+                'google_location_url' => $validated['google_location_url'] ?? null,
                 'name' => $validated['name'] ?? null,
                 'address' => $validated['address'] ?? null,
                 'phone' => $phone,
@@ -95,6 +96,7 @@ class UpdateFacilityBranchAction
             'city_id' => $branch->city_id,
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
+            'google_location_url' => $branch->google_location_url,
         ];
     }
 

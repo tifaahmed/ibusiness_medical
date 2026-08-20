@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
+use App\Models\City;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -29,6 +30,7 @@ class AdminFacilityExportController extends BaseController
             'facility_type_id' => $request->filled('facility_type_id') ? (int) $request->input('facility_type_id') : null,
             'sales_id' => $request->filled('sales_id') ? (int) $request->input('sales_id') : null,
             'governorate_id' => $request->filled('governorate_id') ? (int) $request->input('governorate_id') : null,
+            'city_id' => $request->filled('city_id') ? (int) $request->input('city_id') : null,
             'created_from' => $request->filled('created_from') ? $request->input('created_from') : null,
             'created_to' => $request->filled('created_to') ? $request->input('created_to') : null,
         ];
@@ -51,7 +53,8 @@ class AdminFacilityExportController extends BaseController
             })
             ->when($filters['facility_type_id'] !== null, fn ($q) => $q->where('facility_type_id', $filters['facility_type_id']))
             ->when($filters['sales_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sales_id']))
-            ->when($filters['governorate_id'] !== null, fn ($q) => $q->where('governorate_id', $filters['governorate_id']))
+            ->when($filters['governorate_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('governorate_id', $filters['governorate_id'])))
+            ->when($filters['city_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('city_id', $filters['city_id'])))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
             ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest()
@@ -63,11 +66,14 @@ class AdminFacilityExportController extends BaseController
         $govName = $filters['governorate_id'] !== null
             ? (Governorate::find($filters['governorate_id'])?->getTranslation('name', 'en') ?? "#{$filters['governorate_id']}")
             : 'All governorates';
+        $cityName = $filters['city_id'] !== null
+            ? (City::find($filters['city_id'])?->getTranslation('name', 'en') ?? "#{$filters['city_id']}")
+            : 'All cities';
 
         $timestamp = now()->format('Y-m-d_His');
 
         if ($chunkSize === 0 || $facilities->count() <= $chunkSize) {
-            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $filters, $includeBranches);
+            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $cityName, $filters, $includeBranches);
             $filename = ($includeBranches ? 'facilities_with_branches_' : 'facilities_export_').$timestamp.'.xlsx';
 
             return $this->streamXlsx($spreadsheet, $filename);
@@ -82,7 +88,7 @@ class AdminFacilityExportController extends BaseController
         foreach ($chunks as $i => $chunk) {
             $partNumber = $i + 1;
             $partLabel = "Part {$partNumber} of {$totalParts}";
-            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $filters, $includeBranches, $partLabel);
+            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $cityName, $filters, $includeBranches, $partLabel);
             $partFilename = sprintf(
                 '%sfacilities_part_%02d_of_%02d.xlsx',
                 $includeBranches ? 'with_branches_' : '',
@@ -141,6 +147,7 @@ class AdminFacilityExportController extends BaseController
         Collection $facilities,
         string $typeName,
         string $govName,
+        string $cityName,
         array $filters,
         bool $includeBranches,
         ?string $partLabel = null
@@ -181,6 +188,7 @@ class AdminFacilityExportController extends BaseController
             ['Search', $filters['search'] !== '' ? $filters['search'] : '—'],
             ['Facility type', $typeName],
             ['Governorate', $govName],
+            ['City', $cityName],
             ['Created from', $filters['created_from'] ?: '—'],
             ['Created to', $filters['created_to'] ?: '—'],
         ];

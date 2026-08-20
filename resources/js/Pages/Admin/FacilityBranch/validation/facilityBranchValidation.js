@@ -63,6 +63,16 @@ export const facilityBranchSchema = z.object({
         .refine(val => val === null || (val >= -180 && val <= 180), {
             message: 'Longitude must be between -180 and 180',
         }),
+    google_location_url: z.string()
+        .optional()
+        .or(z.literal(''))
+        .transform(val => {
+            if (!val || !val.trim()) return null;
+            return val.trim();
+        })
+        .refine(val => val === null || /^https?:\/\/.+/.test(val), {
+            message: 'Please enter a valid URL',
+        }),
 });
 
 export const facilityBranchUpdateSchema = z.object({
@@ -99,6 +109,16 @@ export const facilityBranchUpdateSchema = z.object({
         })
         .refine(val => val === null || (val >= -180 && val <= 180), {
             message: 'Longitude must be between -180 and 180',
+        }),
+    google_location_url: z.string()
+        .optional()
+        .or(z.literal(''))
+        .transform(val => {
+            if (!val || !val.trim()) return null;
+            return val.trim();
+        })
+        .refine(val => val === null || /^https?:\/\/.+/.test(val), {
+            message: 'Please enter a valid URL',
         }),
 });
 
@@ -150,6 +170,7 @@ export const validateFacilityBranchForm = (facilityBranchData, isUpdate = false)
             city_id: facilityBranchData.city_id ? String(facilityBranchData.city_id) : '',
             latitude: facilityBranchData.latitude ?? '',
             longitude: facilityBranchData.longitude ?? '',
+            google_location_url: facilityBranchData.google_location_url ?? '',
         };
 
         schema.parse(formData);

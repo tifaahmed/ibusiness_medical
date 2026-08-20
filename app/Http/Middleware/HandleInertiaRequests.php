@@ -71,6 +71,12 @@ class HandleInertiaRequests extends Middleware
             // Brand logo comes from APP_LOGO so rebranding never touches components.
             'appLogo' => asset(config('app.logo')),
             'locale' => $locale,
+            // Flashed one-liners from redirects ("… created.", "… updated.").
+            // Pages read them as $page.props.flash.success.
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
             'translations' => [
                 'home' => __('home'),
                 'partners' => __('partners'),

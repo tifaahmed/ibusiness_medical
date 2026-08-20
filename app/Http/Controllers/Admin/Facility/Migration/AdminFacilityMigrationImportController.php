@@ -113,6 +113,38 @@ class AdminFacilityMigrationImportController extends BaseController
     }
 
     /**
+     * Apply the mode and switches chosen on the preview screen to the session
+     * that preview opened, before the first chunk runs.
+     */
+    public function options(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'mode' => ['required', 'in:fresh,merge'],
+            'dry_run' => ['nullable', 'boolean'],
+            'skip_media' => ['nullable', 'boolean'],
+        ]);
+
+        if ($validated['mode'] === 'fresh' && ! $request->boolean('dry_run') && ! $request->boolean('confirm_wipe')) {
+            return response()->json([
+                'message' => 'Fresh mode deletes all existing facilities, branches and their images. Re-send with confirm_wipe=true.',
+            ], 422);
+        }
+
+        try {
+            $this->importer->updateSessionOptions($validated['token'], [
+                'mode' => $validated['mode'],
+                'dry_run' => $request->boolean('dry_run'),
+                'skip_media' => $request->boolean('skip_media'),
+            ]);
+
+            return response()->json(['message' => 'Import settings saved.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * Unpack the package and hand back a token to step through.
      */
     public function begin(Request $request): JsonResponse

@@ -976,6 +976,12 @@ return [
         'extra_permissions_note' => '(in addition to role permissions)',
         'via_role' => 'via role',
         'granted_by_roles' => 'Granted by role(s)',
+        'create_and_return' => 'Create and return',
+        'create_and_return_hint' => 'Create the admin and go back to the list',
+        'create_and_stay' => 'Create and stay',
+        'create_and_stay_hint' => 'Create the admin and open a blank form for the next one',
+        'create_and_update' => 'Create and update',
+        'create_and_update_hint' => 'Create the admin and keep editing it',
     ],
 
     // Members XLSX export (/admin/user/membership/export). Strings live here

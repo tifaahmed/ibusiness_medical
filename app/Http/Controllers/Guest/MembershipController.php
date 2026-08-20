@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Http\Controllers\Concerns\ProvidesCardTemplates;
 use App\Http\Resources\Guest\MembershipResource;
 use App\Models\Membership;
 use Illuminate\Http\RedirectResponse;
@@ -12,6 +13,7 @@ use Inertia\Response;
 
 class MembershipController extends BaseController
 {
+    use ProvidesCardTemplates;
     /**
      * Handle membership number lookup and redirect.
      */
@@ -57,6 +59,7 @@ class MembershipController extends BaseController
 
         return Inertia::render('Guest/Membership', [
             'membership' => (new MembershipResource($membershipModel))->toArray($request),
+            'cardTemplates' => $this->cardTemplatesByStatus(),
         ]);
     }
 }

@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Facility\List\AdminFacilityListCollection;
 use App\Models\Facility;
 use App\Models\FacilityType;
+use App\Models\Governorate;
+use App\Models\City;
 use App\Models\Sales;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -58,6 +60,16 @@ class AdminFacilityListController extends BaseController
             ->when(isset($filters['sales_id']) && $filters['sales_id'] !== '' && $filters['sales_id'] !== null, function ($q) use ($filters) {
                 $q->where('sales_id', (int) $filters['sales_id']);
             })
+            ->when(isset($filters['governorate_id']) && $filters['governorate_id'] !== '' && $filters['governorate_id'] !== null, function ($q) use ($filters) {
+                $q->whereHas('branches', function ($bq) use ($filters) {
+                    $bq->where('governorate_id', (int) $filters['governorate_id']);
+                });
+            })
+            ->when(isset($filters['city_id']) && $filters['city_id'] !== '' && $filters['city_id'] !== null, function ($q) use ($filters) {
+                $q->whereHas('branches', function ($bq) use ($filters) {
+                    $bq->where('city_id', (int) $filters['city_id']);
+                });
+            })
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
@@ -79,11 +91,28 @@ class AdminFacilityListController extends BaseController
                     ?: "#{$sale->id}",
             ])->toArray();
 
+        $governorates = Governorate::orderBy('id')->get()->map(fn (Governorate $g) => [
+            'id' => $g->id,
+            'name' => $g->name,
+        ]);
+
+        $citiesQuery = City::orderBy('id');
+        if (! empty($filters['governorate_id'])) {
+            $citiesQuery->where('governorate_id', (int) $filters['governorate_id']);
+        }
+        $cities = $citiesQuery->get()->map(fn (City $c) => [
+            'id' => $c->id,
+            'governorate_id' => $c->governorate_id,
+            'name' => $c->name,
+        ]);
+
         return Inertia::render('Admin/Facility/List', [
             'facilities' => new AdminFacilityListCollection($facilities)->toArray($request),
             'filters' => $filters,
             'facilityTypes' => $facilityTypes,
             'salesOptions' => $salesOptions,
+            'governorates' => $governorates,
+            'cities' => $cities,
         ]);
     }
 
@@ -96,6 +125,8 @@ class AdminFacilityListController extends BaseController
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
+            'governorate_id' => $request->input('governorate_id'),
+            'city_id' => $request->input('city_id'),
         ];
     }
 }

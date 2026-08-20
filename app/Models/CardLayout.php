@@ -36,6 +36,7 @@ class CardLayout extends Model
         'barcode_y',
         'barcode_scale',
         'generated_image_path',
+        'generated_back_image_path',
         'mode',
     ];
 

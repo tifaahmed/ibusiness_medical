@@ -29,6 +29,7 @@ class AdminFacilityBranchEditResource extends JsonResource
             'city_id' => $this->city_id,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
+            'google_location_url' => $this->google_location_url,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

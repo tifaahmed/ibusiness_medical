@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\CardTemplate\CardTemplateStatusEnum;
 use App\Models\CardLayout;
+use App\Models\CardTemplate;
 use App\Models\Membership;
 use App\Support\CardTemplateLayoutDefaults;
 use App\Support\PublicMembershipUrl;
@@ -57,6 +59,13 @@ class CardGenerationService
 
     private const CODE128_STOP = 106;
 
+    private const OVERRIDE_TARGETS = [
+        'qr' => ['qrcode'],
+        'barcode' => ['barcode'],
+        'partner' => ['partner_logo'],
+        'contact' => ['facebook', 'website', 'phone'],
+    ];
+
     public function generate(Membership $membership, string $mode = 'full'): ?string
     {
         $layout = $membership->cardLayouts()->where('mode', $mode)->first();
@@ -64,6 +73,16 @@ class CardGenerationService
         $cardTemplate = $layout && $layout->relationLoaded('cardTemplate') ? $layout->cardTemplate : null;
         if (! $cardTemplate) {
             $cardTemplate = $layout?->cardTemplate;
+        }
+
+        // When no template is linked to the layout, pick the right one based
+        // on partner status — matching the JS buildCardTemplate() logic.
+        if (! $cardTemplate) {
+            $status = $membership->partner_id
+                ? CardTemplateStatusEnum::WITH_PARTNER
+                : CardTemplateStatusEnum::NO_PARTNER;
+            $cardTemplate = CardTemplate::where('status', $status)->first()
+                ?? CardTemplate::first();
         }
 
         $templatePath = null;
@@ -98,25 +117,52 @@ class CardGenerationService
         $width = imagesx($image);
         $height = imagesy($image);
 
+        // Use the card_layout's own layout when one was saved, falling back
+        // to the template's default — matching the JS buildCardTemplate().
+        $tplLayout = $cardTemplate ? $cardTemplate->effectiveLayout() : CardTemplateLayoutDefaults::layout();
+        if ($layout && ! empty($layout->layout)) {
+            $tplLayout = $layout->layout;
+        }
+
         // Resolve the template's fractional layout into absolute pixel boxes,
         // matching the JS resolveFields() in cardRenderer.js.
         $hiddenFields = array_flip($cardTemplate ? ($cardTemplate->hidden_fields ?? []) : []);
-        $tplLayout = $cardTemplate ? $cardTemplate->effectiveLayout() : CardTemplateLayoutDefaults::layout();
         $fields = $this->resolveFields($tplLayout, $hiddenFields, $width, $height);
 
         // Merge sample_data (template-fixed values) with per-member values.
         $sampleData = $cardTemplate ? ($cardTemplate->sample_data ?? []) : [];
         $sampleData = array_merge(CardTemplateLayoutDefaults::sampleData(), $sampleData);
 
+        // Use the card_layout's own field_values when saved (customised card),
+        // matching the JS renderCardCanvas() valueOverrides logic.
+        $fieldValues = $layout && ! empty($layout->field_values) ? $layout->field_values : [];
+
         $values = $sampleData;
         $values['membership_number'] = (string) $membership->membership_number;
         $values['barcode'] = (string) ($membership->membership_number ?? '');
         $values['qrcode'] = PublicMembershipUrl::qrForSlug($membership->slug);
 
+        // Apply per-card field value overrides (non-empty only).
+        foreach ($fieldValues as $fk => $fv) {
+            if ($fv !== '' && $fv !== null) {
+                $values[$fk] = $fv;
+            }
+        }
+
         // Partner logo: the partner's own image wins over the template placeholder.
         $partner = $membership->partner;
         if ($partner && $partner->image) {
             $values['partner_logo'] = $partner->image;
+        }
+
+        // Apply per-card position overrides only when no custom layout is
+        // stored — once a card is saved through the generator the full layout
+        // is in `$layout->layout` and individual overrides are redundant.
+        if (empty($layout->layout)) {
+            $overrides = $this->buildOverrides($layout);
+            if ($overrides) {
+                $fields = $this->applyOverrides($fields, $overrides, $width, $height);
+            }
         }
 
         // 1. Draw image fields first (logo, partner_logo).
@@ -192,6 +238,87 @@ class CardGenerationService
         return $fields;
     }
 
+    /**
+     * Build per-batch overrides from a card_layout row's position fields,
+     * matching the JS getCardOverrides() in Show.vue.
+     */
+    private function buildOverrides(?CardLayout $layout): ?array
+    {
+        if (! $layout) {
+            return null;
+        }
+
+        $overrides = [];
+
+        if (! empty($layout->qr_x) || ! empty($layout->qr_y)) {
+            $overrides['qr'] = [
+                'x' => (float) ($layout->qr_x ?? 0),
+                'y' => (float) ($layout->qr_y ?? 0),
+                'scale' => (float) ($layout->qr_scale ?? 1),
+            ];
+        }
+
+        if (! empty($layout->fields_x) || ! empty($layout->fields_y)) {
+            $overrides['contact'] = [
+                'x' => (float) ($layout->fields_x ?? 0),
+                'y' => (float) ($layout->fields_y ?? 0),
+                'scale' => (float) ($layout->fields_scale ?? 1),
+            ];
+        }
+
+        if (! empty($layout->partner_x) || ! empty($layout->partner_y)) {
+            $overrides['partner'] = [
+                'x' => (float) ($layout->partner_x ?? 0),
+                'y' => (float) ($layout->partner_y ?? 0),
+                'scale' => (float) ($layout->partner_scale ?? 1),
+            ];
+        }
+
+        return $overrides ?: null;
+    }
+
+    /**
+     * Apply per-batch overrides on top of the resolved fields, matching the
+     * JS resolveFields() override logic in cardRenderer.js.
+     *
+     * The contact override moves facebook/website/phone as a group; qr and
+     * partner each move a single field.
+     */
+    private function applyOverrides(array $fields, array $overrides, int $width, int $height): array
+    {
+        foreach (self::OVERRIDE_TARGETS as $overrideKey => $targetKeys) {
+            $ov = $overrides[$overrideKey] ?? null;
+            if (! $ov) {
+                continue;
+            }
+
+            $scale = isset($ov['scale']) && is_numeric($ov['scale']) ? (float) $ov['scale'] : 1.0;
+            $x = isset($ov['x']) ? (float) $ov['x'] : null;
+            $y = isset($ov['y']) ? (float) $ov['y'] : null;
+
+            // The anchor is the first target field — dx/dy shift the whole
+            // group from that anchor's resolved position.
+            $anchorKey = $targetKeys[0];
+            $anchor = $fields[$anchorKey] ?? null;
+            $dx = ($x !== null && $anchor) ? $x - $anchor['left'] : 0;
+            $dy = ($y !== null && $anchor) ? $y - $anchor['top'] : 0;
+
+            foreach ($targetKeys as $key) {
+                if (! isset($fields[$key])) {
+                    continue;
+                }
+                $f = &$fields[$key];
+                $f['left'] += $dx;
+                $f['top'] += $dy;
+                $f['width'] *= $scale;
+                $f['height'] *= $scale;
+                $f['fontSize'] *= $scale;
+                unset($f);
+            }
+        }
+
+        return $fields;
+    }
     /**
      * Contain-fit an image inside the field box, centered — matches the JS
      * drawImageField().
@@ -571,5 +698,51 @@ class CardGenerationService
             (int) hexdec(substr($hex, 2, 2)),
             (int) hexdec(substr($hex, 4, 2)),
         ];
+    }
+
+    /**
+     * Generate (or serve cached) the back side of a membership card.
+     *
+     * The back is a static artwork — no fields are drawn on it — so this
+     * simply copies the shipped artwork into storage on first call and
+     * reuses the path thereafter.
+     */
+    public function generateBack(Membership $membership, string $mode = 'full'): ?string
+    {
+        $layout = $membership->cardLayouts()->where('mode', $mode)->first();
+
+        if ($layout && ! empty($layout->generated_back_image_path)) {
+            $path = Storage::disk('public')->path($layout->generated_back_image_path);
+            if (file_exists($path)) {
+                return Storage::disk('public')->url($layout->generated_back_image_path);
+            }
+        }
+
+        $backTemplate = public_path('images/cards/card-backside.png');
+        if (! file_exists($backTemplate)) {
+            return null;
+        }
+
+        $filename = 'cards/card-'.$membership->id.'-back-'.time().'.png';
+        $destPath = Storage::disk('public')->path($filename);
+        $dir = dirname($destPath);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        if (! copy($backTemplate, $destPath)) {
+            return null;
+        }
+
+        if ($layout) {
+            $layout->update(['generated_back_image_path' => $filename]);
+        } else {
+            $membership->cardLayouts()->create([
+                'mode' => $mode,
+                'generated_back_image_path' => $filename,
+            ]);
+        }
+
+        return Storage::disk('public')->url($filename);
     }
 }

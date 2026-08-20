@@ -29,8 +29,20 @@ class AdminUserStoreController extends Controller
         $user->syncRoles($data['roles']);
         $user->syncPermissions($data['permissions'] ?? []);
 
-        return redirect()
-            ->route('admin.admin-users.index')
-            ->with('success', "Admin user {$user->email} created.");
+        $message = "Admin user {$user->email} created.";
+
+        // The button that was pressed decides where we land: back on the list,
+        // on a fresh form for the next admin, or on this one's edit page.
+        return match ($data['after_save'] ?? 'return') {
+            'stay' => redirect()
+                ->route('admin.admin-users.create')
+                ->with('success', $message),
+            'update' => redirect()
+                ->route('admin.admin-users.edit', $user->id)
+                ->with('success', $message),
+            default => redirect()
+                ->route('admin.admin-users.index')
+                ->with('success', $message),
+        };
     }
 }

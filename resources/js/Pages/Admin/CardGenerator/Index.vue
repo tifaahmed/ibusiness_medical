@@ -36,7 +36,12 @@
             </button>
           </div>
 
-          <div class="sm:col-span-2">
+          <div>
+            <label class="block text-xs font-medium mb-1">{{ t.valid_date || 'Expiration date (Valid)' }}</label>
+            <input v-model="values.valid" type="text" placeholder="MM / YYYY" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" :disabled="busy" />
+          </div>
+
+          <div class="sm:col-span-1">
             <label class="block text-xs font-medium mb-1">{{ t.design || 'Design' }}</label>
             <div class="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
               <template v-if="activeTemplate">
@@ -472,6 +477,7 @@ function seedValues(template) {
 }
 seedValues(activeTemplate.value);
 if (props.initial.policy) values.membership_number = String(props.initial.policy);
+if (props.initial.valid) values.valid = String(props.initial.valid);
 
 /**
  * Which member this card is for. The link carries the slug of its own; an
@@ -837,6 +843,19 @@ async function saveCard(mode = 'stay') {
   busy.value = true;
   error.value = '';
   try {
+    const lookupNumber = original.membership_number || values.membership_number;
+
+    // Update the membership details (valid expiration date, policy, partner, name, etc.)
+    await window.axios.patch(`/api/memberships/${encodeURIComponent(lookupNumber)}/card-data`, {
+      policy: values.membership_number,
+      valid: values.valid || props.initial.valid || undefined,
+      name: props.initial.name || undefined,
+      member: props.initial.member || undefined,
+      status: props.initial.status || undefined,
+      partner: partnerId.value ? Number(partnerId.value) : null,
+    });
+    original.membership_number = values.membership_number;
+
     // An untouched card is stored with no layout of its own, so it keeps
     // rendering from the template and follows every later change to it. A
     // changed one carries its own layout and values, and is frozen to them.

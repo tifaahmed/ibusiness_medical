@@ -312,6 +312,42 @@ class FacilityMigrationImporter
      * Overwrite a single facility's JSON file inside an open session.
      * Used by the preview/edit flow so the operator can fix data before importing.
      */
+    /**
+     * Change the settings of a session that has not started stepping yet. The
+     * preview screen opens its session before the operator has picked a mode,
+     * so the real choice arrives just before the first chunk.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function updateSessionOptions(string $token, array $options): void
+    {
+        $state = $this->loadState($token);
+
+        if (($state['processed'] ?? 0) > 0 || ($state['wiped'] ?? false)) {
+            throw new RuntimeException('That import has already started — its settings can no longer change.');
+        }
+
+        if (array_key_exists('mode', $options)) {
+            $mode = $options['mode'];
+            if (! in_array($mode, [self::MODE_FRESH, self::MODE_MERGE], true)) {
+                throw new RuntimeException("Unknown import mode \"{$mode}\". Use \"fresh\" or \"merge\".");
+            }
+            $state['mode'] = $mode;
+        }
+
+        foreach (['dry_run', 'skip_media'] as $flag) {
+            if (array_key_exists($flag, $options)) {
+                $state[$flag] = (bool) $options[$flag];
+            }
+        }
+
+        if (array_key_exists('media_path', $options)) {
+            $state['media_path'] = $options['media_path'];
+        }
+
+        $this->saveState($token, $state);
+    }
+
     public function writeFacilityFile(string $token, int $index, array $facilityData): void
     {
         $dir = $this->sessionDir($token);
@@ -542,10 +578,6 @@ class FacilityMigrationImporter
             'discount_percent' => $data['discount_percent'] ?? null,
             'facility_type_id' => $this->resolveFacilityType($data['facility_type'] ?? null),
             'sales_id' => $this->resolveSales($data['sales'] ?? null),
-            'governorate_id' => $this->resolveGovernorate($data['governorate'] ?? null),
-            'city_id' => $this->resolveCity($data['city'] ?? null, $data['governorate'] ?? null),
-            'latitude' => $data['latitude'] ?? null,
-            'longitude' => $data['longitude'] ?? null,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
         ];
         if (! $existing && ! empty($data['id'])) {
@@ -603,6 +635,7 @@ class FacilityMigrationImporter
             'city_id' => $this->resolveCity($data['city'] ?? null, $data['governorate'] ?? null),
             'latitude' => $data['latitude'] ?? null,
             'longitude' => $data['longitude'] ?? null,
+            'google_location_url' => $data['google_location_url'] ?? null,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
         ];
         if (! $existing && ! empty($data['id'])) {
@@ -798,17 +831,88 @@ class FacilityMigrationImporter
     // ------------------------------------------------------------ resolvers
 
     /**
-     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
+     * Lookup references normally travel as { id }, { slug } or { name: {...} },
+     * but a package built from a spreadsheet — or hand-edited in the preview
+     * screen — can carry a bare name string instead. Both shapes land here.
+     *
+     * @return array<string, mixed>|null
      */
-    private function resolveFacilityType(?array $ref): ?int
+    private function normalizeRef(mixed $ref): ?array
     {
+        if (is_string($ref) || is_numeric($ref)) {
+            $ref = trim((string) $ref);
+
+            return $ref === '' ? null : ['name' => ['en' => $ref]];
+        }
+
+        if (! is_array($ref) || $ref === []) {
+            return null;
+        }
+
+        // { name: "Cairo" } instead of { name: { en: "Cairo" } }
+        if (isset($ref['name']) && ! is_array($ref['name'])) {
+            $ref['name'] = ['en' => trim((string) $ref['name'])];
+        }
+
+        return $ref;
+    }
+
+    /**
+     * An id in a package points at a row on the site that produced it. It is
+     * only usable here when a row with that id actually exists — otherwise the
+     * reference has to be matched by slug or name like any other.
+     *
+     * @param  array<string, mixed>  $ref
+     */
+    private function existingIdFromRef(string $class, array $ref): ?int
+    {
+        if (empty($ref['id']) || ! is_numeric($ref['id'])) {
+            return null;
+        }
+
+        return $class::whereKey((int) $ref['id'])->value('id');
+    }
+
+    /**
+     * A reference with neither slug nor any non-empty name cannot be looked up
+     * or created — creating from it would invent a row called "Item".
+     *
+     * @param  array<string, mixed>  $ref
+     */
+    private function refIsNameless(array $ref): bool
+    {
+        if (! empty($ref['slug'])) {
+            return false;
+        }
+
+        foreach ((array) ($ref['name'] ?? []) as $value) {
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { slug: "..." }, { name: { en: "...", ar: "..." } } or "Clinic"
+     */
+    private function resolveFacilityType(mixed $ref): ?int
+    {
+        $ref = $this->normalizeRef($ref);
+
         if (! $ref) {
             return $this->fallbackFacilityTypeId();
         }
 
         // Accept a plain numeric ID directly
-        if (! empty($ref['id']) && is_numeric($ref['id'])) {
-            return (int) $ref['id'];
+        if ($id = $this->existingIdFromRef(FacilityType::class, $ref)) {
+            return $id;
+        }
+
+        // An id that no longer exists and nothing to look the type up by.
+        if ($this->refIsNameless($ref)) {
+            return $this->fallbackFacilityTypeId();
         }
 
         $key = $this->refKey($ref);
@@ -838,16 +942,22 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
+     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { slug: "..." }, { name: { en: "...", ar: "..." } } or "Cairo"
      */
-    private function resolveGovernorate(?array $ref): ?int
+    private function resolveGovernorate(mixed $ref): ?int
     {
+        $ref = $this->normalizeRef($ref);
+
         if (! $ref) {
             return null;
         }
 
-        if (! empty($ref['id']) && is_numeric($ref['id'])) {
-            return (int) $ref['id'];
+        if ($id = $this->existingIdFromRef(Governorate::class, $ref)) {
+            return $id;
+        }
+
+        if ($this->refIsNameless($ref)) {
+            return null;
         }
 
         $key = $this->refKey($ref);
@@ -862,17 +972,24 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref  Accepts: { id: N }, { slug: "..." }, or { name: { en: "...", ar: "..." } }
-     * @param  array<string, mixed>|null  $governorateRef
+     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { slug: "..." }, { name: { en: "...", ar: "..." } } or "Nasr City"
+     * @param  array<string, mixed>|string|null  $governorateRef
      */
-    private function resolveCity(?array $ref, ?array $governorateRef): ?int
+    private function resolveCity(mixed $ref, mixed $governorateRef): ?int
     {
+        $ref = $this->normalizeRef($ref);
+        $governorateRef = $this->normalizeRef($governorateRef);
+
         if (! $ref) {
             return null;
         }
 
-        if (! empty($ref['id']) && is_numeric($ref['id'])) {
-            return (int) $ref['id'];
+        if ($id = $this->existingIdFromRef(City::class, $ref)) {
+            return $id;
+        }
+
+        if ($this->refIsNameless($ref)) {
+            return null;
         }
 
         $key = $this->refKey($ref);
@@ -910,16 +1027,20 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|null  $ref  Accepts: { id: N } or { name: "..." }
+     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { name: "..." } or "Ahmed"
      */
-    private function resolveSales(?array $ref): ?int
+    private function resolveSales(mixed $ref): ?int
     {
-        if (! $ref) {
+        if (is_string($ref)) {
+            $ref = trim($ref) === '' ? null : ['name' => trim($ref)];
+        }
+
+        if (! is_array($ref) || $ref === []) {
             return null;
         }
 
-        if (! empty($ref['id']) && is_numeric($ref['id'])) {
-            return (int) $ref['id'];
+        if ($id = $this->existingIdFromRef(Sales::class, $ref)) {
+            return $id;
         }
 
         $name = trim((string) ($ref['name'] ?? ''));
@@ -985,7 +1106,93 @@ class FacilityMigrationImporter
             }
         }
 
+        return $this->matchByFoldedName($query, $ref);
+    }
+
+    /**
+     * The same name, spelled another way. Arabic offers several letter shapes
+     * for one sound — "القاهره" and "القاهرة" are one governorate — so a package
+     * written on another site rarely matches character for character. Folding
+     * the variants away is what stops the import quietly creating a second
+     * Cairo alongside the one this site already has.
+     */
+    private function matchByFoldedName($query, array $ref): ?Model
+    {
+        $want = $this->foldedSpellings(array_merge(
+            array_values($ref['name'] ?? []),
+            [$ref['slug'] ?? null]
+        ));
+
+        if ($want['strict'] === []) {
+            return null;
+        }
+
+        $rows = (clone $query)->get();
+
+        // Exact spellings across every row first, so a loose neighbour can never
+        // take a row that another one names outright.
+        foreach (['strict', 'loose'] as $pass) {
+            foreach ($rows as $row) {
+                $have = $this->foldedSpellings(array_merge(
+                    array_values($row->getTranslations('name')),
+                    [$row->slug ?? null]
+                ));
+
+                if (array_intersect($have[$pass], $want[$pass]) !== []) {
+                    return $row;
+                }
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Every spelling a row can be written under, folded two ways: "strict"
+     * flattens the letter shapes, "loose" also drops the definite article, so
+     * "البحر الأحمر" still meets "بحر احمر".
+     *
+     * @param  array<int, string|null>  $values
+     * @return array{strict: array<int, string>, loose: array<int, string>}
+     */
+    private function foldedSpellings(array $values): array
+    {
+        $strict = [];
+        $loose = [];
+
+        foreach ($values as $value) {
+            $folded = $this->foldName((string) $value);
+            if ($folded === '') {
+                continue;
+            }
+            $strict[] = $folded;
+            $loose[] = implode(' ', array_map(
+                fn (string $word) => preg_replace('/^ال/u', '', $word),
+                explode(' ', $folded)
+            ));
+        }
+
+        return ['strict' => array_values(array_unique($strict)), 'loose' => array_values(array_unique($loose))];
+    }
+
+    /**
+     * Harakat and tatweel dropped, the alef and yaa families flattened, ة read
+     * as ه, Arabic digits as western ones, punctuation as a space. The pass is
+     * good for the English side too: the slug "beni-suef" folds onto "Beni Suef".
+     */
+    private function foldName(string $value): string
+    {
+        $text = Str::lower(trim($value));
+        $text = preg_replace('/[\x{064B}-\x{0652}\x{0670}\x{0640}]/u', '', $text);
+        $text = preg_replace('/[\x{0622}\x{0623}\x{0625}\x{0627}\x{0671}]/u', 'ا', $text);
+        $text = str_replace(['ة', 'ى', 'ئ', 'ؤ', 'ء'], ['ه', 'ي', 'ي', 'و', ''], $text);
+        $text = strtr($text, [
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]);
+        $text = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text);
+
+        return trim($text);
     }
 
     /**
@@ -1179,17 +1386,21 @@ class FacilityMigrationImporter
     private function normalizePhone($raw): ?array
     {
         if (is_array($raw)) {
-            $values = array_values(array_filter(array_map('trim', $raw), fn ($p) => $p !== ''));
-
-            return $values ?: null;
-        }
-        if (is_string($raw) && trim($raw) !== '') {
-            $parts = array_values(array_filter(array_map('trim', preg_split('/[,;|]/', $raw)), fn ($p) => $p !== ''));
-
-            return $parts ?: null;
+            // Each entry can itself hold several numbers when it came from a
+            // spreadsheet cell or a textarea line.
+            $raw = implode("\n", array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw));
         }
 
-        return null;
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        $parts = array_values(array_filter(
+            array_map('trim', preg_split('/[\r\n,;|]+/', $raw)),
+            fn ($p) => $p !== ''
+        ));
+
+        return $parts ?: null;
     }
 
     /**

@@ -441,13 +441,15 @@
                 <div class="card-flip-container-admin" :style="{ aspectRatio: '1063 / 650' }">
                   <div class="card-flip-inner-admin" :class="{ flipped: flipState[membership.id + '-minimal'] }">
                     <div class="card-face-admin card-face-front">
-                      <canvas
-                        :ref="el => setCardCanvas(el, membership.id, 'minimal')"
-                        :width="CARD_W"
-                        :height="CARD_H"
-                        class="max-w-full h-auto rounded shadow"
-                        style="max-height: 220px; width: auto"
-                      ></canvas>
+                      <CardPreview
+                        :membership="{ membership_number: membership.membership_number, slug: membership.slug }"
+                        :template="buildCardTemplate(membership, 'minimal')"
+                        :partner="membership.partner_id ? { image: membership.partner_image } : null"
+                        :overrides="getCardOverrides(membership, 'minimal')"
+                        :values="getCardFieldValues(membership, 'minimal')"
+                        display-width="100%"
+                        @rendered="onCardRendered(membership.id, 'minimal', $event)"
+                      />
                     </div>
                     <div class="card-face-admin card-face-back">
                       <img
@@ -598,19 +600,16 @@
                 <div class="card-flip-inner-admin" :class="{ flipped: flipState['popup'] }">
                   <div class="card-face-admin card-face-front">
                     <div class="bg-white rounded-md p-2 flex justify-center">
-                      <img
-                        v-if="adminPopupMembership && getCardLayout(adminPopupMembership, adminPopupMode)?.image_url"
-                        :src="getCardLayout(adminPopupMembership, adminPopupMode).image_url"
-                        class="max-w-full h-auto rounded shadow"
-                        alt="Card"
+                      <CardPreview
+                        v-if="adminPopupMembership"
+                        :membership="{ membership_number: adminPopupMembership.membership_number, slug: adminPopupMembership.slug }"
+                        :template="buildCardTemplate(adminPopupMembership, adminPopupMode)"
+                        :partner="adminPopupMembership.partner_id ? { image: adminPopupMembership.partner_image } : null"
+                        :overrides="getCardOverrides(adminPopupMembership, adminPopupMode)"
+                        :values="getCardFieldValues(adminPopupMembership, adminPopupMode)"
+                        display-width="100%"
+                        @rendered="onPopupCardRendered($event)"
                       />
-                      <canvas
-                        v-else
-                        :ref="el => setPopupCardCanvas(el)"
-                        :width="CARD_W"
-                        :height="CARD_H"
-                        class="max-w-full h-auto rounded shadow"
-                      ></canvas>
                     </div>
                   </div>
                   <div class="card-face-admin card-face-back">
@@ -651,13 +650,17 @@ import MemberLayout from "../Member/MemberLayout.vue";
 import Modal from "@/Components/Modal.vue";
 import MembershipCard from "./_components/MembershipCard.vue";
 import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
-import { renderCardCanvas, CARD_W, CARD_H } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
+import CardPreview from "@/Pages/Admin/MembershipCard/_components/CardPreview.vue";
 import { publicMembershipUrl, membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const props = defineProps({
   user: {
     type: Object,
     required: true,
+  },
+  cardTemplates: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
@@ -674,7 +677,8 @@ const membershipCardRef = ref(null);
 const membershipUrl = ref("");
 const copiedMembershipSlug = ref(null);
 const flipState = reactive({});
-const popupCardCanvasRef = ref(null);
+const renderedCanvases = reactive({});
+const popupRenderedCanvas = ref(null);
 
 function toggleCardFlip(membershipId, mode) {
   const key = `${membershipId}-${mode}`;
@@ -686,16 +690,10 @@ function openAdminCardPopup(membership, mode) {
   adminPopupMode.value = mode;
   flipState['popup'] = false;
   showAdminCardPopup.value = true;
-  setTimeout(() => {
-    if (popupCardCanvasRef.value) {
-      renderMembershipCardPopup(membership, mode);
-    }
-  }, 200);
 }
 
-function setPopupCardCanvas(el) {
-  if (!el) return;
-  popupCardCanvasRef.value = el;
+function onPopupCardRendered(event) {
+  popupRenderedCanvas.value = event.canvas;
 }
 
 const activeMembership = computed(() => {
@@ -861,14 +859,9 @@ const formatAmount = (amount) => {
   return Number(amount).toFixed(2);
 };
 
-const cardCanvases = reactive({});
-
-function setCardCanvas(el, membershipId, mode) {
-  if (!el) return;
+function onCardRendered(membershipId, mode, event) {
   const key = `${membershipId}-${mode}`;
-  if (cardCanvases[key] === el) return;
-  cardCanvases[key] = el;
-  renderMembershipCard(membershipId, mode);
+  renderedCanvases[key] = event.canvas;
 }
 
 function getCardLayout(membership, mode) {
@@ -878,80 +871,46 @@ function getCardLayout(membership, mode) {
   return layout;
 }
 
-async function renderMembershipCard(membershipId, mode) {
-    const key = `${membershipId}-${mode}`;
-    const canvas = cardCanvases[key];
-    if (!canvas) return;
+function getCardOverrides(membership, mode) {
+  const layout = getCardLayout(membership, mode);
+  if (!layout) return null;
+  return {
+    qr: layout.qr_x != null ? { x: Number(layout.qr_x), y: Number(layout.qr_y), scale: Number(layout.qr_scale) } : undefined,
+    fields: layout.fields_x != null ? { x: Number(layout.fields_x), y: Number(layout.fields_y), scale: Number(layout.fields_scale) } : undefined,
+    partner: layout.partner_x != null ? { x: Number(layout.partner_x), y: Number(layout.partner_y), scale: Number(layout.partner_scale) } : undefined,
+  };
+}
 
-    const membership = props.user.memberships?.find((m) => m.id === membershipId);
-    if (!membership) return;
-
-    const layout = getCardLayout(membership, mode);
-    const partner = membership.partner_id
-      ? { image: membership.partner_image }
-      : null;
-    const overrides = layout
-      ? {
-          qr: layout.qr_x != null ? { x: Number(layout.qr_x), y: Number(layout.qr_y), scale: Number(layout.qr_scale) } : undefined,
-          fields: layout.fields_x != null ? { x: Number(layout.fields_x), y: Number(layout.fields_y), scale: Number(layout.fields_scale) } : undefined,
-          partner: layout.partner_x != null ? { x: Number(layout.partner_x), y: Number(layout.partner_y), scale: Number(layout.partner_scale) } : undefined,
-        }
-      : null;
-
-    const template = layout?.card_template || null;
-
-    try {
-      const rendered = await renderCardCanvas({
-        membership: { membership_number: membership.membership_number, slug: membership.slug },
-        template,
-        partner,
-        overrides,
-      });
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(rendered, 0, 0);
-    } catch (e) {
-      console.error('Card render failed:', e);
-    }
+function buildCardTemplate(membership, mode) {
+  const cl = getCardLayout(membership, mode);
+  if (cl?.card_template) {
+    return {
+      ...cl.card_template,
+      layout: cl.layout || cl.card_template.layout,
+      card_empty_url: cl.card_template.card_empty_url,
+      hidden_fields: cl.card_template.hidden_fields,
+    };
   }
+  const wanted = membership.partner_id ? 'with_partner' : 'no_partner';
+  const fallback = props.cardTemplates[wanted] || props.cardTemplates.with_partner || props.cardTemplates.no_partner || null;
+  if (!fallback) return null;
+  return {
+    ...fallback,
+    layout: fallback.layout,
+    card_empty_url: fallback.card_empty_url,
+    hidden_fields: fallback.hidden_fields,
+  };
+}
 
-  async function renderMembershipCardPopup(membership, mode) {
-    const canvas = popupCardCanvasRef.value;
-    if (!canvas || !membership) return;
-
-    const layout = getCardLayout(membership, mode);
-
-    const partner = membership.partner_id
-      ? { image: membership.partner_image }
-      : null;
-    const overrides = layout
-      ? {
-          qr: layout.qr_x != null ? { x: Number(layout.qr_x), y: Number(layout.qr_y), scale: Number(layout.qr_scale) } : undefined,
-          fields: layout.fields_x != null ? { x: Number(layout.fields_x), y: Number(layout.fields_y), scale: Number(layout.fields_scale) } : undefined,
-          partner: layout.partner_x != null ? { x: Number(layout.partner_x), y: Number(layout.partner_y), scale: Number(layout.partner_scale) } : undefined,
-        }
-      : null;
-
-    const template = layout?.card_template || null;
-
-    try {
-      const rendered = await renderCardCanvas({
-        membership: { membership_number: membership.membership_number, slug: membership.slug },
-        template,
-        partner,
-        overrides,
-      });
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(rendered, 0, 0);
-    } catch (e) {
-      console.error('Popup card render failed:', e);
-    }
-  }
+function getCardFieldValues(membership, mode) {
+  const cl = getCardLayout(membership, mode);
+  if (!cl?.field_values) return null;
+  return cl.field_values;
+}
 
 function downloadCardCanvas(membership, mode) {
   const key = `${membership.id}-${mode}`;
-  const canvas = cardCanvases[key];
+  const canvas = renderedCanvases[key];
   if (!canvas) return;
   const a = document.createElement('a');
   a.download = `card-${membership.membership_number}-${mode}.png`;
@@ -970,13 +929,6 @@ function confirmDelete() {
 }
 
 onMounted(() => {
-  setTimeout(() => {
-    props.user.memberships?.forEach((m) => {
-      ['full', 'minimal'].forEach((mode) => {
-        renderMembershipCard(m.id, mode);
-      });
-    });
-  }, 300);
 });
 </script>
 

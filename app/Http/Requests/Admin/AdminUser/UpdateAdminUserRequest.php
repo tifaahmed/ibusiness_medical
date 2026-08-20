@@ -13,7 +13,13 @@ class UpdateAdminUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole(UserRoleEnum::SUPER_ADMIN) ?? false;
+        // Permission-only: whoever holds `manage users` or `manage admin users`
+        // (the same pair guarding the routes) may submit this form, regardless
+        // of which role carries it.
+        return $this->user()?->hasAnyPermission([
+            UserPermissionEnum::MANAGE_USERS,
+            UserPermissionEnum::MANAGE_ADMIN_USERS,
+        ]) ?? false;
     }
 
     public function rules(): array

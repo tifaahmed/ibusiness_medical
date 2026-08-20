@@ -975,6 +975,12 @@ return [
         'extra_permissions_note' => '(بالإضافة إلى صلاحيات الدور)',
         'via_role' => 'عبر الدور',
         'granted_by_roles' => 'ممنوحة عبر الدور (الأدوار)',
+        'create_and_return' => 'إنشاء ورجوع',
+        'create_and_return_hint' => 'أنشئ المشرف وارجع إلى القائمة',
+        'create_and_stay' => 'إنشاء والبقاء',
+        'create_and_stay_hint' => 'أنشئ المشرف وافتح نموذجًا فارغًا للتالي',
+        'create_and_update' => 'إنشاء وتعديل',
+        'create_and_update_hint' => 'أنشئ المشرف واستمر في تعديله',
     ],
 
     // ملف Excel لتصدير الأعضاء (/admin/user/membership/export). تترجم كل

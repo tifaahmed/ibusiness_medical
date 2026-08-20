@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\User\Membership\Show;
 
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
+use App\Http\Controllers\Concerns\ProvidesCardTemplates;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\User\Membership\Show\AdminUserMembershipShowResource;
 use App\Models\User;
@@ -14,6 +15,7 @@ use Inertia\Response;
 class AdminUserMembershipShowController extends BaseController
 {
     use ScopesByMembershipCreator;
+    use ProvidesCardTemplates;
 
     /**
      * Display the specified user and membership.
@@ -52,6 +54,7 @@ class AdminUserMembershipShowController extends BaseController
         $this->assertCanManageUser($user);
         $result = [
             'user' => (new AdminUserMembershipShowResource($user))->toArray($request),
+            'cardTemplates' => $this->cardTemplatesByStatus(),
         ];
 
         return Inertia::render('Admin/User/Membership/Show', $result);

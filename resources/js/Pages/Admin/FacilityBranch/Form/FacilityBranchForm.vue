@@ -98,6 +98,19 @@
           </div>
         </div>
 
+        <!-- Row 4b: Google Location URL -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <div data-slot="form-item" class="grid gap-1">
+            <FormInput
+              v-model="facilityBranchStore.form.google_location_url"
+              :label="t.facility_branch?.google_location_url || 'Google Location URL'"
+              type="url"
+              :placeholder="t.facility_branch?.google_location_url_placeholder || 'https://maps.app.goo.gl/...'"
+              :error="facilityBranchStore.validationErrors?.google_location_url"
+            />
+          </div>
+        </div>
+
         <!-- Row 5: Phone Numbers -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <div data-slot="form-item" class="grid gap-1">

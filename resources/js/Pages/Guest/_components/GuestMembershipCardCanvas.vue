@@ -161,7 +161,7 @@ const BG_FULL = `/images/cards/deilar-card-blank.png?v=${BG_VERSION}`;
 const BG_MINIMAL = `/card-template_white.jpg?v=${BG_VERSION}`;
 const FONTS_HREF = "https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap";
 
-const BACK_SIDE_SRC = "/card-template_back_side.png";
+const BACK_SIDE_SRC = "/images/cards/card-backside.png";
 
 const DEFAULT_FULL = {
   name:    { x: 796, y: 337, scale: 1 },
@@ -195,6 +195,7 @@ const props = defineProps({
   partner: { type: Object, default: null },
   cardLayout: { type: Object, default: null },
   cardTemplate: { type: Object, default: null },
+  fieldValues: { type: Object, default: null },
   mode: { type: String, required: true, validator: (v) => ["full", "minimal"].includes(v) },
   translations: { type: Object, default: () => ({}) },
 });
@@ -655,6 +656,7 @@ async function renderWithTemplate() {
     template: props.cardTemplate,
     partner: props.partner,
     overrides,
+    values: props.fieldValues,
   });
   generatedImageUrl.value = canvas.toDataURL("image/png");
 }

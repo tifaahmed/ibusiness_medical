@@ -25,6 +25,15 @@
               </div>
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <a
+                :href="exportUrl"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
+                title="Export facilities to XLSX"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span class="hidden sm:inline">Export</span>
+              </a>
+
               <Link
                 :href="route('admin.facility.migration.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
@@ -50,7 +59,7 @@
           
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" @filter-change="handleFilterChange" />
+            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" :governorates="governorates" :cities="cities" @filter-change="handleFilterChange" />
           </div>
         </div>
 
@@ -87,6 +96,8 @@ const props = defineProps({
       search: '',
       facility_type_id: '',
       sales_id: '',
+      governorate_id: '',
+      city_id: '',
     })
   },
   facilityTypes: {
@@ -94,6 +105,14 @@ const props = defineProps({
     default: () => []
   },
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
     type: Array,
     default: () => []
   }
@@ -122,6 +141,8 @@ const exportUrl = computed(() => {
   if (f.search) params.set('search', f.search);
   if (f.facility_type_id) params.set('facility_type_id', f.facility_type_id);
   if (f.sales_id) params.set('sales_id', f.sales_id);
+  if (f.governorate_id) params.set('governorate_id', f.governorate_id);
+  if (f.city_id) params.set('city_id', f.city_id);
   params.set('include_branches', '1');
   const qs = params.toString();
   return route('admin.facility.export') + (qs ? '?' + qs : '');

@@ -16,6 +16,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
             city_id: '',
             latitude: '',
             longitude: '',
+            google_location_url: '',
         }),
         validationErrors: null,
         facilityBranches: reactive([]),
@@ -33,6 +34,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 city_id: '',
                 latitude: '',
                 longitude: '',
+                google_location_url: '',
             });
             this.validationErrors = null;
         },
@@ -91,6 +93,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 city_id: facilityBranch.city_id || '',
                 latitude: facilityBranch.latitude ?? '',
                 longitude: facilityBranch.longitude ?? '',
+                google_location_url: facilityBranch.google_location_url ?? '',
             });
             
             this.validationErrors = null;
@@ -109,6 +112,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                     city_id: this.form.city_id,
                     latitude: this.form.latitude,
                     longitude: this.form.longitude,
+                    google_location_url: this.form.google_location_url,
                 }, false);
 
                 if (!validation.isValid) {
@@ -154,6 +158,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                     city_id: this.form.city_id,
                     latitude: this.form.latitude,
                     longitude: this.form.longitude,
+                    google_location_url: this.form.google_location_url,
                 }, true);
 
                 if (!validation.isValid) {

@@ -238,7 +238,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     ->get('/user/profile', [\Laravel\Jetstream\Http\Controllers\Inertia\UserProfileController::class, 'show'])
     ->name('profile.show');
 
-Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', 'role:super_admin|admin|editor', \App\Http\Middleware\ShareUserPermissions::class])->group(function () {
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class])->group(function () {
     // Dashboard (any admin-area role)
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin', [DashboardController::class, 'index'])->name('admin');
@@ -418,6 +418,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
         Route::post('/admin/facility/migration/preview', [AdminFacilityMigrationImportController::class, 'preview'])->name('admin.facility.migration.preview');
         Route::post('/admin/facility/migration/edit', [AdminFacilityMigrationImportController::class, 'edit'])->name('admin.facility.migration.edit');
+        Route::post('/admin/facility/migration/options', [AdminFacilityMigrationImportController::class, 'options'])->name('admin.facility.migration.options');
         Route::post('/admin/facility/migration/begin', [AdminFacilityMigrationImportController::class, 'begin'])->name('admin.facility.migration.begin');
         Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
         Route::post('/admin/facility/migration/finish', [AdminFacilityMigrationImportController::class, 'finish'])->name('admin.facility.migration.finish');

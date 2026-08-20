@@ -546,7 +546,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage users')"
+                    v-if="canAny('manage users', 'manage admin users')"
                     :href="route('admin.admin-users.index')"
                     :active="route().current('admin.admin-users.*')"
                     :is-collapsed="sidebarCollapsed"

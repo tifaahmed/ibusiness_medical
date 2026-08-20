@@ -75,6 +75,44 @@
         />
       </div>
 
+      <!-- Governorate Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="governorate_id"
+        >
+          {{ t.governorate?.label || 'Governorate' }}
+        </label>
+        <SearchableSelect
+          :key="`governorate-${locale}`"
+          id="governorate_id"
+          v-model="filters.governorate_id"
+          :options="governorateOptions"
+          :placeholder="t.governorate?.all || 'All Governorates'"
+          @change="handleGovernorateChange"
+        />
+      </div>
+
+      <!-- City Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="city_id"
+        >
+          {{ t.city?.label || 'City' }}
+        </label>
+        <SearchableSelect
+          :key="`city-${locale}-${filters.governorate_id || 'all'}`"
+          id="city_id"
+          v-model="filters.city_id"
+          :options="filteredCityOptions"
+          :placeholder="t.city?.all || 'All Cities'"
+          @change="handleFilterChange"
+        />
+      </div>
+
     </div>
 
     <!-- Reset Filter - Only show if there's an active filter -->
@@ -117,6 +155,8 @@ const props = defineProps({
       search: '',
       facility_type_id: '',
       sales_id: '',
+      governorate_id: '',
+      city_id: '',
     })
   },
   facilityTypes: {
@@ -125,6 +165,14 @@ const props = defineProps({
   },
   // Already shaped as { value, label } by the controller.
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
     type: Array,
     default: () => []
   }
@@ -164,6 +212,24 @@ const salesSelectOptions = computed(() =>
   }))
 );
 
+const governorateOptions = computed(() =>
+  props.governorates.map(g => ({
+    value: g.id,
+    label: getTranslatedName(g.name),
+  }))
+);
+
+const filteredCityOptions = computed(() => {
+  const govId = filters.value.governorate_id;
+  const cities = govId
+    ? props.cities.filter(c => String(c.governorate_id) === String(govId))
+    : props.cities;
+  return cities.map(c => ({
+    value: c.id,
+    label: getTranslatedName(c.name),
+  }));
+});
+
 const emit = defineEmits(['filter-change']);
 
 const getInitialFilters = () => {
@@ -172,6 +238,8 @@ const getInitialFilters = () => {
       search: props.initialFilters.search || '',
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
       sales_id: props.initialFilters.sales_id || '',
+      governorate_id: props.initialFilters.governorate_id || '',
+      city_id: props.initialFilters.city_id || '',
     };
   }
   if (typeof window !== 'undefined') {
@@ -180,16 +248,18 @@ const getInitialFilters = () => {
       search: urlParams.get('search') || '',
       facility_type_id: urlParams.get('facility_type_id') || '',
       sales_id: urlParams.get('sales_id') || '',
+      governorate_id: urlParams.get('governorate_id') || '',
+      city_id: urlParams.get('city_id') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '' };
+  return { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.governorate_id || filters.value.city_id);
 });
 
 let searchTimeout = null;
@@ -208,8 +278,15 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '' };
   applyFilters();
+};
+
+const handleGovernorateChange = () => {
+  filters.value.city_id = '';
+  setTimeout(() => {
+    applyFilters();
+  }, 0);
 };
 
 const handleFilterChange = () => {
@@ -231,6 +308,12 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.sales_id && currentFilters.sales_id !== '') {
     params.sales_id = currentFilters.sales_id;
+  }
+  if (currentFilters.governorate_id && currentFilters.governorate_id !== '') {
+    params.governorate_id = currentFilters.governorate_id;
+  }
+  if (currentFilters.city_id && currentFilters.city_id !== '') {
+    params.city_id = currentFilters.city_id;
   }
   
   emit('filter-change', currentFilters);

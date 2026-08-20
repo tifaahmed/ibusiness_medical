@@ -145,6 +145,10 @@ import Fuse from 'fuse.js';
 const props = defineProps({
   modelValue: [String, Number, null],
   options: { type: Array, required: true, default: () => [] },
+  // Which fields the search reads. The default is the visible label; a caller
+  // whose options carry other spellings — a name in a second language, a slug —
+  // can name them so typing either one finds the row.
+  searchKeys: { type: Array, default: () => ['label'] },
   placeholder: { type: String, default: 'Select...' },
   id: { type: String, default: () => `searchable-select-${Math.random().toString(36).substr(2, 9)}` },
   error: { type: String, default: null },
@@ -161,7 +165,7 @@ const searchInput = ref(null);
 const dropdownStyle = ref({});
 
 const fuse = computed(() => new Fuse(props.options, {
-  keys: ['label'],
+  keys: props.searchKeys,
   threshold: 0.4,
   includeMatches: true,
 }));

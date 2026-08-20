@@ -197,7 +197,8 @@
       "Bash(mysqldump -h 127.0.0.1 -u u351109640_card_root -p'|j!:g;h@6+8N' u351109640_card)",
       "Bash(./bin/npm run *)",
       "Bash(echo \"---exit $?\")",
-      "Bash(./bin/artisan migrate:status)"
+      "Bash(./bin/artisan migrate:status)",
+      "Bash(echo \"BUILD_EXIT=$?\")"
     ]
   }
 }

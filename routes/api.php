@@ -57,6 +57,7 @@ Route::prefix('v1')
         Route::post('/membership/lookup', [V1MembershipController::class, 'lookup'])->name('membership.lookup');
         Route::get('/memberships/{membership}', [V1MembershipController::class, 'show'])->name('membership.show');
         Route::get('/memberships/{membership}/card', [V1MembershipCardController::class, 'show'])->name('membership.card.show');
+        Route::get('/memberships/{membership}/card/back', [V1MembershipCardController::class, 'showBack'])->name('membership.card.showBack');
         Route::get('/memberships/{membership}/card/url', [V1MembershipCardController::class, 'url'])->name('membership.card.url');
 
         Route::get('/memberships/{membership}/usage/options', [V1MembershipUsageController::class, 'options'])->name('membership.usage.options');
@@ -97,6 +98,9 @@ Route::prefix('v1')
                  */
                 Route::get('/memberships/{membership}/card', [V1MembershipCardController::class, 'show'])
                     ->name('memberships.card');
+
+                Route::get('/memberships/{membership}/card/back', [V1MembershipCardController::class, 'showBack'])
+                    ->name('memberships.card.back');
             });
 
         Route::post('/auth/login', [V1AuthController::class, 'login'])->name('auth.login');

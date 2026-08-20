@@ -280,10 +280,7 @@
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (EN)</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (AR)</th>
                   <th class="px-2 py-2 text-left font-semibold w-40">Facility type</th>
-                  <th class="px-2 py-2 text-left font-semibold w-40">Governorate</th>
-                  <th class="px-2 py-2 text-left font-semibold w-40">City</th>
-                  <th class="px-2 py-2 text-left font-semibold w-24">Latitude</th>
-                  <th class="px-2 py-2 text-left font-semibold w-24">Longitude</th>
+
                   <th class="px-2 py-2 text-left font-semibold w-20">Branches</th>
                   <th class="px-2 py-2 text-left font-semibold w-20">Offers</th>
                   <th class="px-2 py-2 text-left font-semibold w-20">Media</th>
@@ -299,18 +296,30 @@
                         v-if="(facility.branches || []).length"
                         type="button"
                         @click="facility._showBranches = !facility._showBranches"
-                        class="block mx-auto mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-violet-600 text-white font-semibold"
+                        :class="['block mx-auto mt-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold', branchBadgeCls(facility)]"
+                        :title="facilityBranchIssues(facility).join('\n') || 'Every branch is ready to import'"
                       >
                         {{ facility.branches.length }} br
                       </button>
                     </td>
                     <td class="px-2 py-1"><input v-model="facility.name.en" :class="previewInputCls" /></td>
                     <td class="px-2 py-1"><input v-model="facility.name.ar" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input v-model="facility.facility_type.name.en" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input v-model="facility.governorate.name.en" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input v-model="facility.city.name.en" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input type="number" step="any" v-model="facility.latitude" :class="previewInputCls" /></td>
-                    <td class="px-2 py-1"><input type="number" step="any" v-model="facility.longitude" :class="previewInputCls" /></td>
+                    <td class="px-2 py-1 align-top">
+                      <SearchableSelect
+                        :model-value="facility._facility_typeChoice"
+                        :options="facilityTypeOptions(facility)"
+                        :search-keys="LOOKUP_SEARCH_KEYS"
+                        placeholder="— use default type —"
+                        @change="setFacilityType(facility, $event)"
+                      />
+                      <p
+                        v-if="facility._facility_typeChoice === NEW_LOOKUP"
+                        class="mt-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                      >
+                        “{{ facility._facility_typeLabel }}” is not one of your facility types — it will be
+                        created on import. Pick an existing one above to use it instead.
+                      </p>
+                    </td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.branches || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.offers || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.media || []).length }}</td>
@@ -328,8 +337,16 @@
                   <tr v-if="facility._showBranches && (facility.branches || []).length" class="border-b border-border">
                     <td colspan="12" class="p-3">
                       <div class="bg-card border border-violet-500 rounded-md overflow-hidden">
-                        <div class="bg-violet-600 text-white px-3 py-2 text-xs font-semibold">
-                          Branches for {{ facility.name?.en || 'facility' }} ({{ facility.branches.length }})
+                        <div class="bg-violet-600 text-white px-3 py-2 text-xs font-semibold flex flex-wrap items-center gap-2">
+                          <span>Branches for {{ facility.name?.en || 'facility' }} ({{ facility.branches.length }})</span>
+                          <span
+                            class="ml-auto px-1.5 py-0.5 rounded text-[10px]"
+                            :class="facilityBranchIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700'"
+                          >
+                            {{ facilityBranchIssues(facility).length
+                              ? facilityBranchIssues(facility).length + ' to check'
+                              : 'all good' }}
+                          </span>
                         </div>
                         <table class="w-full text-[11px]">
                           <thead class="bg-muted">
@@ -337,24 +354,81 @@
                               <th class="px-3 py-1.5 text-left font-semibold">Branch name</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Name (AR)</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Address</th>
-                              <th class="px-3 py-1.5 text-left font-semibold">Phone</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Phones <span class="font-normal opacity-70">(one per line)</span></th>
                               <th class="px-3 py-1.5 text-left font-semibold">Governorate</th>
                               <th class="px-3 py-1.5 text-left font-semibold">City</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Lat</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Lng</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Google URL</th>
                               <th class="px-3 py-1.5 w-12"></th>
                             </tr>
                           </thead>
                           <tbody>
-                            <tr v-for="(br, bi) in facility.branches" :key="bi" class="border-t border-border">
-                              <td class="px-3 py-1"><input v-model="br.name.en" :class="previewInputCls" /></td>
+                            <tr
+                              v-for="(br, bi) in facility.branches"
+                              :key="bi"
+                              class="border-t border-border align-top"
+                              :class="branchIssues(br).length ? 'bg-red-500/5' : ''"
+                            >
+                              <td class="px-3 py-1">
+                                <input v-model="br.name.en" :class="[previewInputCls, branchIssues(br).length ? 'border-red-500' : '']" />
+                                <p v-if="branchIssues(br).length" class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
+                                  {{ branchIssues(br).join(' · ') }}
+                                </p>
+                              </td>
                               <td class="px-3 py-1"><input v-model="br.name.ar" :class="previewInputCls" /></td>
                               <td class="px-3 py-1"><input v-model="br.address.en" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input v-model="br.phone" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input v-model="br.governorate.name.en" :class="previewInputCls" /></td>
-                              <td class="px-3 py-1"><input v-model="br.city.name.en" :class="previewInputCls" /></td>
+                              <td class="px-3 py-1">
+                                <textarea
+                                  :value="br._phoneText"
+                                  @input="setBranchPhones(br, $event.target.value)"
+                                  rows="2"
+                                  placeholder="One phone per line"
+                                  :class="[previewInputCls, 'min-w-[9rem] resize-y font-mono leading-tight']"
+                                ></textarea>
+                                <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
+                                  {{ br.phone.length }} numbers
+                                </p>
+                              </td>
+                              <td class="px-3 py-1">
+                                <SearchableSelect
+                                  class="min-w-[10rem]"
+                                  :model-value="br._governorateChoice"
+                                  :options="governorateOptions(br)"
+                                  :search-keys="LOOKUP_SEARCH_KEYS"
+                                  :error="lookupError(br._governorateChoice)"
+                                  placeholder="— none —"
+                                  @change="setBranchGovernorate(br, $event)"
+                                />
+                                <p
+                                  v-if="br._governorateChoice === NEW_LOOKUP"
+                                  class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                                >
+                                  “{{ br._governorateLabel }}” — not on this site yet. Pick one above, or leave it
+                                  to be created on import.
+                                </p>
+                              </td>
+                              <td class="px-3 py-1">
+                                <SearchableSelect
+                                  class="min-w-[10rem]"
+                                  :model-value="br._cityChoice"
+                                  :options="cityOptions(br)"
+                                  :search-keys="LOOKUP_SEARCH_KEYS"
+                                  :error="lookupError(br._cityChoice)"
+                                  placeholder="— none —"
+                                  @change="setBranchCity(br, $event)"
+                                />
+                                <p
+                                  v-if="br._cityChoice === NEW_LOOKUP"
+                                  class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                                >
+                                  “{{ br._cityLabel }}” — not among this governorate’s cities. Pick one above, or
+                                  leave it to be matched or created on import.
+                                </p>
+                              </td>
                               <td class="px-3 py-1"><input type="number" step="any" v-model="br.latitude" :class="previewInputCls" /></td>
                               <td class="px-3 py-1"><input type="number" step="any" v-model="br.longitude" :class="previewInputCls" /></td>
+                              <td class="px-3 py-1"><input v-model="br.google_location_url" :class="previewInputCls" placeholder="https://maps.app.goo.gl/..." /></td>
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
                               </td>
@@ -464,6 +538,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import FacilityLayout from '../FacilityLayout.vue';
+import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
 import { computed, ref } from 'vue';
 
@@ -471,6 +546,7 @@ const props = defineProps({
   summary: { type: Object, default: () => ({}) },
   facilityTypes: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
+  cities: { type: Array, default: () => [] },
   salesOptions: { type: Array, default: () => [] },
 });
 
@@ -591,6 +667,234 @@ const paginatedFacilities = computed(() => {
 });
 const previewInputCls = 'w-full px-1.5 py-1 rounded border border-input bg-background text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary';
 
+/* A package may spell a translatable field as { en, ar }, as a bare string
+   (spreadsheet imports) or leave it out entirely — the editable inputs below
+   need the object shape in every case. */
+const asTranslation = (value) => {
+  if (typeof value === 'string') return { en: value, ar: '' };
+  return value && typeof value === 'object' ? value : {};
+};
+
+/* Same story for a lookup reference (facility type / governorate / city):
+   { id, slug, name } from an exported package, a plain name from a sheet.
+   The id is dropped: it numbers a row on the site the package came from, and
+   keeping it would make the importer ignore whatever is edited here. Slug and
+   name are what the importer matches on. */
+const asRef = (value) => {
+  if (value === null || value === undefined || value === '') return { name: {} };
+  if (typeof value === 'string') return { name: { en: value, ar: '' } };
+
+  const { id, ...rest } = value;
+
+  return { ...rest, name: asTranslation(value.name) };
+};
+
+/* A branch holds a list of phones. A package can spell it as that list, or as
+   one string with several numbers in it (spreadsheet imports) — the textarea
+   below shows one number per line either way, and the lines are the list. */
+const asPhoneList = (raw) => {
+  const flat = Array.isArray(raw)
+    ? raw.map(p => (p === null || p === undefined ? '' : String(p))).join('\n')
+    : String(raw ?? '');
+
+  return flat.split(/[\r\n,;|]+/).map(p => p.trim()).filter(p => p !== '');
+};
+
+/* The typed text is kept as typed — blank lines and all — so the caret never
+   jumps while editing; the list is re-read from it on every keystroke. */
+const setBranchPhones = (branch, text) => {
+  branch._phoneText = text;
+  branch.phone = text.split(/\r?\n/).map(p => p.trim()).filter(p => p !== '');
+};
+
+/* ------------------------------ lookup pickers ----------------------------- */
+
+/* Facility type, governorate and city are all picked from what this site
+   already has. The value the package carries is matched against those; when
+   nothing matches it stays selectable as a "(new)" entry, spelled out under
+   the select, and the importer creates it. */
+
+const NEW_LOOKUP = '__new__';
+
+// What the package calls this row, for display and for creating it if kept.
+const refLabel = (ref) => String(ref?.name?.en || ref?.name?.ar || ref?.slug || '').trim();
+
+/* Arabic writes one name several ways — “القاهرة” and “القاهره” differ only by
+   the letter shape the keyboard offered, and a package built on another site is
+   full of that. Comparing the raw strings would call Cairo a governorate this
+   site has never heard of, so the variants are folded away first: harakat and
+   tatweel dropped, the alef and yaa family flattened, ة read as ه, Arabic
+   digits as western ones, punctuation as a space. The same pass makes the
+   English side forgiving too — the slug “beni-suef” folds onto “Beni Suef”. */
+const foldName = (value) =>
+  String(value ?? '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\u064B-\u0652\u0670\u0640]/g, '')
+    .replace(/[\u0622\u0623\u0625\u0627\u0671]/g, '\u0627')
+    .replace(/\u0629/g, '\u0647')
+    .replace(/[\u0649\u0626]/g, '\u064A')
+    .replace(/\u0624/g, '\u0648')
+    .replace(/\u0621/g, '')
+    .replace(/[\u0660-\u0669\u06F0-\u06F9]/g, d => String(d.charCodeAt(0) & 0xF))
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+// A looser second look: “البحر الأحمر” and “بحر احمر” are the same governorate.
+const withoutArticle = (folded) =>
+  folded.split(' ').map(w => w.replace(/^ال/, '')).filter(Boolean).join(' ');
+
+// Every spelling one row can be written under, folded, in both strictnesses.
+const spellingsOf = (values) => {
+  const strict = new Set();
+  const loose = new Set();
+
+  values.forEach(value => {
+    const folded = foldName(value);
+    if (!folded) return;
+    strict.add(folded);
+    loose.add(withoutArticle(folded));
+  });
+
+  return { strict, loose };
+};
+
+// Match by name or slug — never by the id in the package, which numbers a row
+// on the site the package came from. Exact spellings win before loose ones, so
+// a near-neighbour can never steal a row the package named outright.
+const findLookup = (ref, options) => {
+  const want = spellingsOf([ref?.name?.en, ref?.name?.ar, ref?.slug]);
+  if (!want.strict.size) return null;
+
+  const list = options || [];
+  const matches = (option, pass) =>
+    [...spellingsOf([option.label, option.name_en, option.name_ar, option.slug])[pass]]
+      .some(spelling => want[pass].has(spelling));
+
+  return list.find(o => matches(o, 'strict')) || list.find(o => matches(o, 'loose')) || null;
+};
+
+// The select is the source of truth: whatever it shows is written back onto the
+// row, so the preview and the import can never disagree.
+const applyChoice = (owner, field, choice, options) => {
+  const prefix = `_${field}`;
+  owner[`${prefix}Choice`] = String(choice);
+
+  if (choice === NEW_LOOKUP) {
+    owner[field] = { name: { en: owner[`${prefix}Label`], ar: '' } };
+
+    return;
+  }
+  if (choice === '') {
+    owner[field] = null;
+
+    return;
+  }
+
+  const option = (options || []).find(o => String(o.value) === String(choice));
+  if (!option) return;
+  owner[field] = { id: option.value, name: { en: option.name_en || option.label, ar: option.name_ar || '' } };
+};
+
+const normalizeLookup = (owner, field, raw, options) => {
+  const ref = asRef(raw);
+  const label = refLabel(ref);
+  const match = findLookup(ref, options);
+
+  owner[`_${field}Label`] = label;
+  owner[`_${field}Unknown`] = label !== '' && !match;
+  applyChoice(owner, field, match ? match.value : (label !== '' ? NEW_LOOKUP : ''), options);
+};
+
+const setFacilityType = (facility, choice) =>
+  applyChoice(facility, 'facility_type', choice, props.facilityTypes);
+
+/* What a picker offers: the rows this site has, plus — when the package named
+   something none of them match — that spelling itself, so keeping it is a
+   deliberate choice rather than the only thing left. */
+const withNewOption = (options, unknown, label) =>
+  unknown ? [...(options || []), { value: NEW_LOOKUP, label: `${label} (new)` }] : (options || []);
+
+const facilityTypeOptions = (facility) =>
+  withNewOption(props.facilityTypes, facility._facility_typeUnknown, facility._facility_typeLabel);
+
+const governorateOptions = (branch) =>
+  withNewOption(props.governorates, branch._governorateUnknown, branch._governorateLabel);
+
+const cityOptions = (branch) =>
+  withNewOption(citiesFor(branch), branch._cityUnknown, branch._cityLabel);
+
+// Typing any spelling should find the row, not just the one the label shows.
+const LOOKUP_SEARCH_KEYS = ['label', 'name_en', 'name_ar', 'slug'];
+
+// Nothing picked is the one state the picker itself should show as wrong; the
+// "(new)" case is spelled out in words underneath instead.
+const lookupError = (choice) => (choice === '' ? 'Nothing picked' : null);
+
+/* Cities belong to a governorate, so the city list narrows to the governorate
+   the branch is set to — and a city that no longer fits it is dropped rather
+   than quietly importing under the wrong one. */
+const citiesFor = (branch) => {
+  const cities = props.cities || [];
+  const gov = branch._governorateChoice;
+  if (!gov || gov === NEW_LOOKUP) return cities;
+
+  return cities.filter(c => String(c.governorate_id) === String(gov));
+};
+
+const setBranchGovernorate = (branch, choice) => {
+  applyChoice(branch, 'governorate', choice, props.governorates);
+
+  const city = (props.cities || []).find(c => String(c.value) === String(branch._cityChoice));
+  if (city && !citiesFor(branch).includes(city)) {
+    setBranchCity(branch, branch._cityLabel ? NEW_LOOKUP : '');
+  }
+};
+
+const setBranchCity = (branch, choice) => {
+  applyChoice(branch, 'city', choice, props.cities);
+
+  // Picking a city that belongs elsewhere settles the governorate too.
+  const city = (props.cities || []).find(c => String(c.value) === String(choice));
+  if (city && String(branch._governorateChoice) !== String(city.governorate_id)) {
+    applyChoice(branch, 'governorate', city.governorate_id, props.governorates);
+  }
+};
+
+/* ------------------------------ branch health ------------------------------ */
+
+/* What the red/green badge on a facility row is counting. A lookup that has to
+   be created is a problem worth seeing before the import, not after. */
+const branchIssues = (branch) => {
+  const issues = [];
+
+  if (!String(branch.name?.en || '').trim() && !String(branch.name?.ar || '').trim()) {
+    issues.push('Branch has no name');
+  }
+  if (branch._governorateChoice === '') {
+    issues.push('No governorate');
+  } else if (branch._governorateChoice === NEW_LOOKUP) {
+    issues.push(`Governorate “${branch._governorateLabel}” does not exist yet`);
+  }
+  if (branch._cityChoice === '') {
+    issues.push('No city');
+  } else if (branch._cityChoice === NEW_LOOKUP) {
+    issues.push(`City “${branch._cityLabel}” does not exist yet`);
+  }
+
+  return issues;
+};
+
+const facilityBranchIssues = (facility) =>
+  (facility.branches || []).flatMap((branch, index) =>
+    branchIssues(branch).map(issue => `Branch ${index + 1}: ${issue}`)
+  );
+
+const branchBadgeCls = (facility) =>
+  facilityBranchIssues(facility).length
+    ? 'bg-red-600 text-white'
+    : 'bg-emerald-600 text-white';
+
 const inspectPackage = async () => {
   busy.value = true;
   importError.value = '';
@@ -599,25 +903,36 @@ const inspectPackage = async () => {
     const { data } = await axios.post(route('admin.facility.migration.preview'), packageForm());
     previewData.value = {
       token: data.token,
-      facilities: (data.facilities || []).map(f => ({
-        ...f,
-        name: f.name || {},
-        facility_type: f.facility_type || { name: {} },
-        governorate: f.governorate || { name: {} },
-        city: f.city || { name: {} },
-        branches: (f.branches || []).map(b => ({
-          ...b,
-          name: b.name || {},
-          address: b.address || {},
-          governorate: b.governorate || { name: {} },
-          city: b.city || { name: {} },
-          phone: b.phone || null,
-        })),
-        offers: f.offers || [],
-        media: f.media || [],
-        tags: f.tags || [],
-        _showBranches: false,
-      })),
+      facilities: (data.facilities || []).map(f => {
+        const facility = {
+          ...f,
+          name: asTranslation(f.name),
+          branches: (f.branches || []).map(b => {
+            const phones = asPhoneList(b.phone);
+            const branch = {
+              ...b,
+              name: asTranslation(b.name),
+              address: asTranslation(b.address),
+              phone: phones,
+              _phoneText: phones.join('\n'),
+              google_location_url: b.google_location_url || '',
+            };
+
+            // Governorate first: it decides which cities the city picker offers.
+            normalizeLookup(branch, 'governorate', b.governorate, props.governorates);
+            normalizeLookup(branch, 'city', b.city, citiesFor(branch));
+
+            return branch;
+          }),
+          offers: f.offers || [],
+          media: f.media || [],
+          tags: f.tags || [],
+          _showBranches: false,
+        };
+        normalizeLookup(facility, 'facility_type', f.facility_type, props.facilityTypes);
+
+        return facility;
+      }),
       source: data.source || {},
       generated_at: data.generated_at || '',
       counts: data.counts || {},
@@ -644,26 +959,48 @@ const cancelPreview = () => {
   importError.value = '';
 };
 
+/* Everything prefixed with "_" — the select choices, the typed phone text, the
+   expanded/collapsed flag — belongs to this screen and never to the package. */
+const withoutBookkeeping = (row) => {
+  const clean = Object.fromEntries(
+    Object.entries(row).filter(([key]) => !key.startsWith('_'))
+  );
+  if (Array.isArray(clean.branches)) {
+    clean.branches = clean.branches.map(withoutBookkeeping);
+  }
+
+  return clean;
+};
+
 const startImportFromPreview = async () => {
   busy.value = true;
   importError.value = '';
   try {
     // Save any remaining edits for the current page before starting
-    const token = previewData.value.token;
+    const sessionToken = previewData.value.token;
     const facilities = previewData.value.facilities;
     for (const facility of facilities) {
-      const dataToSend = { ...facility };
-      delete dataToSend._showBranches;
-      delete dataToSend._index;
+      const dataToSend = withoutBookkeeping(facility);
       await axios.post(route('admin.facility.migration.edit'), {
-        token,
+        token: sessionToken,
         index: facility._index,
         data: dataToSend,
       });
     }
 
+    // The session was opened by the preview with placeholder settings — the
+    // mode and switches the operator picked here have to reach it before the
+    // first step runs.
+    await axios.post(route('admin.facility.migration.options'), {
+      token: sessionToken,
+      mode: importMode.value,
+      dry_run: dryRun.value ? 1 : 0,
+      skip_media: skipMedia.value ? 1 : 0,
+      confirm_wipe: confirmWipe.value ? 1 : 0,
+    });
+
     // The session was already created by preview — just start stepping
-    token.value = token;
+    token.value = sessionToken;
     progress.value = { processed: 0, total: facilities.length, percent: 0, stats: {}, errors: [] };
     importStep.value = 'running';
     paused.value = false;

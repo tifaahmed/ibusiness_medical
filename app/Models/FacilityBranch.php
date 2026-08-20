@@ -37,6 +37,7 @@ class FacilityBranch extends Model
         'city_id',
         'latitude',
         'longitude',
+        'google_location_url',
         'name',
         'slug',
         'address',

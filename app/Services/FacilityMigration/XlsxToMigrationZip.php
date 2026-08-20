@@ -50,11 +50,12 @@ class XlsxToMigrationZip
                     'en' => $branch['address'] ?: null,
                     'ar' => $branch['address_ar'] ?: null,
                 ],
-                'phone' => $branch['phone'] ?: null,
-                'governorate' => $branch['governorate'] ?: null,
-                'city' => $branch['city'] ?: null,
+                'phone' => $this->phoneList($branch['phone'] ?? null),
+                'governorate' => $this->nameRef($branch['governorate'] ?? null),
+                'city' => $this->nameRef($branch['city'] ?? null),
                 'latitude' => $branch['latitude'] !== '' ? (float) $branch['latitude'] : null,
                 'longitude' => $branch['longitude'] !== '' ? (float) $branch['longitude'] : null,
+                'google_location_url' => $branch['google_location_url'] ?: null,
             ];
         }
 
@@ -72,11 +73,7 @@ class XlsxToMigrationZip
                     'ar' => $nameAr ?: null,
                 ],
                 'description' => [],
-                'facility_type' => $row['facility_type'] ?: null,
-                'governorate' => $row['governorate'] ?: null,
-                'city' => $row['city'] ?: null,
-                'latitude' => $row['latitude'] !== '' ? (float) $row['latitude'] : null,
-                'longitude' => $row['longitude'] !== '' ? (float) $row['longitude'] : null,
+                'facility_type' => $this->nameRef($row['facility_type'] ?? null),
                 'branches' => $branchesByFacility[$facilityKey] ?? [],
             ];
         }
@@ -127,6 +124,47 @@ class XlsxToMigrationZip
         return $zipPath;
     }
 
+    /**
+     * A lookup column is a single cell of text, but the importer and the import
+     * preview screen both read lookups as { slug, name: { en, ar } } — a bare
+     * string blows up on both sides.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function nameRef(?string $value): ?array
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        // An Arabic cell must land in the ar slot or it will never match an
+        // existing lookup row — and would create a duplicate named in Arabic
+        // under the en key.
+        $locale = preg_match('/\p{Arabic}/u', $value) ? 'ar' : 'en';
+
+        return [
+            'slug' => \Illuminate\Support\Str::slug($value) ?: null,
+            'name' => [$locale => $value],
+        ];
+    }
+
+    /**
+     * A branch holds a list of phones; one cell can carry several, separated by
+     * a newline, comma, semicolon or pipe.
+     *
+     * @return array<int, string>|null
+     */
+    private function phoneList(?string $value): ?array
+    {
+        $parts = array_values(array_filter(
+            array_map('trim', preg_split('/[\r\n,;|]+/', (string) $value)),
+            fn ($p) => $p !== ''
+        ));
+
+        return $parts ?: null;
+    }
+
     private function parseFacilitySheet($spreadsheet): array
     {
         $sheet = $spreadsheet->getSheetByName('Facilities') ?? $spreadsheet->getActiveSheet();
@@ -136,10 +174,6 @@ class XlsxToMigrationZip
             'name_ar' => ['name (ar)', 'name_ar', 'arabic name'],
             'slug' => ['slug'],
             'facility_type' => ['facility type', 'facility_type', 'type'],
-            'governorate' => ['governorate'],
-            'city' => ['city'],
-            'latitude' => ['latitude', 'lat'],
-            'longitude' => ['longitude', 'lng', 'long'],
         ]);
     }
 
@@ -161,6 +195,7 @@ class XlsxToMigrationZip
             'city' => ['city'],
             'latitude' => ['latitude', 'lat'],
             'longitude' => ['longitude', 'lng', 'long'],
+            'google_location_url' => ['google_location_url', 'google url', 'location url', 'map url'],
         ]);
     }
 
@@ -169,12 +204,20 @@ class XlsxToMigrationZip
         $highestRow = $sheet->getHighestDataRow();
         $highestCol = $sheet->getHighestDataColumn();
 
-        // Find header row
+        // Build a flat set of known header labels from the alias map
+        $knownHeaders = [];
+        foreach ($columnAliases as $candidates) {
+            foreach ($candidates as $c) {
+                $knownHeaders[mb_strtolower($c)] = true;
+            }
+        }
+
+        // Find header row — match any known alias or '#'
         $headerRow = null;
         for ($r = 1; $r <= min($highestRow, 10); $r++) {
             for ($col = 'A'; $col <= $highestCol; $col++) {
                 $val = mb_strtolower(trim((string) $sheet->getCell("{$col}{$r}")->getValue()));
-                if (in_array($val, ['name', '#'], true)) {
+                if ($val === '#' || isset($knownHeaders[$val])) {
                     $headerRow = $r;
                     break 2;
                 }
@@ -242,11 +285,16 @@ class XlsxToMigrationZip
 
     private function getCities(): array
     {
+        $governorateSlugs = \App\Models\Governorate::pluck('slug', 'id');
+
         return \App\Models\City::all()->map(fn ($c) => [
             'id' => $c->id,
             'slug' => $c->slug,
             'name' => $c->getTranslations('name'),
             'governorate_id' => $c->governorate_id,
+            // The importer attaches a newly created city to the governorate
+            // named here before falling back to the branch's own.
+            'governorate_slug' => $governorateSlugs[$c->governorate_id] ?? null,
         ])->toArray();
     }
 }

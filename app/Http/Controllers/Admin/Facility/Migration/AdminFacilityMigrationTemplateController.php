@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -55,18 +56,14 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'B' => 'Name (AR)',
             'C' => 'Slug',
             'D' => 'Facility Type',
-            'E' => 'Governorate',
-            'F' => 'City',
-            'G' => 'Latitude',
-            'H' => 'Longitude',
         ];
 
         foreach ($columns as $col => $label) {
             $sheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($sheet, 1, 'H');
+        $this->styleHeaderRow($sheet, 1, 'D');
 
-        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 14, 'H' => 14];
+        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22];
         foreach ($widths as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
         }
@@ -86,14 +83,15 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'H' => 'City',
             'I' => 'Latitude',
             'J' => 'Longitude',
+            'K' => 'Google Location URL',
         ];
 
         foreach ($branchColumns as $col => $label) {
             $branchSheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($branchSheet, 1, 'J');
+        $this->styleHeaderRow($branchSheet, 1, 'K');
 
-        $branchWidths = ['A' => 30, 'B' => 28, 'C' => 28, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14];
+        $branchWidths = ['A' => 30, 'B' => 28, 'C' => 28, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14, 'K' => 40];
         foreach ($branchWidths as $col => $w) {
             $branchSheet->getColumnDimension($col)->setWidth($w);
         }
@@ -167,18 +165,14 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'B' => 'Name (AR)',
             'C' => 'Slug',
             'D' => 'Facility Type',
-            'E' => 'Governorate',
-            'F' => 'City',
-            'G' => 'Latitude',
-            'H' => 'Longitude',
         ];
 
         foreach ($columns as $col => $label) {
             $sheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($sheet, 1, 'H');
+        $this->styleHeaderRow($sheet, 1, 'D');
 
-        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 14, 'H' => 14];
+        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22];
         foreach ($widths as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
         }
@@ -198,14 +192,15 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'H' => 'City',
             'I' => 'Latitude',
             'J' => 'Longitude',
+            'K' => 'Google Location URL',
         ];
 
         foreach ($branchColumns as $col => $label) {
             $branchSheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($branchSheet, 1, 'J');
+        $this->styleHeaderRow($branchSheet, 1, 'K');
 
-        $branchWidths = ['A' => 30, 'B' => 28, 'C' => 28, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14];
+        $branchWidths = ['A' => 30, 'B' => 28, 'C' => 28, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14, 'K' => 40];
         foreach ($branchWidths as $col => $w) {
             $branchSheet->getColumnDimension($col)->setWidth($w);
         }
@@ -249,7 +244,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
 
     private function buildInstructionsSheet(Spreadsheet $spreadsheet): void
     {
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Instructions');
 
         $sheet->setCellValue('A1', 'FACILITY IMPORT — INSTRUCTIONS');
@@ -295,22 +290,6 @@ class AdminFacilityMigrationTemplateController extends BaseController
             '  Must match an existing facility type by ID, name (EN or AR), or slug.',
             '  See "FACILITY TYPES" table below for all available types.',
             '',
-            'Governorate',
-            '  Must match an existing governorate by ID, name (EN or AR), or slug.',
-            '  See "GOVERNORATES" table below for all available governorates.',
-            '',
-            'City',
-            '  Must match an existing city by ID, name (EN or AR), or slug.',
-            '  See "CITIES" table below for all available cities.',
-            '',
-            'Latitude',
-            '  Decimal number between -90 and 90. Optional.',
-            '  Example: 27.3977',
-            '',
-            'Longitude',
-            '  Decimal number between -180 and 180. Optional.',
-            '  Example: 33.6596',
-            '',
             '',
             'BRANCHES SHEET — COLUMN GUIDE',
             '',
@@ -335,6 +314,10 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'Latitude / Longitude',
             '  Decimal coordinates.',
             '',
+            'Google Location URL',
+            '  Google Maps share link for the branch location. Optional.',
+            '  Example: "https://maps.app.goo.gl/abc123"',
+            '',
             '',
             'IMPORTANT NOTES',
             '• Match names EXACTLY — the import matches by name, so typos create new facilities.',
@@ -358,7 +341,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
                     'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '1F2937']],
                 ]);
             }
-            if (preg_match('/^(Name|Slug|Facility Type|Governorate|City|Latitude|Longitude|Facility Name|Branch Name|Phone|Address|IMPORTANT NOTES)$/i', trim($line))) {
+            if (preg_match('/^(Name|Slug|Facility Type|Governorate|City|Latitude|Longitude|Google Location URL|Facility Name|Branch Name|Phone|Address|IMPORTANT NOTES)$/i', trim($line))) {
                 $sheet->getStyle("B{$r}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => '4F46E5']],
                 ]);
@@ -416,7 +399,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
     /**
      * Build a 4-column reference table (ID | Name EN | Name AR | Slug).
      */
-    private function buildReferenceTable(Spreadsheet $sheet, int $startRow, string $title, array $rows): int
+    private function buildReferenceTable(Worksheet $sheet, int $startRow, string $title, array $rows): int
     {
         // Title row
         $sheet->mergeCells("A{$startRow}:D{$startRow}");
@@ -431,7 +414,6 @@ class AdminFacilityMigrationTemplateController extends BaseController
         // Header row
         $headers = ['ID', 'Name (EN)', 'Name (AR)', 'Slug'];
         foreach ($headers as $col => $label) {
-            $sheet->setCellValue("{$col}1", '');
             $colLetter = chr(ord('A') + $col);
             $sheet->setCellValue("{$colLetter}{$startRow}", $label);
         }
@@ -466,7 +448,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
     /**
      * Build a 5-column cities table (ID | Name EN | Name AR | Slug | Governorate).
      */
-    private function buildCitiesTable(Spreadsheet $sheet, int $startRow, string $title, array $rows): int
+    private function buildCitiesTable(Worksheet $sheet, int $startRow, string $title, array $rows): int
     {
         // Title row
         $sheet->mergeCells("A{$startRow}:E{$startRow}");
@@ -517,28 +499,24 @@ class AdminFacilityMigrationTemplateController extends BaseController
     private function buildExampleSheet(Spreadsheet $spreadsheet): void
     {
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Example');
+        $sheet->setTitle('Facilities');
 
         $columns = [
             'A' => 'Name',
             'B' => 'Name (AR)',
             'C' => 'Slug',
             'D' => 'Facility Type',
-            'E' => 'Governorate',
-            'F' => 'City',
-            'G' => 'Latitude',
-            'H' => 'Longitude',
         ];
 
         foreach ($columns as $col => $label) {
             $sheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($sheet, 1, 'H');
+        $this->styleHeaderRow($sheet, 1, 'D');
 
         $examples = [
-            ['El Gouna Medical Center', 'مركز الغردقة الطبي', 'el-gouna-medical-center', 'Clinic', 'Red Sea', 'El Gouna', 27.3977, 33.6596],
-            ['Cairo Dental Clinic', 'عيادة أسنان القاهرة', 'cairo-dental-clinic', 'Dental Clinic', 'Cairo', 'Nasr City', 30.0561, 31.3389],
-            ['Alexandria Eye Hospital', 'مستشفى العيون بالإسكندرية', 'alexandria-eye-hospital', 'Hospital', 'Alexandria', 'Smouha', 31.2001, 29.9187],
+            ['El Gouna Medical Center', 'مركز الغردقة الطبي', 'el-gouna-medical-center', 'Clinic'],
+            ['Cairo Dental Clinic', 'عيادة أسنان القاهرة', 'cairo-dental-clinic', 'Dental Clinic'],
+            ['Alexandria Eye Hospital', 'مستشفى العيون بالإسكندرية', 'alexandria-eye-hospital', 'Hospital'],
         ];
 
         foreach ($examples as $i => $row) {
@@ -548,8 +526,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
                 $sheet->setCellValue("{$col}{$r}", $value);
             }
             $stripe = ($i % 2 === 0) ? 'F0FDF4' : 'FFFFFF';
-            $sheet->getStyle("A{$r}:H{$r}")->applyFromArray([
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
+            $sheet->getStyle("A{$r}:D{$r}")->applyFromArray([                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
             ]);
@@ -558,7 +535,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
 
         // Branch examples sheet
         $branchSheet = $spreadsheet->createSheet();
-        $branchSheet->setTitle('Branch Examples');
+        $branchSheet->setTitle('Branches');
 
         $branchColumns = [
             'A' => 'Facility Name',
@@ -571,17 +548,18 @@ class AdminFacilityMigrationTemplateController extends BaseController
             'H' => 'City',
             'I' => 'Latitude',
             'J' => 'Longitude',
+            'K' => 'Google Location URL',
         ];
 
         foreach ($branchColumns as $col => $label) {
             $branchSheet->setCellValue("{$col}1", $label);
         }
-        $this->styleHeaderRow($branchSheet, 1, 'J');
+        $this->styleHeaderRow($branchSheet, 1, 'K');
 
         $branchExamples = [
-            ['El Gouna Medical Center', 'El Gouna Branch', 'فرع الغردقة', 'Abu Tig Marina, El Gouna', 'مارينا أبو تيج، الغردقة', '+20 65 358 0123', 'Red Sea', 'El Gouna', 27.3977, 33.6596],
-            ['El Gouna Medical Center', 'Soma Bay Branch', 'فرع سوما باي', 'Soma Bay Resort', 'منتجع سوما باي', '+20 65 358 0456', 'Red Sea', 'Soma Bay', 27.1044, 33.8350],
-            ['Cairo Dental Clinic', 'Main Branch', 'الفرع الرئيسي', '15 Abbas El Akkad St, Nasr City', 'شارع Abbas El Akkad، مدينة نصر', '+20 2 2273 0000', 'Cairo', 'Nasr City', 30.0561, 31.3389],
+            ['El Gouna Medical Center', 'El Gouna Branch', 'فرع الغردقة', 'Abu Tig Marina, El Gouna', 'مارينا أبو تيج، الغردقة', '+20 65 358 0123', 'Red Sea', 'El Gouna', 27.3977, 33.6596, 'https://maps.app.goo.gl/example1'],
+            ['El Gouna Medical Center', 'Soma Bay Branch', 'فرع سوما باي', 'Soma Bay Resort', 'منتجع سوما باي', '+20 65 358 0456', 'Red Sea', 'Soma Bay', 27.1044, 33.8350, 'https://maps.app.goo.gl/example2'],
+            ['Cairo Dental Clinic', 'Main Branch', 'الفرع الرئيسي', '15 Abbas El Akkad St, Nasr City', 'شارع Abbas El Akkad، مدينة نصر', '+20 2 2273 0000', 'Cairo', 'Nasr City', 30.0561, 31.3389, 'https://maps.app.goo.gl/example3'],
         ];
 
         foreach ($branchExamples as $i => $row) {
@@ -591,7 +569,7 @@ class AdminFacilityMigrationTemplateController extends BaseController
                 $branchSheet->setCellValue("{$col}{$r}", $value);
             }
             $stripe = ($i % 2 === 0) ? 'F0FDF4' : 'FFFFFF';
-            $branchSheet->getStyle("A{$r}:J{$r}")->applyFromArray([
+            $branchSheet->getStyle("A{$r}:K{$r}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
@@ -599,12 +577,12 @@ class AdminFacilityMigrationTemplateController extends BaseController
             $branchSheet->getRowDimension($r)->setRowHeight(22);
         }
 
-        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 14, 'H' => 14];
+        $widths = ['A' => 30, 'B' => 30, 'C' => 28, 'D' => 22, 'E' => 14, 'F' => 14];
         foreach ($widths as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
         }
 
-        $branchWidths = ['A' => 30, 'B' => 22, 'C' => 22, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14];
+        $branchWidths = ['A' => 30, 'B' => 22, 'C' => 22, 'D' => 36, 'E' => 36, 'F' => 22, 'G' => 22, 'H' => 22, 'I' => 14, 'J' => 14, 'K' => 40];
         foreach ($branchWidths as $col => $w) {
             $branchSheet->getColumnDimension($col)->setWidth($w);
         }

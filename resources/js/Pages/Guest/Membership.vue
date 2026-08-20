@@ -39,16 +39,30 @@
           <h1 class="text-xl sm:text-3xl font-bold text-card-foreground mb-1 sm:mb-2">{{ t.title || 'Membership Details' }}</h1>
           <p class="text-xs sm:text-sm text-muted-foreground">{{ t.subtitle || 'View your membership information' }}</p>
         </div>
-        <Link
-          :href="route('guest.membership-usage.create', membership.slug)"
-          class="shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-10 px-3 sm:px-4 py-1.5 sm:py-2"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sm:w-4 sm:h-4">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          {{ t.add_usage || 'Add Usage' }}
-        </Link>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            @click="switchLanguage"
+            class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border border-border hover:bg-primary hover:text-primary-foreground h-8 sm:h-10 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-card text-card-foreground"
+            :title="locale === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sm:w-4 sm:h-4">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            {{ locale === 'ar' ? 'EN' : 'عربي' }}
+          </button>
+          <Link
+            :href="route('guest.membership-usage.create', membership.slug)"
+            class="shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-10 px-3 sm:px-4 py-1.5 sm:py-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sm:w-4 sm:h-4">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            {{ t.add_usage || 'Add Usage' }}
+          </Link>
+        </div>
       </div>
 
       <!-- Generated Membership Card — TOP SECTION -->
@@ -72,6 +86,7 @@
             :partner="membership.partner"
             :card-layout="minimalCardLayout"
             :card-template="minimalCardTemplate"
+            :field-values="minimalCardFieldValues"
             mode="minimal"
             :translations="t"
           />
@@ -424,7 +439,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { Link, usePage } from "@inertiajs/vue3";
+import { Link, usePage, router } from "@inertiajs/vue3";
 import QRCode from "qrcode";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import Modal from "@/Components/Modal.vue";
@@ -437,22 +452,54 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  cardTemplates: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const page = usePage();
 const locale = computed(() => page.props.locale || 'ar');
 const t = computed(() => page.props.translations?.home?.membership_page || {});
 
+const switchLanguage = () => {
+  const newLocale = locale.value === 'ar' ? 'en' : 'ar';
+  window.location.href = route('lang.switch', { locale: newLocale });
+};
+
 const showCardModal = ref(false);
 const showQRCodeModal = ref(false);
 const showUsagesModal = ref(false);
 const showCardsSection = ref(true);
 const minimalCardLayout = computed(() => {
-  return (props.membership.card_layouts || []).find(l => l.mode === 'minimal') || null;
+  return (props.membership.card_layouts || []).find(l => l.mode === 'minimal')
+    || (props.membership.card_layouts || []).find(l => l.mode === 'full')
+    || null;
 });
 
 const minimalCardTemplate = computed(() => {
-  return minimalCardLayout.value?.card_template || null;
+  if (minimalCardLayout.value?.card_template) {
+    const cl = minimalCardLayout.value;
+    return {
+      ...cl.card_template,
+      layout: cl.layout || cl.card_template.layout,
+      card_empty_url: cl.card_template.card_empty_url,
+      hidden_fields: cl.card_template.hidden_fields,
+    };
+  }
+  const wanted = props.membership.partner?.id ? 'with_partner' : 'no_partner';
+  const fallback = props.cardTemplates[wanted] || props.cardTemplates.with_partner || props.cardTemplates.no_partner || null;
+  if (!fallback) return null;
+  return {
+    ...fallback,
+    layout: fallback.layout,
+    card_empty_url: fallback.card_empty_url,
+    hidden_fields: fallback.hidden_fields,
+  };
+});
+
+const minimalCardFieldValues = computed(() => {
+  return minimalCardLayout.value?.field_values || null;
 });
 const qrcodeCanvas = ref(null);
 const membershipUrl = ref("");
