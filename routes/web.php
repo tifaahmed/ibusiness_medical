@@ -61,6 +61,15 @@ use App\Http\Controllers\Admin\FacilityType\Show\AdminFacilityTypeShowController
 use App\Http\Controllers\Admin\FacilityType\Store\AdminFacilityTypeStoreController;
 // Facility Routes
 use App\Http\Controllers\Admin\FacilityType\Update\AdminFacilityTypeUpdateController;
+
+// ProductType Routes
+use App\Http\Controllers\Admin\ProductType\Create\AdminProductTypeCreateController;
+use App\Http\Controllers\Admin\ProductType\Delete\AdminProductTypeDeleteController;
+use App\Http\Controllers\Admin\ProductType\Edit\AdminProductTypeEditController;
+use App\Http\Controllers\Admin\ProductType\List\AdminProductTypeListController;
+use App\Http\Controllers\Admin\ProductType\Show\AdminProductTypeShowController;
+use App\Http\Controllers\Admin\ProductType\Store\AdminProductTypeStoreController;
+use App\Http\Controllers\Admin\ProductType\Update\AdminProductTypeUpdateController;
 use App\Http\Controllers\Admin\Faq\Create\AdminFaqCreateController;
 use App\Http\Controllers\Admin\Faq\Delete\AdminFaqDeleteController;
 use App\Http\Controllers\Admin\Faq\Edit\AdminFaqEditController;
@@ -469,6 +478,17 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility-type/{facilityType}/edit', AdminFacilityTypeEditController::class)->name('admin.facility-type.edit');
         Route::put('/admin/facility-type/{facilityType}', AdminFacilityTypeUpdateController::class)->name('admin.facility-type.update');
         Route::delete('/admin/facility-type/{facilityType}', AdminFacilityTypeDeleteController::class)->name('admin.facility-type.destroy');
+    });
+
+    // ---- ProductType (manage product types OR own) ----
+    Route::middleware('permission:manage product types|manage own product types')->group(function () {
+        Route::get('/admin/product-type', AdminProductTypeListController::class)->name('admin.product-type.list');
+        Route::get('/admin/product-type/create', AdminProductTypeCreateController::class)->name('admin.product-type.create');
+        Route::post('/admin/product-type', AdminProductTypeStoreController::class)->name('admin.product-type.store');
+        Route::get('/admin/product-type/{productType}', AdminProductTypeShowController::class)->name('admin.product-type.show');
+        Route::get('/admin/product-type/{productType}/edit', AdminProductTypeEditController::class)->name('admin.product-type.edit');
+        Route::put('/admin/product-type/{productType}', AdminProductTypeUpdateController::class)->name('admin.product-type.update');
+        Route::delete('/admin/product-type/{productType}', AdminProductTypeDeleteController::class)->name('admin.product-type.destroy');
     });
 
     // ---- Offer (manage offers OR own) ----

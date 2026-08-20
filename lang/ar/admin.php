@@ -407,6 +407,26 @@ return [
         'facilities_count' => 'عدد المنشآت',
     ],
 
+    // Product Type
+    'product_type' => [
+        'title' => 'أنواع المنتجات',
+        'management' => 'إدارة أنواع المنتجات',
+        'label' => 'نوع المنتج',
+        'all' => 'جميع أنواع المنتجات',
+        'add_new' => 'إضافة نوع منتج جديد',
+        'add' => 'إضافة نوع منتج',
+        'create' => 'إنشاء نوع منتج',
+        'edit' => 'تعديل نوع المنتج',
+        'view' => 'عرض نوع المنتج',
+        'update' => 'تحديث نوع المنتج',
+        'information' => 'معلومات نوع المنتج',
+        'details' => 'تفاصيل نوع المنتج',
+        'not_found' => 'لا توجد أنواع منتجات',
+        'not_found_message' => 'لا توجد أنواع منتجات تطابق الفلاتر الحالية. حاول تعديل معايير البحث.',
+        'search_placeholder' => 'البحث في أنواع المنتجات بالاسم...',
+        'name_placeholder' => 'أدخل اسم نوع المنتج',
+    ],
+
     // Governorate
     'governorate' => [
         'title' => 'المحافظات',
@@ -688,6 +708,8 @@ return [
         'facility_types' => 'أنواع المنشآت',
         'facilities' => 'المنشآت',
         'facility_branches' => 'فروع المنشآت',
+        'products' => 'المنتجات',
+        'product_types' => 'أنواع المنتجات',
         'faqs' => 'الأسئلة الشائعة',
         'news_tickers' => 'الأخبار العاجلة',
         'settings' => 'الإعدادات',
@@ -929,6 +951,7 @@ return [
         'facility_branches' => 'فروع المنشآت',
         'governorates' => 'المحافظات',
         'facility_types' => 'أنواع المنشآت',
+        'product_types' => 'أنواع المنتجات',
         'members' => 'الأعضاء',
         'membership_usages' => 'استخدامات العضوية',
         'member_payments' => 'مدفوعات العضوية',

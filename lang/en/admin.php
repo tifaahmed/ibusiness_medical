@@ -407,6 +407,26 @@ return [
         'facilities_count' => 'Facilities Count',
     ],
 
+    // Product Type
+    'product_type' => [
+        'title' => 'Product Types',
+        'management' => 'Product Types Management',
+        'label' => 'Product Type',
+        'all' => 'All Product Types',
+        'add_new' => 'Add New Product Type',
+        'add' => 'Add Product Type',
+        'create' => 'Create Product Type',
+        'edit' => 'Edit Product Type',
+        'view' => 'View Product Type',
+        'update' => 'Update Product Type',
+        'information' => 'Product Type Information',
+        'details' => 'Product Type Details',
+        'not_found' => 'No Product Types Found',
+        'not_found_message' => 'No product types match your current filters. Try adjusting your search criteria.',
+        'search_placeholder' => 'Search product types by name...',
+        'name_placeholder' => 'Enter product type name',
+    ],
+
     // Governorate
     'governorate' => [
         'title' => 'Governorates',
@@ -689,6 +709,8 @@ return [
         'facility_types' => 'Facility Types',
         'facilities' => 'Facilities',
         'facility_branches' => 'Facility Branches',
+        'products' => 'Products',
+        'product_types' => 'Product Types',
         'faqs' => 'FAQs',
         'news_tickers' => 'News Tickers',
         'settings' => 'Settings',
@@ -930,6 +952,7 @@ return [
         'facility_branches' => 'Facility Branches',
         'governorates' => 'Governorates',
         'facility_types' => 'Facility Types',
+        'product_types' => 'Product Types',
         'members' => 'Members',
         'membership_usages' => 'Membership Usages',
         'member_payments' => 'Member Payments',

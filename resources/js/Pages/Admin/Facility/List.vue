@@ -1,5 +1,5 @@
 <template>
-  <FacilityListView :facilities="facilities" :filters="filters" :facility-types="facilityTypes" :governorates="governorates" :sales-options="salesOptions" />
+  <FacilityListView :facilities="facilities" :filters="filters" :facility-types="facilityTypes" :governorates="governorates" :cities="cities" :sales-options="salesOptions" />
 </template>
 
 <script setup>
@@ -16,6 +16,7 @@ const props = defineProps({
       search: '',
       facility_type_id: '',
       governorate_id: '',
+      city_id: '',
       sales_id: ''
     })
   },
@@ -24,6 +25,10 @@ const props = defineProps({
     default: () => []
   },
   governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
     type: Array,
     default: () => []
   },

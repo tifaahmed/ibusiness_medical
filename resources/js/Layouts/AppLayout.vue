@@ -357,6 +357,29 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.facility_branches || 'Facility Branches' }}</template>
                 </SidebarLink>
 
+                <SidebarDropdown
+                    v-if="canAny('manage product types', 'manage own product types')"
+                    :label="t.sidebar?.products || 'Products'"
+                    :is-collapsed="sidebarCollapsed"
+                    :active="route().current('admin.product-type.*')"
+                    icon-animation="animate-icon-breathe"
+                    :auto-open="['/admin/product-type']"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </template>
+
+                    <SidebarSubLink
+                        :href="route('admin.product-type.list')"
+                        :active="route().current('admin.product-type.*')"
+                        @click="closeSidebar"
+                    >
+                        {{ t.sidebar?.product_types || 'Product Types' }}
+                    </SidebarSubLink>
+                </SidebarDropdown>
+
                 <SidebarLink
                     v-if="can('manage offers')"
                     :href="route('admin.offer.list')"
