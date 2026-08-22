@@ -98,6 +98,8 @@ const props = defineProps({
       sales_id: '',
       governorate_id: '',
       city_id: '',
+      created_from: '',
+      created_to: '',
     })
   },
   facilityTypes: {
@@ -143,6 +145,8 @@ const exportUrl = computed(() => {
   if (f.sales_id) params.set('sales_id', f.sales_id);
   if (f.governorate_id) params.set('governorate_id', f.governorate_id);
   if (f.city_id) params.set('city_id', f.city_id);
+  if (f.created_from) params.set('created_from', f.created_from);
+  if (f.created_to) params.set('created_to', f.created_to);
   params.set('include_branches', '1');
   const qs = params.toString();
   return route('admin.facility.export') + (qs ? '?' + qs : '');

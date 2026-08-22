@@ -12,6 +12,7 @@
             <div v-show="activeTab === 'details'" class="space-y-3">
               <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" />
+              <FacilityManagerCard v-model="managers" />
             </div>
 
             <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled
@@ -69,7 +70,7 @@ import { watch, ref, computed } from "vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useFacilityStore } from "../Stores/FacilityStore";
-import { FacilityForm, FacilityBranchCard, FacilitySeoCard } from "../_components/Form";
+import { FacilityForm, FacilityBranchCard, FacilitySeoCard, FacilityManagerCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
 
 const page = usePage();
@@ -129,6 +130,7 @@ const tabs = computed(() => [
   },
 ]);
 const branches = ref([]);
+const managers = ref([]);
 
 // Set facility data when props are received
 // Use watch with immediate to ensure it runs on mount and when props change
@@ -151,11 +153,12 @@ watch(() => props.facility, (newFacility) => {
     console.log('[FacilityEditView] === DEBUG END ===');
     facilityStore.setFacility(newFacility);
     branches.value = newFacility.branches || [];
+    managers.value = newFacility.managers || [];
   }
 }, { immediate: true, deep: true });
 
 const handleSubmit = () => {
-  facilityStore.updateFacility(branches.value);
+  facilityStore.updateFacility(branches.value, managers.value);
 };
 </script>
 

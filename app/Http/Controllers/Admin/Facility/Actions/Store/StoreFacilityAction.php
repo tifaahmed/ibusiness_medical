@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
 use App\Models\FacilityLog;
+use App\Models\FacilityManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,12 @@ class StoreFacilityAction
             $createdBranches = [];
             if (isset($validated['branches'])) {
                 $createdBranches = $this->handleBranches($facility, $validated['branches']);
+            }
+
+            // Handle managers
+            $createdManagers = [];
+            if (isset($validated['managers'])) {
+                $createdManagers = $this->handleManagers($facility, $validated['managers']);
             }
 
             $facility->refresh();
@@ -161,6 +168,29 @@ class StoreFacilityAction
         $phone = array_filter(array_map('trim', $phone), fn ($p) => ! empty($p));
 
         return ! empty($phone) ? array_values($phone) : null;
+    }
+
+    /**
+     * Handle facility managers creation.
+     *
+     * @return FacilityManager[]
+     */
+    private function handleManagers(Facility $facility, array $managersData): array
+    {
+        $created = [];
+        foreach ($managersData as $managerData) {
+            $phones = $this->normalizePhone($managerData['phones'] ?? null);
+
+            $created[] = FacilityManager::create([
+                'facility_id' => $facility->id,
+                'name' => $managerData['name'] ?? null,
+                'position' => $managerData['position'] ?? null,
+                'phones' => $phones,
+                'created_by' => Auth::id(),
+            ]);
+        }
+
+        return $created;
     }
 
     private function facilitySnapshot(Facility $facility): array

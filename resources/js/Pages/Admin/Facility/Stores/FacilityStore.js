@@ -104,15 +104,18 @@ export const useFacilityStore = defineStore('facility', {
             this.validationErrors = null;
         },
 
-        async submitForm(branches = []) {
+        async submitForm(branches = [], managers = []) {
             this.isLoading = true;
             try {
                 const errors = {};
                 const nameAr = this.form.name?.ar?.toString().trim() || '';
                 const nameEn = this.form.name?.en?.toString().trim() || '';
-                if (!nameAr) errors['name.ar'] = 'Name (Arabic) is required';
-                if (!nameEn) errors['name.en'] = 'Name (English) is required';
-                if (!this.form.facility_type_id) errors['facility_type_id'] = 'Facility type is required';
+                if (!nameAr || !nameEn) {
+                    errors.name = {};
+                    if (!nameAr) errors.name.ar = 'Name (Arabic) is required';
+                    if (!nameEn) errors.name.en = 'Name (English) is required';
+                }
+                if (!this.form.facility_type_id) errors.facility_type_id = 'Facility type is required';
 
                 if (Object.keys(errors).length > 0) {
                     this.validationErrors = errors;
@@ -136,6 +139,12 @@ export const useFacilityStore = defineStore('facility', {
                         city_id: branch.city_id || null,
                         latitude: branch.latitude ?? null,
                         longitude: branch.longitude ?? null,
+                    })),
+                    managers: managers.map(manager => ({
+                        id: manager.id || null,
+                        name: manager.name || '',
+                        position: manager.position || '',
+                        phones: manager.phones || null,
                     }))
                 };
 
@@ -161,15 +170,18 @@ export const useFacilityStore = defineStore('facility', {
             }
         },
 
-        async updateFacility(branches = []) {
+        async updateFacility(branches = [], managers = []) {
             this.isLoading = true;
             try {
                 const errors = {};
                 const nameAr = this.form.name?.ar?.toString().trim() || '';
                 const nameEn = this.form.name?.en?.toString().trim() || '';
-                if (!nameAr) errors['name.ar'] = 'Name (Arabic) is required';
-                if (!nameEn) errors['name.en'] = 'Name (English) is required';
-                if (!this.form.facility_type_id) errors['facility_type_id'] = 'Facility type is required';
+                if (!nameAr || !nameEn) {
+                    errors.name = {};
+                    if (!nameAr) errors.name.ar = 'Name (Arabic) is required';
+                    if (!nameEn) errors.name.en = 'Name (English) is required';
+                }
+                if (!this.form.facility_type_id) errors.facility_type_id = 'Facility type is required';
 
                 if (Object.keys(errors).length > 0) {
                     this.validationErrors = errors;
@@ -195,6 +207,12 @@ export const useFacilityStore = defineStore('facility', {
                         city_id: branch.city_id || null,
                         latitude: branch.latitude ?? null,
                         longitude: branch.longitude ?? null,
+                    })),
+                    managers: managers.map(manager => ({
+                        id: manager.id || null,
+                        name: manager.name || '',
+                        position: manager.position || '',
+                        phones: manager.phones || null,
                     }))
                 };
                 

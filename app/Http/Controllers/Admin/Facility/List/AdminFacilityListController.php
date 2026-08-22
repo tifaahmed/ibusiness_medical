@@ -70,6 +70,12 @@ class AdminFacilityListController extends BaseController
                     $bq->where('city_id', (int) $filters['city_id']);
                 });
             })
+            ->when(! empty($filters['created_from']), function ($q) use ($filters) {
+                $q->whereDate('created_at', '>=', $filters['created_from']);
+            })
+            ->when(! empty($filters['created_to']), function ($q) use ($filters) {
+                $q->whereDate('created_at', '<=', $filters['created_to']);
+            })
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
@@ -127,6 +133,8 @@ class AdminFacilityListController extends BaseController
             'sales_id' => $request->input('sales_id'),
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
+            'created_from' => $request->input('created_from'),
+            'created_to' => $request->input('created_to'),
         ];
     }
 }

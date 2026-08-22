@@ -122,6 +122,14 @@ class Facility extends Model implements HasMedia
     }
 
     /**
+     * Get the managers for the facility.
+     */
+    public function managers(): HasMany
+    {
+        return $this->hasMany(FacilityManager::class);
+    }
+
+    /**
      * Get all of the facility's offers.
      */
     public function offers(): MorphMany

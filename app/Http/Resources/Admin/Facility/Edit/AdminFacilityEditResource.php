@@ -47,6 +47,16 @@ class AdminFacilityEditResource extends JsonResource
                     ];
                 });
             }),
+            'managers' => $this->whenLoaded('managers', function () {
+                return $this->managers->map(function ($manager) {
+                    return [
+                        'id' => $manager->id,
+                        'name' => $manager->name,
+                        'position' => $manager->position,
+                        'phones' => $manager->phones,
+                    ];
+                });
+            }),
             'logo' => $this->logo,
             'mobile_logo' => $this->mobile_logo,
             'image' => $this->image,

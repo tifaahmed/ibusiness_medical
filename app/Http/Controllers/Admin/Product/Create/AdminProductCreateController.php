@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin\Product\Create;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Models\ProductType;
+use App\Models\Tag;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -10,6 +12,16 @@ class AdminProductCreateController extends BaseController
 {
     public function __invoke(): Response
     {
-        return Inertia::render('Admin/Product/Create/ProductCreateView');
+        $productTypes = ProductType::all()->map(fn ($type) => [
+            'id' => $type->id,
+            'name' => $type->name,
+        ]);
+
+        $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
+
+        return Inertia::render('Admin/Product/Create/ProductCreateView', [
+            'productTypes' => $productTypes,
+            'tags' => $tags,
+        ]);
     }
 }

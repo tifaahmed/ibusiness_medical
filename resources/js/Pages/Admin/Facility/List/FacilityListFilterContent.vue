@@ -115,6 +115,36 @@
 
     </div>
 
+    <!-- Created Date Range - New Row -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 w-full">
+      <div class="w-full sm:w-auto">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+        >
+          {{ t.common?.created_date || 'Created Date' }}
+        </label>
+        <div class="flex items-center gap-2">
+          <input
+            id="created_from"
+            v-model="filters.created_from"
+            @change="applyFilters()"
+            type="date"
+            :max="filters.created_to || null"
+            class="border border-border bg-transparent text-foreground rounded-md flex h-7 sm:h-8 md:h-9 w-full sm:w-44 min-w-0 max-w-full px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] [color-scheme:dark] cursor-pointer"
+          />
+          <span class="text-xs text-muted-foreground shrink-0">{{ t.common?.to || 'to' }}</span>
+          <input
+            id="created_to"
+            v-model="filters.created_to"
+            @change="applyFilters()"
+            type="date"
+            :min="filters.created_from || null"
+            class="border border-border bg-transparent text-foreground rounded-md flex h-7 sm:h-8 md:h-9 w-full sm:w-44 min-w-0 max-w-full px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] [color-scheme:dark] cursor-pointer"
+          />
+        </div>
+      </div>
+
     <!-- Reset Filter - Only show if there's an active filter -->
     <button
       v-if="hasActiveFilters"
@@ -140,6 +170,7 @@
       <span class="hidden sm:inline">{{ t.common?.clear || 'Clear' }}</span>
     </button>
     </div>
+  </div>
 </template>
 
 <script setup>
@@ -157,6 +188,8 @@ const props = defineProps({
       sales_id: '',
       governorate_id: '',
       city_id: '',
+      created_from: '',
+      created_to: '',
     })
   },
   facilityTypes: {
@@ -240,6 +273,8 @@ const getInitialFilters = () => {
       sales_id: props.initialFilters.sales_id || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
+      created_from: props.initialFilters.created_from || '',
+      created_to: props.initialFilters.created_to || '',
     };
   }
   if (typeof window !== 'undefined') {
@@ -250,16 +285,18 @@ const getInitialFilters = () => {
       sales_id: urlParams.get('sales_id') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
+      created_from: urlParams.get('created_from') || '',
+      created_to: urlParams.get('created_to') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '' };
+  return { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.governorate_id || filters.value.city_id);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
 });
 
 let searchTimeout = null;
@@ -278,7 +315,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
   applyFilters();
 };
 
@@ -315,7 +352,13 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.city_id && currentFilters.city_id !== '') {
     params.city_id = currentFilters.city_id;
   }
-  
+  if (currentFilters.created_from && currentFilters.created_from !== '') {
+    params.created_from = currentFilters.created_from;
+  }
+  if (currentFilters.created_to && currentFilters.created_to !== '') {
+    params.created_to = currentFilters.created_to;
+  }
+
   emit('filter-change', currentFilters);
   
   router.get(route('admin.facility.list'), params, {

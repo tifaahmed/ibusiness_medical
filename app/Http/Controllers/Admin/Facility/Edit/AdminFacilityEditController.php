@@ -36,7 +36,7 @@ class AdminFacilityEditController extends BaseController
      */
     public function __invoke(Request $request, string $facility): Response
     {
-        $facility = Facility::with(['branches', 'media', 'tags'])->where('slug', $facility)->firstOrFail();
+        $facility = Facility::with(['branches', 'media', 'tags', 'managers'])->where('slug', $facility)->firstOrFail();
         $this->assertOwns($facility);
 
         $facilityTypes = FacilityType::all()->map(function ($type) {

@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
 use App\Models\FacilityLog;
+use App\Models\FacilityManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -48,6 +49,12 @@ class UpdateFacilityAction
             $branchChanges = ['created' => [], 'updated' => [], 'deleted' => []];
             if (isset($validated['branches'])) {
                 $branchChanges = $this->handleBranches($facility, $validated['branches']);
+            }
+
+            // Handle managers and collect changes for logging
+            $managerChanges = ['created' => [], 'updated' => [], 'deleted' => []];
+            if (isset($validated['managers'])) {
+                $managerChanges = $this->handleManagers($facility, $validated['managers']);
             }
 
             if (! empty($validated['logo'])) {
@@ -262,6 +269,82 @@ class UpdateFacilityAction
         $phone = array_filter(array_map('trim', $phone), fn ($p) => ! empty($p));
 
         return ! empty($phone) ? array_values($phone) : null;
+    }
+
+    /**
+     * Handle facility managers: create, update, and delete.
+     * Returns the changes grouped by type for logging.
+     */
+    private function handleManagers(Facility $facility, array $managersData): array
+    {
+        $existingManagerIds = [];
+        foreach ($managersData as $managerData) {
+            if (isset($managerData['id']) && $managerData['id']) {
+                $existingManagerIds[] = $managerData['id'];
+            }
+        }
+
+        // Snapshot managers that are about to be deleted
+        $deletedSnaps = $facility->managers()
+            ->whereNotIn('id', $existingManagerIds)
+            ->get()
+            ->map(fn (FacilityManager $m) => $this->managerSnapshot($m))
+            ->all();
+
+        $facility->managers()
+            ->whereNotIn('id', $existingManagerIds)
+            ->delete();
+
+        $created = [];
+        $updated = [];
+
+        foreach ($managersData as $managerData) {
+            $phones = $this->normalizePhone($managerData['phones'] ?? null);
+
+            if (isset($managerData['id']) && $managerData['id']) {
+                $manager = FacilityManager::where('id', $managerData['id'])
+                    ->where('facility_id', $facility->id)
+                    ->first();
+
+                if ($manager) {
+                    $old = $this->managerSnapshot($manager);
+                    $manager->update([
+                        'name' => $managerData['name'] ?? null,
+                        'position' => $managerData['position'] ?? null,
+                        'phones' => $phones,
+                    ]);
+                    $new = $this->managerSnapshot($manager->fresh());
+
+                    if ($old !== $new) {
+                        $updated[] = ['manager' => $manager, 'old' => $old, 'new' => $new];
+                    }
+                }
+            } else {
+                $created[] = FacilityManager::create([
+                    'facility_id' => $facility->id,
+                    'name' => $managerData['name'] ?? null,
+                    'position' => $managerData['position'] ?? null,
+                    'phones' => $phones,
+                ]);
+            }
+        }
+
+        return [
+            'created' => $created,
+            'updated' => $updated,
+            'deleted' => $deletedSnaps,
+        ];
+    }
+
+    private function managerSnapshot(FacilityManager $manager): array
+    {
+        return [
+            'manager_id' => $manager->id,
+            'facility_id' => $manager->facility_id,
+            'name' => $manager->name,
+            'position' => $manager->position,
+            'phones' => $manager->phones,
+        ];
     }
 
     private function facilitySnapshot(Facility $facility): array

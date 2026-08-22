@@ -12,6 +12,7 @@
             <div v-show="activeTab === 'details'" class="space-y-3">
               <FacilityForm :facility-types="facilityTypes" :facility="null" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" />
+              <FacilityManagerCard v-model="managers" />
             </div>
 
             <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled
@@ -69,7 +70,7 @@ import { ref, onMounted, computed } from "vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useFacilityStore } from "../Stores/FacilityStore";
-import { FacilityForm, FacilityBranchCard, FacilitySeoCard } from "../_components/Form";
+import { FacilityForm, FacilityBranchCard, FacilitySeoCard, FacilityManagerCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
 
 const page = usePage();
@@ -125,13 +126,14 @@ const tabs = computed(() => [
   },
 ]);
 const branches = ref([]);
+const managers = ref([]);
 
 onMounted(() => {
   facilityStore.initializeForm();
 });
 
 const handleSubmit = () => {
-  facilityStore.submitForm(branches.value);
+  facilityStore.submitForm(branches.value, managers.value);
 };
 </script>
 

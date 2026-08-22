@@ -451,11 +451,11 @@
                                 <textarea
                                   :value="br._phoneText"
                                   @input="setBranchPhones(br, $event.target.value)"
-                                  rows="2"
+                                  rows="3"
                                   placeholder="One phone per line"
                                   :class="[
                                     previewFieldCls(br._existing, 'phone', br.phone),
-                                    'min-w-[9rem] resize-y font-mono leading-tight',
+                                    'min-w-[12rem] resize-y font-mono leading-tight',
                                   ]"
                                 ></textarea>
                                 <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
@@ -608,8 +608,8 @@
             <div class="h-full bg-primary transition-all duration-300" :style="{ width: progress.percent + '%' }"></div>
           </div>
 
-          <div class="flex flex-wrap gap-2 text-xs">
-            <span v-for="(v, k) in progress.stats" :key="k" class="px-2 py-1 rounded bg-muted">
+          <div class="flex flex-wrap gap-2 text-sm">
+            <span v-for="(v, k) in progress.stats" :key="k" class="px-3 py-1.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-medium border border-emerald-500/20">
               {{ String(k).replace(/_/g, ' ') }}: {{ v }}
             </span>
           </div>
