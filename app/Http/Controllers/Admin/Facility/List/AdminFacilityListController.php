@@ -6,10 +6,10 @@ use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Facility\List\AdminFacilityListCollection;
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
-use App\Models\City;
 use App\Models\Sales;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -60,6 +60,11 @@ class AdminFacilityListController extends BaseController
             ->when(isset($filters['sales_id']) && $filters['sales_id'] !== '' && $filters['sales_id'] !== null, function ($q) use ($filters) {
                 $q->where('sales_id', (int) $filters['sales_id']);
             })
+            // Which facilities have somebody selling them and which have nobody —
+            // the question the rep dropdown cannot answer, because it can only
+            // name a rep that exists.
+            ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
+            ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
             ->when(isset($filters['governorate_id']) && $filters['governorate_id'] !== '' && $filters['governorate_id'] !== null, function ($q) use ($filters) {
                 $q->whereHas('branches', function ($bq) use ($filters) {
                     $bq->where('governorate_id', (int) $filters['governorate_id']);
@@ -127,10 +132,16 @@ class AdminFacilityListController extends BaseController
      */
     protected function getFilters(Request $request): array
     {
+        // Anything else the query string carries is no filter at all — the two
+        // clauses below read it directly, so it never reaches them as SQL.
+        $salesPresence = $request->input('sales_presence');
+        $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : '';
+
         return [
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
+            'sales_presence' => $salesPresence,
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
             'created_from' => $request->input('created_from'),

@@ -160,6 +160,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.governorate?.not_found || 'No Governorates Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">No governorates match your current filters. Try adjusting your search criteria.</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.governorate.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 btn-golden"
@@ -179,6 +180,13 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage governorates', 'manage own governorates'));
+
 
 const props = defineProps({
   governorates: {

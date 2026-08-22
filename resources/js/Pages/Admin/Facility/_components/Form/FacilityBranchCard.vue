@@ -30,7 +30,9 @@
         <h3 class="text-sm font-semibold mb-4 text-white">
           {{ editingIndex !== null ? (t.facility_branch?.edit_branch || 'Edit Branch') : (t.facility_branch?.add_new_branch || 'Add New Branch') }}
         </h3>
-        <form @submit.prevent="handleSubmit" class="space-y-4">
+        <!-- .stop: this form is nested inside the page form; without it the submit
+             event bubbles up and triggers a full facility save. -->
+        <form @submit.prevent.stop="handleSubmit" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <FormTranslatableInput

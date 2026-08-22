@@ -76,6 +76,9 @@ class StoreFacilityAction
                     $facility->addMedia($file)->toMediaCollection('gallery');
                 }
             }
+            if (! empty($validated['contract'])) {
+                $facility->addMedia($validated['contract'])->toMediaCollection('contract');
+            }
 
             $adminId = Auth::id();
             $request = request();

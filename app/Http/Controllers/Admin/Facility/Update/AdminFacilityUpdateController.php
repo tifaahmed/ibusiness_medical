@@ -15,8 +15,15 @@ class AdminFacilityUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     private UpdateFacilityAction $updateAction;
 
@@ -48,7 +55,12 @@ class AdminFacilityUpdateController extends BaseController
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('admin.facility.list')
+            // "Save & Stay" returns to the edit form; otherwise go back to the list.
+            $redirectTo = $request->boolean('stay')
+                ? route('admin.facility.edit', ['facility' => $updatedFacility->slug])
+                : route('admin.facility.list');
+
+            return redirect()->to($redirectTo)
                 ->with('success', 'Facility updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update facility', [
@@ -64,6 +76,3 @@ class AdminFacilityUpdateController extends BaseController
         }
     }
 }
-
-
-

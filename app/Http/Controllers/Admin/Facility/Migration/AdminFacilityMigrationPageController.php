@@ -37,10 +37,7 @@ class AdminFacilityMigrationPageController extends BaseController
             'cities' => City::orderBy('id')->get()->map(fn ($c) => $this->option($c) + [
                 'governorate_id' => $c->governorate_id,
             ])->values(),
-            'salesOptions' => Sales::orderBy('id')->get()->map(fn ($s) => [
-                'value' => $s->id,
-                'label' => $s->getRawOriginal('name'),
-            ])->values(),
+            'salesOptions' => Sales::orderBy('id')->get()->map(fn ($s) => $this->salesOption($s))->values(),
         ]);
     }
 }

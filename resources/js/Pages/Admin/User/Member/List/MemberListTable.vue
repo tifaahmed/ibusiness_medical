@@ -408,6 +408,7 @@
                 <td v-if="cols.actions" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex items-center justify-center gap-2">
                     <a
+                      v-if="canWrite"
                       :href="getCardGeneratorUrl(member)"
                       target="_blank"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2"
@@ -455,6 +456,7 @@
                       </svg>
                     </Link>
                     <Link
+                      v-if="canWritePayments"
                       :href="route('admin.member-payment.create')"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-violet-500 hover:!bg-violet-500/10 hover:!text-violet-500"
                       :title="t.action_payments || 'Payments'"
@@ -465,6 +467,7 @@
                       </svg>
                     </Link>
                     <Link
+                      v-if="canWrite"
                       :href="getEditRoute(member.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                       :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': !member.slug }"
@@ -476,6 +479,7 @@
                       </svg>
                     </Link>
                     <button
+                      v-if="canWrite"
                       :disabled="!member.slug"
                       @click="member.slug && $emit('delete', member.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
@@ -603,6 +607,14 @@ import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Two resources meet in this row: the membership itself and the
+// payment shortcut, each gated by its own permission.
+const canWrite = computed(() => canManage('manage memberships', 'manage own memberships', 'manage partner memberships'));
+const canWritePayments = computed(() => canManage('manage member payments', 'manage own member payments', 'manage partner member payments'));
+
 
 const props = defineProps({
   members: {

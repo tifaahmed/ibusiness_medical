@@ -16,6 +16,7 @@
               </div>
             </div>
             <Link
+              v-if="canWrite"
               :href="route('admin.product.create')"
               class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
             >
@@ -47,6 +48,14 @@ import ProductListFilterContent from "./ProductListFilterContent.vue";
 import ProductListTable from "./ProductListTable.vue";
 import { Link } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+import { computed } from "vue";
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own products', 'manage products'));
+
 
 const props = defineProps({
   products: {

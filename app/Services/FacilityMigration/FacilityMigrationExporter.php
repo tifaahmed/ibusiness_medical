@@ -4,7 +4,9 @@ namespace App\Services\FacilityMigration;
 
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityManager;
 use App\Models\Offer;
+use App\Models\Sales;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
@@ -51,17 +53,24 @@ class FacilityMigrationExporter
      * Build the package and return the absolute path of the written .zip.
      *
      * @param  array<string, mixed>  $options
-     *                                          - filters: array of the same filters the list screen uses
-     *                                          - include_media_files: bool (default true)
-     *                                          - include_offers: bool (default true)
-     *                                          - destination: absolute path for the .zip (defaults to a temp file)
-     *                                          - offset / limit: export a slice, so a big site can be handed over in
-     *                                          parts instead of one enormous download
+     *                                         - filters: array of the same filters the list screen uses
+     *                                         - include_media_files: bool (default true)
+     *                                         - include_offers: bool (default true)
+     *                                         - include_branches: bool (default true) — leave the branch rows out
+     *                                         - include_managers: bool (default true) — leave the contact people out
+     *                                         - destination: absolute path for the .zip (defaults to a temp file)
+     *                                         - offset / limit: export a slice, so a big site can be handed over in
+     *                                         parts instead of one enormous download
      */
     public function build(array $options = []): string
     {
         $includeMediaFiles = $options['include_media_files'] ?? true;
         $includeOffers = $options['include_offers'] ?? true;
+        // A package can be narrowed to the facilities themselves. What is left
+        // out is not merely hidden: the relation is never loaded, so it costs
+        // nothing, and the importer leaves the target site's own rows alone.
+        $includeBranches = $options['include_branches'] ?? true;
+        $includeManagers = $options['include_managers'] ?? true;
         $filters = $options['filters'] ?? [];
         $offset = isset($options['offset']) ? max(0, (int) $options['offset']) : null;
         $limit = isset($options['limit']) ? max(1, (int) $options['limit']) : null;
@@ -70,7 +79,14 @@ class FacilityMigrationExporter
         $this->mediaFilesBundled = 0;
         $this->mediaFilesMissing = 0;
 
-        $facilities = $this->queryFacilities($filters, $includeOffers, $offset, $limit);
+        $facilities = $this->queryFacilities(
+            $filters,
+            $includeOffers,
+            $includeBranches,
+            $includeManagers,
+            $offset,
+            $limit
+        );
 
         $payload = [
             'format' => self::FORMAT,
@@ -86,18 +102,23 @@ class FacilityMigrationExporter
             'options' => [
                 'include_media_files' => (bool) $includeMediaFiles,
                 'include_offers' => (bool) $includeOffers,
+                'include_branches' => (bool) $includeBranches,
+                'include_managers' => (bool) $includeManagers,
                 'filters' => $filters,
                 'slice' => ($offset !== null || $limit !== null)
                     ? ['offset' => $offset ?? 0, 'limit' => $limit, 'total_matching' => $this->countMatching($filters)]
                     : null,
             ],
-            'lookups' => $this->lookupPayload($facilities),
-            'facilities' => $facilities->map(fn (Facility $f) => $this->facilityPayload($f, $includeOffers))->values()->all(),
+            'lookups' => $this->lookupPayload($facilities, $includeBranches),
+            'facilities' => $facilities->map(
+                fn (Facility $f) => $this->facilityPayload($f, $includeOffers, $includeBranches, $includeManagers)
+            )->values()->all(),
         ];
 
         $payload['counts'] = [
             'facilities' => $facilities->count(),
-            'branches' => $facilities->sum(fn (Facility $f) => $f->branches->count()),
+            'branches' => $includeBranches ? $facilities->sum(fn (Facility $f) => $f->branches->count()) : 0,
+            'managers' => $includeManagers ? $facilities->sum(fn (Facility $f) => $f->managers->count()) : 0,
             'tags' => $facilities->sum(fn (Facility $f) => $f->tags->count()),
             'offers' => collect($payload['facilities'])->sum(fn (array $f) => count($f['offers'] ?? [])
                 + collect($f['branches'])->sum(fn (array $b) => count($b['offers'] ?? []))),
@@ -147,15 +168,25 @@ class FacilityMigrationExporter
     /**
      * Suggested download filename for a package built with these options.
      */
-    public function filename(bool $includeMediaFiles = true, ?int $part = null, ?int $totalParts = null): string
-    {
+    public function filename(
+        bool $includeMediaFiles = true,
+        ?int $part = null,
+        ?int $totalParts = null,
+        bool $includeBranches = true,
+        bool $includeManagers = true
+    ): string {
         $slice = ($part !== null && $totalParts !== null)
             ? sprintf('-part%02d-of-%02d', $part, $totalParts)
             : '';
 
+        // Packages pile up in the server's library; what a file holds should be
+        // readable off its name rather than only out of its manifest.
+        $without = ($includeBranches ? '' : '-nobranches').($includeManagers ? '' : '-nomanagers');
+
         return sprintf(
-            'facility-migration-%s%s-%s.zip',
+            'facility-migration-%s%s%s-%s.zip',
             $includeMediaFiles ? 'full' : 'data-only',
+            $without,
             $slice,
             now()->format('Y-m-d_His')
         );
@@ -176,8 +207,14 @@ class FacilityMigrationExporter
      * @param  array<string, mixed>  $filters
      * @return EloquentCollection<int, Facility>
      */
-    private function queryFacilities(array $filters, bool $includeOffers, ?int $offset = null, ?int $limit = null): EloquentCollection
-    {
+    private function queryFacilities(
+        array $filters,
+        bool $includeOffers,
+        bool $includeBranches = true,
+        bool $includeManagers = true,
+        ?int $offset = null,
+        ?int $limit = null
+    ): EloquentCollection {
         $with = [
             'facilityType',
             'sales',
@@ -186,12 +223,21 @@ class FacilityMigrationExporter
             'creator:id,name,email',
             'tags',
             'media',
-            'branches' => fn ($q) => $q->with(['governorate', 'city', 'creator:id,name,email'])->orderBy('id'),
         ];
+
+        if ($includeBranches) {
+            $with['branches'] = fn ($q) => $q->with(['governorate', 'city', 'creator:id,name,email'])->orderBy('id');
+        }
+
+        if ($includeManagers) {
+            $with['managers'] = fn ($q) => $q->with('creator:id,name,email')->orderBy('id');
+        }
 
         if ($includeOffers) {
             $with['offers'] = fn ($q) => $q->with('media')->orderBy('id');
-            $with['branches.offers'] = fn ($q) => $q->with('media')->orderBy('id');
+            if ($includeBranches) {
+                $with['branches.offers'] = fn ($q) => $q->with('media')->orderBy('id');
+            }
         }
 
         return $this->baseQuery($filters)
@@ -236,14 +282,21 @@ class FacilityMigrationExporter
      * @param  EloquentCollection<int, Facility>  $facilities
      * @return array<string, mixed>
      */
-    private function lookupPayload(EloquentCollection $facilities): array
+    private function lookupPayload(EloquentCollection $facilities, bool $includeBranches = true): array
     {
+        // Without the branches there is nothing to pluck a branch place from —
+        // and touching the relation here would lazy-load what build() chose not
+        // to fetch, one query per facility.
+        $branchPlaces = $includeBranches
+            ? $facilities->flatMap->branches
+            : collect();
+
         $types = $facilities->pluck('facilityType')->filter()->unique('id')->values();
         $governorates = $facilities->pluck('governorate')
-            ->merge($facilities->flatMap->branches->pluck('governorate'))
+            ->merge($branchPlaces->pluck('governorate'))
             ->filter()->unique('id')->values();
         $cities = $facilities->pluck('city')
-            ->merge($facilities->flatMap->branches->pluck('city'))
+            ->merge($branchPlaces->pluck('city'))
             ->filter()->unique('id')->values();
         $sales = $facilities->pluck('sales')->filter()->unique('id')->values();
         $tags = $facilities->flatMap->tags->filter()->unique('id')->values();
@@ -267,10 +320,7 @@ class FacilityMigrationExporter
                 'governorate_slug' => $governorates->firstWhere('id', $c->governorate_id)?->slug
                     ?? $c->governorate?->slug,
             ])->all(),
-            'sales' => $sales->map(fn ($s) => [
-                'id' => $s->id,
-                'name' => $s->getRawOriginal('name'),
-            ])->all(),
+            'sales' => $sales->map(fn (Sales $s) => $this->salesRef($s))->all(),
             'tags' => $tags->map(fn ($t) => [
                 'id' => $t->id,
                 'name' => $t->name,
@@ -283,8 +333,12 @@ class FacilityMigrationExporter
     /**
      * @return array<string, mixed>
      */
-    private function facilityPayload(Facility $facility, bool $includeOffers): array
-    {
+    private function facilityPayload(
+        Facility $facility,
+        bool $includeOffers,
+        bool $includeBranches = true,
+        bool $includeManagers = true
+    ): array {
         return [
             'id' => $facility->id,
             'slug' => $facility->slug,
@@ -298,10 +352,7 @@ class FacilityMigrationExporter
             'created_at' => $facility->created_at?->toIso8601String(),
             'updated_at' => $facility->updated_at?->toIso8601String(),
             'facility_type' => $this->slugRef($facility->facilityType),
-            'sales' => $facility->sales ? [
-                'id' => $facility->sales->id,
-                'name' => $facility->sales->getRawOriginal('name'),
-            ] : null,
+            'sales' => $this->salesRef($facility->sales),
             'created_by' => $facility->creator ? [
                 'id' => $facility->creator->id,
                 'name' => $facility->creator->name,
@@ -317,9 +368,42 @@ class FacilityMigrationExporter
             'offers' => $includeOffers
                 ? $facility->offers->map(fn (Offer $o) => $this->offerPayload($o, 'facility', $facility->slug))->values()->all()
                 : [],
-            'branches' => $facility->branches->map(
-                fn (FacilityBranch $b) => $this->branchPayload($b, $facility, $includeOffers)
-            )->values()->all(),
+            'branches' => $includeBranches
+                ? $facility->branches->map(
+                    fn (FacilityBranch $b) => $this->branchPayload($b, $facility, $includeOffers)
+                )->values()->all()
+                : [],
+            'managers' => $includeManagers
+                ? $facility->managers->map(
+                    fn (FacilityManager $m) => $this->managerPayload($m)
+                )->values()->all()
+                : [],
+        ];
+    }
+
+    /**
+     * A facility's contact people. They carry no translations and no images —
+     * a name, what they do, and the numbers to reach them on.
+     *
+     * @return array<string, mixed>
+     */
+    private function managerPayload(FacilityManager $manager): array
+    {
+        return [
+            'id' => $manager->id,
+            'name' => $manager->name,
+            'position' => $manager->position,
+            'phones' => array_values(array_filter(
+                array_map(fn ($p) => trim((string) $p), (array) ($manager->phones ?? [])),
+                fn ($p) => $p !== ''
+            )),
+            'created_at' => $manager->created_at?->toIso8601String(),
+            'updated_at' => $manager->updated_at?->toIso8601String(),
+            'created_by' => $manager->creator ? [
+                'id' => $manager->creator->id,
+                'name' => $manager->creator->name,
+                'email' => $manager->creator->email,
+            ] : null,
         ];
     }
 
@@ -523,6 +607,32 @@ class FacilityMigrationExporter
     }
 
     /**
+     * A sales rep, written the way every other lookup in this package is: the
+     * id it had here, plus the name under each locale.
+     *
+     * `sales.name` is a plain varchar the model declares translatable — rows
+     * made through the admin hold a `{"en": …, "ar": …}` blob, older ones hold
+     * the bare name. Shipping the raw column would hand the other site a JSON
+     * string to match a person's name against, so it is unwrapped here.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function salesRef(?Sales $sales): ?array
+    {
+        if (! $sales) {
+            return null;
+        }
+
+        $name = $this->translations($sales, 'name');
+        if ($name === []) {
+            $raw = trim((string) $sales->getRawOriginal('name'));
+            $name = $raw === '' ? [] : ['en' => $raw, 'ar' => $raw];
+        }
+
+        return ['id' => $sales->id, 'name' => $name];
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function slugRef(?Model $model): ?array
@@ -594,7 +704,7 @@ MD;
 - Format: `{$payload['format']}` v{$payload['format_version']}
 - Generated: {$generated}
 - Source site: {$source}
-- Facilities: {$counts['facilities']} | Branches: {$counts['branches']} | Offers: {$counts['offers']}
+- Facilities: {$counts['facilities']} | Branches: {$counts['branches']} | Managers: {$counts['managers']} | Offers: {$counts['offers']}
 - Tags links: {$counts['tags']} | Media rows: {$counts['media']} | Image files bundled: {$counts['media_files_bundled']} (missing: {$counts['media_files_missing']})
 
 ## What is inside
@@ -602,7 +712,7 @@ MD;
 | Path | What it is |
 | --- | --- |
 | `manifest.json` | Package metadata and counts. Read this first. |
-| `data/facilities.json` | The whole dataset: lookups, facilities, branches, tags, offers, media metadata. |
+| `data/facilities.json` | The whole dataset: lookups, facilities, branches, managers, tags, offers, media metadata. |
 | `data/media.csv` | One row per image — owner, collection, filename, target path, sha256. |
 | `media/{id}/{file}` | The image files themselves (mirrors `storage/app/public`). |
 

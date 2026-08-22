@@ -7,7 +7,7 @@
           {{ t.title || 'Membership Card Patches Batches' }}
         </h1>
         <Link
-          v-if="canAny('create membership card patches', 'create own membership card patches', 'create partner membership card patches')"
+          v-if="canWrite && canAny('create membership card patches', 'create own membership card patches', 'create partner membership card patches')"
           :href="route('admin.membership-card-patches.create')"
           class="inline-flex items-center gap-2 rounded-md h-9 px-3 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 btn-golden"
         >
@@ -172,6 +172,13 @@
 import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('create membership card patches', 'create own membership card patches', 'create partner membership card patches'));
+
 
 const props = defineProps({
   cards: { type: Object, required: true },

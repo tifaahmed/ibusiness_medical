@@ -20,6 +20,7 @@
             <div class="flex items-center gap-2 flex-shrink-0">
               <div class="flex-shrink-0">
                 <button
+                  v-if="canWrite"
                   ref="exportTriggerRef"
                   type="button"
                   @click="toggleExportMenu"
@@ -139,6 +140,7 @@
                 </div>
               </Teleport>
               <Link
+                v-if="canWrite"
                 :href="route('admin.user.membership.import.page')"
                 data-slot="button"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0"
@@ -168,6 +170,7 @@
                 <span class="sm:hidden">{{ t.actions?.view_trash_short || 'Trash' }}</span>
               </Link>
               <Link
+                v-if="canWrite"
                 :href="route('admin.user.membership.create')"
                 data-slot="button"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
@@ -249,6 +252,13 @@ import { useMemberStore } from "../Stores/MemberStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Export, import and create are writes; a read-only account keeps the
+// list, the trash view and the detail pages.
+const canWrite = computed(() => canManage('manage memberships', 'manage own memberships', 'manage partner memberships'));
+
 
 // `page.props.translations.admin.member_list.*` — shared via HandleInertiaRequests
 // every label below uses an English fallback so the page still renders if a

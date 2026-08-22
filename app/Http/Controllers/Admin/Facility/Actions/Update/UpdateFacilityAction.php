@@ -89,6 +89,12 @@ class UpdateFacilityAction
                     $facility->addMedia($file)->toMediaCollection('gallery');
                 }
             }
+            if (! empty($validated['contract'])) {
+                $facility->clearMediaCollection('contract');
+                $facility->addMedia($validated['contract'])->toMediaCollection('contract');
+            } elseif (! empty($validated['contract_delete'])) {
+                $facility->clearMediaCollection('contract');
+            }
 
             $adminId = Auth::id();
             $request = request();

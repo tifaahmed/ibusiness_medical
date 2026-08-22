@@ -11,7 +11,7 @@
 
       <div class="bg-card border border-border rounded-xl p-4 text-sm text-muted-foreground">
         Move facilities between sites without losing anything: every column in every language,
-        branches, tags, offers and the image files themselves travel in one package.
+        branches, managers, tags, offers and the image files themselves travel in one package.
         Large sites are handled in <strong class="text-foreground">parts</strong> — export a few
         facilities at a time, and import them step by step so the browser never has to hold the
         whole job in one request.
@@ -85,31 +85,68 @@
           </label>
         </div>
 
-        <div class="flex flex-wrap items-center gap-5 text-sm">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="includeMedia" />
-            Include image files
-            <span class="text-xs text-muted-foreground">(off = data only, much smaller)</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="includeOffers" />
-            Include offers
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="splitParts" />
-            Split into parts
-          </label>
-          <label v-if="splitParts" class="flex items-center gap-2">
-            <span class="text-xs text-muted-foreground">facilities per part</span>
-            <input v-model.number="perPart" type="number" min="1" class="w-24 px-2 py-1 rounded border border-input bg-background text-sm" />
-          </label>
+        <div class="rounded-lg border border-border p-4 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">What goes in the package</p>
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="includeMedia" />
+              Include image files
+              <span class="text-xs text-muted-foreground">(off = data only, much smaller)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="includeBranches" />
+              Include branches
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="includeManagers" />
+              Include managers
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="includeOffers" />
+              Include offers
+            </label>
+          </div>
+          <p v-if="!includeBranches || !includeManagers" class="text-xs text-amber-600 dark:text-amber-400">
+            Left out entirely — the package carries no
+            {{ [!includeBranches ? 'branches' : null, !includeManagers ? 'managers' : null].filter(Boolean).join(' and ') }},
+            and importing it leaves whatever the other site already has there untouched.
+          </p>
+        </div>
+
+        <div class="rounded-lg border border-border p-4 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Splitting &amp; storage</p>
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="splitParts" />
+              Split into several files
+            </label>
+            <label class="flex items-center gap-2" :class="splitParts ? '' : 'opacity-50'">
+              <span class="text-xs text-muted-foreground">facilities per file</span>
+              <input
+                v-model.number="perPart"
+                type="number"
+                min="1"
+                :disabled="!splitParts"
+                class="w-24 px-2 py-1 rounded border border-input bg-background text-sm disabled:opacity-60"
+              />
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="keepOnServer" />
+              Keep a copy on this server
+              <span class="text-xs text-muted-foreground">(so you can import it later without uploading)</span>
+            </label>
+          </div>
+          <p v-if="splitParts" class="text-xs text-muted-foreground">
+            Every file is a complete package on its own — import them in any order using <strong>merge</strong>.
+            Press <strong>Check what matches</strong> to see how many files that comes to.
+          </p>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <button type="button" @click="loadPlan" :disabled="planLoading" :class="btnSecondary">
             {{ planLoading ? 'Counting…' : 'Check what matches' }}
           </button>
-          <a v-if="!splitParts" :href="exportUrl()" :class="btnPrimary">Download package</a>
+          <a v-if="!splitParts" :href="exportUrl()" :class="btnPrimary" @click="noteExport">Download package</a>
         </div>
 
         <div v-if="plan" class="rounded-lg border border-border p-4 space-y-3">
@@ -126,7 +163,7 @@
               :key="n"
               :href="exportUrl(n)"
               :class="[btnSecondary, downloadedParts.includes(n) ? 'opacity-60' : '']"
-              @click="downloadedParts.push(n)"
+              @click="downloadedParts.push(n); noteExport()"
             >
               Part {{ n }} / {{ plan.parts }}
             </a>
@@ -134,6 +171,11 @@
           <p v-if="splitParts && plan.parts" class="text-xs text-muted-foreground">
             Download the parts one at a time. Each is a complete package on its own — import them
             in any order on the other site using <strong>merge</strong> mode.
+          </p>
+          <p v-if="keepOnServer" class="text-xs text-muted-foreground">
+            Every package you download is also kept on this server and shows up under
+            <button type="button" class="underline font-medium" @click="goToPackages">Packages on this server</button>
+            in the Import tab.
           </p>
         </div>
 
@@ -185,6 +227,64 @@
 
         <!-- Step 1: choose a package -->
         <div v-if="importStep === 'choose'" class="space-y-4">
+          <!-- Packages kept on this server: everything exported from here with
+               "keep a copy" on, plus anything dropped in over FTP. -->
+          <div ref="packagesSection" class="rounded-lg border border-border p-4 space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-sm font-medium">Packages on this server</p>
+              <span class="text-xs text-muted-foreground">
+                storage/app/facility-migration — pick one instead of uploading
+              </span>
+              <button type="button" class="ml-auto text-xs underline" @click="loadPackages" :disabled="packagesLoading">
+                {{ packagesLoading ? 'Reading…' : 'Refresh' }}
+              </button>
+            </div>
+
+            <p v-if="!packages.length && !packagesLoading" class="text-xs text-muted-foreground">
+              Nothing here yet. Export with <strong>Keep a copy on this server</strong> ticked, or copy a
+              package into that folder.
+            </p>
+
+            <ul v-else class="divide-y divide-border text-sm">
+              <li
+                v-for="pkg in packages"
+                :key="pkg.name"
+                class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
+                :class="serverPath === pkg.name ? 'bg-primary/5' : ''"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="font-mono text-xs break-all">{{ pkg.name }}</p>
+                  <p class="text-[11px] text-muted-foreground">
+                    {{ humanSize(pkg.size) }} · {{ formatDate(pkg.modified) }}
+                    <template v-if="pkg.counts">
+                      · {{ pkg.counts.facilities }} facilities
+                      · {{ pkg.counts.branches }} branches
+                      · {{ pkg.counts.managers }} managers
+                      <template v-if="pkg.options">
+                        · images {{ pkg.options.include_media_files ? 'in' : 'out' }}
+                      </template>
+                    </template>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  :class="serverPath === pkg.name ? btnPrimary : btnSecondary"
+                  class="!h-8 !px-3 !text-xs"
+                  @click="usePackage(pkg)"
+                >
+                  {{ serverPath === pkg.name ? 'Selected' : 'Use this' }}
+                </button>
+                <a
+                  :href="route('admin.facility.migration.packages.download', { name: pkg.name })"
+                  class="text-xs underline text-muted-foreground hover:text-foreground"
+                >download</a>
+                <button type="button" class="text-xs underline text-destructive" @click="deletePackage(pkg)">
+                  delete
+                </button>
+              </li>
+            </ul>
+          </div>
+
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="space-y-1">
               <span class="text-xs font-medium text-muted-foreground">Upload package (.zip, .xlsx, .xls, .csv)</span>
@@ -215,6 +315,18 @@
               <input type="checkbox" v-model="skipMedia" /> Skip image files
             </label>
           </div>
+
+          <label class="flex items-start gap-2 cursor-pointer text-sm">
+            <input type="checkbox" v-model="pruneMissing" class="mt-1" />
+            <span>
+              Remove branches &amp; managers not in the package
+              <span class="block text-xs text-muted-foreground">
+                Merge normally only adds and updates. With this on, a facility the package carries
+                branches or managers for also loses the ones it holds here that the package does not
+                name. A relation the package is silent about is never touched.
+              </span>
+            </span>
+          </label>
 
           <div v-if="importMode === 'fresh' && !dryRun" class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
             <strong class="text-destructive">Fresh mode deletes every existing facility, branch and image file.</strong>
@@ -271,6 +383,21 @@
                   {{ previewCounts.branchesExisting }} branch{{ previewCounts.branchesExisting === 1 ? '' : 'es' }}
                   already here
                 </span>
+                <span v-if="previewCounts.managersNew" class="rounded bg-emerald-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.managersNew }} new manager{{ previewCounts.managersNew === 1 ? '' : 's' }}
+                </span>
+                <span v-if="previewCounts.managersExisting" class="rounded bg-amber-600 px-2 py-0.5 font-semibold text-white">
+                  {{ previewCounts.managersExisting }} manager{{ previewCounts.managersExisting === 1 ? '' : 's' }}
+                  already here
+                </span>
+                <span v-if="previewCounts.missingBranches" :class="['rounded px-2 py-0.5 font-semibold text-white', pruningNow ? 'bg-red-600' : 'bg-slate-500']">
+                  {{ previewCounts.missingBranches }} branch{{ previewCounts.missingBranches === 1 ? '' : 'es' }}
+                  here but not in the package — {{ pruningNow ? 'will be deleted' : 'kept' }}
+                </span>
+                <span v-if="previewCounts.missingManagers" :class="['rounded px-2 py-0.5 font-semibold text-white', pruningNow ? 'bg-red-600' : 'bg-slate-500']">
+                  {{ previewCounts.missingManagers }} manager{{ previewCounts.missingManagers === 1 ? '' : 's' }}
+                  here but not in the package — {{ pruningNow ? 'will be deleted' : 'kept' }}
+                </span>
               </div>
             </div>
             <div class="ml-auto flex items-center gap-3 text-sm">
@@ -281,6 +408,39 @@
                 <input type="radio" value="fresh" v-model="importMode" /> Fresh
               </label>
             </div>
+          </div>
+
+          <!-- What the colours in the table mean. -->
+          <div class="rounded-lg border border-border p-3 space-y-2">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
+              <span class="font-semibold uppercase tracking-wide text-muted-foreground">Colours</span>
+              <span class="flex items-center gap-1.5">
+                <span class="rounded bg-emerald-600 px-1.5 py-0.5 font-semibold text-white">added</span>
+                not on this site yet — the import creates it
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="rounded bg-amber-600 px-1.5 py-0.5 font-semibold text-white">updated</span>
+                matched a row here; amber inputs are the values that change
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="rounded bg-red-600 px-1.5 py-0.5 font-semibold text-white">deleted</span>
+                here today, absent from the package
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="rounded bg-slate-500 px-1.5 py-0.5 font-semibold text-white">kept</span>
+                absent from the package, left alone
+              </span>
+            </div>
+            <label v-if="importMode === 'merge'" class="flex items-start gap-2 cursor-pointer text-xs">
+              <input type="checkbox" v-model="pruneMissing" class="mt-0.5" />
+              <span>
+                Remove branches &amp; managers not in the package
+                <span class="block text-[11px] text-muted-foreground">
+                  Off, they stay and show as “kept”. On, they turn red and the import deletes them.
+                  A facility whose branches or managers the package does not carry at all is never pruned.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div v-if="importMode === 'fresh' && !dryRun" class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
@@ -303,8 +463,11 @@
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (EN)</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (AR)</th>
                   <th class="px-2 py-2 text-left font-semibold w-40">Facility type</th>
+                  <th class="px-2 py-2 text-left font-semibold w-44">Sales rep</th>
+                  <th class="px-2 py-2 text-left font-semibold w-24">Discount %</th>
 
                   <th class="px-2 py-2 text-left font-semibold w-20">Branches</th>
+                  <th class="px-2 py-2 text-left font-semibold w-20">Managers</th>
                   <th class="px-2 py-2 text-left font-semibold w-20">Offers</th>
                   <th class="px-2 py-2 text-left font-semibold w-20">Media</th>
                   <th class="px-2 py-2 text-left font-semibold w-16 sticky right-0 bg-muted/80 backdrop-blur z-10"></th>
@@ -316,13 +479,24 @@
                     <td class="px-2 py-1.5 text-center font-mono sticky left-0 z-[5] bg-card">
                       {{ previewPage * previewPageSize + i + 1 }}
                       <button
-                        v-if="(facility.branches || []).length"
+                        v-if="(facility.branches || []).length || missingBranches(facility).length"
                         type="button"
                         @click="facility._showBranches = !facility._showBranches"
                         :class="['block mx-auto mt-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold', branchBadgeCls(facility)]"
                         :title="facilityBranchIssues(facility).join('\n') || 'Every branch is ready to import'"
                       >
-                        {{ facility.branches.length }} br
+                        {{ (facility.branches || []).length }} br<template v-if="missingBranches(facility).length">
+                          −{{ missingBranches(facility).length }}</template>
+                      </button>
+                      <button
+                        v-if="(facility.managers || []).length || missingManagers(facility).length"
+                        type="button"
+                        @click="facility._showManagers = !facility._showManagers"
+                        :class="['block mx-auto mt-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold', managerBadgeCls(facility)]"
+                        :title="facilityManagerIssues(facility).join('\n') || 'Every manager is ready to import'"
+                      >
+                        {{ (facility.managers || []).length }} mgr<template v-if="missingManagers(facility).length">
+                          −{{ missingManagers(facility).length }}</template>
                       </button>
                     </td>
                     <td class="px-2 py-1 align-top">
@@ -370,7 +544,56 @@
                         created on import. Pick an existing one above to use it instead.
                       </p>
                     </td>
+                    <td class="px-2 py-1 align-top">
+                      <SearchableSelect
+                        class="min-w-[10rem]"
+                        :model-value="facility._salesChoice"
+                        :options="salesPickerOptions(facility)"
+                        :search-keys="LOOKUP_SEARCH_KEYS"
+                        placeholder="— no sales rep —"
+                        @change="setFacilitySales(facility, $event)"
+                      />
+                      <ExistingValueHint
+                        :existing="facility._existing"
+                        path="sales"
+                        :current="facility._salesChoice"
+                        choice
+                      />
+                      <p
+                        v-if="facility._salesChoice === NEW_LOOKUP"
+                        class="mt-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                      >
+                        “{{ facility._salesLabel }}” is not one of your sales reps — importing adds them.
+                        <button
+                          type="button"
+                          class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
+                          :disabled="quickCreateLoading === `sales-${facility.name?.en || facility.name?.ar}`"
+                          @click="quickCreateLookup(facility, 'sales')"
+                        >
+                          {{ quickCreateLoading === `sales-${facility.name?.en || facility.name?.ar}` ? 'Creating…' : 'Create now' }}
+                        </button>
+                        to pick them on the other rows too.
+                      </p>
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="—"
+                        v-model="facility.discount_percent"
+                        :class="previewFieldCls(facility._existing, 'discount_percent', facility.discount_percent, false, true)"
+                      />
+                      <ExistingValueHint
+                        :existing="facility._existing"
+                        path="discount_percent"
+                        :current="facility.discount_percent"
+                        numeric
+                      />
+                    </td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.branches || []).length }}</td>
+                    <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.managers || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.offers || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.media || []).length }}</td>
                     <td class="px-2 py-1 text-center sticky right-0 z-[5] bg-card">
@@ -384,11 +607,16 @@
                   </tr>
 
                   <!-- Branches sub-table -->
-                  <tr v-if="facility._showBranches && (facility.branches || []).length" class="border-b border-border">
+                  <tr v-if="facility._showBranches && ((facility.branches || []).length || missingBranches(facility).length)" class="border-b border-border">
                     <td colspan="12" class="p-3">
                       <div class="bg-card border border-violet-500 rounded-md overflow-hidden">
                         <div class="bg-violet-600 text-white px-3 py-2 text-xs font-semibold flex flex-wrap items-center gap-2">
-                          <span>Branches for {{ facility.name?.en || 'facility' }} ({{ facility.branches.length }})</span>
+                          <span>
+                            Branches for {{ facility.name?.en || 'facility' }} ({{ (facility.branches || []).length }})
+                            <template v-if="missingBranches(facility).length">
+                              + {{ missingBranches(facility).length }} here but not in the package
+                            </template>
+                          </span>
                           <span
                             class="ml-auto px-1.5 py-0.5 rounded text-[10px]"
                             :class="facilityBranchIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700'"
@@ -482,7 +710,7 @@
                                     type="button"
                                     class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
                                     :disabled="quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}`"
-                                    @click="quickCreateLookup(br, 'governorate', br)"
+                                    @click="quickCreateLookup(br, 'governorate')"
                                   >
                                     {{ quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
                                   </button>
@@ -513,7 +741,7 @@
                                     type="button"
                                     class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
                                     :disabled="quickCreateLoading === `city-${br.name?.en || br.name?.ar}` || !br._governorateChoice || br._governorateChoice === NEW_LOOKUP"
-                                    @click="quickCreateLookup(br, 'city', br)"
+                                    @click="quickCreateLookup(br, 'city')"
                                   >
                                     {{ quickCreateLoading === `city-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
                                   </button>
@@ -558,6 +786,136 @@
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
                               </td>
+                            </tr>
+
+                            <!-- On this site, absent from the package. Read-only:
+                                 there is nothing to edit, only a fate to show. -->
+                            <tr
+                              v-for="ex in missingBranches(facility)"
+                              :key="`missing-branch-${ex.id}`"
+                              :class="['border-t border-border align-top', pruningNow ? 'bg-red-500/10' : 'bg-muted/40']"
+                            >
+                              <td class="px-3 py-1.5">
+                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', missingRowCls]">
+                                  {{ missingRowLabel }} #{{ ex.id }}
+                                </span>
+                                <p class="text-[11px]">{{ ex.name?.en || ex.name?.ar || '—' }}</p>
+                              </td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.name?.ar || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.address?.en || ex.address?.ar || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px] font-mono whitespace-pre-line">{{ (ex.phone || []).join('\n') || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.governorate?.label || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.city?.label || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.latitude ?? '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.longitude ?? '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px] break-all">{{ ex.google_location_url || '—' }}</td>
+                              <td class="px-3 py-1.5"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Managers sub-table -->
+                  <tr v-if="facility._showManagers && ((facility.managers || []).length || missingManagers(facility).length)" class="border-b border-border">
+                    <td colspan="12" class="p-3">
+                      <div class="bg-card border border-sky-500 rounded-md overflow-hidden">
+                        <div class="bg-sky-600 text-white px-3 py-2 text-xs font-semibold flex flex-wrap items-center gap-2">
+                          <span>
+                            Managers for {{ facility.name?.en || 'facility' }} ({{ (facility.managers || []).length }})
+                            <template v-if="missingManagers(facility).length">
+                              + {{ missingManagers(facility).length }} here but not in the package
+                            </template>
+                          </span>
+                          <span
+                            class="ml-auto px-1.5 py-0.5 rounded text-[10px]"
+                            :class="facilityManagerIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700'"
+                          >
+                            {{ facilityManagerIssues(facility).length
+                              ? facilityManagerIssues(facility).length + ' to check'
+                              : 'all good' }}
+                          </span>
+                        </div>
+                        <table class="w-full text-[11px]">
+                          <thead class="bg-muted">
+                            <tr>
+                              <th class="px-3 py-1.5 text-left font-semibold">Manager name</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Position</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Phones <span class="font-normal opacity-70">(one per line)</span></th>
+                              <th class="px-3 py-1.5 w-12"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr
+                              v-for="(mg, mi) in facility.managers"
+                              :key="mi"
+                              class="border-t border-border align-top"
+                              :class="managerIssues(mg).length ? 'bg-red-500/5' : ''"
+                            >
+                              <td class="px-3 py-1">
+                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', rowStateCls(mg)]">
+                                  {{ rowStateLabel(mg) }}
+                                  <template v-if="mg._existing">#{{ mg._existing.id }}</template>
+                                </span>
+                                <p v-if="managerMovedFrom(facility, mg)" class="mb-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400">
+                                  Listed under facility #{{ managerMovedFrom(facility, mg) }} today — importing moves them here.
+                                </p>
+                                <input
+                                  v-model="mg.name"
+                                  placeholder="Required"
+                                  :class="managerIssues(mg).length
+                                    ? [previewInputCls, 'border-red-500']
+                                    : previewFieldCls(mg._existing, 'name', mg.name)"
+                                />
+                                <p v-if="managerIssues(mg).length" class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
+                                  {{ managerIssues(mg).join(' · ') }}
+                                </p>
+                                <ExistingValueHint :existing="mg._existing" path="name" :current="mg.name" />
+                              </td>
+                              <td class="px-3 py-1">
+                                <input
+                                  v-model="mg.position"
+                                  placeholder="e.g. General Manager"
+                                  :class="previewFieldCls(mg._existing, 'position', mg.position)"
+                                />
+                                <ExistingValueHint :existing="mg._existing" path="position" :current="mg.position" />
+                              </td>
+                              <td class="px-3 py-1">
+                                <textarea
+                                  :value="mg._phonesText"
+                                  @input="setManagerPhones(mg, $event.target.value)"
+                                  rows="3"
+                                  placeholder="One phone per line"
+                                  :class="[
+                                    previewFieldCls(mg._existing, 'phones', mg.phones),
+                                    'min-w-[12rem] resize-y font-mono leading-tight',
+                                  ]"
+                                ></textarea>
+                                <p v-if="(mg.phones || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
+                                  {{ mg.phones.length }} numbers
+                                </p>
+                                <ExistingValueHint :existing="mg._existing" path="phones" :current="mg.phones" />
+                              </td>
+                              <td class="px-3 py-1 text-center">
+                                <button type="button" @click="facility.managers.splice(mi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
+                              </td>
+                            </tr>
+
+                            <tr
+                              v-for="ex in missingManagers(facility)"
+                              :key="`missing-manager-${ex.id}`"
+                              :class="['border-t border-border align-top', pruningNow ? 'bg-red-500/10' : 'bg-muted/40']"
+                            >
+                              <td class="px-3 py-1.5">
+                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', missingRowCls]">
+                                  {{ missingRowLabel }} #{{ ex.id }}
+                                </span>
+                                <p class="text-[11px]">{{ ex.name || '—' }}</p>
+                              </td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.position || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px] font-mono whitespace-pre-line">{{ (ex.phones || []).join('\n') || '—' }}</td>
+                              <td class="px-3 py-1.5"></td>
                             </tr>
                           </tbody>
                         </table>
@@ -668,7 +1026,7 @@ import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 import ExistingValueHint from './ExistingValueHint.vue';
 import { oldValue } from './existingValue.js';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
-import { computed, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 
 const props = defineProps({
   summary: { type: Object, default: () => ({}) },
@@ -700,6 +1058,14 @@ const exportFilters = ref({
 });
 const includeMedia = ref(true);
 const includeOffers = ref(true);
+// A package can be narrowed to the facilities alone. What is left out is not
+// hidden but absent: the other site's own branches and managers stay as they are.
+const includeBranches = ref(true);
+const includeManagers = ref(true);
+// Kept packages land in storage/app/facility-migration and are offered on the
+// Import tab, so a package exported here can be restored here later without a
+// round trip through the browser's upload limit.
+const keepOnServer = ref(true);
 const splitParts = ref(false);
 const perPart = ref(25);
 const plan = ref(null);
@@ -714,6 +1080,9 @@ const exportParams = () => {
   });
   params.set('include_media', includeMedia.value ? '1' : '0');
   params.set('include_offers', includeOffers.value ? '1' : '0');
+  params.set('include_branches', includeBranches.value ? '1' : '0');
+  params.set('include_managers', includeManagers.value ? '1' : '0');
+  params.set('keep', keepOnServer.value ? '1' : '0');
   return params;
 };
 
@@ -724,6 +1093,20 @@ const exportUrl = (part = null) => {
     params.set('per_part', perPart.value);
   }
   return route('admin.facility.migration.export') + '?' + params.toString();
+};
+
+/* The download is a plain link, so there is no response to wait on — give the
+   server a moment to finish writing the kept copy, then re-read the library. */
+const noteExport = () => {
+  if (!keepOnServer.value) return;
+  setTimeout(loadPackages, 2500);
+};
+
+const goToPackages = async () => {
+  activeTab.value = 'import';
+  await loadPackages();
+  await nextTick();
+  packagesSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 const loadPlan = async () => {
@@ -751,6 +1134,10 @@ const importMode = ref('merge');
 const chunkSize = ref(5);
 const dryRun = ref(false);
 const skipMedia = ref(false);
+/* Merge only adds and updates unless this is on, in which case a facility whose
+   branches or managers the package does carry also loses the ones here it does
+   not name. Off by default — deleting is never the quiet option. */
+const pruneMissing = ref(false);
 const confirmWipe = ref(false);
 const busy = ref(false);
 const importError = ref('');
@@ -766,6 +1153,62 @@ const hasPackage = computed(() => !!packageFile.value || serverPath.value.trim()
 const canStart = computed(
   () => hasPackage.value && (importMode.value !== 'fresh' || dryRun.value || confirmWipe.value)
 );
+
+/* ------------------------- packages on this server ------------------------ */
+
+const packages = ref([]);
+const packagesLoading = ref(false);
+const packagesSection = ref(null);
+
+const loadPackages = async () => {
+  packagesLoading.value = true;
+  try {
+    const { data } = await axios.get(route('admin.facility.migration.packages.index'));
+    packages.value = data.packages || [];
+  } catch (e) {
+    packages.value = [];
+  } finally {
+    packagesLoading.value = false;
+  }
+};
+
+onMounted(loadPackages);
+
+// Picking one is the same as typing its name into the server-path box — which
+// is what the import endpoints already read.
+const usePackage = (pkg) => {
+  serverPath.value = pkg.name;
+  packageFile.value = null;
+  inspection.value = null;
+  importError.value = '';
+};
+
+const deletePackage = async (pkg) => {
+  if (!confirm(`Delete ${pkg.name} from this server? The file is gone for good.`)) return;
+  try {
+    const { data } = await axios.delete(route('admin.facility.migration.packages.destroy'), {
+      data: { name: pkg.name },
+    });
+    packages.value = data.packages || [];
+    if (serverPath.value === pkg.name) serverPath.value = '';
+  } catch (e) {
+    importError.value = e.response?.data?.message || 'Could not delete that package.';
+  }
+};
+
+const humanSize = (bytes) => {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = Number(bytes) || 0;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+
+  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+const formatDate = (iso) => (iso ? new Date(iso).toLocaleString() : '—');
 
 const onPackageChange = (e) => {
   packageFile.value = e.target.files?.[0] || null;
@@ -840,6 +1283,12 @@ const setBranchPhones = (branch, text) => {
   branch.phone = text.split(/\r?\n/).map(p => p.trim()).filter(p => p !== '');
 };
 
+// A manager holds the same list of numbers, under the column's own name.
+const setManagerPhones = (manager, text) => {
+  manager._phonesText = text;
+  manager.phones = text.split(/\r?\n/).map(p => p.trim()).filter(p => p !== '');
+};
+
 /* ------------------------------ lookup pickers ----------------------------- */
 
 /* Facility type, governorate and city are all picked from what this site
@@ -854,6 +1303,9 @@ const NEW_LOOKUP = '__new__';
    created from the row that needs it, and joins the pickers straight away. */
 const governorateList = ref([...props.governorates]);
 const cityList = ref([...props.cities]);
+/* Sales reps are picked the same way — a package naming somebody this site has
+   never billed for can add them from the row that needs them. */
+const salesList = ref([...props.salesOptions]);
 
 // What the package calls this row, for display and for creating it if kept.
 const refLabel = (ref) => String(ref?.name?.en || ref?.name?.ar || ref?.slug || '').trim();
@@ -948,42 +1400,44 @@ const normalizeLookup = (owner, field, raw, options) => {
   applyChoice(owner, field, match ? match.value : (label !== '' ? NEW_LOOKUP : ''), options);
 };
 
-/* Quick-create a governorate or city that the package named but this site
-   does not have yet. The backend deduplicates, so two branches pointing at
-   the same missing city both end up with one shared row. */
+/* Quick-create a governorate, city or sales rep that the package named but this
+   site does not have yet. The backend deduplicates, so two rows reaching for the
+   same missing name both end up pointing at one shared row. */
 const quickCreateLoading = ref(null);
 
-const quickCreateLookup = async (owner, field, branch) => {
-  const type = field === 'governorate' ? 'governorate' : 'city';
-  const label = branch[`_${field}Label`];
-  if (!label) return;
+// Which list a freshly created row joins, so the pickers see it at once.
+const lookupLists = { governorate: governorateList, city: cityList, sales: salesList };
 
-  const names = branch[`_${field}Names`] || {};
-  const payload = { type, name_en: names.en || label, name_ar: names.ar || '' };
-  if (type === 'city') {
-    payload.governorate_id = branch._governorateChoice;
+const quickCreateLookup = async (owner, field) => {
+  const list = lookupLists[field];
+  const label = owner[`_${field}Label`];
+  if (!list || !label) return;
+
+  const names = owner[`_${field}Names`] || {};
+  const payload = { type: field, name_en: names.en || label, name_ar: names.ar || '' };
+  if (field === 'city') {
+    payload.governorate_id = owner._governorateChoice;
   }
 
-  const key = `${field}-${branch.name?.en || branch.name?.ar || ''}`;
+  const key = `${field}-${owner.name?.en || owner.name?.ar || ''}`;
   quickCreateLoading.value = key;
   try {
     const { data } = await axios.post(route('admin.facility.migration.lookup.store'), payload);
     const option = data.option;
 
     // Push into the global list so the select can see it.
-    const list = field === 'governorate' ? governorateList : cityList;
     if (!list.value.some(o => String(o.value) === String(option.value))) {
       list.value.push(option);
     }
 
-    applyChoice(branch, field, option.value, list.value);
+    applyChoice(owner, field, option.value, list.value);
 
     // If we just created a governorate, the city list changed — re-normalize.
-    if (type === 'governorate') {
-      normalizeLookup(branch, 'city', branch.city, citiesFor(branch));
+    if (field === 'governorate') {
+      normalizeLookup(owner, 'city', owner.city, citiesFor(owner));
     }
   } catch (e) {
-    importError.value = e.response?.data?.message || `Could not create the ${type}.`;
+    importError.value = e.response?.data?.message || `Could not create the ${field}.`;
   } finally {
     quickCreateLoading.value = null;
   }
@@ -991,6 +1445,9 @@ const quickCreateLookup = async (owner, field, branch) => {
 
 const setFacilityType = (facility, choice) =>
   applyChoice(facility, 'facility_type', choice, props.facilityTypes);
+
+const setFacilitySales = (facility, choice) =>
+  applyChoice(facility, 'sales', choice, salesList.value);
 
 /* What a picker offers: the rows this site has, plus — when the package named
    something none of them match — that spelling itself, so keeping it is a
@@ -1006,6 +1463,9 @@ const governorateOptions = (branch) =>
 
 const cityOptions = (branch) =>
   withNewOption(citiesFor(branch), branch._cityUnknown, branch._cityLabel);
+
+const salesPickerOptions = (facility) =>
+  withNewOption(salesList.value, facility._salesUnknown, facility._salesLabel);
 
 // Typing any spelling should find the row, not just the one the label shows.
 const LOOKUP_SEARCH_KEYS = ['label', 'name_en', 'name_ar', 'slug'];
@@ -1077,14 +1537,46 @@ const movedFrom = (facility, branch) =>
     ? branch._existing.facility_id
     : null);
 
+// Managers move the same way — matched by name, they follow the facility they
+// are listed under in the package.
+const managerMovedFrom = (facility, manager) =>
+  (manager._existing && manager._existing.facility_id !== facility._existing?.id
+    ? manager._existing.facility_id
+    : null);
+
+/* The rows this site holds that the package never names — the preview endpoint
+   works them out with the same rule the import uses, so what is painted here is
+   exactly what a pruning merge would delete. A facility whose branches (or
+   managers) the package does not carry at all yields none: silence about a
+   relation is not an instruction to empty it. */
+const missingBranches = (facility) => facility._missing_branches || [];
+const missingManagers = (facility) => facility._missing_managers || [];
+
+// Fresh mode deletes and recreates everything, so pruning is a merge-only idea.
+const pruningNow = computed(() => importMode.value === 'merge' && pruneMissing.value);
+
+const missingRowLabel = computed(() => (pruningNow.value ? 'will be deleted' : 'kept — not in package'));
+const missingRowCls = computed(() =>
+  (pruningNow.value ? 'bg-red-600 text-white' : 'bg-slate-500 text-white'));
+
 const previewCounts = computed(() => {
-  const counts = { facilitiesNew: 0, facilitiesExisting: 0, branchesNew: 0, branchesExisting: 0 };
+  const counts = {
+    facilitiesNew: 0, facilitiesExisting: 0,
+    branchesNew: 0, branchesExisting: 0,
+    managersNew: 0, managersExisting: 0,
+    missingBranches: 0, missingManagers: 0,
+  };
 
   previewData.value.facilities.forEach((facility) => {
     counts[isExisting(facility) ? 'facilitiesExisting' : 'facilitiesNew'] += 1;
     (facility.branches || []).forEach((branch) => {
       counts[isExisting(branch) ? 'branchesExisting' : 'branchesNew'] += 1;
     });
+    (facility.managers || []).forEach((manager) => {
+      counts[isExisting(manager) ? 'managersExisting' : 'managersNew'] += 1;
+    });
+    counts.missingBranches += missingBranches(facility).length;
+    counts.missingManagers += missingManagers(facility).length;
   });
 
   return counts;
@@ -1120,9 +1612,28 @@ const facilityBranchIssues = (facility) =>
   );
 
 const branchBadgeCls = (facility) =>
-  facilityBranchIssues(facility).length
+  (facilityBranchIssues(facility).length
     ? 'bg-red-600 text-white'
-    : 'bg-emerald-600 text-white';
+    : pruningNow.value && missingBranches(facility).length
+      ? 'bg-red-600 text-white'
+      : 'bg-emerald-600 text-white');
+
+/* A manager needs a name and nothing else — the import skips a nameless row
+   rather than writing a contact nobody can be reached on. */
+const managerIssues = (manager) =>
+  (String(manager.name || '').trim() ? [] : ['Manager has no name — this row is skipped']);
+
+const facilityManagerIssues = (facility) =>
+  (facility.managers || []).flatMap((manager, index) =>
+    managerIssues(manager).map(issue => `Manager ${index + 1}: ${issue}`)
+  );
+
+const managerBadgeCls = (facility) =>
+  (facilityManagerIssues(facility).length
+    ? 'bg-red-600 text-white'
+    : pruningNow.value && missingManagers(facility).length
+      ? 'bg-red-600 text-white'
+      : 'bg-sky-600 text-white');
 
 const hasLookupIssues = computed(() =>
   previewData.value.facilities.some(f =>
@@ -1161,12 +1672,25 @@ const inspectPackage = async () => {
 
             return branch;
           }),
+          managers: (f.managers || []).map(m => {
+            const phones = asPhoneList(m.phones);
+
+            return {
+              ...m,
+              name: m.name == null ? '' : String(m.name),
+              position: m.position == null ? '' : String(m.position),
+              phones,
+              _phonesText: phones.join('\n'),
+            };
+          }),
           offers: f.offers || [],
           media: f.media || [],
           tags: f.tags || [],
           _showBranches: false,
+          _showManagers: false,
         };
         normalizeLookup(facility, 'facility_type', f.facility_type, props.facilityTypes);
+        normalizeLookup(facility, 'sales', f.sales, salesList.value);
 
         return facility;
       }),
@@ -1205,6 +1729,9 @@ const withoutBookkeeping = (row) => {
   if (Array.isArray(clean.branches)) {
     clean.branches = clean.branches.map(withoutBookkeeping);
   }
+  if (Array.isArray(clean.managers)) {
+    clean.managers = clean.managers.map(withoutBookkeeping);
+  }
 
   return clean;
 };
@@ -1233,6 +1760,7 @@ const startImportFromPreview = async () => {
       mode: importMode.value,
       dry_run: dryRun.value ? 1 : 0,
       skip_media: skipMedia.value ? 1 : 0,
+      prune_missing: pruneMissing.value ? 1 : 0,
       confirm_wipe: confirmWipe.value ? 1 : 0,
     });
 
@@ -1259,6 +1787,7 @@ const startImport = async () => {
         mode: importMode.value,
         dry_run: dryRun.value ? 1 : 0,
         skip_media: skipMedia.value ? 1 : 0,
+        prune_missing: pruneMissing.value ? 1 : 0,
         confirm_wipe: confirmWipe.value ? 1 : 0,
       })
     );

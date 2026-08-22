@@ -540,14 +540,42 @@
         </p>
       </div>
     </div>
+    <!-- Contract Card -->
+    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
+      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+        <div data-slot="card-title" class="leading-none font-semibold title-golden">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <path d="M9 13h6"></path>
+            <path d="M9 17h3"></path>
+          </svg>
+          {{ t.facility?.contract || 'Contract' }}
+        </div>
+      </div>
+      <div data-slot="card-content" class="px-6">
+        <p v-if="t.facility?.contract_help" class="text-xs text-muted-foreground mb-3">{{ t.facility.contract_help }}</p>
+        <ContractFileInput
+          :max-size="10"
+          :initial-contract="props.facility?.contract || null"
+          @file-selected="(f) => { facilityStore.form.contract = f; facilityStore.form.contract_delete = false; contractError = ''; }"
+          @existing-removed="() => { facilityStore.form.contract_delete = true; }"
+          @error="(err) => contractError = err"
+        />
+        <p v-if="facilityStore.validationErrors?.contract || contractError" class="mt-1 text-sm text-destructive">
+          {{ facilityStore.validationErrors?.contract || contractError }}
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { FormTranslatableInput, FormTranslatableQuillEditor, FormSelect, FormSearchableSelect, FormInput } from "@/Components/form";
 import ImageFileInput from "@/Components/form/ImageFileInput.vue";
+import ContractFileInput from "@/Components/form/ContractFileInput.vue";
 import { useFacilityStore } from "../../Stores/FacilityStore";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from '@inertiajs/vue3';
 
@@ -583,6 +611,7 @@ const logoError = ref('');
 const mobileLogoError = ref('');
 const imageError = ref('');
 const mobileImageError = ref('');
+const contractError = ref('');
 
 console.log('[FacilityForm] props.facility:', {
   mobile_logo: props.facility?.mobile_logo,
@@ -712,6 +741,12 @@ const removeNewGalleryItem = (index) => {
   galleryNewPreviews.value.splice(index, 1);
   facilityStore.form.gallery.splice(index, 1);
 };
+
+// After a save the store empties form.gallery; drop the local previews too so the
+// just-uploaded images don't render twice alongside the refreshed existing gallery.
+watch(() => facilityStore.form.gallery.length, (count) => {
+  if (count === 0) galleryNewPreviews.value = [];
+});
 
 const handleGalleryChange = (event) => {
   const files = Array.from(event.target.files);

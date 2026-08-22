@@ -16,8 +16,15 @@ class AdminProductTypeShowResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            // All translations, so the page can show the Arabic and English names side by side.
+            'name' => $this->getTranslations('name'),
             'slug' => $this->slug,
+            'products_count' => $this->whenCounted('products'),
+            'creator' => $this->whenLoaded('creator', fn () => [
+                'id' => $this->creator->id,
+                'name' => $this->creator->name,
+                'email' => $this->creator->email,
+            ]),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

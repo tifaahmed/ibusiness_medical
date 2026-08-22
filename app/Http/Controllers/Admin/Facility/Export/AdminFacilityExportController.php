@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Admin\Facility\Export;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
-use App\Models\City;
+use App\Models\Sales;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -29,20 +30,29 @@ class AdminFacilityExportController extends BaseController
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->filled('facility_type_id') ? (int) $request->input('facility_type_id') : null,
             'sales_id' => $request->filled('sales_id') ? (int) $request->input('sales_id') : null,
+            'sales_presence' => in_array($request->input('sales_presence'), ['with', 'without'], true)
+                ? $request->input('sales_presence')
+                : null,
             'governorate_id' => $request->filled('governorate_id') ? (int) $request->input('governorate_id') : null,
             'city_id' => $request->filled('city_id') ? (int) $request->input('city_id') : null,
             'created_from' => $request->filled('created_from') ? $request->input('created_from') : null,
             'created_to' => $request->filled('created_to') ? $request->input('created_to') : null,
         ];
         $includeBranches = $request->boolean('include_branches');
+        // Managers ride along with the branches unless the caller says otherwise:
+        // the list screen asks for the full picture in one file.
+        $includeManagers = $request->has('include_managers')
+            ? $request->boolean('include_managers')
+            : $includeBranches;
 
         $rawChunk = (int) $request->input('chunk_size', 0);
         $chunkSize = ($rawChunk >= self::MIN_CHUNK_SIZE && $rawChunk <= self::MAX_CHUNK_SIZE) ? $rawChunk : 0;
 
         $facilities = Facility::query()
-            ->with(['facilityType', 'creator:id,name,email'])
-            ->withCount('branches')
+            ->with(['facilityType', 'sales', 'creator:id,name,email'])
+            ->withCount(['branches', 'managers'])
             ->when($includeBranches, fn ($q) => $q->with(['branches' => fn ($bq) => $bq->with(['governorate', 'city'])->orderBy('created_at')]))
+            ->when($includeManagers, fn ($q) => $q->with(['managers' => fn ($mq) => $mq->orderBy('id')]))
             ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($w) use ($filters) {
                     $needle = '%'.$filters['search'].'%';
@@ -53,6 +63,8 @@ class AdminFacilityExportController extends BaseController
             })
             ->when($filters['facility_type_id'] !== null, fn ($q) => $q->where('facility_type_id', $filters['facility_type_id']))
             ->when($filters['sales_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sales_id']))
+            ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
+            ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
             ->when($filters['governorate_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('governorate_id', $filters['governorate_id'])))
             ->when($filters['city_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('city_id', $filters['city_id'])))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
@@ -69,11 +81,17 @@ class AdminFacilityExportController extends BaseController
         $cityName = $filters['city_id'] !== null
             ? (City::find($filters['city_id'])?->getTranslation('name', 'en') ?? "#{$filters['city_id']}")
             : 'All cities';
+        $salesName = match (true) {
+            $filters['sales_id'] !== null => Sales::find($filters['sales_id'])?->displayName() ?? "#{$filters['sales_id']}",
+            $filters['sales_presence'] === 'with' => 'Any — only facilities with a rep',
+            $filters['sales_presence'] === 'without' => 'None — only facilities with no rep',
+            default => 'All sales reps',
+        };
 
         $timestamp = now()->format('Y-m-d_His');
 
         if ($chunkSize === 0 || $facilities->count() <= $chunkSize) {
-            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $cityName, $filters, $includeBranches);
+            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers);
             $filename = ($includeBranches ? 'facilities_with_branches_' : 'facilities_export_').$timestamp.'.xlsx';
 
             return $this->streamXlsx($spreadsheet, $filename);
@@ -88,7 +106,7 @@ class AdminFacilityExportController extends BaseController
         foreach ($chunks as $i => $chunk) {
             $partNumber = $i + 1;
             $partLabel = "Part {$partNumber} of {$totalParts}";
-            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $cityName, $filters, $includeBranches, $partLabel);
+            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers, $partLabel);
             $partFilename = sprintf(
                 '%sfacilities_part_%02d_of_%02d.xlsx',
                 $includeBranches ? 'with_branches_' : '',
@@ -148,8 +166,10 @@ class AdminFacilityExportController extends BaseController
         string $typeName,
         string $govName,
         string $cityName,
+        string $salesName,
         array $filters,
         bool $includeBranches,
+        bool $includeManagers,
         ?string $partLabel = null
     ): Spreadsheet {
         $spreadsheet = new Spreadsheet;
@@ -159,7 +179,7 @@ class AdminFacilityExportController extends BaseController
         // ------ Title block ------
         $title = $partLabel ? "FACILITIES EXPORT — {$partLabel}" : 'FACILITIES EXPORT';
         $sheet->setCellValue('A1', $title);
-        $sheet->mergeCells('A1:I1');
+        $sheet->mergeCells('A1:L1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -177,7 +197,7 @@ class AdminFacilityExportController extends BaseController
 
         // ------ Filter block ------
         $sheet->setCellValue('A5', 'FILTERS APPLIED');
-        $sheet->mergeCells('A5:I5');
+        $sheet->mergeCells('A5:L5');
         $sheet->getRowDimension(5)->setRowHeight(24);
         $sheet->getStyle('A5')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
@@ -187,6 +207,7 @@ class AdminFacilityExportController extends BaseController
         $filterRows = [
             ['Search', $filters['search'] !== '' ? $filters['search'] : '—'],
             ['Facility type', $typeName],
+            ['Sales rep', $salesName],
             ['Governorate', $govName],
             ['City', $cityName],
             ['Created from', $filters['created_from'] ?: '—'],
@@ -208,7 +229,7 @@ class AdminFacilityExportController extends BaseController
         // ------ Facilities table ------
         $headerRow = $row + 2;
         $sheet->setCellValue("A{$headerRow}", 'FACILITIES');
-        $sheet->mergeCells("A{$headerRow}:I{$headerRow}");
+        $sheet->mergeCells("A{$headerRow}:L{$headerRow}");
         $sheet->getRowDimension($headerRow)->setRowHeight(28);
         $sheet->getStyle("A{$headerRow}")->applyFromArray([
             'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
@@ -219,15 +240,15 @@ class AdminFacilityExportController extends BaseController
         $columnHeaderRow = $headerRow + 1;
         $columns = [
             'A' => '#', 'B' => 'Name', 'C' => 'Name (AR)', 'D' => 'Slug',
-            'E' => 'Facility type',
-            'F' => 'Branches', 'G' => 'Created at', 'H' => 'Updated at',
-            'I' => 'Creator',
+            'E' => 'Facility type', 'F' => 'Sales rep', 'G' => 'Discount %',
+            'H' => 'Branches', 'I' => 'Managers', 'J' => 'Created at', 'K' => 'Updated at',
+            'L' => 'Creator',
         ];
         foreach ($columns as $col => $label) {
             $sheet->setCellValue("{$col}{$columnHeaderRow}", $label);
         }
         $sheet->getRowDimension($columnHeaderRow)->setRowHeight(26);
-        $sheet->getStyle("A{$columnHeaderRow}:I{$columnHeaderRow}")->applyFromArray([
+        $sheet->getStyle("A{$columnHeaderRow}:L{$columnHeaderRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
@@ -253,26 +274,33 @@ class AdminFacilityExportController extends BaseController
             $sheet->setCellValue("C{$dataRow}", $nameAr);
             $sheet->setCellValue("D{$dataRow}", (string) $facility->slug);
             $sheet->setCellValue("E{$dataRow}", $typeLabel);
-            $sheet->setCellValue("F{$dataRow}", $facility->branches_count ?? 0);
-            $sheet->setCellValue("G{$dataRow}", $facility->created_at?->format('d M Y H:i') ?? '');
-            $sheet->setCellValue("H{$dataRow}", $facility->updated_at?->format('d M Y H:i') ?? '');
-            $sheet->setCellValue("I{$dataRow}", $creatorCell);
+            $sheet->setCellValue("F{$dataRow}", $facility->sales?->displayName() ?? '');
+            // Blank rather than 0: no discount and a nought-percent discount are
+            // not the same thing to whoever reads this.
+            $sheet->setCellValue("G{$dataRow}", $facility->discount_percent === null
+                ? ''
+                : (float) $facility->discount_percent);
+            $sheet->setCellValue("H{$dataRow}", $facility->branches_count ?? 0);
+            $sheet->setCellValue("I{$dataRow}", $facility->managers_count ?? 0);
+            $sheet->setCellValue("J{$dataRow}", $facility->created_at?->format('d M Y H:i') ?? '');
+            $sheet->setCellValue("K{$dataRow}", $facility->updated_at?->format('d M Y H:i') ?? '');
+            $sheet->setCellValue("L{$dataRow}", $creatorCell);
 
             $stripe = ($rowIndex % 2 === 0) ? 'F9FAFB' : 'FFFFFF';
-            $sheet->getStyle("A{$dataRow}:I{$dataRow}")->applyFromArray([
+            $sheet->getStyle("A{$dataRow}:L{$dataRow}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
             ]);
             $sheet->getStyle("A{$dataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("F{$dataRow}:I{$dataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("G{$dataRow}:L{$dataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getRowDimension($dataRow)->setRowHeight(22);
             $dataRow++;
         }
 
         $widths = [
             'A' => 8, 'B' => 36, 'C' => 36, 'D' => 30, 'E' => 22,
-            'F' => 12, 'G' => 22, 'H' => 22, 'I' => 32,
+            'F' => 26, 'G' => 12, 'H' => 12, 'I' => 12, 'J' => 22, 'K' => 22, 'L' => 32,
         ];
         foreach ($widths as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
@@ -280,7 +308,7 @@ class AdminFacilityExportController extends BaseController
 
         $footerRow = ($dataRow > $dataStart ? $dataRow : $dataStart) + 1;
         $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$facilities->count().' facility(ies) exported');
-        $sheet->mergeCells("A{$footerRow}:I{$footerRow}");
+        $sheet->mergeCells("A{$footerRow}:L{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -290,7 +318,91 @@ class AdminFacilityExportController extends BaseController
             $this->buildBranchSheet($spreadsheet, $facilities);
         }
 
+        if ($includeManagers) {
+            $this->buildManagerSheet($spreadsheet, $facilities);
+        }
+
         return $spreadsheet;
+    }
+
+    /**
+     * The people to call at each facility, one row each — the same shape as the
+     * branch sheet so both read alike.
+     */
+    private function buildManagerSheet(Spreadsheet $spreadsheet, Collection $facilities): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Managers');
+
+        $sheet->setCellValue('A1', 'FACILITY MANAGERS');
+        $sheet->mergeCells('A1:F1');
+        $sheet->getRowDimension(1)->setRowHeight(34);
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0284C7']],
+        ]);
+
+        $headerRow = 3;
+        $columns = [
+            'A' => '#', 'B' => 'Facility name', 'C' => 'Facility slug',
+            'D' => 'Manager name', 'E' => 'Position', 'F' => 'Phones',
+        ];
+        foreach ($columns as $col => $label) {
+            $sheet->setCellValue("{$col}{$headerRow}", $label);
+        }
+        $sheet->getRowDimension($headerRow)->setRowHeight(26);
+        $sheet->getStyle("A{$headerRow}:F{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '1F2937']]],
+        ]);
+
+        $row = $headerRow + 1;
+        $index = 0;
+        foreach ($facilities as $facility) {
+            if (! $facility->relationLoaded('managers')) {
+                continue;
+            }
+            foreach ($facility->managers as $manager) {
+                $index++;
+                $phones = $manager->phones;
+                if (is_array($phones)) {
+                    $phones = implode(', ', $phones);
+                }
+
+                $sheet->setCellValue("A{$row}", $index);
+                $sheet->setCellValue("B{$row}", (string) ($facility->getTranslation('name', 'en') ?: ''));
+                $sheet->setCellValue("C{$row}", (string) $facility->slug);
+                $sheet->setCellValue("D{$row}", (string) ($manager->name ?? ''));
+                $sheet->setCellValue("E{$row}", (string) ($manager->position ?? ''));
+                $sheet->setCellValue("F{$row}", (string) ($phones ?? ''));
+
+                $stripe = ($index % 2 === 0) ? 'F9FAFB' : 'FFFFFF';
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+                ]);
+                $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getRowDimension($row)->setRowHeight(22);
+                $row++;
+            }
+        }
+
+        $widths = ['A' => 8, 'B' => 32, 'C' => 28, 'D' => 30, 'E' => 26, 'F' => 34];
+        foreach ($widths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+
+        $footerRow = $row + 1;
+        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$index.' manager(s) exported');
+        $sheet->mergeCells("A{$footerRow}:F{$footerRow}");
+        $sheet->getStyle("A{$footerRow}")->applyFromArray([
+            'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
     }
 
     private function buildBranchSheet(Spreadsheet $spreadsheet, Collection $facilities): void

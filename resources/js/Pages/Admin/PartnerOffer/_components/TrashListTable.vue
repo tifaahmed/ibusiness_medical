@@ -63,6 +63,7 @@
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
                     <button
+                      v-if="canWrite"
                       @click="$emit('restore', offer.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-green-600 hover:!bg-green-600/10 hover:!text-green-600 dark:text-green-400"
                       :title="t.common?.restore || 'Restore'"
@@ -73,6 +74,7 @@
                       </svg>
                     </button>
                     <button
+                      v-if="canWrite"
                       @click="$emit('force-delete', offer.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
                       :title="t.common?.force_delete || 'Permanently Delete'"
@@ -159,6 +161,7 @@ import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from 'vue';
 import { usePriceFormat } from '@/composables/usePriceFormat';
+import { usePermissions } from '@/composables/usePermissions';
 
 const { formatPrice } = usePriceFormat();
 
@@ -172,6 +175,10 @@ defineProps({
 defineEmits(['restore', 'force-delete']);
 
 const page = usePage();
+const { canManage } = usePermissions();
+// Restore and permanent delete are writes; a read-only account can
+// look at the trash but not act on it.
+const canWrite = computed(() => canManage('manage partner offers', 'manage own partner offers'));
 const t = computed(() => page.props.translations?.admin || {});
 
 const handlePerPageChange = (event) => {

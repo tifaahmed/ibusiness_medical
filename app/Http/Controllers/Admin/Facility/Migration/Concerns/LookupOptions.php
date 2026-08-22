@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Facility\Migration\Concerns;
 
+use App\Models\Sales;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -30,5 +31,44 @@ trait LookupOptions
             'name_ar' => $ar ?: null,
             'slug' => $model->slug ?? null,
         ];
+    }
+
+    /**
+     * One dropdown option for a sales rep. Both shapes the name column can
+     * hold spell one readable label, or the picker would offer the operator raw
+     * JSON to choose between — see Sales::nameTranslations().
+     *
+     * @return array<string, mixed>
+     */
+    protected function salesOption(Sales $sale): array
+    {
+        $translations = $this->salesTranslations($sale);
+
+        return [
+            'value' => $sale->getKey(),
+            'label' => $this->salesLabel($sale),
+            'name_en' => $translations['en'] ?? null,
+            'name_ar' => $translations['ar'] ?? null,
+            'slug' => null,
+        ];
+    }
+
+    /**
+     * The name to show, in the reader's locale when the row carries it.
+     */
+    protected function salesLabel(Sales $sale): string
+    {
+        return $sale->displayName();
+    }
+
+    /**
+     * Every locale the row actually carries — falling back to the raw column
+     * when it holds a bare name rather than a translation blob.
+     *
+     * @return array<string, string>
+     */
+    protected function salesTranslations(Sales $sale): array
+    {
+        return $sale->nameTranslations();
     }
 }

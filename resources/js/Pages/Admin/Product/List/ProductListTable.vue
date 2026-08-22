@@ -6,8 +6,11 @@
           <table class="w-full caption-bottom text-sm min-w-full">
             <thead class="[&_tr]:border-b [&_tr]:border-border">
               <tr class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors border-border">
-                <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap min-w-[300px]">
-                  Product
+                <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap min-w-[280px]">
+                  Name (English)
+                </th>
+                <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap min-w-[220px]">
+                  Name (Arabic)
                 </th>
                 <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
                   Type
@@ -17,6 +20,9 @@
                 </th>
                 <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
                   Tags
+                </th>
+                <th class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-24 text-center">
+                  Banner
                 </th>
                 <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
                   Created
@@ -50,19 +56,34 @@
                     <div class="flex-1 min-w-0 space-y-1">
                       <Link
                         :href="getShowRoute(product.slug)"
+                        dir="ltr"
                         class="font-semibold text-sm text-foreground hover:text-golden-yellow transition-colors cursor-pointer block max-w-[250px] break-words whitespace-normal"
+                        :title="nameIn(product.name, 'en')"
                       >
-                        {{ getTranslatedName(product.name) }}
+                        {{ nameIn(product.name, 'en') || '-' }}
                       </Link>
-                      <p v-if="product.short_subject" class="text-xs text-muted-foreground truncate max-w-[250px]">
-                        {{ getTranslatedName(product.short_subject) }}
+                      <p v-if="nameIn(product.short_subject, 'en')" dir="ltr" class="text-xs text-muted-foreground truncate max-w-[250px]">
+                        {{ nameIn(product.short_subject, 'en') }}
                       </p>
-                      <p class="text-xs text-muted-foreground font-mono">{{ product.slug }}</p>
                     </div>
                   </div>
                 </td>
                 <td class="p-2 align-middle whitespace-nowrap">
-                  <span v-if="product.product_type" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                  <div class="flex-1 min-w-0 space-y-1">
+                    <span
+                      dir="rtl"
+                      class="font-semibold text-sm text-foreground block max-w-[220px] break-words whitespace-normal"
+                      :title="nameIn(product.name, 'ar')"
+                    >
+                      {{ nameIn(product.name, 'ar') || '-' }}
+                    </span>
+                    <p v-if="nameIn(product.short_subject, 'ar')" dir="rtl" class="text-xs text-muted-foreground truncate max-w-[220px]">
+                      {{ nameIn(product.short_subject, 'ar') }}
+                    </p>
+                  </div>
+                </td>
+                <td class="p-2 align-middle whitespace-nowrap">
+                  <span v-if="product.product_type" class="chip chip-accent">
                     {{ getTranslatedName(product.product_type.name) }}
                   </span>
                   <span v-else class="text-xs text-muted-foreground">—</span>
@@ -89,6 +110,23 @@
                       {{ tag.icon }} {{ tag.name }}
                     </span>
                     <span v-if="product.tags.length > 3" class="text-[10px] text-muted-foreground">+{{ product.tags.length - 3 }}</span>
+                  </div>
+                  <span v-else class="text-xs text-muted-foreground">—</span>
+                </td>
+                <td class="p-2 align-middle text-center">
+                  <div v-if="product.banner_config?.enabled" class="flex flex-col items-center gap-0.5">
+                    <span v-if="product.banner_config?.message_ar" dir="rtl" class="text-xs font-medium text-foreground leading-tight">
+                      {{ product.banner_config.message_ar }}
+                    </span>
+                    <span v-if="product.banner_config?.message_en" dir="ltr" class="text-xs font-medium text-foreground leading-tight">
+                      {{ product.banner_config.message_en }}
+                    </span>
+                    <span v-if="formatCountdown(product.banner_end_date)" class="text-[10px] text-muted-foreground font-mono">
+                      {{ formatCountdown(product.banner_end_date) }}
+                    </span>
+                    <span v-else-if="product.banner_days_left === 0" class="text-[10px] text-red-400 font-medium">
+                      Expired
+                    </span>
                   </div>
                   <span v-else class="text-xs text-muted-foreground">—</span>
                 </td>
@@ -185,6 +223,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">No Products Found</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">No products match your current filters. Try adjusting your search criteria.</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.product.create')"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 btn-golden"
         >
@@ -202,8 +241,15 @@
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useNotification } from "@/composables/useNotification";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own products', 'manage products'));
+
 
 const props = defineProps({
   products: {
@@ -223,9 +269,53 @@ const getTranslatedName = (name) => {
   return '';
 };
 
+// Live countdown ticker for the banner column
+const now = ref(Date.now());
+let countdownInterval = null;
+
+onMounted(() => {
+  countdownInterval = setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+});
+
+const formatCountdown = (endDateStr) => {
+  if (!endDateStr) return '';
+
+  const diff = new Date(endDateStr).getTime() - now.value;
+  if (diff <= 0) return '';
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+
+  return parts.join(' ');
+};
+
 const formatPrice = (price) => {
   if (price === null || price === undefined) return '';
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(price);
+};
+
+// One specific locale, with no fallback: the table shows AR and EN side by side,
+// so an empty translation must read as empty instead of echoing the other language.
+const nameIn = (value, lang) => {
+  if (typeof value === 'string') return lang === locale ? value : '';
+  if (typeof value === 'object' && value !== null) return value[lang] || '';
+  return '';
 };
 
 const getShowRoute = (slug) => {

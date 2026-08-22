@@ -70,7 +70,10 @@
           id="sales_id"
           v-model="filters.sales_id"
           :options="salesSelectOptions"
-          :placeholder="t.facility?.all_sales || 'All Sales'"
+          :placeholder="filters.sales_presence === 'without'
+            ? (t.facility?.without_sales || 'No sales rep')
+            : (t.facility?.all_sales || 'All Sales')"
+          :disabled="filters.sales_presence === 'without'"
           @change="handleFilterChange"
         />
       </div>
@@ -117,6 +120,36 @@
 
     <!-- Created Date Range - New Row -->
     <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 w-full">
+      <!-- Sales rep, present or missing -->
+      <div class="w-full sm:w-auto">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+        >
+          {{ t.facility?.sales_assignment || 'Sales assignment' }}
+        </label>
+        <div class="flex items-center gap-3 h-7 sm:h-8 md:h-9">
+          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
+              :checked="filters.sales_presence === 'with'"
+              @change="toggleSalesPresence('with')"
+            />
+            <span>{{ t.facility?.with_sales || 'Has sales rep' }}</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
+              :checked="filters.sales_presence === 'without'"
+              @change="toggleSalesPresence('without')"
+            />
+            <span>{{ t.facility?.without_sales || 'No sales rep' }}</span>
+          </label>
+        </div>
+      </div>
+
       <div class="w-full sm:w-auto">
         <label
           data-slot="label"
@@ -186,6 +219,7 @@ const props = defineProps({
       search: '',
       facility_type_id: '',
       sales_id: '',
+      sales_presence: '',
       governorate_id: '',
       city_id: '',
       created_from: '',
@@ -271,6 +305,7 @@ const getInitialFilters = () => {
       search: props.initialFilters.search || '',
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
       sales_id: props.initialFilters.sales_id || '',
+      sales_presence: props.initialFilters.sales_presence || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
       created_from: props.initialFilters.created_from || '',
@@ -283,20 +318,21 @@ const getInitialFilters = () => {
       search: urlParams.get('search') || '',
       facility_type_id: urlParams.get('facility_type_id') || '',
       sales_id: urlParams.get('sales_id') || '',
+      sales_presence: urlParams.get('sales_presence') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
       created_from: urlParams.get('created_from') || '',
       created_to: urlParams.get('created_to') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
 });
 
 let searchTimeout = null;
@@ -315,7 +351,21 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  applyFilters();
+};
+
+/* The two boxes answer one question, so they behave as one control: ticking
+   either unticks the other, and ticking the one already on clears the filter —
+   which is what "show me all of them again" looks like from the keyboard. */
+const toggleSalesPresence = (value) => {
+  filters.value.sales_presence = filters.value.sales_presence === value ? '' : value;
+
+  // Asking for facilities with no rep while naming one would match nothing.
+  if (filters.value.sales_presence === 'without') {
+    filters.value.sales_id = '';
+  }
+
   applyFilters();
 };
 
@@ -345,6 +395,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.sales_id && currentFilters.sales_id !== '') {
     params.sales_id = currentFilters.sales_id;
+  }
+  if (currentFilters.sales_presence && currentFilters.sales_presence !== '') {
+    params.sales_presence = currentFilters.sales_presence;
   }
   if (currentFilters.governorate_id && currentFilters.governorate_id !== '') {
     params.governorate_id = currentFilters.governorate_id;

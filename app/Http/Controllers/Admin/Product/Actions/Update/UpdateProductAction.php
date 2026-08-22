@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Admin\Product\Actions\Update;
 
 use App\Models\Product;
+use App\Models\ProductGallery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class UpdateProductAction
 {
     /**
      * Execute the action to update a product.
      *
-     * @param Product $product
-     * @param array $validated
-     * @return Product
      * @throws \Exception
      */
     public function execute(Product $product, array $validated): Product
@@ -24,32 +23,64 @@ class UpdateProductAction
             $product->update([
                 'name' => $validated['name'],
                 'short_subject' => $validated['short_subject'] ?? null,
+                'description' => $validated['description'] ?? null,
                 'old_price' => $validated['old_price'] ?? null,
                 'new_price' => $validated['new_price'] ?? null,
+                'cost_price' => $validated['cost_price'] ?? null,
+                'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                'admin_note' => $validated['admin_note'] ?? null,
+                'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
+                // `created_by` is stamped once at creation and never reassigned.
             ]);
 
             if (isset($validated['large_image'])) {
                 $product->clearMediaCollection('large_image');
                 $product->addMedia($validated['large_image'])
                     ->toMediaCollection('large_image');
+            } elseif (filter_var($validated['remove_large_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $product->clearMediaCollection('large_image');
             }
 
             if (isset($validated['small_image'])) {
                 $product->clearMediaCollection('small_image');
                 $product->addMedia($validated['small_image'])
                     ->toMediaCollection('small_image');
+            } elseif (filter_var($validated['remove_small_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $product->clearMediaCollection('small_image');
             }
 
-            if (isset($validated['gallery']) && is_array($validated['gallery'])) {
-                $product->clearMediaCollection('gallery');
-                foreach ($validated['gallery'] as $image) {
-                    $product->addMedia($image)
-                        ->toMediaCollection('gallery');
+            // Drop only the gallery images the admin explicitly removed.
+            $removedIds = array_filter(array_map('intval', $validated['removed_gallery_ids'] ?? []));
+
+            if ($removedIds !== []) {
+                $removed = $product->galleries()->whereIn('id', $removedIds)->get();
+
+                foreach ($removed as $galleryImage) {
+                    Storage::disk('public')->delete($galleryImage->image_path);
+                    $galleryImage->delete();
                 }
             }
 
-            if (array_key_exists('tag_ids', $validated)) {
+            // New uploads are appended to whatever is left.
+            if (isset($validated['gallery']) && is_array($validated['gallery'])) {
+                $sortOrder = (int) $product->galleries()->max('sort_order');
+
+                foreach ($validated['gallery'] as $image) {
+                    $path = $image->store("products/gallery/{$product->id}", 'public');
+
+                    ProductGallery::create([
+                        'product_id' => $product->id,
+                        'image_path' => $path,
+                        'sort_order' => ++$sortOrder,
+                    ]);
+                }
+            }
+
+            // An empty tag selection is dropped from multipart bodies, so the form
+            // sends `sync_tags` to say the (possibly empty) selection is authoritative.
+            if (array_key_exists('tag_ids', $validated)
+                || filter_var($validated['sync_tags'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $product->tags()->sync($validated['tag_ids'] ?? []);
             }
 

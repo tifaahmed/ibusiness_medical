@@ -6,6 +6,7 @@ use App\Enums\User\UserRoleEnum;
 use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityManager;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
@@ -45,8 +46,9 @@ class FacilityMigrationTest extends TestCase
         $gov = Governorate::create(['name' => ['en' => 'Cairo', 'ar' => 'القاهرة']]);
         $city = City::create(['governorate_id' => $gov->id, 'name' => ['en' => 'Nasr City', 'ar' => 'مدينة نصر']]);
         // Inserted past the model on purpose: sales.name is a plain varchar even
-        // though the model calls it translatable, and the migration must carry
-        // the raw string across rather than wrapping it in {"en": …}.
+        // though the model calls it translatable, so rows written by an older
+        // import hold the bare name. The migration has to read that shape as
+        // readily as the {"en": …, "ar": …} blob the admin screens write.
         $salesId = Sales::query()->insertGetId([
             'name' => 'Rep One',
             'created_at' => now(),
@@ -76,6 +78,13 @@ class FacilityMigrationTest extends TestCase
         $facility->addMedia(UploadedFile::fake()->image('cover.png', 30, 30))->toMediaCollection('image');
         $facility->addMedia(UploadedFile::fake()->image('g1.png', 10, 10))->toMediaCollection('gallery');
         $facility->addMedia(UploadedFile::fake()->image('g2.png', 10, 10))->toMediaCollection('gallery');
+
+        FacilityManager::create([
+            'facility_id' => $facility->id,
+            'name' => 'أحمد سعيد',
+            'position' => 'General Manager',
+            'phones' => ['0100000000', '0111111111'],
+        ]);
 
         FacilityBranch::create([
             'facility_id' => $facility->id,
@@ -125,7 +134,7 @@ class FacilityMigrationTest extends TestCase
 
         $this->assertSame(1, $result['stats']['facilities_created'] ?? 0);
 
-        $facility = Facility::with(['branches', 'tags', 'facilityType', 'governorate', 'city', 'sales'])->first();
+        $facility = Facility::with(['branches', 'managers', 'tags', 'facilityType', 'governorate', 'city', 'sales'])->first();
 
         // Both locales survive, not just the active one.
         $this->assertSame('Sunrise Clinic', $facility->getTranslation('name', 'en'));
@@ -139,9 +148,18 @@ class FacilityMigrationTest extends TestCase
         $this->assertSame('Clinic', $facility->facilityType->getTranslation('name', 'en'));
         $this->assertSame('Cairo', $facility->governorate->getTranslation('name', 'en'));
         $this->assertSame('Nasr City', $facility->city->getTranslation('name', 'en'));
-        $this->assertSame('Rep One', $facility->sales->getRawOriginal('name'));
+        // The rep travels by name, not by the shape the source column happened
+        // to hold it in — it comes back readable under both locales.
+        $this->assertSame('Rep One', $facility->sales->getTranslation('name', 'en'));
+        $this->assertSame('Rep One', $facility->sales->getTranslation('name', 'ar'));
         $this->assertSame(['Featured'], $facility->tags->pluck('name')->all());
         $this->assertSame('30.0444444', (string) $facility->latitude);
+
+        $manager = $facility->managers->first();
+        $this->assertNotNull($manager);
+        $this->assertSame('أحمد سعيد', $manager->name);
+        $this->assertSame('General Manager', $manager->position);
+        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
 
         $branch = $facility->branches->first();
         $this->assertSame('الفرع الرئيسي', $branch->getTranslation('name', 'ar'));
@@ -169,6 +187,7 @@ class FacilityMigrationTest extends TestCase
 
         $this->assertSame(1, Facility::count());
         $this->assertSame(1, FacilityBranch::count());
+        $this->assertSame(1, FacilityManager::count());
         $this->assertSame(4, Facility::first()->media()->count());
     }
 
@@ -416,5 +435,337 @@ class FacilityMigrationTest extends TestCase
         $this->actingAs($this->admin())
             ->postJson(route('admin.facility.migration.inspect'), ['server_path' => '../../../../etc/passwd'])
             ->assertStatus(422);
+    }
+
+    /**
+     * Write a spreadsheet the way an operator would, and hand back the
+     * migration package the import screen turns it into.
+     *
+     * @param  array<int, array<int, string>>  $rows  header row first
+     */
+    private function sheetPackage(array $rows): string
+    {
+        $csv = tempnam(sys_get_temp_dir(), 'facility-sheet').'.csv';
+        $handle = fopen($csv, 'w');
+        foreach ($rows as $row) {
+            fputcsv($handle, $row, ',', '"', '\\');
+        }
+        fclose($handle);
+
+        try {
+            return app(\App\Services\FacilityMigration\XlsxToMigrationZip::class)->convert($csv);
+        } finally {
+            @unlink($csv);
+        }
+    }
+
+    public function test_a_sheet_carrying_the_sales_and_discount_columns_writes_both(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        Sales::query()->insertGetId([
+            'name' => json_encode(['en' => 'Rep Two', 'ar' => 'مندوب اثنان'], JSON_UNESCAPED_UNICODE),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $before = Sales::count();
+
+        // The name is written in the other locale and the wrong case, and the
+        // discount carries the "%" an operator types — all three still land.
+        $package = $this->sheetPackage([
+            ['Name', 'Name (AR)', 'Slug', 'Facility Type', 'Sales', 'Discount %'],
+            ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic', 'مندوب اثنان', '25%'],
+        ]);
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $facility->refresh();
+        $this->assertSame('25.00', (string) $facility->discount_percent);
+        $this->assertSame('Rep Two', $facility->sales->getTranslation('name', 'en'));
+        // Matched, not duplicated: the site keeps the reps it had.
+        $this->assertSame($before, Sales::count());
+    }
+
+    public function test_a_sheet_without_those_columns_leaves_the_rep_and_discount_alone(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        $repId = $facility->sales_id;
+
+        // The four-column sheet older imports were written against.
+        $package = $this->sheetPackage([
+            ['Name', 'Name (AR)', 'Slug', 'Facility Type'],
+            ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic'],
+        ]);
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $facility->refresh();
+        $this->assertSame($repId, $facility->sales_id);
+        $this->assertSame('15.50', (string) $facility->discount_percent);
+    }
+
+    public function test_the_preview_shows_the_rep_and_discount_a_sheet_does_not_mention(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        $package = $this->sheetPackage([
+            ['Name', 'Name (AR)', 'Slug', 'Facility Type'],
+            ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic'],
+        ]);
+        $dropped = storage_path('app/facility-migration/sheet-package.zip');
+        copy($package, $dropped);
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.facility.migration.preview'),
+            ['server_path' => basename($dropped)]
+        );
+
+        $response->assertOk();
+        // The screen has no "not mentioned" state, so the columns start on what
+        // the facility holds today — which is also what importing would leave.
+        $this->assertSame($facility->sales_id, $response->json('facilities.0.sales.id'));
+        $this->assertSame('15.50', $response->json('facilities.0.discount_percent'));
+        $this->assertSame('Rep One', $response->json('facilities.0._existing.sales.label'));
+        $this->assertSame('15.50', $response->json('facilities.0._existing.discount_percent'));
+    }
+
+    public function test_a_missing_sales_rep_can_be_created_from_the_preview(): void
+    {
+        $admin = $this->admin();
+
+        $created = $this->actingAs($admin)->postJson(route('admin.facility.migration.lookup.store'), [
+            'type' => 'sales',
+            'name_en' => 'Brand New Rep',
+        ]);
+        $created->assertStatus(201);
+        $created->assertJson(['created' => true]);
+        $this->assertSame('Brand New Rep', $created->json('option.label'));
+
+        // A second row reaching for the same name adopts the one just made.
+        $again = $this->actingAs($admin)->postJson(route('admin.facility.migration.lookup.store'), [
+            'type' => 'sales',
+            'name_en' => 'brand new rep',
+        ]);
+        $again->assertOk();
+        $again->assertJson(['created' => false, 'option' => ['value' => $created->json('option.value')]]);
+        $this->assertSame(1, Sales::count());
+    }
+
+    public function test_the_example_workbook_lists_the_sales_reps_this_site_has(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+
+        $response = $this->actingAs($this->admin())->get(route('admin.facility.migration.template.example'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'template').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+
+            $facilities = $spreadsheet->getSheetByName('Facilities');
+            $this->assertSame('Sales', $facilities->getCell('E1')->getValue());
+            $this->assertSame('Discount %', $facilities->getCell('F1')->getValue());
+            // The example row names a rep this site actually has, so it imports
+            // as it stands rather than inventing a second person.
+            $this->assertSame('Rep One', $facilities->getCell('E2')->getValue());
+
+            $instructions = collect($spreadsheet->getSheetByName('Instructions')->toArray())
+                ->map(fn ($row) => implode(' | ', array_map('strval', $row)))
+                ->implode("\n");
+            $this->assertStringContainsString('SALES REPS', $instructions);
+            $this->assertStringContainsString('Rep One', $instructions);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * The multi-sheet workbook an operator fills in. A csv only ever has one
+     * sheet, so the Managers sheet needs a real xlsx.
+     *
+     * @param  array<int, array<int, string>>  $facilities  header row first
+     * @param  array<int, array<int, string>>|null  $managers  header row first, or null for no sheet at all
+     */
+    private function workbookPackage(array $facilities, ?array $managers = null): string
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Facilities');
+        $sheet->fromArray($facilities, null, 'A1');
+
+        if ($managers !== null) {
+            $managerSheet = $spreadsheet->createSheet();
+            $managerSheet->setTitle('Managers');
+            $managerSheet->fromArray($managers, null, 'A1');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'facility-workbook').'.xlsx';
+        \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx')->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        try {
+            return app(\App\Services\FacilityMigration\XlsxToMigrationZip::class)->convert($path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * The managers' own round trip, kept apart from the big one above: that
+     * test currently stops at the facility-level governorate, which the package
+     * has never carried, and this path deserves coverage that actually runs.
+     */
+    public function test_managers_survive_a_package_round_trip(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $package = $this->buildPackage();
+
+        $this->wipeFacilityData();
+        $this->assertSame(0, FacilityManager::count());
+
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $this->assertSame(1, $result['stats']['managers_created'] ?? 0);
+
+        $manager = Facility::with('managers')->first()->managers->first();
+        $this->assertNotNull($manager);
+        $this->assertSame('أحمد سعيد', $manager->name);
+        $this->assertSame('General Manager', $manager->position);
+        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
+    }
+
+    public function test_a_managers_sheet_adds_people_and_updates_the_ones_already_listed(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        $listed = $facility->managers()->first();
+
+        // The same person, spelled with a bare alef — and somebody new.
+        $package = $this->workbookPackage(
+            [
+                ['Name', 'Name (AR)', 'Slug', 'Facility Type'],
+                ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic'],
+            ],
+            [
+                ['Facility Name', 'Manager Name', 'Position', 'Phones'],
+                ['Sunrise Clinic', 'احمد سعيد', 'Managing Director', '0100000000, 0122222222'],
+                ['Sunrise Clinic', 'Mona Adel', 'Reception', '0133333333'],
+            ]
+        );
+
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $this->assertSame(1, $result['stats']['managers_updated'] ?? 0);
+        $this->assertSame(1, $result['stats']['managers_created'] ?? 0);
+        $this->assertSame(2, $facility->managers()->count());
+
+        // Matched by the folded name rather than character for character.
+        $listed->refresh();
+        $this->assertSame('Managing Director', $listed->position);
+        $this->assertSame(['0100000000', '0122222222'], $listed->phones);
+    }
+
+    public function test_a_workbook_without_a_managers_sheet_leaves_the_people_listed_alone(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        $package = $this->workbookPackage([
+            ['Name', 'Name (AR)', 'Slug', 'Facility Type'],
+            ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic'],
+        ]);
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $this->assertSame(1, $facility->managers()->count());
+        $this->assertSame('أحمد سعيد', $facility->managers()->first()->name);
+    }
+
+    public function test_a_manager_row_without_a_name_is_skipped_with_a_warning(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        $package = $this->workbookPackage(
+            [
+                ['Name', 'Name (AR)', 'Slug', 'Facility Type'],
+                ['Sunrise Clinic', 'عيادة الشروق', 'sunrise-clinic', 'Clinic'],
+            ],
+            [
+                ['Facility Name', 'Manager Name', 'Position', 'Phones'],
+                ['Sunrise Clinic', '', 'Reception', '0133333333'],
+            ]
+        );
+
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        // The nameless row never reaches the importer — the sheet reader drops
+        // it — so nothing is created and the person already listed stays.
+        $this->assertSame(0, $result['stats']['managers_created'] ?? 0);
+        $this->assertSame(1, $facility->managers()->count());
+    }
+
+    public function test_the_preview_marks_managers_the_site_already_lists(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        $package = $this->buildPackage();
+
+        // The site drifts after the package was built: the preview has to show
+        // the position this person carries *here*.
+        $facility->managers()->update(['position' => 'Acting Manager']);
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.facility.migration.preview'),
+            ['server_path' => basename($package)]
+        );
+
+        $response->assertOk();
+        $manager = $response->json('facilities.0.managers.0');
+
+        $this->assertSame('أحمد سعيد', $manager['name']);
+        $this->assertSame('Acting Manager', $manager['_existing']['position']);
+        $this->assertSame(1, $response->json('facilities.0._existing.managers_count'));
+        // The package itself is untouched — the old value only travels alongside.
+        $this->assertSame('General Manager', $manager['position']);
+    }
+
+    public function test_the_example_workbook_carries_a_managers_sheet(): void
+    {
+        Storage::fake('public');
+
+        $response = $this->actingAs($this->admin())->get(route('admin.facility.migration.template.example'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'template').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $this->assertContains('Managers', $spreadsheet->getSheetNames());
+
+            $managers = $spreadsheet->getSheetByName('Managers');
+            $this->assertSame('Facility Name', $managers->getCell('A1')->getValue());
+            $this->assertSame('Manager Name', $managers->getCell('B1')->getValue());
+            $this->assertSame('Position', $managers->getCell('C1')->getValue());
+            $this->assertSame('Phones', $managers->getCell('D1')->getValue());
+            // The example rows name facilities from the Facilities sheet.
+            $this->assertSame('El Gouna Medical Center', $managers->getCell('A2')->getValue());
+        } finally {
+            @unlink($path);
+        }
     }
 }

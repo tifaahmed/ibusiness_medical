@@ -3,9 +3,15 @@
 namespace App\Enums\User;
 
 /**
- * Each resource has two permissions:
+ * Each resource has up to three permissions:
  *   - `manage X`     → full CRUD on every record
  *   - `manage own X` → CRUD only on records the admin created themselves
+ *   - `view X`       → read-only: the list and detail screens, nothing else.
+ *                      No create/edit/delete, and no export or import either,
+ *                      since both move data in or out of the system.
+ *
+ * `view X` is not creator-scoped: a read-only account sees every row, because
+ * withholding rows from someone who cannot change them buys nothing.
  *
  * Row-level scoping for the "own" variant is enforced inside the controllers
  * that read the relevant `created_by` column. Today, only the membership area
@@ -78,6 +84,10 @@ enum UserPermissionEnum
 
     public const MANAGE_OWN_PRODUCTS = 'manage own products';
 
+    public const MANAGE_ORDERS = 'manage orders';
+
+    public const MANAGE_OWN_ORDERS = 'manage own orders';
+
     public const MANAGE_FACILITY_BRANCHES = 'manage facility branches';
 
     public const MANAGE_OWN_FACILITY_BRANCHES = 'manage own facility branches';
@@ -148,6 +158,60 @@ enum UserPermissionEnum
     public const VIEW_MEMBER_ACTIVE_HISTORIES = 'view member active histories';
 
     /**
+     * Read-only counterparts to the `manage X` permissions above. Held by the
+     * `viewer` role, and grantable on their own to give an account a look at
+     * one area without the ability to change anything in it.
+     *
+     * `view membership card patches` and `view member active histories` are
+     * declared further up: those two areas were read-only from the start.
+     */
+    public const VIEW_USERS = 'view users';
+
+    public const VIEW_ADMIN_USERS = 'view admin users';
+
+    public const VIEW_ROLES = 'view roles';
+
+    public const VIEW_MEMBERSHIPS = 'view memberships';
+
+    public const VIEW_MEMBERSHIP_USAGES = 'view membership usages';
+
+    public const VIEW_MEMBER_PAYMENTS = 'view member payments';
+
+    public const VIEW_CARD_TEMPLATES = 'view card templates';
+
+    public const VIEW_OFFERS = 'view offers';
+
+    public const VIEW_SERVICES = 'view services';
+
+    public const VIEW_CONTRACTS = 'view contracts';
+
+    public const VIEW_COMPANIES = 'view companies';
+
+    public const VIEW_FACILITIES = 'view facilities';
+
+    public const VIEW_FACILITY_BRANCHES = 'view facility branches';
+
+    public const VIEW_PRODUCT_TYPES = 'view product types';
+
+    public const VIEW_PRODUCTS = 'view products';
+
+    public const VIEW_ORDERS = 'view orders';
+
+    public const VIEW_GOVERNORATES = 'view governorates';
+
+    public const VIEW_CONTACT_MESSAGES = 'view contact messages';
+
+    public const VIEW_FAQS = 'view faqs';
+
+    public const VIEW_PARTNERS = 'view partners';
+
+    public const VIEW_PARTNER_OFFERS = 'view partner offers';
+
+    public const VIEW_SALES = 'view sales';
+
+    public const VIEW_NEWS_TICKERS = 'view news tickers';
+
+    /**
      * Permissions that do not have a paired full/own counterpart. Kept
      * separate from pairs() so they don't get listed twice or rejected by
      * the pair-conflict validator.
@@ -186,6 +250,7 @@ enum UserPermissionEnum
             [self::MANAGE_FACILITY_BRANCHES, self::MANAGE_OWN_FACILITY_BRANCHES],
             [self::MANAGE_PRODUCT_TYPES, self::MANAGE_OWN_PRODUCT_TYPES],
             [self::MANAGE_PRODUCTS, self::MANAGE_OWN_PRODUCTS],
+            [self::MANAGE_ORDERS, self::MANAGE_OWN_ORDERS],
             [self::MANAGE_GOVERNORATES, self::MANAGE_OWN_GOVERNORATES],
             [self::MANAGE_CONTACT_MESSAGES, self::MANAGE_OWN_CONTACT_MESSAGES],
             [self::MANAGE_FAQS, self::MANAGE_OWN_FAQS],
@@ -198,6 +263,59 @@ enum UserPermissionEnum
         ];
     }
 
+    /**
+     * The read-only permissions introduced alongside the `viewer` role, in the
+     * order they should appear on /admin/roles/create. Excludes the two view
+     * permissions declared in pairs()/standalone(), which are listed there.
+     */
+    public static function viewOnly(): array
+    {
+        return [
+            self::VIEW_USERS,
+            self::VIEW_ADMIN_USERS,
+            self::VIEW_ROLES,
+            self::VIEW_MEMBERSHIPS,
+            self::VIEW_MEMBERSHIP_USAGES,
+            self::VIEW_MEMBER_PAYMENTS,
+            self::VIEW_CARD_TEMPLATES,
+            self::VIEW_OFFERS,
+            self::VIEW_CONTRACTS,
+            self::VIEW_COMPANIES,
+            self::VIEW_FACILITIES,
+            self::VIEW_FACILITY_BRANCHES,
+            self::VIEW_GOVERNORATES,
+            self::VIEW_PRODUCT_TYPES,
+            self::VIEW_PRODUCTS,
+            self::VIEW_ORDERS,
+            self::VIEW_SERVICES,
+            self::VIEW_CONTACT_MESSAGES,
+            self::VIEW_FAQS,
+            self::VIEW_PARTNERS,
+            self::VIEW_PARTNER_OFFERS,
+            self::VIEW_SALES,
+            self::VIEW_NEWS_TICKERS,
+        ];
+    }
+
+    /**
+     * Everything the `viewer` role holds: every read-only permission, plus the
+     * two areas that were already view-only, plus the personal profile page.
+     *
+     * Deliberately excludes `view own membership card patches` and the partner
+     * variants — a global viewer is not scoped to a creator or a partner.
+     */
+    public static function readOnlyAccess(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::viewOnly(),
+            [
+                self::VIEW_MEMBERSHIP_CARD_PATCHES,
+                self::VIEW_MEMBER_ACTIVE_HISTORIES,
+                self::MANAGE_PROFILE,
+            ],
+        )));
+    }
+
     public static function all(): array
     {
         $out = [];
@@ -208,8 +326,11 @@ enum UserPermissionEnum
         foreach (self::standalone() as $perm) {
             $out[] = $perm;
         }
+        foreach (self::viewOnly() as $perm) {
+            $out[] = $perm;
+        }
 
-        return $out;
+        return array_values(array_unique($out));
     }
 
     /**

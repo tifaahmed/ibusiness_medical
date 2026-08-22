@@ -13,6 +13,7 @@ class FacilityMigrationImport extends Command
         {--dry-run : Parse and report without writing anything}
         {--inspect : Only print what the package contains, then stop}
         {--skip-media : Restore rows but do not attach any image files}
+        {--prune-missing : On a merge, delete branches/managers an updated facility holds that the package does not name}
         {--chunk=25 : Facilities to commit per step}
         {--media= : Path to an unzipped storage/app/public when images are supplied separately}';
 
@@ -48,6 +49,7 @@ class FacilityMigrationImport extends Command
                 'mode' => $mode,
                 'dry_run' => $dryRun,
                 'skip_media' => (bool) $this->option('skip-media'),
+                'prune_missing' => (bool) $this->option('prune-missing'),
                 'media_path' => $this->option('media'),
                 'chunk_size' => (int) $this->option('chunk'),
                 'on_progress' => function (array $progress) use (&$bar) {
@@ -116,8 +118,11 @@ class FacilityMigrationImport extends Command
             $this->newLine();
             $this->line('First facilities in the package:');
             $this->table(
-                ['Slug', 'Name', 'Branches', 'Media', 'Offers'],
-                array_map(fn ($s) => [$s['slug'], $s['name'], $s['branches'], $s['media'], $s['offers']], $info['sample'])
+                ['Slug', 'Name', 'Branches', 'Managers', 'Media', 'Offers'],
+                array_map(
+                    fn ($s) => [$s['slug'], $s['name'], $s['branches'], $s['managers'] ?? 0, $s['media'], $s['offers']],
+                    $info['sample']
+                )
             );
         }
     }

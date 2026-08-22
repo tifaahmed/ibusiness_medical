@@ -14,6 +14,7 @@
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
               <Link
+                v-if="canWrite"
                 :href="route('admin.roles.create')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
               >
@@ -53,6 +54,14 @@ import RoleListFilterContent from "./RoleListFilterContent.vue";
 import RoleListTable from "./RoleListTable.vue";
 import { Link, router } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+import { computed } from "vue";
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage roles'));
+
 
 const props = defineProps({
   roles: { type: Object, required: true },

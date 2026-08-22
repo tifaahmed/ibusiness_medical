@@ -20,13 +20,24 @@
         />
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <FormSelect
-            v-model="formIcon"
-            :label="t.tag?.icon || 'Icon'"
-            :error="tagStore.validationErrors?.icon"
-            :options="iconOptions"
-            :placeholder="t.tag?.icon_placeholder || 'Select icon'"
-          />
+          <div>
+            <FormSelect
+              v-model="formIcon"
+              :label="t.tag?.icon || 'Icon'"
+              :error="tagStore.validationErrors?.icon"
+              :options="iconOptions"
+              :placeholder="t.tag?.icon_placeholder || 'Select icon'"
+            />
+            <button
+              type="button"
+              @click="showIconGrid = !showIconGrid"
+              class="mt-1 text-xs text-primary hover:underline cursor-pointer"
+            >
+              {{ showIconGrid
+                ? (t.tag?.hide_all_icons || 'Hide all icons')
+                : (t.tag?.browse_all_icons || 'Browse all icons') }}
+            </button>
+          </div>
           <FormSelect
             v-model="formColor"
             :label="t.tag?.color || 'Color'"
@@ -34,6 +45,56 @@
             :options="colorOptions"
             :placeholder="t.tag?.color_placeholder || 'Select color'"
           />
+        </div>
+
+        <!-- Same value as the icon dropdown, laid out as a radio grid for browsing. -->
+        <div v-if="showIconGrid" class="rounded-lg border border-border p-3 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+            <input
+              v-model="iconSearch"
+              type="search"
+              :placeholder="t.tag?.icon_search_placeholder || 'Filter icons...'"
+              class="w-full sm:max-w-xs py-1.5 px-3 text-sm border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md focus:ring-[3px] focus:ring-ring/50"
+            />
+            <button
+              v-if="formIcon"
+              type="button"
+              @click="formIcon = ''"
+              class="text-xs text-muted-foreground hover:text-foreground cursor-pointer self-start sm:self-auto"
+            >
+              {{ t.common?.clear || 'Clear' }}
+            </button>
+          </div>
+
+          <div
+            v-if="filteredIconOptions.length"
+            role="radiogroup"
+            :aria-label="t.tag?.icon || 'Icon'"
+            class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-80 overflow-y-auto pr-1"
+          >
+            <label
+              v-for="option in filteredIconOptions"
+              :key="option.value"
+              class="flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer transition-colors text-center"
+              :class="formIcon === option.value
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border bg-background text-muted-foreground hover:bg-muted'"
+              :title="option.label"
+            >
+              <input
+                type="radio"
+                name="tag-icon"
+                :value="option.value"
+                v-model="formIcon"
+                class="sr-only"
+              />
+              <span class="text-xl leading-none">{{ option.value }}</span>
+              <span class="text-[10px] leading-tight break-words">{{ iconName(option) }}</span>
+            </label>
+          </div>
+          <p v-else class="text-xs text-muted-foreground">
+            {{ t.tag?.no_icons_found || 'No icons match that search.' }}
+          </p>
         </div>
 
         <div v-if="formName || formIcon || formColor" class="flex items-center gap-2 pt-1">
@@ -54,7 +115,7 @@
 <script setup>
 import { FormInput, FormSelect } from "@/Components/form";
 import { useTagStore } from "../Stores/TagStore";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from "@inertiajs/vue3";
 
@@ -91,6 +152,20 @@ const formIcon = computed({
 const formColor = computed({
   get: () => form.value.color ?? '',
   set: (value) => { form.value.color = value; },
+});
+
+const showIconGrid = ref(false);
+const iconSearch = ref('');
+
+// Labels arrive as "<emoji> <name>"; the grid tiles show the emoji separately.
+const iconName = (option) => (option.label || '').replace(option.value, '').trim() || option.value;
+
+const filteredIconOptions = computed(() => {
+  const term = iconSearch.value.trim().toLowerCase();
+  if (!term) return props.iconOptions;
+  return props.iconOptions.filter((option) =>
+    (option.label || '').toLowerCase().includes(term) || option.value === term
+  );
 });
 
 const previewStyle = computed(() => {

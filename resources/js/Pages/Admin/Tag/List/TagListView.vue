@@ -14,6 +14,7 @@
               </div>
             </div>
             <Link
+              v-if="canWrite"
               :href="route('admin.tag.create')"
               data-slot="button"
               class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
@@ -50,6 +51,13 @@ import TagListTable from "./TagListTable.vue";
 import { useTagStore } from "../Stores/TagStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own services', 'manage services'));
+
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});

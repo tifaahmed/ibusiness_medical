@@ -17,8 +17,10 @@ use App\Http\Controllers\Api\V1\Guest\PartnerCompanyController as V1PartnerCompa
 use App\Http\Controllers\Api\V1\Guest\PartnerOfferController as V1PartnerOfferController;
 use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1PartnerOfferRequestController;
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
+use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
+use App\Http\Controllers\Api\V1\Partner\OrderController as V1PartnerOrderController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +55,15 @@ Route::prefix('v1')
 
         Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
         Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');
+
+        /*
+         * The product catalogue behind the Deilar storefront. Public and
+         * key-less like the facilities above it: a shop window carries nothing
+         * about a member, and the listing endpoint ships the sidebar's filter
+         * options with the grid so a page paints in one call.
+         */
+        Route::get('/products', [V1ProductController::class, 'index'])->name('products.index');
+        Route::get('/products/{product:slug}', [V1ProductController::class, 'show'])->name('products.show');
 
         Route::post('/membership/lookup', [V1MembershipController::class, 'lookup'])->name('membership.lookup');
         Route::get('/memberships/{membership}', [V1MembershipController::class, 'show'])->name('membership.show');
@@ -98,6 +109,28 @@ Route::prefix('v1')
                  */
                 Route::get('/memberships/{membership}/card', [V1MembershipCardController::class, 'show'])
                     ->name('memberships.card');
+
+                /*
+                 * Orders placed from a partner storefront. Key-gated because
+                 * they WRITE, and because the caller speaks for its visitor —
+                 * the buyer's own IP arrives in the body, since
+                 * `$request->ip()` here is the storefront's server.
+                 *
+                 * Throttled on top of the key: the order code is the only
+                 * thing that opens an order, so `show` must not be a rate an
+                 * attacker can enumerate at.
+                 */
+                Route::post('/orders', [V1PartnerOrderController::class, 'store'])
+                    ->middleware('throttle:30,1')
+                    ->name('orders.store');
+
+                Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
+                    ->middleware('throttle:60,1')
+                    ->name('orders.show');
+
+                Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
+                    ->middleware('throttle:20,1')
+                    ->name('orders.receipt');
 
                 Route::get('/memberships/{membership}/card/back', [V1MembershipCardController::class, 'showBack'])
                     ->name('memberships.card.back');

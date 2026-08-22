@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             AdminRoleSeeder::class,
             PermissionSeeder::class,
             AdminUserSeeder::class,
+            ViewerAdminSeeder::class,
 
             // CitySeeder resolves its city lists by governorate slug, so
             // governorates have to exist first.

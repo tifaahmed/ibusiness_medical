@@ -14,6 +14,7 @@
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <a
+                v-if="canWrite"
                 :href="route('admin.company.export')"
                 data-slot="button"
                 title="Export all companies to Excel"
@@ -28,6 +29,7 @@
                 <span class="sm:hidden">Export</span>
               </a>
               <Link
+                v-if="canWrite"
                 :href="route('admin.company.import')"
                 data-slot="button"
                 title="Import companies from an Excel file"
@@ -42,6 +44,7 @@
                 <span class="sm:hidden">Import</span>
               </Link>
               <Link
+                v-if="canWrite"
                 :href="route('admin.company.create')"
                 data-slot="button"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 btn-golden"
@@ -74,6 +77,13 @@ import CompanyListTable from "./CompanyListTable.vue";
 import { useCompanyStore } from "../Stores/CompanyStore";
 import { Link } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage companies', 'manage own companies'));
+
 
 const props = defineProps({
   companies: { type: Object, required: true },

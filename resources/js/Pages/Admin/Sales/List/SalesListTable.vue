@@ -12,6 +12,9 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap min-w-[200px]">
                   {{ t.sales?.name || 'Name' }}
                 </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center hidden lg:table-cell">
+                  {{ t.sales?.facilities || 'Facilities' }}
+                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-20 sm:w-28 text-center">
                   {{ t.common?.actions || 'Actions' }}
                 </th>
@@ -42,16 +45,51 @@
                 </td>
                 <td data-slot="table-cell" class="p-2 sm:p-3 align-middle">
                   <Link
-                    :href="route('admin.sales.edit', sale.id)"
+                    :href="route('admin.sales.show', sale.id)"
                     class="font-semibold text-sm sm:text-base text-foreground hover:text-golden-yellow transition-colors cursor-pointer block break-words"
                     :title="getTranslated(sale.name)"
                   >
                     {{ getTranslated(sale.name) || '-' }}
                   </Link>
                 </td>
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden lg:table-cell">
+                  <button
+                    type="button"
+                    @click="openFacilities(sale)"
+                    :disabled="!(sale.facilities_count > 0)"
+                    :title="t.sales?.view_facilities || 'View facilities'"
+                    class="inline-flex items-center gap-1.5 text-sm justify-center rounded-md border border-border bg-background px-2.5 py-1 transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-foreground cursor-pointer"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building w-4 h-4 text-blue-500">
+                      <rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect>
+                      <path d="M9 22v-4h6v4"></path>
+                      <path d="M8 6h.01"></path>
+                      <path d="M16 6h.01"></path>
+                      <path d="M12 6h.01"></path>
+                      <path d="M12 10h.01"></path>
+                      <path d="M12 14h.01"></path>
+                      <path d="M16 10h.01"></path>
+                      <path d="M16 14h.01"></path>
+                      <path d="M8 10h.01"></path>
+                      <path d="M8 14h.01"></path>
+                    </svg>
+                    <span>{{ sale.facilities_count || 0 }}</span>
+                  </button>
+                </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
                     <Link
+                      :href="route('admin.sales.show', sale.id)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
+                      title="View"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </Link>
+                    <Link
+                      v-if="canWrite"
                       :href="route('admin.sales.edit', sale.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                       title="Edit"
@@ -62,6 +100,7 @@
                       </svg>
                     </Link>
                     <button
+                      v-if="canWrite"
                       @click="$emit('delete', sale.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
                       title="Delete"
@@ -127,6 +166,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.sales?.not_found || 'No Sales Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">{{ t.sales?.not_found_message || 'No sales entries match your current filters. Try adjusting your search criteria.' }}</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.sales.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 btn-golden"
@@ -140,12 +180,88 @@
       </div>
     </div>
   </div>
+
+  <!-- Facilities popup -->
+  <Modal :show="showFacilitiesModal" max-width="2xl" @close="closeFacilities">
+    <div class="bg-popover text-popover-foreground rounded-xl border border-border shadow-xl overflow-hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-border">
+        <div class="flex items-center gap-2 min-w-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-golden-yellow shrink-0">
+            <rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect>
+            <path d="M9 22v-4h6v4"></path>
+            <path d="M8 6h.01"></path>
+            <path d="M16 6h.01"></path>
+            <path d="M12 6h.01"></path>
+            <path d="M12 10h.01"></path>
+            <path d="M12 14h.01"></path>
+            <path d="M16 10h.01"></path>
+            <path d="M16 14h.01"></path>
+            <path d="M8 10h.01"></path>
+            <path d="M8 14h.01"></path>
+          </svg>
+          <h3 class="font-semibold text-white truncate">
+            {{ t.sales?.facilities || 'Facilities' }}
+            <span v-if="getTranslated(selectedSale?.name)" class="text-white/60 text-sm">— {{ getTranslated(selectedSale?.name) }}</span>
+          </h3>
+        </div>
+        <button type="button" @click="closeFacilities" class="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-accent transition-colors shrink-0" title="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <!-- Body -->
+      <div class="p-5 max-h-[70vh] overflow-y-auto">
+        <div v-if="selectedSale?.facilities?.length" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div
+            v-for="facility in selectedSale.facilities"
+            :key="facility.id"
+            class="p-3 bg-accent/30 rounded-lg border border-border flex flex-col gap-2"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <h4 class="font-semibold text-white mb-1 truncate" :title="getTranslated(facility.name)">
+                  {{ getTranslated(facility.name) || `#${facility.id}` }}
+                </h4>
+                <span
+                  v-if="getTranslated(facility.facility_type)"
+                  data-slot="badge"
+                  class="relative inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium text-white/80"
+                >
+                  {{ getTranslated(facility.facility_type) }}
+                </span>
+              </div>
+              <Link
+                v-if="facility.slug"
+                :href="route('admin.facility.show', facility.slug)"
+                class="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium rounded-md border border-border bg-background px-2.5 py-1 transition-colors hover:bg-primary hover:text-primary-foreground shrink-0"
+                :title="t.common?.view || 'View'"
+              >
+                {{ t.common?.view || 'View' }}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                  <path d="M5 12h14"></path>
+                  <path d="m12 5 7 7-7 7"></path>
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-center py-6 text-white/70">
+          {{ t.sales?.no_facilities || 'No facilities assigned to this sales rep yet.' }}
+        </div>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps({
   sales: {
@@ -156,7 +272,24 @@ const props = defineProps({
 
 defineEmits(['delete']);
 
+// Facilities popup
+const showFacilitiesModal = ref(false);
+const selectedSale = ref(null);
+
+const openFacilities = (sale) => {
+  selectedSale.value = sale;
+  showFacilitiesModal.value = true;
+};
+
+const closeFacilities = () => {
+  showFacilitiesModal.value = false;
+};
+
 const page = usePage();
+const { canManage } = usePermissions();
+// Write actions are hidden from read-only accounts; the routes
+// behind them enforce the same permission server-side.
+const canWrite = computed(() => canManage('manage sales', 'manage own sales'));
 const t = computed(() => page.props.translations?.admin || {});
 
 const getTranslated = (value) => {

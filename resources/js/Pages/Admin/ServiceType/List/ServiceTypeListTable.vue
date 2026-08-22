@@ -147,6 +147,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.serviceType?.not_found || 'No Categories Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">{{ t.serviceType?.not_found_message || 'No service categories match your current filters.' }}</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.service-type.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 btn-golden"
@@ -166,6 +167,13 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own services', 'manage services'));
+
 
 const props = defineProps({
   serviceTypes: {

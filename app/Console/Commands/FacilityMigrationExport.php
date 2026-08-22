@@ -11,6 +11,8 @@ class FacilityMigrationExport extends Command
         {--output= : Where to write the .zip (default storage/app/facility-migration)}
         {--no-media : Export data only, leaving the image files out}
         {--no-offers : Skip offers attached to facilities and branches}
+        {--no-branches : Leave the branch rows out of the package}
+        {--no-managers : Leave the facility managers out of the package}
         {--offset= : Skip this many facilities — use with --limit to export in parts}
         {--limit= : Export at most this many facilities}
         {--part= : 1-based part number; with --per-part, works out offset/limit for you}
@@ -21,11 +23,13 @@ class FacilityMigrationExport extends Command
         {--governorate= : Filter by governorate_id}
         {--sales= : Filter by sales_id}';
 
-    protected $description = 'Build a portable migration package (facilities + branches + tags + offers + images).';
+    protected $description = 'Build a portable migration package (facilities + branches + managers + tags + offers + images).';
 
     public function handle(FacilityMigrationExporter $exporter): int
     {
         $includeMedia = ! $this->option('no-media');
+        $includeBranches = ! $this->option('no-branches');
+        $includeManagers = ! $this->option('no-managers');
 
         $filters = array_filter([
             'search' => $this->option('search'),
@@ -60,11 +64,19 @@ class FacilityMigrationExport extends Command
         }
 
         $destination = $this->option('output')
-            ?: storage_path('app/facility-migration/'.$exporter->filename($includeMedia, $part, $totalParts));
+            ?: storage_path('app/facility-migration/'.$exporter->filename(
+                $includeMedia,
+                $part,
+                $totalParts,
+                $includeBranches,
+                $includeManagers
+            ));
 
         $path = $exporter->build([
             'include_media_files' => $includeMedia,
             'include_offers' => ! $this->option('no-offers'),
+            'include_branches' => $includeBranches,
+            'include_managers' => $includeManagers,
             'destination' => $destination,
             'filters' => $filters,
             'offset' => $offset,
@@ -78,7 +90,7 @@ class FacilityMigrationExport extends Command
         if ($totalParts !== null && $part < $totalParts) {
             $this->newLine();
             $this->line('Next part:');
-            $this->line("  php artisan facility:migration-export --part=".($part + 1)." --per-part={$perPart}");
+            $this->line('  php artisan facility:migration-export --part='.($part + 1)." --per-part={$perPart}");
         }
 
         $this->newLine();

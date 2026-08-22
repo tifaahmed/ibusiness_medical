@@ -30,8 +30,11 @@ class XlsxToMigrationZip
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($spreadsheetPath);
 
-        $facilityRows = $this->parseFacilitySheet($spreadsheet);
+        $facilityColumns = [];
+        $facilityRows = $this->parseFacilitySheet($spreadsheet, $facilityColumns);
         $branchRows = $this->parseBranchSheet($spreadsheet);
+        $hasManagerSheet = $spreadsheet->getSheetByName('Managers') !== null;
+        $managerRows = $this->parseManagerSheet($spreadsheet);
 
         $spreadsheet->disconnectWorksheets();
 
@@ -59,6 +62,21 @@ class XlsxToMigrationZip
             ];
         }
 
+        // Managers hang off their facility by name, exactly as branches do.
+        $managersByFacility = [];
+        foreach ($managerRows as $manager) {
+            $key = mb_strtolower(trim($manager['facility_name'] ?? ''));
+            $name = trim($manager['name'] ?? '');
+            if ($key === '' || $name === '') {
+                continue;
+            }
+            $managersByFacility[$key][] = [
+                'name' => $name,
+                'position' => $manager['position'] ?: null,
+                'phones' => $this->phoneList($manager['phones'] ?? null),
+            ];
+        }
+
         $facilities = [];
         foreach ($facilityRows as $row) {
             $nameEn = $row['name'] ?? '';
@@ -66,7 +84,7 @@ class XlsxToMigrationZip
             $slug = $row['slug'] ?: \Illuminate\Support\Str::slug($nameEn);
 
             $facilityKey = mb_strtolower(trim($nameEn));
-            $facilities[] = [
+            $facility = [
                 'slug' => $slug,
                 'name' => [
                     'en' => $nameEn ?: null,
@@ -76,6 +94,26 @@ class XlsxToMigrationZip
                 'facility_type' => $this->nameRef($row['facility_type'] ?? null),
                 'branches' => $branchesByFacility[$facilityKey] ?? [],
             ];
+
+            // A sheet written without these columns is asking for the rest of
+            // the row to be merged, not for every facility's sales rep and
+            // discount to be wiped — so the keys travel only when the sheet
+            // actually has them. An empty cell in a column that IS there still
+            // means "clear it".
+            if (in_array('sales', $facilityColumns, true)) {
+                $facility['sales'] = $this->salesRef($row['sales'] ?? null);
+            }
+            if (in_array('discount_percent', $facilityColumns, true)) {
+                $facility['discount_percent'] = $this->percent($row['discount_percent'] ?? null);
+            }
+
+            // Same rule as the columns above: a workbook with no Managers sheet
+            // is not saying "this facility has none".
+            if ($hasManagerSheet) {
+                $facility['managers'] = $managersByFacility[$facilityKey] ?? [];
+            }
+
+            $facilities[] = $facility;
         }
 
         $payload = [
@@ -90,13 +128,14 @@ class XlsxToMigrationZip
                 'facility_types' => $this->getFacilityTypes(),
                 'governorates' => $this->getGovernorates(),
                 'cities' => $this->getCities(),
-                'sales' => [],
+                'sales' => $this->getSales(),
                 'tags' => [],
             ],
             'facilities' => $facilities,
             'counts' => [
                 'facilities' => count($facilities),
                 'branches' => count($branchRows),
+                'managers' => count($managerRows),
             ],
         ];
 
@@ -150,6 +189,37 @@ class XlsxToMigrationZip
     }
 
     /**
+     * A sales rep is a person, not a slugged lookup: the cell holds the name
+     * and nothing else. It is written under both locales because the column it
+     * lands in stores one translation blob, and the half left blank would match
+     * nothing the next time the same name is imported.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function salesRef(?string $value): ?array
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return ['name' => ['en' => $value, 'ar' => $value]];
+    }
+
+    /**
+     * The discount column, as a percentage. "15", "15%" and "15 %" are one
+     * number; anything that is not a number at all is no discount.
+     */
+    private function percent(?string $value): ?float
+    {
+        $value = trim(str_replace(['%', ',', ' '], '', (string) $value));
+
+        return $value === '' || ! is_numeric($value)
+            ? null
+            : round(min(100, max(0, (float) $value)), 2);
+    }
+
+    /**
      * A branch holds a list of phones; one cell can carry several, separated by
      * a newline, comma, semicolon or pipe.
      *
@@ -165,7 +235,10 @@ class XlsxToMigrationZip
         return $parts ?: null;
     }
 
-    private function parseFacilitySheet($spreadsheet): array
+    /**
+     * @param  array<int, string>|null  $present  filled with the keys whose column the sheet actually has
+     */
+    private function parseFacilitySheet($spreadsheet, ?array &$present = null): array
     {
         $sheet = $spreadsheet->getSheetByName('Facilities') ?? $spreadsheet->getActiveSheet();
 
@@ -174,6 +247,26 @@ class XlsxToMigrationZip
             'name_ar' => ['name (ar)', 'name_ar', 'arabic name'],
             'slug' => ['slug'],
             'facility_type' => ['facility type', 'facility_type', 'type'],
+            'sales' => ['sales', 'sales rep', 'sales_rep', 'sales person', 'salesperson', 'sales name', 'مندوب'],
+            'discount_percent' => [
+                'discount', 'discount %', 'discount percent', 'discount_percent',
+                'discount percentage', 'خصم',
+            ],
+        ], $present);
+    }
+
+    private function parseManagerSheet($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName('Managers');
+        if (! $sheet) {
+            return [];
+        }
+
+        return $this->extractRows($sheet, [
+            'facility_name' => ['facility name', 'facility'],
+            'name' => ['manager name', 'name', 'المسؤول'],
+            'position' => ['position', 'title', 'role', 'job title', 'الوظيفة'],
+            'phones' => ['phones', 'phone', 'mobile', 'telephone', 'الهاتف'],
         ]);
     }
 
@@ -216,8 +309,13 @@ class XlsxToMigrationZip
         return trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower(trim($label))));
     }
 
-    private function extractRows($sheet, array $columnAliases): array
+    /**
+     * @param  array<int, string>|null  $present  filled with the keys whose column the sheet actually has
+     */
+    private function extractRows($sheet, array $columnAliases, ?array &$present = null): array
     {
+        $present = [];
+
         $highestRow = $sheet->getHighestDataRow();
         $highestCol = $sheet->getHighestDataColumn();
 
@@ -254,6 +352,17 @@ class XlsxToMigrationZip
             }
         }
 
+        // Which of the asked-for columns this sheet actually carries: an absent
+        // column and an empty cell mean different things to the caller.
+        foreach ($columnAliases as $key => $candidates) {
+            foreach ($candidates as $candidate) {
+                if (isset($headerMap[$this->headerKey($candidate)])) {
+                    $present[] = $key;
+                    break;
+                }
+            }
+        }
+
         $rows = [];
         for ($r = $headerRow + 1; $r <= $highestRow; $r++) {
             $first = trim((string) $sheet->getCell("A{$r}")->getValue());
@@ -281,6 +390,29 @@ class XlsxToMigrationZip
         }
 
         return $rows;
+    }
+
+    /**
+     * The sales reps this site already has, so the preview screen can offer
+     * them rather than treating every name in the sheet as a new person.
+     */
+    private function getSales(): array
+    {
+        return \App\Models\Sales::all()->map(function (\App\Models\Sales $sales) {
+            // The column is a plain varchar holding either a translation blob
+            // or a bare name — both are unwrapped to the same locale map here.
+            $name = array_filter(
+                $sales->getTranslations('name'),
+                fn ($value) => trim((string) $value) !== ''
+            );
+
+            if ($name === []) {
+                $raw = trim((string) $sales->getRawOriginal('name'));
+                $name = $raw === '' ? [] : ['en' => $raw, 'ar' => $raw];
+            }
+
+            return ['id' => $sales->id, 'name' => $name];
+        })->toArray();
     }
 
     private function getFacilityTypes(): array

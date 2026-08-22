@@ -16,21 +16,27 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         try {
+            // Single source of truth for the credential, so the address that
+            // gets created is the same one reported back. The log and console
+            // lines used to name a different domain than the row they made,
+            // which sent anyone reading them to a login that cannot succeed.
+            $email = 'admin@deilar.com';
+            $password = 'Adm1n$ecur3P@ssw0rd2024!';
+
             $admin = User::updateOrCreate([
-                'email' => 'admin@deiler.com',
+                'email' => $email,
             ], [
                 'name' => 'Site Admin',
-                'password' => Hash::make('Adm1n$ecur3P@ssw0rd2024!'),
+                'password' => Hash::make($password),
                 'email_verified_at' => now(),
                 'slug' => 'site-admin',
             ]);
             Log::info('Admin user created successfully', [
-                'email' => 'admin@secure-membership-portal.com',
+                'email' => $email,
                 'name' => 'Site Admin',
-                'password' => 'Adm1n$ecur3P@ssw0rd2024!'
             ]);
-            $this->command->info("admin user: admin@secure-membership-portal.com");
-            $this->command->info('password: Adm1n$ecur3P@ssw0rd2024!');
+            $this->command->info("admin user: {$email}");
+            $this->command->info("password: {$password}");
 
             $admin->syncRoles([UserRoleEnum::ADMIN, UserRoleEnum::SUPER_ADMIN]);
 

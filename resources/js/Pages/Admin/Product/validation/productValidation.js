@@ -20,8 +20,14 @@ export const productSchema = z.object({
         ar: z.string().max(255).optional().default(''),
         en: z.string().max(255).optional().default(''),
     }).optional(),
+    description: z.object({
+        ar: z.string().max(65535).optional().default(''),
+        en: z.string().max(65535).optional().default(''),
+    }).optional(),
     old_price: z.coerce.number().min(0).optional().nullable(),
     new_price: z.coerce.number().min(0).optional().nullable(),
+    cost_price: z.coerce.number().min(0).optional().nullable(),
+    profit_price: z.coerce.number().min(0).optional().nullable(),
     product_type_id: z.coerce.number().int().positive().optional().nullable(),
 });
 
@@ -42,8 +48,11 @@ export const validateProductForm = (productData, isUpdate = false) => {
                 en: nameValue.en?.toString() || '',
             },
             short_subject: productData.short_subject || undefined,
+            description: productData.description || undefined,
             old_price: productData.old_price ?? undefined,
             new_price: productData.new_price ?? undefined,
+            cost_price: productData.cost_price ?? undefined,
+            profit_price: productData.profit_price ?? undefined,
             product_type_id: productData.product_type_id ?? undefined,
         };
 

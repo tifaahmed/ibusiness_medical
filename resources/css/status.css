@@ -1,0 +1,122 @@
+/* =============================================================================
+   Status colours for the admin — read these before picking a colour by hand.
+   =============================================================================
+
+   The admin is painted on a deep purple gradient, and the light theme is dark
+   too: `--background` is oklch(0.55 0.15 285), `--card` is a translucent dark
+   purple, and `--foreground` is near-white in BOTH themes. Two traps follow
+   from that, and most of the washed-out colour in this app is one of them:
+
+     1. Tailwind's mid-weight text colours (`text-emerald-600`, `text-sky-700`,
+        `text-amber-700`) are meant for a white page. On this card they are a
+        dark colour on a dark surface. Pairing them with a `dark:` variant does
+        not help — the LIGHT theme is the one that needs the bright value here.
+
+     2. `bg-primary/10 text-primary` — the usual shadcn soft badge — is a dark
+        purple on a dark purple card, so it very nearly disappears.
+
+   So: never write a bare Tailwind colour utility for status text or badges in
+   the admin. Use the classes below. They are defined once, they carry their own
+   ink, and they read the same in both themes because they do not depend on
+   which theme is on.
+
+   TEXT (a figure or a word that carries meaning):
+     .value-positive   money coming in, profit, success, "all good"
+     .value-negative   money going out, failures, destructive outcomes
+     .value-warning    needs attention, pending, "check this"
+     .value-info       neutral-but-notable, references, ids
+     .value-muted      de-emphasised (old price, captions, secondary detail)
+
+   CHIPS (a small pill: a type, a state, a tag):
+     .chip             the shape — always combine with one colour below
+     .chip-positive  .chip-negative  .chip-warning  .chip-info  .chip-neutral
+     .chip-accent      the golden house colour, for the primary classification
+
+   PANELS (a bordered block that is itself a status):
+     .panel-note       an internal remark; amber, quiet, clearly set apart
+     .panel-danger     a destructive consequence spelled out before it happens
+
+   Adding a colour? Put it here with a token, do not inline it in a component.
+   ========================================================================== */
+
+:root {
+  /* Bright enough to sit on the purple card; the -surface and -border variants
+     are the same hue held back to a fill and an outline. */
+  --status-positive: oklch(0.86 0.17 152);
+  --status-positive-surface: oklch(0.72 0.16 152 / 0.22);
+  --status-positive-border: oklch(0.75 0.16 152 / 0.5);
+
+  --status-negative: oklch(0.75 0.19 22);
+  --status-negative-surface: oklch(0.65 0.19 22 / 0.24);
+  --status-negative-border: oklch(0.68 0.19 22 / 0.55);
+
+  --status-warning: oklch(0.87 0.16 85);
+  --status-warning-surface: oklch(0.75 0.15 85 / 0.22);
+  --status-warning-border: oklch(0.78 0.15 85 / 0.5);
+
+  --status-info: oklch(0.83 0.13 225);
+  --status-info-surface: oklch(0.7 0.13 225 / 0.24);
+  --status-info-border: oklch(0.72 0.13 225 / 0.5);
+
+  --status-neutral: oklch(0.9 0.02 285);
+  --status-neutral-surface: oklch(0.95 0.01 285 / 0.14);
+  --status-neutral-border: oklch(0.95 0.01 285 / 0.3);
+
+  /* The house gold. Reserved for the primary classification of a record —
+     its type — so it does not compete with the meanings above. */
+  --status-accent: oklch(0.88 0.14 88);
+  --status-accent-surface: oklch(0.83 0.15 88 / 0.2);
+  --status-accent-border: oklch(0.83 0.15 88 / 0.5);
+}
+
+/* ------------------------------------------------------------------ text -- */
+
+.value-positive { color: var(--status-positive); }
+.value-negative { color: var(--status-negative); }
+.value-warning  { color: var(--status-warning); }
+.value-info     { color: var(--status-info); }
+.value-muted    { color: oklch(0.95 0.01 285 / 0.65); }
+
+/* ------------------------------------------------------------------ chips -- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-positive { color: var(--status-positive); background: var(--status-positive-surface); border-color: var(--status-positive-border); }
+.chip-negative { color: var(--status-negative); background: var(--status-negative-surface); border-color: var(--status-negative-border); }
+.chip-warning  { color: var(--status-warning);  background: var(--status-warning-surface);  border-color: var(--status-warning-border); }
+.chip-info     { color: var(--status-info);     background: var(--status-info-surface);     border-color: var(--status-info-border); }
+.chip-neutral  { color: var(--status-neutral);  background: var(--status-neutral-surface);  border-color: var(--status-neutral-border); }
+.chip-accent   { color: var(--status-accent);   background: var(--status-accent-surface);   border-color: var(--status-accent-border); }
+
+/* ----------------------------------------------------------------- panels -- */
+
+.panel-note,
+.panel-danger {
+  border-radius: 0.5rem;
+  border-width: 1px;
+  border-style: solid;
+  padding: 0.75rem;
+}
+
+.panel-note {
+  color: var(--status-warning);
+  background: var(--status-warning-surface);
+  border-color: var(--status-warning-border);
+}
+
+.panel-danger {
+  color: var(--status-negative);
+  background: var(--status-negative-surface);
+  border-color: var(--status-negative-border);
+}

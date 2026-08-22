@@ -45,7 +45,7 @@
                 <td data-slot="table-cell" class="p-2 sm:p-3 align-middle">
                   <div class="flex-1 min-w-0 space-y-1.5">
                     <Link
-                      :href="route('admin.news-ticker.edit', item.id)"
+                      :href="route('admin.news-ticker.show', item.id)"
                       class="font-semibold text-sm sm:text-base text-foreground hover:text-golden-yellow transition-colors cursor-pointer block break-words"
                       :title="getTranslated(item.title)"
                     >
@@ -83,6 +83,17 @@
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
                     <Link
+                      :href="route('admin.news-ticker.show', item.id)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
+                      title="View"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </Link>
+                    <Link
+                      v-if="canWrite"
                       :href="route('admin.news-ticker.edit', item.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                       title="Edit"
@@ -93,6 +104,7 @@
                       </svg>
                     </Link>
                     <button
+                      v-if="canWrite"
                       @click="$emit('delete', item.id)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
                       title="Delete"
@@ -155,6 +167,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.news_ticker?.not_found || 'No News Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">{{ t.news_ticker?.not_found_message || 'No news items match your current filters. Try adjusting your search criteria.' }}</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.news-ticker.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 btn-golden"
@@ -174,6 +187,7 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps({
   newsTickers: {
@@ -185,6 +199,10 @@ const props = defineProps({
 defineEmits(['delete']);
 
 const page = usePage();
+const { canManage } = usePermissions();
+// Write actions are hidden from read-only accounts; the routes
+// behind them enforce the same permission server-side.
+const canWrite = computed(() => canManage('manage news tickers', 'manage own news tickers'));
 const t = computed(() => page.props.translations?.admin || {});
 
 const getTranslated = (value) => {

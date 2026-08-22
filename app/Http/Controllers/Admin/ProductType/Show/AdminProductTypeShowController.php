@@ -23,11 +23,15 @@ class AdminProductTypeShowController extends BaseController
      */
     public function __invoke(Request $request, string $productType): Response
     {
-        $productType = ProductType::where('slug', $productType)->firstOrFail();
+        $productType = ProductType::query()
+            ->with('creator:id,name,email')
+            ->withCount('products')
+            ->where('slug', $productType)
+            ->firstOrFail();
         $this->assertOwns($productType);
 
         $result = [
-            'productType' => (new AdminProductTypeShowResource($productType))->toArray($request),
+            'productType' => (new AdminProductTypeShowResource($productType))->resolve($request),
         ];
 
         return Inertia::render('Admin/ProductType/Show', $result);

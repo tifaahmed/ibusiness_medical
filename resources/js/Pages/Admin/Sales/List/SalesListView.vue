@@ -17,6 +17,7 @@
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <a
+                v-if="canWrite"
                 :href="route('admin.sales.export')"
                 target="_blank"
                 rel="noopener"
@@ -27,6 +28,7 @@
                 <span class="hidden sm:inline">{{ t.sales?.export || 'Export' }}</span>
               </a>
               <Link
+                v-if="canWrite"
                 :href="route('admin.sales.import.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
                 :title="t.sales?.import_title || 'Import sales from an Excel file'"
@@ -35,6 +37,7 @@
                 <span class="hidden sm:inline">{{ t.sales?.import || 'Import' }}</span>
               </Link>
               <Link
+                v-if="canWrite"
                 :href="route('admin.sales.create')"
                 data-slot="button"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
@@ -65,6 +68,13 @@ import SalesListTable from "./SalesListTable.vue";
 import { useSalesStore } from "../Stores/SalesStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own sales', 'manage sales'));
+
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});

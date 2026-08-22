@@ -25,7 +25,7 @@
               <td class="p-2 align-middle">
                 <div class="flex-1 min-w-0 space-y-1">
                   <Link
-                    :href="route('admin.company.edit', company.slug)"
+                    :href="route('admin.company.show', company.slug)"
                     class="font-semibold text-base text-foreground hover:text-golden-yellow transition-colors cursor-pointer block"
                   >
                     {{ getTranslatedName(company.name) }}
@@ -56,6 +56,17 @@
               <td class="p-2 align-middle text-center">
                 <div class="flex items-center justify-center gap-2">
                   <Link
+                    :href="route('admin.company.show', company.slug)"
+                    class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
+                    title="View"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </Link>
+                  <Link
+                    v-if="canWrite"
                     :href="route('admin.company.edit', company.slug)"
                     class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                     title="Edit"
@@ -66,7 +77,7 @@
                     </svg>
                   </Link>
                   <button
-                    v-if="company.memberships_count === 0"
+                    v-if="canWrite && company.memberships_count === 0"
                     type="button"
                     @click="$emit('delete', company.slug)"
                     class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
@@ -121,6 +132,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">No Companies Found</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">No companies match your current filters.</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.company.create')"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 btn-golden"
         >
@@ -326,6 +338,12 @@ import Pagination from "@/Pages/_components/Pagination.vue";
 import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Write actions are hidden from read-only accounts; the routes
+// behind them enforce the same permission server-side.
+const canWrite = computed(() => canManage('manage companies', 'manage own companies'));
 
 const props = defineProps({
   companies: { type: Object, required: true }

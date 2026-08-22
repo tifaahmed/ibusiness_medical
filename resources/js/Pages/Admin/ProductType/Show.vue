@@ -18,8 +18,12 @@
           <div class="p-3">
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label class="text-xs font-medium text-muted-foreground">{{ t.common?.name || 'Name' }}</label>
-                <p class="text-sm font-medium mt-0.5 text-white">{{ getTranslatedName(productType.name) }}</p>
+                <label class="text-xs font-medium text-muted-foreground">{{ t.product_type?.name_en || 'Name (English)' }}</label>
+                <p dir="ltr" class="text-sm font-medium mt-0.5 text-white break-words">{{ nameIn(productType.name, 'en') || '-' }}</p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-muted-foreground">{{ t.product_type?.name_ar || 'Name (Arabic)' }}</label>
+                <p dir="rtl" class="text-sm font-medium mt-0.5 text-white break-words">{{ nameIn(productType.name, 'ar') || '-' }}</p>
               </div>
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.common?.slug || 'Slug' }}</label>
@@ -28,6 +32,18 @@
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.common?.id || 'ID' }}</label>
                 <p class="text-sm font-medium mt-0.5 text-white">#{{ productType.id }}</p>
+              </div>
+              <div v-if="productType.products_count !== undefined">
+                <label class="text-xs font-medium text-muted-foreground">{{ t.product_type?.products_count || 'Products' }}</label>
+                <p class="text-sm font-medium mt-0.5 text-white">{{ productType.products_count }}</p>
+              </div>
+              <div v-if="productType.creator">
+                <label class="text-xs font-medium text-muted-foreground">{{ t.common?.created_by || 'Created By' }}</label>
+                <p class="text-sm font-medium mt-0.5 text-white break-words">{{ productType.creator.name }}</p>
+              </div>
+              <div v-if="productType.created_at">
+                <label class="text-xs font-medium text-muted-foreground">{{ t.common?.created_date || 'Created Date' }}</label>
+                <p dir="ltr" class="text-sm font-medium mt-0.5 text-white">{{ productType.created_at }}</p>
               </div>
             </div>
           </div>
@@ -78,11 +94,11 @@ const page = usePage();
 const locale = page.props.locale || 'ar';
 const t = computed(() => page.props.translations?.admin || {});
 
-const getTranslatedName = (name) => {
-  if (typeof name === 'string') return name;
-  if (typeof name === 'object' && name !== null) {
-    return name[locale] || name['ar'] || name['en'] || Object.values(name)[0] || '';
-  }
+// One specific locale, with no fallback: both names are shown, so a missing
+// translation must read as empty instead of echoing the other language.
+const nameIn = (name, lang) => {
+  if (typeof name === 'string') return lang === locale ? name : '';
+  if (typeof name === 'object' && name !== null) return name[lang] || '';
   return '';
 };
 </script>

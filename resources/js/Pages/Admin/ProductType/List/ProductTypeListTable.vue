@@ -6,16 +6,11 @@
           <table data-slot="table" class="w-full caption-bottom text-sm min-w-full">
             <thead data-slot="table-header" class="[&_tr]:border-b [&_tr]:border-border">
               <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors border-border">
-                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[300px]">
-                  <button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 has-[>svg]:px-3 h-auto p-0 font-semibold hover:bg-transparent">
-                    {{ t.product_type?.details || 'Product Type Details' }}
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-down h-4 w-4">
-                      <path d="m21 16-4 4-4-4"></path>
-                      <path d="M17 20V4"></path>
-                      <path d="m3 8 4-4 4 4"></path>
-                      <path d="M7 4v16"></path>
-                    </svg>
-                  </button>
+                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[260px]">
+                  {{ t.product_type?.name_en || 'Name (English)' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[220px]">
+                  {{ t.product_type?.name_ar || 'Name (Arabic)' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-28 text-center">
                   {{ t.common?.actions || 'Actions' }}
@@ -33,11 +28,12 @@
                   <div class="flex items-center gap-4">
                     <div class="flex-1 min-w-0 space-y-2">
                       <Link
-                        :href="getEditRoute(productType.slug)"
+                        :href="getShowRoute(productType.slug)"
+                        dir="ltr"
                         class="font-semibold text-base text-foreground hover:text-golden-yellow transition-colors cursor-pointer block max-w-[250px] break-words whitespace-normal"
-                        :title="getTranslatedName(productType.name)"
+                        :title="nameIn(productType.name, 'en')"
                       >
-                        {{ getTranslatedName(productType.name) }}
+                        {{ nameIn(productType.name, 'en') || '-' }}
                       </Link>
                       <div class="flex items-center gap-2 mt-1">
                         <div class="flex items-center gap-1 text-xs text-muted-foreground">
@@ -47,8 +43,28 @@
                     </div>
                   </div>
                 </td>
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                  <span
+                    dir="rtl"
+                    class="block max-w-[220px] break-words whitespace-normal text-base text-foreground"
+                    :title="nameIn(productType.name, 'ar')"
+                  >
+                    {{ nameIn(productType.name, 'ar') || '-' }}
+                  </span>
+                </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex items-center justify-center gap-2">
+                    <Link
+                      :href="getShowRoute(productType.slug)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-golden-yellow hover:!bg-golden-yellow/10 hover:!text-golden-yellow"
+                      :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': !productType.slug }"
+                      :title="t.common?.view || 'View'"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye w-3 h-3">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </Link>
                     <Link
                       :href="getEditRoute(productType.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
@@ -130,6 +146,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.product_type?.not_found || 'No Product Types Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">{{ t.product_type?.not_found_message || 'No product types match your current filters. Try adjusting your search criteria.' }}</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.product-type.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 btn-golden"
@@ -149,6 +166,13 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage own product types', 'manage product types'));
+
 
 const props = defineProps({
   productTypes: {
@@ -163,12 +187,24 @@ const page = usePage();
 const locale = page.props.locale || 'ar';
 const t = computed(() => page.props.translations?.admin || {});
 
-const getTranslatedName = (name) => {
-  if (typeof name === 'string') return name;
-  if (typeof name === 'object' && name !== null) {
-    return name[locale] || name['ar'] || name['en'] || Object.values(name)[0] || '';
-  }
+// One specific locale, with no fallback: the table shows AR and EN side by side,
+// so an empty translation must read as empty instead of echoing the other language.
+const nameIn = (name, lang) => {
+  if (typeof name === 'string') return lang === locale ? name : '';
+  if (typeof name === 'object' && name !== null) return name[lang] || '';
   return '';
+};
+
+const getShowRoute = (slug) => {
+  if (!slug) {
+    return route('admin.product-type.list');
+  }
+  try {
+    return route('admin.product-type.show', slug);
+  } catch (error) {
+    console.error('Error generating show route:', error);
+    return route('admin.product-type.list');
+  }
 };
 
 const getEditRoute = (slug) => {

@@ -30,7 +30,9 @@ class AdminProductListController extends BaseController
             ->tap(fn($q) => $this->applyCreatorScope($q))
             ->when(!empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
+                    // Both names are listed, so both are searchable.
+                    $query->where('name->en', 'like', '%' . $filters['search'] . '%')
+                          ->orWhere('name->ar', 'like', '%' . $filters['search'] . '%')
                           ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
                 });
             })

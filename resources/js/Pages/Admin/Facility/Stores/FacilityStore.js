@@ -26,6 +26,8 @@ export const useFacilityStore = defineStore('facility', {
             tag_ids: [],
             gallery: [],
             gallery_delete: [],
+            contract: null,
+            contract_delete: false,
         }),
         validationErrors: null,
         facilities: reactive([]),
@@ -54,8 +56,25 @@ export const useFacilityStore = defineStore('facility', {
                 tag_ids: [],
                 gallery: [],
                 gallery_delete: [],
+                contract: null,
+                contract_delete: false,
             });
             this.validationErrors = null;
+        },
+
+        // Fields that only carry a single request's worth of intent (new uploads,
+        // pending deletions). They must not survive into the next save.
+        resetTransientFields() {
+            this.form.logo = null;
+            this.form.mobile_logo = null;
+            this.form.image = null;
+            this.form.mobile_image = null;
+            this.form.og_image = null;
+            this.form.og_image_delete = false;
+            this.form.gallery = [];
+            this.form.gallery_delete = [];
+            this.form.contract = null;
+            this.form.contract_delete = false;
         },
 
         setFacilities(facilities) {
@@ -99,6 +118,8 @@ export const useFacilityStore = defineStore('facility', {
                 mobile_image: null,
                 gallery: [],
                 gallery_delete: [],
+                contract: null,
+                contract_delete: false,
             });
 
             this.validationErrors = null;
@@ -170,7 +191,8 @@ export const useFacilityStore = defineStore('facility', {
             }
         },
 
-        async updateFacility(branches = [], managers = []) {
+        async updateFacility(branches = [], managers = [], options = {}) {
+            const stay = Boolean(options.stay);
             this.isLoading = true;
             try {
                 const errors = {};
@@ -216,11 +238,24 @@ export const useFacilityStore = defineStore('facility', {
                     }))
                 };
                 
+                if (stay) {
+                    formData.stay = 1;
+                }
+                
                 this.form.transform(() => ({ ...formData, _method: 'PUT' })).post(route('admin.facility.update', facilitySlug), {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Facility updated successfully');
+                        this.validationErrors = null;
+                        if (stay) {
+                            // Staying on the edit page: the redirect back to edit re-hydrates
+                            // the form through setFacility(), so only the one-shot upload and
+                            // delete fields need clearing. Blanking the whole form here would
+                            // wipe name/type and fail client validation on the next save.
+                            this.resetTransientFields();
+                            return;
+                        }
                         this.initializeForm();
                         router.visit(route('admin.facility.list'));
                     },

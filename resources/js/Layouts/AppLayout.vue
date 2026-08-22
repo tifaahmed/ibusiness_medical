@@ -168,7 +168,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="canAny('manage memberships', 'manage own memberships', 'manage partner memberships')"
+                    v-if="canAny('manage memberships', 'manage own memberships', 'manage partner memberships', 'view memberships')"
                     :href="route('admin.user.membership.list')"
                     :active="route().current('admin.user.membership.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -201,7 +201,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="canAny('manage membership usages', 'manage own membership usages')"
+                    v-if="canAny('manage membership usages', 'manage own membership usages', 'view membership usages')"
                     :href="route('admin.membership-usage.list')"
                     :active="route().current('admin.membership-usage.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -235,7 +235,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage card templates')"
+                    v-if="canAny('manage card templates', 'view card templates')"
                     :href="route('admin.card-templates.index')"
                     :active="route().current('admin.card-templates.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -255,7 +255,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="canAny('manage member payments', 'manage own member payments', 'manage partner member payments')"
+                    v-if="canAny('manage member payments', 'manage own member payments', 'manage partner member payments', 'view member payments')"
                     :href="route('admin.member-payment.list')"
                     :active="route().current('admin.member-payment.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -293,7 +293,7 @@ const getUserInitials = (name) => {
                 />
 
                 <SidebarLink
-                    v-if="can('manage governorates')"
+                    v-if="canAny('manage governorates', 'manage own governorates', 'view governorates')"
                     :href="route('admin.governorate.list')"
                     :active="route().current('admin.governorate.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -310,7 +310,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage facilities')"
+                    v-if="canAny('manage facilities', 'manage own facilities', 'view facilities')"
                     :href="route('admin.facility-type.list')"
                     :active="route().current('admin.facility-type.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -326,7 +326,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage facilities')"
+                    v-if="canAny('manage facilities', 'manage own facilities', 'view facilities')"
                     :href="route('admin.facility.list')"
                     :active="route().current('admin.facility.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -342,7 +342,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage facility branches')"
+                    v-if="canAny('manage facility branches', 'manage own facility branches', 'view facility branches')"
                     :href="route('admin.facility-branch.list')"
                     :active="route().current('admin.facility-branch.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -358,12 +358,12 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarDropdown
-                    v-if="canAny('manage product types', 'manage own product types', 'manage products', 'manage own products')"
+                    v-if="canAny('manage product types', 'manage own product types', 'view product types', 'manage products', 'manage own products', 'view products', 'manage orders', 'manage own orders', 'view orders')"
                     :label="t.sidebar?.products || 'Products'"
                     :is-collapsed="sidebarCollapsed"
-                    :active="route().current('admin.product-type.*') || route().current('admin.product.*')"
+                    :active="route().current('admin.product-type.*') || route().current('admin.product.*') || route().current('admin.order.*')"
                     icon-animation="animate-icon-breathe"
-                    :auto-open="['/admin/product-type', '/admin/product']"
+                    :auto-open="['/admin/product-type', '/admin/product', '/admin/order']"
                 >
                     <template #icon>
                         <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,7 +372,7 @@ const getUserInitials = (name) => {
                     </template>
 
                     <SidebarSubLink
-                        v-if="canAny('manage product types', 'manage own product types')"
+                        v-if="canAny('manage product types', 'manage own product types', 'view product types')"
                         :href="route('admin.product-type.list')"
                         :active="route().current('admin.product-type.*')"
                         @click="closeSidebar"
@@ -381,17 +381,26 @@ const getUserInitials = (name) => {
                     </SidebarSubLink>
 
                     <SidebarSubLink
-                        v-if="canAny('manage products', 'manage own products')"
+                        v-if="canAny('manage products', 'manage own products', 'view products')"
                         :href="route('admin.product.list')"
                         :active="route().current('admin.product.*')"
                         @click="closeSidebar"
                     >
                         {{ t.sidebar?.products_list || 'Products' }}
                     </SidebarSubLink>
+
+                    <SidebarSubLink
+                        v-if="canAny('manage orders', 'manage own orders', 'view orders')"
+                        :href="route('admin.order.list')"
+                        :active="route().current('admin.order.*')"
+                        @click="closeSidebar"
+                    >
+                        {{ t.sidebar?.orders || 'Orders' }}
+                    </SidebarSubLink>
                 </SidebarDropdown>
 
                 <SidebarLink
-                    v-if="can('manage offers')"
+                    v-if="canAny('manage offers', 'manage own offers', 'view offers')"
                     :href="route('admin.offer.list')"
                     :active="route().current('admin.offer.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -407,7 +416,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage contracts')"
+                    v-if="canAny('manage contracts', 'manage own contracts', 'view contracts')"
                     :href="route('admin.contract.list')"
                     :active="route().current('admin.contract.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -426,7 +435,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage news tickers')"
+                    v-if="canAny('manage news tickers', 'manage own news tickers', 'view news tickers')"
                     :href="route('admin.news-ticker.list')"
                     :active="route().current('admin.news-ticker.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -442,7 +451,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage partners')"
+                    v-if="canAny('manage partners', 'manage own partners', 'view partners')"
                     :href="route('admin.partner.list')"
                     :active="route().current('admin.partner.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -461,7 +470,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage partner offers')"
+                    v-if="canAny('manage partner offers', 'manage own partner offers', 'view partner offers')"
                     :href="route('admin.partner-offer.list')"
                     :active="route().current('admin.partner-offer.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -478,7 +487,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage partner offers')"
+                    v-if="canAny('manage partner offers', 'manage own partner offers', 'view partner offers')"
                     :href="route('admin.partner-offer-request.list')"
                     :active="route().current('admin.partner-offer-request.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -494,7 +503,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage sales')"
+                    v-if="canAny('manage sales', 'manage own sales', 'view sales')"
                     :href="route('admin.sales.list')"
                     :active="route().current('admin.sales.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -510,7 +519,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage services')"
+                    v-if="canAny('manage services', 'manage own services', 'view services')"
                     :href="route('admin.service.list')"
                     :active="route().current('admin.service.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -528,7 +537,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage services')"
+                    v-if="canAny('manage services', 'manage own services', 'view services')"
                     :href="route('admin.service-type.list')"
                     :active="route().current('admin.service-type.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -545,7 +554,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage services')"
+                    v-if="canAny('manage services', 'manage own services', 'view services')"
                     :href="route('admin.tag.list')"
                     :active="route().current('admin.tag.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -562,7 +571,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage companies')"
+                    v-if="canAny('manage companies', 'manage own companies', 'view companies')"
                     :href="route('admin.company.list')"
                     :active="route().current('admin.company.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -579,7 +588,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="canAny('manage users', 'manage admin users')"
+                    v-if="canAny('manage users', 'manage admin users', 'view admin users')"
                     :href="route('admin.admin-users.index')"
                     :active="route().current('admin.admin-users.*')"
                     :is-collapsed="sidebarCollapsed"
@@ -596,7 +605,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="can('manage roles')"
+                    v-if="canAny('manage roles', 'view roles')"
                     :href="route('admin.roles.index')"
                     :active="route().current('admin.roles.*')"
                     :is-collapsed="sidebarCollapsed"

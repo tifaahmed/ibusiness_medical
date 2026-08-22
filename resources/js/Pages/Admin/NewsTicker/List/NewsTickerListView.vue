@@ -3,6 +3,7 @@
     <div class="flex flex-col h-full lg:h-auto w-full max-w-full overflow-x-hidden">
       <div class="flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 p-2 sm:p-3 md:p-4 lg:p-6 pb-0 w-full max-w-full overflow-hidden">
         <Link
+          v-if="canWrite"
           :href="route('admin.news-ticker.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
@@ -29,6 +30,13 @@ import NewsTickerListTable from "./NewsTickerListTable.vue";
 import { useNewsTickerStore } from "../Stores/NewsTickerStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage news tickers', 'manage own news tickers'));
+
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});

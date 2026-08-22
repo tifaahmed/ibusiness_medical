@@ -9,6 +9,7 @@
           Card Templates
         </h1>
         <Link
+          v-if="canWrite"
           :href="route('admin.card-templates.create')"
           class="btn-golden inline-flex items-center gap-2 rounded-md h-9 px-3 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
         >
@@ -24,7 +25,7 @@
 
       <div v-if="rows.length === 0" class="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
         No card templates yet.
-        <Link :href="route('admin.card-templates.create')" class="text-primary hover:underline">Create the first one</Link>.
+        <Link v-if="canWrite" :href="route('admin.card-templates.create')" class="text-primary hover:underline">Create the first one</Link>
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -64,12 +65,20 @@
 
             <div class="flex flex-wrap gap-1.5 pt-1 mt-auto">
               <Link
+                :href="route('admin.card-templates.show', tpl.id)"
+                class="inline-flex items-center rounded-md h-8 px-2.5 text-xs font-medium border border-border bg-background hover:bg-accent"
+              >
+                View
+              </Link>
+              <Link
+                v-if="canWrite"
                 :href="route('admin.card-templates.edit', tpl.id)"
                 class="inline-flex items-center rounded-md h-8 px-2.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 Edit layout
               </Link>
               <button
+                v-if="canWrite"
                 type="button"
                 class="inline-flex items-center rounded-md h-8 px-2.5 text-xs font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
                 :disabled="busyId === tpl.id"
@@ -78,6 +87,7 @@
                 Duplicate
               </button>
               <button
+                v-if="canWrite"
                 type="button"
                 class="inline-flex items-center rounded-md h-8 px-2.5 text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer"
                 :disabled="busyId === tpl.id"
@@ -98,15 +108,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps({
   templates: { type: Array, default: () => [] },
   statuses: { type: Array, default: () => [] },
 });
+
+const { canManage } = usePermissions();
+// Read-only accounts get the View link and nothing else.
+const canWrite = computed(() => canManage('manage card templates'));
 
 const rows = ref([...props.templates]);
 const busyId = ref(null);

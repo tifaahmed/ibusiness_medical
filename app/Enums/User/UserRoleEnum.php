@@ -5,9 +5,17 @@ namespace App\Enums\User;
 enum UserRoleEnum
 {
     public const SUPER_ADMIN = 'super_admin';
+
     public const ADMIN = 'admin';
+
     public const EDITOR = 'editor';
+
     public const MEMBER = 'member';
+
+    /**
+     * Read-only admin: every list and detail screen, no write of any kind.
+     */
+    public const VIEWER = 'viewer';
 
     public static function getRoles(): array
     {
@@ -32,6 +40,11 @@ enum UserRoleEnum
                 'name' => self::MEMBER,
                 'label' => 'Member',
             ],
+            self::VIEWER => [
+                'id' => 5,
+                'name' => self::VIEWER,
+                'label' => 'Viewer (read-only)',
+            ],
         ];
     }
 
@@ -50,7 +63,7 @@ enum UserRoleEnum
         return array_values(array_map(function ($item) {
             return [
                 'value' => $item['id'],
-                'label' => $item['label']
+                'label' => $item['label'],
             ];
         }, self::getRoles())) ?? [];
     }
@@ -72,6 +85,7 @@ enum UserRoleEnum
             self::ADMIN => 'Login only — grants admin dashboard access. Stack with another role to grant abilities.',
             self::EDITOR => 'Content editor — manages members, facilities, and facility branches.',
             self::MEMBER => 'Customer membership — not used for admin staff.',
+            self::VIEWER => 'Read-only — can open every list and detail screen, but cannot create, edit, delete, export or import anything.',
             default => null,
         };
     }

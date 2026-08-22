@@ -144,6 +144,7 @@
         <h3 class="text-xl sm:text-2xl font-bold mb-1 text-foreground">{{ t.not_found || 'No Payments Found' }}</h3>
         <p class="text-muted-foreground text-sm sm:text-base leading-relaxed">{{ t.not_found_message || 'No payments match your current filters.' }}</p>
         <Link
+          v-if="canWrite"
           :href="route('admin.member-payment.create')"
           data-slot="button"
           class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 btn-golden"
@@ -163,6 +164,13 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage member payments', 'manage own member payments', 'manage partner member payments'));
+
 
 defineProps({
   payments: { type: Object, required: true },

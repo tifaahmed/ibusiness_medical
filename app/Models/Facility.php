@@ -72,6 +72,25 @@ class Facility extends Model implements HasMedia
         return $media ? $media->getUrl() : '';
     }
 
+    /**
+     * Signed contract document (PDF or image), kept in its own media collection.
+     */
+    public function getContractAttribute(): ?array
+    {
+        $media = $this->getFirstMedia('contract');
+
+        if (! $media) {
+            return null;
+        }
+
+        return [
+            'url' => $media->getUrl(),
+            'file_name' => $media->file_name,
+            'mime_type' => $media->mime_type,
+            'size' => $media->size,
+        ];
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -26,6 +26,7 @@
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <a
+                v-if="canWrite"
                 :href="exportUrl"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
                 title="Export facilities to XLSX"
@@ -35,6 +36,7 @@
               </a>
 
               <Link
+                v-if="canWrite"
                 :href="route('admin.facility.migration.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
                 title="Move facilities, branches and images to another site"
@@ -43,6 +45,7 @@
                 <span class="hidden sm:inline">Migration</span>
               </Link>
               <Link
+                v-if="canWrite"
                 :href="route('admin.facility.create')"
                 data-slot="button"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
@@ -81,6 +84,13 @@ import { useFacilityStore } from "../Stores/FacilityStore";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { usePermissions } from '@/composables/usePermissions';
+
+const { canManage } = usePermissions();
+// Create/export/import are writes: hidden from read-only accounts,
+// and refused by the routes behind them either way.
+const canWrite = computed(() => canManage('manage facilities', 'manage own facilities'));
+
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -143,11 +153,13 @@ const exportUrl = computed(() => {
   if (f.search) params.set('search', f.search);
   if (f.facility_type_id) params.set('facility_type_id', f.facility_type_id);
   if (f.sales_id) params.set('sales_id', f.sales_id);
+  if (f.sales_presence) params.set('sales_presence', f.sales_presence);
   if (f.governorate_id) params.set('governorate_id', f.governorate_id);
   if (f.city_id) params.set('city_id', f.city_id);
   if (f.created_from) params.set('created_from', f.created_from);
   if (f.created_to) params.set('created_to', f.created_to);
   params.set('include_branches', '1');
+  params.set('include_managers', '1');
   const qs = params.toString();
   return route('admin.facility.export') + (qs ? '?' + qs : '');
 });

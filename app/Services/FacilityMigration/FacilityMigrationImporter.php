@@ -5,12 +5,14 @@ namespace App\Services\FacilityMigration;
 use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityManager;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Offer;
 use App\Models\Sales;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,9 @@ class FacilityMigrationImporter
     /** @var array<string, int|null> */
     private array $salesCache = [];
 
+    /** Every sales row on this site, loaded once and matched in PHP. */
+    private ?EloquentCollection $salesRows = null;
+
     /** @var array<string, int> */
     private array $tagCache = [];
 
@@ -76,12 +81,22 @@ class FacilityMigrationImporter
     private bool $skipMedia = false;
 
     /**
+     * Merge normally only adds and updates. With this on, a facility the
+     * package carries branches or managers for also loses the ones it holds
+     * today that the package does not name — the relation is made to match the
+     * package rather than merely absorb it.
+     */
+    private bool $pruneMissing = false;
+
+    /**
      * @param  array<string, mixed>  $options
      *                                         - mode: "fresh" | "merge" (default "merge")
      *                                         - dry_run: bool — parse and report, write nothing
      *                                         - media_path: absolute path to an unzipped storage/app/public
      *                                         to pull image files from when the package has no media/ dir
      *                                         - skip_media: bool — restore rows but no image files
+     *                                         - prune_missing: bool — on a merge, delete the branches and managers
+     *                                         an updated facility holds that the package does not name
      * @return array<string, mixed>
      */
     public function import(string $packagePath, array $options = []): array
@@ -153,6 +168,7 @@ class FacilityMigrationImporter
                 'mode' => $mode,
                 'dry_run' => (bool) ($options['dry_run'] ?? false),
                 'skip_media' => (bool) ($options['skip_media'] ?? false),
+                'prune_missing' => (bool) ($options['prune_missing'] ?? false),
                 'stop_on_error' => (bool) ($options['stop_on_error'] ?? false),
                 'media_path' => $options['media_path'] ?? null,
                 'extracted_to' => $extractedTo,
@@ -202,6 +218,7 @@ class FacilityMigrationImporter
 
         $this->dryRun = $state['dry_run'];
         $this->skipMedia = $state['skip_media'];
+        $this->pruneMissing = (bool) ($state['prune_missing'] ?? false);
         $this->resetState();
         $this->stats = $state['stats'];
 
@@ -344,7 +361,7 @@ class FacilityMigrationImporter
             $state['mode'] = $mode;
         }
 
-        foreach (['dry_run', 'skip_media'] as $flag) {
+        foreach (['dry_run', 'skip_media', 'prune_missing'] as $flag) {
             if (array_key_exists($flag, $options)) {
                 $state[$flag] = (bool) $options[$flag];
             }
@@ -450,6 +467,7 @@ class FacilityMigrationImporter
                 'slug' => $f['slug'] ?? null,
                 'name' => $f['name']['en'] ?? ($f['name']['ar'] ?? null),
                 'branches' => count($f['branches'] ?? []),
+                'managers' => count($f['managers'] ?? []),
                 'media' => count($f['media'] ?? []),
                 'offers' => count($f['offers'] ?? []),
             ])->values()->all(),
@@ -587,9 +605,17 @@ class FacilityMigrationImporter
         ]);
         $fill = [
             'canonical_url' => $data['canonical_url'] ?? null,
-            'discount_percent' => $data['discount_percent'] ?? null,
+            // A package that never names these must not blank what the row
+            // holds: the spreadsheet template carries a column for each, but a
+            // sheet built without them is asking for the rest to be merged, not
+            // for the sales rep and the discount to be wiped off every facility.
+            'discount_percent' => array_key_exists('discount_percent', $data)
+                ? $this->normalizeDiscount($data['discount_percent'])
+                : $existing?->discount_percent,
             'facility_type_id' => $this->resolveFacilityType($data['facility_type'] ?? null),
-            'sales_id' => $this->resolveSales($data['sales'] ?? null),
+            'sales_id' => array_key_exists('sales', $data)
+                ? $this->resolveSales($data['sales'])
+                : $existing?->sales_id,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
         ];
         if (! $existing && ! empty($data['id'])) {
@@ -613,16 +639,162 @@ class FacilityMigrationImporter
         $this->restoreMedia($facility, $data['media'] ?? [], $addedMediaPaths);
         $this->restoreOffers($facility, $data['offers'] ?? [], $addedMediaPaths);
 
+        $keptBranches = [];
         foreach ($data['branches'] ?? [] as $branchData) {
-            $this->importBranch($facility, $branchData, $mode, $addedMediaPaths);
+            $id = $this->importBranch($facility, $this->arrayOrEmpty($branchData), $mode, $addedMediaPaths);
+            if ($id !== null) {
+                $keptBranches[] = $id;
+            }
         }
+
+        $keptManagers = [];
+        foreach ($data['managers'] ?? [] as $managerData) {
+            $id = $this->importManager($facility, $this->arrayOrEmpty($managerData), $mode);
+            if ($id !== null) {
+                $keptManagers[] = $id;
+            }
+        }
+
+        if ($mode === self::MODE_MERGE && $this->pruneMissing && $existing) {
+            $this->pruneUnnamedRows($facility, $data, $keptBranches, $keptManagers);
+        }
+    }
+
+    /**
+     * Delete what an updated facility still holds and the package never named.
+     *
+     * Only a relation the package actually carries rows for is touched. A
+     * package exported without branches, or a spreadsheet with no branch
+     * columns at all, is asking for the facilities to be merged — not for every
+     * branch on this site to be swept away because the file was silent about
+     * them. describeTarget() marks the same rows for the preview using this
+     * exact rule, so what the screen paints red is what disappears.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int, int>  $keptBranches
+     * @param  array<int, int>  $keptManagers
+     */
+    private function pruneUnnamedRows(Facility $facility, array $data, array $keptBranches, array $keptManagers): void
+    {
+        foreach ($this->prunableBranches($facility, $data, $keptBranches) as $branch) {
+            $this->bump('branches_deleted');
+            // Deleting takes the branch's offers and their image files with it,
+            // and no rollback brings a deleted file back — a dry run only counts.
+            if ($this->dryRun) {
+                continue;
+            }
+            foreach ($branch->offers as $offer) {
+                $offer->delete();
+            }
+            $branch->delete();
+        }
+
+        foreach ($this->prunableManagers($facility, $data, $keptManagers) as $manager) {
+            $this->bump('managers_deleted');
+            if ($this->dryRun) {
+                continue;
+            }
+            $manager->delete();
+        }
+    }
+
+    /**
+     * The branches of a facility that this package would leave behind.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int, int>  $keptIds
+     * @return EloquentCollection<int, FacilityBranch>
+     */
+    private function prunableBranches(Facility $facility, array $data, array $keptIds): EloquentCollection
+    {
+        if ($this->arrayOrEmpty($data['branches'] ?? []) === []) {
+            return new EloquentCollection;
+        }
+
+        return FacilityBranch::with('offers')
+            ->where('facility_id', $facility->id)
+            ->when($keptIds !== [], fn ($q) => $q->whereNotIn('id', $keptIds))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<int, int>  $keptIds
+     * @return EloquentCollection<int, FacilityManager>
+     */
+    private function prunableManagers(Facility $facility, array $data, array $keptIds): EloquentCollection
+    {
+        if ($this->arrayOrEmpty($data['managers'] ?? []) === []) {
+            return new EloquentCollection;
+        }
+
+        return FacilityManager::where('facility_id', $facility->id)
+            ->when($keptIds !== [], fn ($q) => $q->whereNotIn('id', $keptIds))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * A facility's contact people, handled the way its branches are: matched by
+     * id and then by name within this facility, updated in place when merging,
+     * and never deleted for being absent from the package.
+     *
+     * @param  array<string, mixed>  $data
+     * @return int|null the id the row landed on, or null when it was skipped
+     */
+    private function importManager(Facility $facility, array $data, string $mode): ?int
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            // The column is NOT NULL, and a nameless contact is nothing to
+            // reach anybody on — worth saying so rather than failing the row.
+            $this->warnings[] = sprintf(
+                'A manager of "%s" was skipped — the row carries no name.',
+                $facility->getTranslation('name', 'en') ?: $facility->slug
+            );
+
+            return null;
+        }
+
+        $existing = $mode === self::MODE_MERGE
+            ? $this->findExistingManager($facility, $data)
+            : null;
+
+        // facility_id is written unconditionally, so a manager matched under
+        // another facility moves here — the same as a branch does.
+        $manager = $existing ?: new FacilityManager;
+        $fill = [
+            'facility_id' => $facility->id,
+            'name' => $name,
+            'position' => $this->trimmedOrNull($data['position'] ?? null),
+            'phones' => $this->normalizePhone($data['phones'] ?? $data['phone'] ?? null),
+            'created_by' => $this->resolveUser($data['created_by'] ?? null),
+        ];
+        if (! $existing && ! empty($data['id'])) {
+            $fill['id'] = $data['id'];
+        }
+        $manager->forceFill($fill);
+        $manager->save();
+
+        $this->stampRow($manager, null, $data['created_at'] ?? null, $data['updated_at'] ?? null);
+        $this->bump($existing ? 'managers_updated' : 'managers_created');
+
+        return $manager->id;
+    }
+
+    private function trimmedOrNull(mixed $value): ?string
+    {
+        $value = is_scalar($value) ? trim((string) $value) : '';
+
+        return $value === '' ? null : $value;
     }
 
     /**
      * @param  array<string, mixed>  $data
      * @param  array<int, string>  $addedMediaPaths
      */
-    private function importBranch(Facility $facility, array $data, string $mode, array &$addedMediaPaths): void
+    private function importBranch(Facility $facility, array $data, string $mode, array &$addedMediaPaths): ?int
     {
         $slug = $data['slug'] ?? null;
         $existing = null;
@@ -661,6 +833,8 @@ class FacilityMigrationImporter
         $this->bump($existing ? 'branches_updated' : 'branches_created');
 
         $this->restoreOffers($branch, $data['offers'] ?? [], $addedMediaPaths);
+
+        return $branch->id;
     }
 
     /**
@@ -1039,15 +1213,33 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { name: "..." } or "Ahmed"
+     * A discount is a percentage: a blank cell means "no discount", and a cell
+     * written "15%" or " 15 " means fifteen. Anything outside 0–100 is a typo
+     * the column could not hold anyway, so it is clamped rather than refused
+     * mid-import.
+     */
+    private function normalizeDiscount(mixed $value): ?float
+    {
+        if (is_string($value)) {
+            $value = trim(str_replace(['%', ',', ' '], '', $value));
+        }
+
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return round(min(100, max(0, (float) $value)), 2);
+    }
+
+    /**
+     * @param  array<string, mixed>|string|null  $ref  Accepts: { id: N }, { name: { en: "...", ar: "..." } },
+     *                                                 { name: "Ahmed" } or "Ahmed"
      */
     private function resolveSales(mixed $ref): ?int
     {
-        if (is_string($ref)) {
-            $ref = trim($ref) === '' ? null : ['name' => trim($ref)];
-        }
+        $ref = $this->normalizeSalesRef($ref);
 
-        if (! is_array($ref) || $ref === []) {
+        if (! $ref) {
             return null;
         }
 
@@ -1055,30 +1247,136 @@ class FacilityMigrationImporter
             return $id;
         }
 
-        $name = trim((string) ($ref['name'] ?? ''));
-        if ($name === '') {
+        if ($this->refIsNameless($ref)) {
             return null;
         }
-        $key = Str::lower($name);
+
+        $key = $this->refKey($ref);
         if (array_key_exists($key, $this->salesCache)) {
             return $this->salesCache[$key];
         }
 
-        $id = Sales::whereRaw('LOWER(name) = ?', [$key])->value('id');
-        if (! $id) {
-            // sales.name is a plain varchar, but the model declares it
-            // translatable — assigning through the model would wrap the value in
-            // {"en": "..."} and, for a name that is already a JSON blob, nest it
-            // twice. Insert straight past the model to keep the bytes intact.
-            $id = Sales::query()->insertGetId([
-                'name' => $name,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $this->bump('sales_created');
+        $sales = $this->matchSales($ref) ?: $this->createSales($ref);
+
+        return $this->salesCache[$key] = $sales?->id;
+    }
+
+    /**
+     * A sales rep can reach the importer written four ways: the bare name a
+     * spreadsheet cell holds, a `{ name: … }` reference, a locale map, or — from
+     * a package built before the exporter unwrapped it — the raw
+     * `{"en": …, "ar": …}` column value as one string. All four end up as a
+     * locale map here so the matching downstream only has one shape to read.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function normalizeSalesRef(mixed $ref): ?array
+    {
+        if (is_string($ref) || is_numeric($ref)) {
+            $ref = ['name' => trim((string) $ref)];
         }
 
-        return $this->salesCache[$key] = $id;
+        if (! is_array($ref) || $ref === []) {
+            return null;
+        }
+
+        $name = $ref['name'] ?? [];
+
+        if (is_string($name)) {
+            $decoded = json_decode(trim($name), true);
+            $name = is_array($decoded) ? $decoded : ['en' => trim($name)];
+        }
+
+        $ref['name'] = array_filter(
+            array_map(fn ($value) => is_scalar($value) ? trim((string) $value) : '', (array) $name),
+            fn ($value) => $value !== ''
+        );
+
+        return $ref;
+    }
+
+    /**
+     * The sales rep this name already belongs to, if any.
+     *
+     * `sales.name` is a plain varchar holding either a translation blob or a
+     * bare name, so a JSON path in SQL would throw on half the table. The table
+     * is small enough to walk once in PHP instead — and that also buys the same
+     * Arabic-spelling tolerance the other lookups get.
+     *
+     * @param  array<string, mixed>  $ref
+     */
+    private function matchSales(array $ref): ?Sales
+    {
+        $want = $this->foldedSpellings(array_values($ref['name'] ?? []));
+        if ($want['strict'] === []) {
+            return null;
+        }
+
+        foreach (['strict', 'loose'] as $pass) {
+            foreach ($this->salesRows() as $sales) {
+                $have = $this->foldedSpellings(array_values($this->salesNames($sales)));
+                if (array_intersect($have[$pass], $want[$pass]) !== []) {
+                    return $sales;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $ref
+     */
+    private function createSales(array $ref): ?Sales
+    {
+        $names = array_filter($ref['name'] ?? []);
+        if ($names === []) {
+            return null;
+        }
+
+        // Both locales are filled from whichever the package carried: a blank
+        // side would match nothing the next time this name comes round.
+        $en = $names['en'] ?? reset($names);
+        $ar = $names['ar'] ?? $en;
+
+        $sales = Sales::create(['name' => ['en' => $en, 'ar' => $ar]]);
+        $this->bump('sales_created');
+
+        // The next facility in this package naming the same rep must land on the
+        // row just made rather than making a second one.
+        $this->salesRows()->push($sales);
+
+        return $sales;
+    }
+
+    /**
+     * @return EloquentCollection<int, Sales>
+     */
+    private function salesRows(): EloquentCollection
+    {
+        return $this->salesRows ??= Sales::query()->get();
+    }
+
+    /**
+     * Every spelling a sales row is stored under — the translations when the
+     * column holds a blob, the bare column value when it does not.
+     *
+     * @return array<string, string>
+     */
+    private function salesNames(Sales $sales): array
+    {
+        $names = array_filter(
+            $sales->getTranslations('name'),
+            fn ($value) => trim((string) $value) !== ''
+        );
+
+        if ($names !== []) {
+            return $names;
+        }
+
+        $raw = trim((string) $sales->getRawOriginal('name'));
+
+        return $raw === '' ? [] : ['en' => $raw];
     }
 
     /**
@@ -1456,6 +1754,7 @@ class FacilityMigrationImporter
         $this->governorateCache = [];
         $this->cityCache = [];
         $this->salesCache = [];
+        $this->salesRows = null;
         $this->tagCache = [];
         $this->userCache = [];
         $this->facilityIndex = null;
@@ -1549,6 +1848,51 @@ class FacilityMigrationImporter
     }
 
     /**
+     * The manager a merge would land on: the id they carry, else somebody this
+     * facility already lists under that name.
+     *
+     * Managers have no slug and their name is a plain column rather than a
+     * translation blob, so the matching is the folded-name pass on its own —
+     * which still lets "أحمد" find "احمد".
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function findExistingManager(?Facility $facility, array $data): ?FacilityManager
+    {
+        if (! empty($data['id'])) {
+            $byId = FacilityManager::where('id', $data['id'])->first();
+            if ($byId) {
+                return $byId;
+            }
+        }
+
+        if (! $facility || ! $facility->exists) {
+            return null;
+        }
+
+        $want = $this->foldedSpellings([$data['name'] ?? null]);
+        if ($want['strict'] === []) {
+            return null;
+        }
+
+        // Read fresh rather than from a loaded relation: a manager created a
+        // moment ago by an earlier row of the same package has to be findable,
+        // or a package naming somebody twice would list them twice.
+        $managers = FacilityManager::where('facility_id', $facility->id)->get();
+
+        foreach (['strict', 'loose'] as $pass) {
+            foreach ($managers as $manager) {
+                $have = $this->foldedSpellings([$manager->name]);
+                if (array_intersect($have[$pass], $want[$pass]) !== []) {
+                    return $manager;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * What this site already holds for a facility payload: the row a merge
      * would land on and the values it carries today, branch by branch. Writes
      * nothing.
@@ -1558,22 +1902,65 @@ class FacilityMigrationImporter
      * to answer with exactly the rows the import itself would touch, which is
      * why the matching lives here rather than in the controller.
      *
+     * It also answers the other direction: the branches and managers this site
+     * holds for the facility that the package never names. Those are the rows a
+     * pruning merge would delete, and the preview paints them red — computed
+     * here, with the same rule the import uses, so the screen cannot promise
+     * one thing and the run do another.
+     *
      * @param  array<string, mixed>  $data
-     * @return array{facility: array<string, mixed>|null, branches: array<int, array<string, mixed>|null>}
+     * @return array{facility: array<string, mixed>|null, branches: array<int, array<string, mixed>|null>, managers: array<int, array<string, mixed>|null>, missing_branches: array<int, array<string, mixed>>, missing_managers: array<int, array<string, mixed>>}
      */
     public function describeTarget(array $data): array
     {
         $facility = $this->findExistingFacility($data);
         $branches = [];
+        $managers = [];
+        $matchedBranchIds = [];
+        $matchedManagerIds = [];
 
         foreach (array_values($this->arrayOrEmpty($data['branches'] ?? [])) as $i => $branchData) {
             $match = $this->findExistingBranch($facility, $this->arrayOrEmpty($branchData));
             $branches[$i] = $match ? $this->branchSnapshot($match) : null;
+            if ($match) {
+                $matchedBranchIds[] = $match->id;
+            }
+        }
+
+        foreach (array_values($this->arrayOrEmpty($data['managers'] ?? [])) as $i => $managerData) {
+            $match = $this->findExistingManager($facility, $this->arrayOrEmpty($managerData));
+            $managers[$i] = $match ? $this->managerSnapshot($match) : null;
+            if ($match) {
+                $matchedManagerIds[] = $match->id;
+            }
         }
 
         return [
             'facility' => $facility ? $this->facilitySnapshot($facility) : null,
             'branches' => $branches,
+            'managers' => $managers,
+            'missing_branches' => $facility
+                ? $this->prunableBranches($facility, $data, $matchedBranchIds)
+                    ->map(fn (FacilityBranch $b) => $this->branchSnapshot($b))->values()->all()
+                : [],
+            'missing_managers' => $facility
+                ? $this->prunableManagers($facility, $data, $matchedManagerIds)
+                    ->map(fn (FacilityManager $m) => $this->managerSnapshot($m))->values()->all()
+                : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function managerSnapshot(FacilityManager $manager): array
+    {
+        return [
+            'id' => $manager->id,
+            'facility_id' => $manager->facility_id,
+            'name' => (string) $manager->name,
+            'position' => $manager->position,
+            'phones' => array_values(array_map('strval', $this->arrayOrEmpty($manager->phones))),
         ];
     }
 
@@ -1582,7 +1969,7 @@ class FacilityMigrationImporter
      */
     private function facilitySnapshot(Facility $facility): array
     {
-        $facility->loadMissing('facilityType');
+        $facility->loadMissing(['facilityType', 'sales']);
 
         return [
             'id' => $facility->id,
@@ -1591,7 +1978,14 @@ class FacilityMigrationImporter
             'facility_type' => $facility->facilityType
                 ? ['id' => $facility->facilityType->getKey(), 'label' => $this->snapshotLabel($facility->facilityType)]
                 : null,
+            'sales' => $facility->sales
+                ? ['id' => $facility->sales->getKey(), 'label' => $this->snapshotSalesLabel($facility->sales)]
+                : null,
+            'discount_percent' => $facility->discount_percent === null
+                ? null
+                : (string) $facility->discount_percent,
             'branches_count' => $facility->branches()->count(),
+            'managers_count' => $facility->managers()->count(),
         ];
     }
 
@@ -1619,6 +2013,17 @@ class FacilityMigrationImporter
             'longitude' => $branch->longitude === null ? null : (string) $branch->longitude,
             'google_location_url' => $branch->google_location_url,
         ];
+    }
+
+    /**
+     * The name a sales rep reads under, whichever of the two shapes the column
+     * holds it in.
+     */
+    private function snapshotSalesLabel(Sales $sales): string
+    {
+        $names = $this->salesNames($sales);
+
+        return (string) ($names[app()->getLocale()] ?? $names['ar'] ?? $names['en'] ?? reset($names) ?: "#{$sales->getKey()}");
     }
 
     /**

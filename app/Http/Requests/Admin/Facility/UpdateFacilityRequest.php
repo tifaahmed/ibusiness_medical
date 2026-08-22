@@ -79,6 +79,8 @@ class UpdateFacilityRequest extends FormRequest
             'gallery.*' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
             'gallery_delete' => 'nullable|array',
             'gallery_delete.*' => 'nullable|integer',
+            'contract' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,avif,pdf|max:10240',
+            'contract_delete' => 'nullable|boolean',
         ];
     }
 

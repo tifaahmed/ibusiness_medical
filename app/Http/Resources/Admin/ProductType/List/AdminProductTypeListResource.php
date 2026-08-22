@@ -16,7 +16,8 @@ class AdminProductTypeListResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            // All translations, so the table can show the Arabic and English names side by side.
+            'name' => $this->getTranslations('name'),
             'slug' => $this->slug,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

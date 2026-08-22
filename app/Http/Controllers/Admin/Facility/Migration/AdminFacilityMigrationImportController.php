@@ -124,6 +124,7 @@ class AdminFacilityMigrationImportController extends BaseController
             'mode' => ['required', 'in:fresh,merge'],
             'dry_run' => ['nullable', 'boolean'],
             'skip_media' => ['nullable', 'boolean'],
+            'prune_missing' => ['nullable', 'boolean'],
         ]);
 
         if ($validated['mode'] === 'fresh' && ! $request->boolean('dry_run') && ! $request->boolean('confirm_wipe')) {
@@ -137,6 +138,7 @@ class AdminFacilityMigrationImportController extends BaseController
                 'mode' => $validated['mode'],
                 'dry_run' => $request->boolean('dry_run'),
                 'skip_media' => $request->boolean('skip_media'),
+                'prune_missing' => $request->boolean('prune_missing'),
             ]);
 
             return response()->json(['message' => 'Import settings saved.']);
@@ -156,6 +158,7 @@ class AdminFacilityMigrationImportController extends BaseController
             'mode' => ['required', 'in:fresh,merge'],
             'dry_run' => ['nullable', 'boolean'],
             'skip_media' => ['nullable', 'boolean'],
+            'prune_missing' => ['nullable', 'boolean'],
             'media_path' => ['nullable', 'string'],
         ]);
 
@@ -172,6 +175,7 @@ class AdminFacilityMigrationImportController extends BaseController
                 'mode' => $validated['mode'],
                 'dry_run' => $request->boolean('dry_run'),
                 'skip_media' => $request->boolean('skip_media'),
+                'prune_missing' => $request->boolean('prune_missing'),
                 'media_path' => $validated['media_path'] ?? null,
             ]);
 
@@ -248,7 +252,7 @@ class AdminFacilityMigrationImportController extends BaseController
     /**
      * Mark up a facility payload with what this site already holds for it: the
      * facility row a merge would land on, and the same for each of its
-     * branches. Both come back under `_existing` — a key the preview screen
+     * branches and managers. All come back under `_existing` — a key the screen
      * strips again before sending its edits back, so it never reaches the
      * session files or the import itself.
      *
@@ -260,14 +264,51 @@ class AdminFacilityMigrationImportController extends BaseController
         $target = $this->importer->describeTarget($facility);
 
         $facility['_existing'] = $target['facility'];
+        // The other side of the ledger: rows this site holds that the package
+        // never names. A pruning merge deletes exactly these, so the screen can
+        // paint them red before anybody commits to it.
+        $facility['_missing_branches'] = $target['missing_branches'];
+        $facility['_missing_managers'] = $target['missing_managers'];
+        $facility = $this->seedUnmentionedColumns($facility, $target['facility']);
 
-        if (is_array($facility['branches'] ?? null)) {
-            $facility['branches'] = array_values($facility['branches']);
-            foreach ($facility['branches'] as $i => $branch) {
-                if (is_array($branch)) {
-                    $facility['branches'][$i]['_existing'] = $target['branches'][$i] ?? null;
+        foreach (['branches', 'managers'] as $relation) {
+            if (! is_array($facility[$relation] ?? null)) {
+                continue;
+            }
+            $facility[$relation] = array_values($facility[$relation]);
+            foreach ($facility[$relation] as $i => $row) {
+                if (is_array($row)) {
+                    $facility[$relation][$i]['_existing'] = $target[$relation][$i] ?? null;
                 }
             }
+        }
+
+        return $facility;
+    }
+
+    /**
+     * A spreadsheet need not carry a Sales or Discount % column at all, and the
+     * import leaves what it does not mention alone. The preview screen has no
+     * such third state — its picker and its number box always say something —
+     * so the columns the package skipped start on the value the facility holds
+     * today. What the screen shows is then what the import writes, and the
+     * operator can still change it deliberately.
+     *
+     * @param  array<string, mixed>  $facility
+     * @param  array<string, mixed>|null  $existing
+     * @return array<string, mixed>
+     */
+    private function seedUnmentionedColumns(array $facility, ?array $existing): array
+    {
+        if (! array_key_exists('sales', $facility)) {
+            $sales = $existing['sales'] ?? null;
+            $facility['sales'] = $sales
+                ? ['id' => $sales['id'], 'name' => ['en' => $sales['label'], 'ar' => $sales['label']]]
+                : null;
+        }
+
+        if (! array_key_exists('discount_percent', $facility)) {
+            $facility['discount_percent'] = $existing['discount_percent'] ?? null;
         }
 
         return $facility;

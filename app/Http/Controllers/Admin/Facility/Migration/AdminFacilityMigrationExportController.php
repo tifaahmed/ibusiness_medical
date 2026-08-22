@@ -41,6 +41,11 @@ class AdminFacilityMigrationExportController extends BaseController
     public function __invoke(Request $request): StreamedResponse
     {
         $includeMedia = ! $request->has('include_media') || $request->boolean('include_media');
+        $includeBranches = ! $request->has('include_branches') || $request->boolean('include_branches');
+        $includeManagers = ! $request->has('include_managers') || $request->boolean('include_managers');
+        // Default on: the point of keeping a copy is that the package is still
+        // there to import later without hunting for the downloaded file.
+        $keep = ! $request->has('keep') || $request->boolean('keep');
 
         // part is 1-based; without it the whole matching set goes in one package.
         $perPart = $request->filled('per_part') ? max(1, (int) $request->input('per_part')) : null;
@@ -53,17 +58,25 @@ class AdminFacilityMigrationExportController extends BaseController
             $totalParts = $total > 0 ? (int) ceil($total / $perPart) : 1;
         }
 
+        $filename = $this->exporter->filename($includeMedia, $part, $totalParts, $includeBranches, $includeManagers);
+
         $path = $this->exporter->build([
             'include_media_files' => $includeMedia,
             'include_offers' => ! $request->has('include_offers') || $request->boolean('include_offers'),
+            'include_branches' => $includeBranches,
+            'include_managers' => $includeManagers,
             'filters' => $filters,
             'offset' => ($perPart !== null && $part !== null) ? ($part - 1) * $perPart : null,
             'limit' => $perPart,
+            // Kept packages are written under their download name straight into
+            // the drop directory the import side reads from, so "export here,
+            // import there later" needs no upload at all.
+            'destination' => $keep
+                ? AdminFacilityMigrationPackagesController::library().'/'.$filename
+                : null,
         ]);
 
-        $filename = $this->exporter->filename($includeMedia, $part, $totalParts);
-
-        return response()->stream(function () use ($path) {
+        return response()->stream(function () use ($path, $keep) {
             $out = fopen('php://output', 'wb');
             $in = fopen($path, 'rb');
             // Packages can run to gigabytes once images are bundled, so the file
@@ -74,7 +87,9 @@ class AdminFacilityMigrationExportController extends BaseController
             }
             fclose($in);
             fclose($out);
-            @unlink($path);
+            if (! $keep) {
+                @unlink($path);
+            }
         }, 200, [
             'Content-Type' => 'application/zip',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Product\Actions\Store;
 
 use App\Models\Product;
+use App\Models\ProductGallery;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -12,8 +13,6 @@ class StoreProductAction
     /**
      * Execute the action to store a product.
      *
-     * @param array $validated
-     * @return Product
      * @throws \Exception
      */
     public function execute(array $validated): Product
@@ -24,9 +23,15 @@ class StoreProductAction
             $product = Product::create([
                 'name' => $validated['name'],
                 'short_subject' => $validated['short_subject'] ?? null,
+                'description' => $validated['description'] ?? null,
                 'old_price' => $validated['old_price'] ?? null,
                 'new_price' => $validated['new_price'] ?? null,
+                'cost_price' => $validated['cost_price'] ?? null,
+                'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                'admin_note' => $validated['admin_note'] ?? null,
+                'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
+                // Stamped once, from the backend: the product belongs to whoever created it.
                 'created_by' => Auth::id(),
             ]);
 
@@ -41,13 +46,21 @@ class StoreProductAction
             }
 
             if (isset($validated['gallery']) && is_array($validated['gallery'])) {
-                foreach ($validated['gallery'] as $image) {
-                    $product->addMedia($image)
-                        ->toMediaCollection('gallery');
+                foreach ($validated['gallery'] as $index => $image) {
+                    $path = $image->store("products/gallery/{$product->id}", 'public');
+
+                    ProductGallery::create([
+                        'product_id' => $product->id,
+                        'image_path' => $path,
+                        'sort_order' => $index,
+                    ]);
                 }
             }
 
-            if (array_key_exists('tag_ids', $validated)) {
+            // An empty tag selection is dropped from multipart bodies, so the form
+            // sends `sync_tags` to say the (possibly empty) selection is authoritative.
+            if (array_key_exists('tag_ids', $validated)
+                || filter_var($validated['sync_tags'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $product->tags()->sync($validated['tag_ids'] ?? []);
             }
 

@@ -35,12 +35,17 @@ class PermissionSeeder extends Seeder
             $editor = Role::findByName(UserRoleEnum::EDITOR, 'web');
             $editor->syncPermissions(UserPermissionEnum::editorPermissions());
 
+            // Read-only admin. Synced (not merely topped up) so a permission
+            // that later stops being read-only is dropped from the role too.
+            $viewer = Role::findByName(UserRoleEnum::VIEWER, 'web');
+            $viewer->syncPermissions(UserPermissionEnum::readOnlyAccess());
+
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
             $this->command->info('Permissions seeded and assigned to roles.');
         } catch (\Exception $e) {
-            Log::error('Error seeding permissions: ' . $e->getMessage());
-            $this->command->error('Error seeding permissions: ' . $e->getMessage());
+            Log::error('Error seeding permissions: '.$e->getMessage());
+            $this->command->error('Error seeding permissions: '.$e->getMessage());
         }
     }
 }
