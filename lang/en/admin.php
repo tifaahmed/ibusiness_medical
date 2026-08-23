@@ -269,6 +269,7 @@ return [
         // Addresses
         'tab_addresses' => 'Addresses',
         'addresses' => 'Addresses',
+        'address_information' => 'Address',
         'address_type' => 'Address Type',
         'address_type_home' => 'Home',
         'address_type_work' => 'Work',

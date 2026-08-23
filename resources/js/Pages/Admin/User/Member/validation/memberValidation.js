@@ -68,6 +68,14 @@ export const memberSchema = z.object({
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
+    // Primary address detail — only the governorate above is required.
+    address_type: z.string().nullable().optional(),
+    address: z.string().max(1000).nullable().optional(),
+    street: z.string().max(255).nullable().optional(),
+    building_number: z.string().max(50).nullable().optional(),
+    apartment_number: z.string().max(50).nullable().optional(),
+    floor_number: z.string().max(50).nullable().optional(),
+    special_mark: z.string().max(500).nullable().optional(),
     initial_payment_amount: z.union([z.string(), z.number()]).optional().or(z.literal('')),
     initial_payment_type: z.string().optional().or(z.literal('')),
     initial_payment_months_paid: z.union([z.string(), z.number()]).optional().or(z.literal('')),
@@ -95,7 +103,13 @@ export const memberSchema = z.object({
     message: 'Expiration date must be after registration date',
     path: ['expiration_date'],
 }).superRefine((data, ctx) => {
-    // Company, Sales, and Governorate are required when the
+    // The member's governorate is always required — it anchors the primary
+    // address written on save.
+    if (!data.governorate_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
+    }
+}).superRefine((data, ctx) => {
+    // Company and Sales are required when the
     // membership is paid with a monthly payment type.
     if (!(data.is_paid && data.payment_type === 'monthly')) return;
     if (!data.company_id) {
@@ -103,9 +117,6 @@ export const memberSchema = z.object({
     }
     if (!data.sales_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Sales is required for a paid monthly membership', path: ['sales_id'] });
-    }
-    if (!data.governorate_id) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required for a paid monthly membership', path: ['governorate_id'] });
     }
 }).superRefine((data, ctx) => {
     // A paid membership requires its initial payment card to be filled in,
@@ -193,6 +204,14 @@ export const memberUpdateSchema = z.object({
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
+    // Primary address detail — only the governorate above is required.
+    address_type: z.string().nullable().optional(),
+    address: z.string().max(1000).nullable().optional(),
+    street: z.string().max(255).nullable().optional(),
+    building_number: z.string().max(50).nullable().optional(),
+    apartment_number: z.string().max(50).nullable().optional(),
+    floor_number: z.string().max(50).nullable().optional(),
+    special_mark: z.string().max(500).nullable().optional(),
     membership_completed_at: z.string().nullable().optional(),
     has_member_payments: z.boolean().optional().default(false),
     initial_payment_amount: z.union([z.string(), z.number()]).optional().or(z.literal('')),
@@ -222,7 +241,13 @@ export const memberUpdateSchema = z.object({
     message: 'Expiration date must be after registration date',
     path: ['expiration_date'],
 }).superRefine((data, ctx) => {
-    // Company, Sales, and Governorate are required when the
+    // The member's governorate is always required — it anchors the primary
+    // address written on save.
+    if (!data.governorate_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
+    }
+}).superRefine((data, ctx) => {
+    // Company and Sales are required when the
     // membership is paid with a monthly payment type.
     if (!(data.is_paid && data.payment_type === 'monthly')) return;
     if (!data.company_id) {
@@ -230,9 +255,6 @@ export const memberUpdateSchema = z.object({
     }
     if (!data.sales_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Sales is required for a paid monthly membership', path: ['sales_id'] });
-    }
-    if (!data.governorate_id) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required for a paid monthly membership', path: ['governorate_id'] });
     }
 }).superRefine((data, ctx) => {
     // The first member-payment row is required when the admin marks a

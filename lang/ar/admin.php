@@ -269,6 +269,7 @@ return [
         // Addresses
         'tab_addresses' => 'العناوين',
         'addresses' => 'العناوين',
+        'address_information' => 'العنوان',
         'address_type' => 'نوع العنوان',
         'address_type_home' => 'المنزل',
         'address_type_work' => 'العمل',
