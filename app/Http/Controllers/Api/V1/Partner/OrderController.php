@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Partner;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
@@ -110,6 +111,18 @@ class OrderController extends Controller
                     'customer_full_name' => (string) $request->input('customer_full_name'),
                     'customer_phone' => (string) $request->input('customer_phone'),
                     'customer_address' => (string) $request->input('customer_address'),
+                    /* The structured delivery address, archived as sent: an
+                       order keeps what the buyer said at purchase time. */
+                    'customer_address_type' => $request->filled('customer_address_type')
+                        ? AddressTypeEnum::from((string) $request->input('customer_address_type'))
+                        : null,
+                    'customer_street' => $request->input('customer_street'),
+                    'customer_governorate' => $request->input('customer_governorate'),
+                    'customer_city' => $request->input('customer_city'),
+                    'customer_building_number' => $request->input('customer_building_number'),
+                    'customer_apartment_number' => $request->input('customer_apartment_number'),
+                    'customer_floor_number' => $request->input('customer_floor_number'),
+                    'customer_special_mark' => $request->input('customer_special_mark'),
                     'notes' => $request->input('notes'),
                     'membership_number' => $request->input('membership_number'),
                     'payment_type' => $paymentType,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\User\Membership\Store;
 
 
+use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Store\StoreUserMembershipAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Store\SendMembershipNotificationAction;
 use App\Http\Controllers\Controller as BaseController;
@@ -18,15 +19,18 @@ class AdminUserMembershipStoreController extends BaseController
 {
     private SendMembershipNotificationAction $notificationAction;
     private StoreUserMembershipAction $storeAction;
+    private UpsertMemberAddressAction $upsertAddressAction;
     private MediaService $mediaService;
 
     public function __construct(
         SendMembershipNotificationAction $notificationAction,
         StoreUserMembershipAction $storeAction,
+        UpsertMemberAddressAction $upsertAddressAction,
         MediaService $mediaService
     ) {
         $this->notificationAction = $notificationAction;
         $this->storeAction = $storeAction;
+        $this->upsertAddressAction = $upsertAddressAction;
         $this->mediaService = $mediaService;
     }
     /**
@@ -55,6 +59,10 @@ class AdminUserMembershipStoreController extends BaseController
             $user = $result['user'];
             $membership = $result['membership'];
             $plainPassword = $result['plainPassword'];
+
+            // The member's primary address — governorate is the only required
+            // field, the rest is optional courier detail.
+            $this->upsertAddressAction->execute($membership, $validated, $request);
 
             // Handle avatar upload synchronously (immediately) - same as update flow
             if ($request->hasFile('avatar')) {

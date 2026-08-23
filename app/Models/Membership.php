@@ -153,6 +153,14 @@ class Membership extends Model implements HasMedia
     }
 
     /**
+     * Get the addresses for the membership.
+     */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    /**
      * Get the usages for the membership.
      */
     public function usages(): HasMany

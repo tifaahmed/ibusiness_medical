@@ -39,6 +39,13 @@ export const useMemberStore = defineStore('member', {
             sales_id: null,
             governorate_id: null,
             city_id: null,
+            address_type: 'home',
+            address: '',
+            street: '',
+            building_number: '',
+            apartment_number: '',
+            floor_number: '',
+            special_mark: '',
             contract_image: null,           // new File pending upload
             contract_image_url: null,       // existing URL (edit mode)
             contract_image_remove: false,   // ask the server to drop the existing one
@@ -104,6 +111,13 @@ export const useMemberStore = defineStore('member', {
             this.form.sales_id = null;
             this.form.governorate_id = null;
             this.form.city_id = null;
+            this.form.address_type = 'home';
+            this.form.address = '';
+            this.form.street = '';
+            this.form.building_number = '';
+            this.form.apartment_number = '';
+            this.form.floor_number = '';
+            this.form.special_mark = '';
             this.form.contract_image = null;
             this.form.contract_image_url = null;
             this.form.contract_image_remove = false;
@@ -151,6 +165,19 @@ export const useMemberStore = defineStore('member', {
             this.form.sales_id = member.membership?.sales_id ?? null;
             this.form.governorate_id = member.membership?.governorate_id ?? null;
             this.form.city_id = member.membership?.city_id ?? null;
+            // Prefill the primary address the form edits (first row; null on
+            // a member who somehow has none — governorate still comes from
+            // the membership columns).
+            const primaryAddress = member.membership?.address;
+            this.form.address_type = primaryAddress?.type || 'home';
+            this.form.address = primaryAddress?.address || '';
+            this.form.street = primaryAddress?.street || '';
+            if (primaryAddress?.governorate_id) this.form.governorate_id = primaryAddress.governorate_id;
+            if (primaryAddress?.city_id) this.form.city_id = primaryAddress.city_id;
+            this.form.building_number = primaryAddress?.building_number || '';
+            this.form.apartment_number = primaryAddress?.apartment_number || '';
+            this.form.floor_number = primaryAddress?.floor_number || '';
+            this.form.special_mark = primaryAddress?.special_mark || '';
             this.form.contract_image = null;
             this.form.contract_image_url = member.membership?.contract_image_url || null;
             this.form.contract_image_remove = false;
@@ -243,6 +270,15 @@ export const useMemberStore = defineStore('member', {
                 if (this.form.sales_id) formData.append('sales_id', this.form.sales_id);
                 if (this.form.governorate_id) formData.append('governorate_id', this.form.governorate_id);
                 if (this.form.city_id) formData.append('city_id', this.form.city_id);
+                // Primary address detail — the governorate above is the only
+                // required field of the set.
+                formData.append('address_type', this.form.address_type || 'home');
+                if (this.form.address) formData.append('address', this.form.address);
+                if (this.form.street) formData.append('street', this.form.street);
+                if (this.form.building_number) formData.append('building_number', this.form.building_number);
+                if (this.form.apartment_number) formData.append('apartment_number', this.form.apartment_number);
+                if (this.form.floor_number) formData.append('floor_number', this.form.floor_number);
+                if (this.form.special_mark) formData.append('special_mark', this.form.special_mark);
 
                 // Contract & gallery images
                 if (this.form.contract_image) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Partner;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,21 @@ class StoreOrderRequest extends FormRequest
             'customer_full_name' => ['required', 'string', 'max:190'],
             'customer_phone' => ['required', 'string', 'max:32'],
             'customer_address' => ['required', 'string', 'max:1000'],
+
+            /*
+             * The delivery address in detail, as far as the storefront collected
+             * it. All optional so an older storefront build keeps posting; the
+             * free-text `customer_address` stays the one required line.
+             */
+            'customer_address_type' => ['nullable', Rule::enum(AddressTypeEnum::class)],
+            'customer_street' => ['nullable', 'string', 'max:255'],
+            'customer_governorate' => ['nullable', 'string', 'max:255'],
+            'customer_city' => ['nullable', 'string', 'max:255'],
+            'customer_building_number' => ['nullable', 'string', 'max:50'],
+            'customer_apartment_number' => ['nullable', 'string', 'max:50'],
+            'customer_floor_number' => ['nullable', 'string', 'max:50'],
+            'customer_special_mark' => ['nullable', 'string', 'max:500'],
+
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values())],

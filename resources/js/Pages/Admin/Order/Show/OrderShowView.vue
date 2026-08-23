@@ -107,6 +107,51 @@
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_address || 'Address' }}</label>
                 <p class="text-sm mt-0.5 whitespace-pre-wrap">{{ order.customer_address || '—' }}</p>
               </div>
+
+              <!-- Delivery address in detail — where the courier is actually
+                   being sent. Hidden entirely when the order carries none,
+                   e.g. one placed before these fields existed. -->
+              <template v-if="hasAddressDetails">
+                <div class="sm:col-span-2 border-t border-border my-1"></div>
+                <div class="sm:col-span-2">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.address_details || 'Address Details' }}</label>
+                  <span
+                    v-if="order.customer_address_type?.value"
+                    class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border align-middle"
+                    :class="{
+                      'bg-sky-500/25 text-sky-200 border-sky-500/40': order.customer_address_type.value === 'home',
+                      'bg-violet-500/25 text-violet-200 border-violet-500/40': order.customer_address_type.value === 'work',
+                      'bg-amber-500/25 text-amber-200 border-amber-500/40': order.customer_address_type.value === 'other',
+                    }"
+                  >
+                    {{ order.customer_address_type.label || order.customer_address_type.value }}
+                  </span>
+                </div>
+                <div v-if="order.customer_governorate || order.customer_city">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_governorate_city || 'Government & City' }}</label>
+                  <p class="text-sm mt-0.5">{{ [order.customer_governorate, order.customer_city].filter(Boolean).join(' - ') }}</p>
+                </div>
+                <div v-if="order.customer_street">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_street || 'Street' }}</label>
+                  <p class="text-sm mt-0.5">{{ order.customer_street }}</p>
+                </div>
+                <div v-if="order.customer_building_number">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_building_number || 'Building No.' }}</label>
+                  <p class="text-sm mt-0.5">{{ order.customer_building_number }}</p>
+                </div>
+                <div v-if="order.customer_apartment_number">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_apartment_number || 'Apartment No.' }}</label>
+                  <p class="text-sm mt-0.5">{{ order.customer_apartment_number }}</p>
+                </div>
+                <div v-if="order.customer_floor_number">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_floor_number || 'Floor No.' }}</label>
+                  <p class="text-sm mt-0.5">{{ order.customer_floor_number }}</p>
+                </div>
+                <div v-if="order.customer_special_mark" class="sm:col-span-2">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_special_mark || 'Special Mark' }}</label>
+                  <p class="panel-note mt-1 text-sm italic">{{ order.customer_special_mark }}</p>
+                </div>
+              </template>
               <div v-if="order.notes" class="sm:col-span-2">
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.notes || 'Notes' }}</label>
                 <p class="panel-note mt-1 text-sm whitespace-pre-wrap">{{ order.notes }}</p>
@@ -339,6 +384,19 @@ const canManage = computed(() => {
 });
 
 const saved = computed(() => savedAmount(props.order));
+
+/* Any one detail present is enough to show the block; orders placed before
+   these fields existed stay as they were. */
+const hasAddressDetails = computed(() => Boolean(
+  props.order.customer_address_type?.value
+  || props.order.customer_street
+  || props.order.customer_governorate
+  || props.order.customer_city
+  || props.order.customer_building_number
+  || props.order.customer_apartment_number
+  || props.order.customer_floor_number
+  || props.order.customer_special_mark
+));
 
 const linesTotal = computed(() =>
   (props.order.products || []).reduce((sum, line) => sum + (Number(line.line_total) || 0), 0)

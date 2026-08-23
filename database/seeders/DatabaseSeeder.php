@@ -22,21 +22,21 @@ class DatabaseSeeder extends Seeder
             // seeder that stamps `created_by`.
             AdminRoleSeeder::class,
             PermissionSeeder::class,
-            AdminUserSeeder::class,
-            ViewerAdminSeeder::class,
+            // AdminUserSeeder::class,
+            // ViewerAdminSeeder::class,
 
             // CitySeeder resolves its city lists by governorate slug, so
             // governorates have to exist first.
-            GovernorateSeeder::class,
-            CitySeeder::class,
+            // GovernorateSeeder::class,
+            // CitySeeder::class,
 
-            ContractSeeder::class,
-            FaqSeeder::class,
-            ServiceTypeSeeder::class,
-            ServiceSeeder::class,
-            PartnerOfferSeeder::class,
-            TagSeeder::class,
-            CardTemplateSeeder::class,
+            // ContractSeeder::class,
+            // FaqSeeder::class,
+            // ServiceTypeSeeder::class,
+            // ServiceSeeder::class,
+            // PartnerOfferSeeder::class,
+            // TagSeeder::class,
+            // CardTemplateSeeder::class,
         ]);
     }
 }

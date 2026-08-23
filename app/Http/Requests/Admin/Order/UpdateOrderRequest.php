@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Order;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
@@ -29,6 +30,18 @@ class UpdateOrderRequest extends FormRequest
             'customer_full_name' => ['required', 'string', 'max:255'],
             'customer_phone' => ['required', 'string', 'max:50'],
             'customer_address' => ['nullable', 'string', 'max:65535'],
+
+            /* The delivery address in detail — correctable by an admin, unlike
+               the provenance columns, because this is where the courier goes. */
+            'customer_address_type' => ['nullable', Rule::enum(AddressTypeEnum::class)],
+            'customer_street' => ['nullable', 'string', 'max:255'],
+            'customer_governorate' => ['nullable', 'string', 'max:255'],
+            'customer_city' => ['nullable', 'string', 'max:255'],
+            'customer_building_number' => ['nullable', 'string', 'max:50'],
+            'customer_apartment_number' => ['nullable', 'string', 'max:50'],
+            'customer_floor_number' => ['nullable', 'string', 'max:50'],
+            'customer_special_mark' => ['nullable', 'string', 'max:500'],
+
             'notes' => ['nullable', 'string', 'max:65535'],
             'membership_number' => ['nullable', 'string', 'max:255'],
 

@@ -70,6 +70,7 @@ class AdminUserMembershipCreateController extends BaseController
 
         return Inertia::render('Admin/User/Member/Create/MemberCreateView', [
             'relationshipOptions' => RelationshipEnum::getOptions(),
+            'addressTypeOptions' => \App\Enums\Address\AddressTypeEnum::getOptions(),
             'companyOptions' => $companies,
             'partnerOptions' => $partners,
             'salesOptions' => $salesOptions,

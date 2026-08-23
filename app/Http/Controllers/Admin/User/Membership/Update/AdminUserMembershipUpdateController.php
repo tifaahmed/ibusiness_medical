@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Update;
 
+use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Update\UpdateUserMembershipAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Update\SendMembershipUpdateNotificationAction;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
@@ -20,11 +21,13 @@ class AdminUserMembershipUpdateController extends BaseController
 
     private UpdateUserMembershipAction $updateAction;
     private SendMembershipUpdateNotificationAction $notificationAction;
+    private UpsertMemberAddressAction $upsertAddressAction;
     private MediaService $mediaService;
-    public function __construct(UpdateUserMembershipAction $updateAction, SendMembershipUpdateNotificationAction $notificationAction, MediaService $mediaService)
+    public function __construct(UpdateUserMembershipAction $updateAction, SendMembershipUpdateNotificationAction $notificationAction, UpsertMemberAddressAction $upsertAddressAction, MediaService $mediaService)
     {
         $this->updateAction = $updateAction;
         $this->notificationAction = $notificationAction;
+        $this->upsertAddressAction = $upsertAddressAction;
         $this->mediaService = $mediaService;
     }       
     /**
@@ -57,6 +60,23 @@ class AdminUserMembershipUpdateController extends BaseController
             $touchedMembership = $result['updatedMembership'] ?? $membership;
             $membershipWasCreated = $result['membershipWasCreated'];
             $passwordUpdated = $result['passwordUpdated'];
+
+            // The member's primary address — governorate is the only required
+            // field, the rest is optional courier detail. Written onto the
+            // membership this edit actually touched.
+            if ($touchedMembership) {
+                try {
+                    $this->upsertAddressAction->execute($touchedMembership, $validated, $request);
+                } catch (\Exception $e) {
+                    Log::error('Failed to save member address', [
+                        'membership_id' => $touchedMembership->id,
+                        'user_slug' => $updatedUser->slug,
+                        'error_message' => $e->getMessage(),
+                        'error_trace' => $e->getTraceAsString(),
+                    ]);
+                    throw $e;
+                }
+            }
 
             // Contract image — single file collection. Remove if asked, then
             // upload a replacement when one was provided.

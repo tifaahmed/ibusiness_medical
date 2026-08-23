@@ -90,6 +90,53 @@
           :error="errorFor('customer_address')"
           rows="2"
         />
+
+        <!-- Delivery address in detail — the same fields a member address
+             keeps, so the courier gets a door rather than a paragraph. -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <FormSelect
+            v-model="form.customer_address_type"
+            :label="t.order?.address_type || 'Address Type'"
+            :options="[{ value: '', label: t.order?.address_type_none || '— None —' }, ...addressTypeOptions]"
+            :error="errorFor('customer_address_type')"
+          />
+          <FormInput
+            v-model="form.customer_street"
+            :label="t.order?.customer_street || 'Street'"
+            :error="errorFor('customer_street')"
+          />
+          <FormInput
+            v-model="form.customer_governorate"
+            :label="t.order?.customer_governorate || 'Governorate'"
+            :error="errorFor('customer_governorate')"
+          />
+          <FormInput
+            v-model="form.customer_city"
+            :label="t.order?.customer_city || 'City'"
+            :error="errorFor('customer_city')"
+          />
+          <FormInput
+            v-model="form.customer_building_number"
+            :label="t.order?.customer_building_number || 'Building No.'"
+            :error="errorFor('customer_building_number')"
+          />
+          <FormInput
+            v-model="form.customer_apartment_number"
+            :label="t.order?.customer_apartment_number || 'Apartment No.'"
+            :error="errorFor('customer_apartment_number')"
+          />
+          <FormInput
+            v-model="form.customer_floor_number"
+            :label="t.order?.customer_floor_number || 'Floor No.'"
+            :error="errorFor('customer_floor_number')"
+          />
+          <FormInput
+            v-model="form.customer_special_mark"
+            :label="t.order?.customer_special_mark || 'Special Mark'"
+            :error="errorFor('customer_special_mark')"
+            :placeholder="t.order?.customer_special_mark_placeholder || 'e.g. green gate, next to pharmacy'"
+          />
+        </div>
         <FormTextarea
           v-model="form.notes"
           :label="t.order?.notes || 'Notes'"
@@ -535,6 +582,13 @@ const removedReceiptIds = computed(() => orderStore.removedReceiptIds);
 const errorFor = (field) => orderStore.validationErrors?.[field] || form.value.errors?.[field] || '';
 
 const productToAdd = ref(null);
+
+const addressTypeOptions = computed(() =>
+  (page.props.addressTypeOptions || []).map(option => ({
+    value: option.value,
+    label: t.value.order?.[`address_type_${option.value}`] || option.label,
+  }))
+);
 
 const productOptions = computed(() =>
   props.products.map(product => ({

@@ -45,6 +45,13 @@ class AdminUserMembershipEditController extends BaseController
             };
         }
 
+        // Only eager load addresses if the table exists
+        if (Schema::hasTable('addresses')) {
+            $withRelations['memberships.addresses'] = function ($query) {
+                $query->with(['governorate', 'city'])->orderBy('created_at', 'asc');
+            };
+        }
+
         $user = User::with($withRelations)->where('slug', $user)->firstOrFail();
         $this->assertCanManageUser($user);
         $locale = app()->getLocale();
@@ -90,6 +97,7 @@ class AdminUserMembershipEditController extends BaseController
         $result = [
             'member' => (new AdminUserMembershipEditResource($user))->resolve(),
             'relationshipOptions' => RelationshipEnum::getOptions(),
+            'addressTypeOptions' => \App\Enums\Address\AddressTypeEnum::getOptions(),
             'companyOptions' => $companies,
             'partnerOptions' => $partners,
             'salesOptions' => $salesOptions,

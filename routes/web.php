@@ -202,6 +202,9 @@ use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
 use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
 use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
 use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
+use App\Http\Controllers\Admin\User\Membership\Address\Delete\AdminAddressDeleteController;
+use App\Http\Controllers\Admin\User\Membership\Address\Store\AdminAddressStoreController;
+use App\Http\Controllers\Admin\User\Membership\Address\Update\AdminAddressUpdateController;
 use App\Http\Controllers\Admin\User\Membership\Create\AdminUserMembershipCreateController;
 use App\Http\Controllers\Admin\User\Membership\Delete\AdminUserMembershipDeleteController;
 use App\Http\Controllers\Admin\User\Membership\Edit\AdminUserMembershipEditController;
@@ -391,6 +394,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');
         Route::delete('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberDeleteController::class)->name('admin.user.membership.family-member.destroy');
+
+        // Address Management
+        Route::post('/admin/user/membership/{user}/{membership}/address', AdminAddressStoreController::class)->name('admin.user.membership.address.store');
+        Route::put('/admin/user/membership/{user}/{membership}/address/{address}', AdminAddressUpdateController::class)->name('admin.user.membership.address.update');
+        Route::delete('/admin/user/membership/{user}/{membership}/address/{address}', AdminAddressDeleteController::class)->name('admin.user.membership.address.destroy');
     });
 
     // ---- Membership read screens ----

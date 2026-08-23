@@ -32,6 +32,19 @@ class AdminOrderShowResource extends JsonResource
             'customer_full_name' => $this->customer_full_name,
             'customer_phone' => $this->customer_phone,
             'customer_address' => $this->customer_address,
+            /* The delivery address in detail — where the courier is actually
+               being sent, as the buyer described it when ordering. */
+            'customer_address_type' => [
+                'value' => $this->customer_address_type?->value,
+                'label' => $this->customer_address_type?->label(),
+            ],
+            'customer_street' => $this->customer_street,
+            'customer_governorate' => $this->customer_governorate,
+            'customer_city' => $this->customer_city,
+            'customer_building_number' => $this->customer_building_number,
+            'customer_apartment_number' => $this->customer_apartment_number,
+            'customer_floor_number' => $this->customer_floor_number,
+            'customer_special_mark' => $this->customer_special_mark,
             'notes' => $this->notes,
             'membership_number' => $this->membership_number,
 

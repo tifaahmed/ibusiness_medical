@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
@@ -39,6 +40,14 @@ class Order extends Model implements HasMedia
         'customer_full_name',
         'customer_phone',
         'customer_address',
+        'customer_address_type',
+        'customer_street',
+        'customer_governorate',
+        'customer_city',
+        'customer_building_number',
+        'customer_apartment_number',
+        'customer_floor_number',
+        'customer_special_mark',
         'notes',
         'membership_number',
         'payment_status',
@@ -59,6 +68,7 @@ class Order extends Model implements HasMedia
             'payment_status' => PaymentStatusEnum::class,
             'delivery_status' => DeliveryStatusEnum::class,
             'payment_type' => PaymentTypeEnum::class,
+            'customer_address_type' => AddressTypeEnum::class,
         ];
     }
 

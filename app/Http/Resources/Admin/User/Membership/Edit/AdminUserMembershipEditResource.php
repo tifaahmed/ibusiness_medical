@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\User\Membership\Edit;
 
+use App\Http\Resources\Admin\User\Membership\Address\AddressResource;
 use App\Http\Resources\Admin\User\Membership\FamilyMember\FamilyMemberResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -70,6 +71,27 @@ class AdminUserMembershipEditResource extends JsonResource
                             return (new FamilyMemberResource($familyMember))->toArray($request);
                         })->toArray()
                         : [],
+                    'addresses' => $membership->relationLoaded('addresses')
+                        ? $membership->addresses->map(function ($address) use ($request) {
+                            return (new AddressResource($address))->toArray($request);
+                        })->toArray()
+                        : [],
+                    /* The primary (first) address, flat for the edit form's
+                       Address section — the Addresses tab lists them all. */
+                    'address' => $membership->relationLoaded('addresses') && $membership->addresses->isNotEmpty()
+                        ? [
+                            'id' => $membership->addresses->first()->id,
+                            'type' => $membership->addresses->first()->type?->value,
+                            'address' => $membership->addresses->first()->address,
+                            'street' => $membership->addresses->first()->street,
+                            'governorate_id' => $membership->addresses->first()->governorate_id,
+                            'city_id' => $membership->addresses->first()->city_id,
+                            'building_number' => $membership->addresses->first()->building_number,
+                            'apartment_number' => $membership->addresses->first()->apartment_number,
+                            'floor_number' => $membership->addresses->first()->floor_number,
+                            'special_mark' => $membership->addresses->first()->special_mark,
+                        ]
+                        : null,
                     'created_at' => $membership->created_at?->format('Y-m-d H:i:s'),
                     'updated_at' => $membership->updated_at?->format('Y-m-d H:i:s'),
                     'created_by' => $membership->created_by,

@@ -76,6 +76,17 @@
       <div v-show="activeTab === 'payments'">
         <MemberPaymentsCard :membership="member?.membership" />
       </div>
+
+      <!-- Addresses tab — multiple addresses per member, each with a type
+           (home / work / other), managed independently of the profile form. -->
+      <div v-show="activeTab === 'addresses'">
+        <MemberAddressesCard
+          v-if="member?.membership?.slug"
+          :addresses="member?.membership?.addresses || []"
+          :user-slug="member?.slug"
+          :membership-slug="member?.membership?.slug"
+        />
+      </div>
     </div>
     </div>
   </MemberLayout>
@@ -86,7 +97,7 @@ import { Link, usePage } from "@inertiajs/vue3";
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
-import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberPaymentsCard } from "../_components/Form";
+import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberPaymentsCard, MemberAddressesCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
 import { onMounted, computed, ref } from "vue";
 
@@ -104,6 +115,7 @@ const props = defineProps({
 });
 
 const paymentsCount = computed(() => props.member?.membership?.member_payments?.length || 0);
+const addressesCount = computed(() => props.member?.membership?.addresses?.length || 0);
 
 const tabs = computed(() => [
   { key: 'profile', label: t.value.member?.tab_profile || 'Profile' },
@@ -113,6 +125,12 @@ const tabs = computed(() => [
     label: paymentsCount.value
       ? `${t.value.member?.payments || 'Payments'} (${paymentsCount.value})`
       : (t.value.member?.payments || 'Payments'),
+  },
+  {
+    key: 'addresses',
+    label: addressesCount.value
+      ? `${t.value.member?.addresses || 'Addresses'} (${addressesCount.value})`
+      : (t.value.member?.addresses || 'Addresses'),
   },
 ]);
 

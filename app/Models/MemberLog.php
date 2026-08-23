@@ -19,6 +19,9 @@ class MemberLog extends Model
     public const ACTION_FAMILY_CREATED = 'family_created';
     public const ACTION_FAMILY_UPDATED = 'family_updated';
     public const ACTION_FAMILY_DELETED = 'family_deleted';
+    public const ACTION_ADDRESS_CREATED = 'address_created';
+    public const ACTION_ADDRESS_UPDATED = 'address_updated';
+    public const ACTION_ADDRESS_DELETED = 'address_deleted';
 
     protected $fillable = [
         'membership_id',

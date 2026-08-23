@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\User\Membership;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Membership\PaymentTypeEnum;
 use App\Enums\User\UserPermissionEnum;
 use App\Models\Membership;
@@ -178,8 +179,17 @@ class UpdateMembershipRequest extends FormRequest
                     : []),
             ],
             'sales_id' => ['nullable', 'integer', 'exists:sales,id', Rule::requiredIf($this->requiresPaidMonthlyFields())],
-            'governorate_id' => ['nullable', 'integer', 'exists:governorates,id', Rule::requiredIf($this->requiresPaidMonthlyFields())],
+            'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            // The member's primary address. Only the governorate is required;
+            // everything else is optional detail for the courier.
+            'address_type' => ['nullable', 'string', Rule::in(AddressTypeEnum::values())],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'building_number' => ['nullable', 'string', 'max:50'],
+            'apartment_number' => ['nullable', 'string', 'max:50'],
+            'floor_number' => ['nullable', 'string', 'max:50'],
+            'special_mark' => ['nullable', 'string', 'max:500'],
             'initial_payment_amount' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->requiresInitialPayment($editingMembership) && $this->input('initial_payment_type') !== 'free')],
             'initial_payment_type' => ['nullable', 'string', Rule::in(['commission', 'profit', 'free'])],
             'initial_payment_months_paid' => ['nullable', 'integer', 'min:1', Rule::requiredIf($this->requiresInitialPayment($editingMembership))],
@@ -211,7 +221,7 @@ class UpdateMembershipRequest extends FormRequest
             'phone.regex' => 'The phone number must start with 01 and be exactly 11 digits.',
             'company_id.required' => 'Company is required for a paid monthly membership.',
             'sales_id.required' => 'Sales is required for a paid monthly membership.',
-            'governorate_id.required' => 'Governorate is required for a paid monthly membership.',
+            'governorate_id.required' => 'The governorate field is required.',
             'initial_payment_amount.required' => 'Payment amount is required for the first payment.',
             'initial_payment_months_paid.required' => 'Months paid is required for the first payment.',
             'initial_payment_from_date.required' => 'Payment from date is required for the first payment.',
