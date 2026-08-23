@@ -3,7 +3,7 @@
     <div class="container mx-auto px-4 py-6 md:px-6 lg:px-8 relative z-10">
       <div class="space-y-4">
         <form class="space-y-3" @submit.prevent="handleSubmit">
-          <TagForm :tag="tag" :icon-options="iconOptions" :color-options="colorOptions" />
+          <TagForm :tag="tag" :icon-options="iconOptions" :color-options="colorOptions" :icon-usages="iconUsages" />
 
           <div class="sticky bottom-0 z-10 bg-card border rounded-lg">
             <div class="flex flex-col sm:flex-row p-4">
@@ -59,6 +59,10 @@ const props = defineProps({
     default: () => []
   },
   colorOptions: {
+    type: Array,
+    default: () => []
+  },
+  iconUsages: {
     type: Array,
     default: () => []
   }

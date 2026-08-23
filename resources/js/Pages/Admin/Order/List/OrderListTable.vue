@@ -27,6 +27,9 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-36 text-center hidden lg:table-cell">
                   {{ t.order?.created_at || 'Created At' }}
                 </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 text-center">
+                  {{ t.order?.actions || 'Actions' }}
+                </th>
               </tr>
             </thead>
             <tbody data-slot="table-body" class="[&_tr:last-child]:border-0">
@@ -148,6 +151,34 @@
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden lg:table-cell">
                   <span class="text-xs text-muted-foreground tabular-nums">{{ order.created_at }}</span>
                 </td>
+                <!-- Actions: the order page, and the form for changing it -->
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
+                  <div class="inline-flex items-center gap-1">
+                    <Link
+                      :href="route('admin.order.show', order.order_code)"
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                      :title="t.order?.view_order || 'View Order'"
+                      :aria-label="t.order?.view_order || 'View Order'"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </Link>
+                    <Link
+                      v-if="canManage"
+                      :href="route('admin.order.edit', order.order_code)"
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                      :title="t.order?.edit_order || 'Edit Order'"
+                      :aria-label="t.order?.edit_order || 'Edit Order'"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </Link>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -207,7 +238,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
-import { router, usePage } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -220,6 +251,17 @@ const props = defineProps({
 const page = usePage();
 const locale = computed(() => page.props.locale || 'ar');
 const t = computed(() => page.props.translations?.admin || {});
+
+/* The edit icon is only offered to admins the edit route would let through —
+   `authUserPermissions` is shared on every request, unlike `auth.user`'s
+   permission list, which is only there when the relation happens to load. */
+const canManage = computed(() => {
+  const roles = page.props.authUserRoles || page.props.auth?.user?.roles || [];
+  if (roles.includes('super_admin')) return true;
+
+  const permissions = page.props.authUserPermissions || page.props.auth?.user?.permissions || [];
+  return permissions.includes('manage orders') || permissions.includes('manage own orders');
+});
 
 // Badge palettes per AGENTS.md: matching colors for every state.
 const statusClass = {

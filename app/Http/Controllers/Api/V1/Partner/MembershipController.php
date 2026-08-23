@@ -31,10 +31,10 @@ class MembershipController extends Controller
             /*
              * Slug as well as number: the slug is what the member sees in their
              * own card URL, so it is what they are most likely to paste in.
+             * The scope is shared with `Membership::earnsMemberPrice()`, so a
+             * number this answers for is a number an order prices for.
              */
-            ->where(fn ($query) => $query
-                ->where('membership_number', $membershipNumber)
-                ->orWhere('slug', $membershipNumber))
+            ->matchingNumber($membershipNumber)
             ->first();
 
         if (! $membership) {

@@ -28,6 +28,11 @@ class AdminTagEditController extends BaseController
             'tag' => new AdminTagShowResource($tag),
             'iconOptions' => TagEnum::getIconOptions(),
             'colorOptions' => TagEnum::getColorOptions(),
+            // Icons this admin already used, minus the tag being edited.
+            'iconUsages' => Tag::iconUsages(
+                $this->scopesToCreator() ? auth()->id() : null,
+                $tag->id,
+            ),
         ]);
     }
 }

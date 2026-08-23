@@ -1,5 +1,8 @@
 <template>
   <div class="space-y-2 sm:space-y-3 md:space-y-4">
+    <TabBar v-model="activeTab" :tabs="formTabs" />
+
+    <template v-if="activeTab === 'general'">
     <div class="bg-card text-card-foreground flex flex-col gap-2 sm:gap-3 md:gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm">
       <div class="py-2 px-3 sm:px-4 md:px-6">
         <div class="title-golden leading-none font-semibold">
@@ -20,6 +23,7 @@
           placeholder="Enter product name"
           required
           :locales="['ar', 'en']"
+          hint="The main title customers see everywhere — keep it short, clear and searchable."
         />
 
         <FormTranslatableInput
@@ -28,6 +32,7 @@
           :error="productStore.validationErrors?.['short_subject']"
           placeholder="Enter short description"
           :locales="['ar', 'en']"
+          hint="One-line summary shown under the name in product lists and cards."
         />
 
         <div class="space-y-2">
@@ -59,6 +64,7 @@
             </div>
           </div>
           <p v-if="descriptionError" class="mt-1 text-sm text-destructive">{{ descriptionError }}</p>
+          <p v-else class="text-[11px] text-muted-foreground">Full details customers read on the product page — specs, what's included, how to use it.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -72,6 +78,7 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            <p class="text-[11px] text-muted-foreground">The price customers pay today.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Old Price</label>
@@ -83,6 +90,7 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            <p class="text-[11px] text-muted-foreground">Shown struck-through next to the new price to advertise a discount. Leave empty if none.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Cost Price</label>
@@ -94,6 +102,7 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            <p class="text-[11px] text-muted-foreground">Internal only — what you pay your supplier. Never shown to customers.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Profit Price</label>
@@ -105,6 +114,7 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            <p class="text-[11px] text-muted-foreground">Internal only — expected margin per unit, used for reports.</p>
           </div>
         </div>
 
@@ -119,6 +129,7 @@
               {{ getTranslatedName(pt.name) }}
             </option>
           </select>
+          <p class="text-[11px] text-muted-foreground">Groups the product under a category — used for menus and filtering.</p>
         </div>
 
         <div class="space-y-2">
@@ -131,6 +142,7 @@
             :class="adminNoteErrorClass"
           ></textarea>
           <p v-if="adminNoteError" class="mt-1 text-sm text-destructive">{{ adminNoteError }}</p>
+          <p v-else class="text-[11px] text-muted-foreground">Visible to admins only — useful for supplier names, restock notes or warnings.</p>
         </div>
 
         <div class="space-y-2">
@@ -152,10 +164,8 @@
             <label
               v-for="tag in tags"
               :key="tag.id"
-              class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-pointer transition-colors text-xs"
-              :class="productStore.form.tag_ids.includes(tag.id)
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-background text-muted-foreground hover:bg-muted'"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border cursor-pointer transition-all text-xs font-medium"
+              :style="productTagStyle(tag, productStore.form.tag_ids.includes(tag.id))"
             >
               <input
                 type="checkbox"
@@ -164,13 +174,29 @@
                 class="sr-only"
               />
               <span v-if="tag.icon">{{ tag.icon }}</span>
-              {{ tag.name }}
+              <span
+                class="w-2 h-2 rounded-full shrink-0 ring-1 ring-white/30"
+                :style="{ backgroundColor: tag.color || '#6B7280' }"
+              ></span>
+              {{ productTagPrimary(tag) }}
+              <!-- The name in the other language, so both are readable while choosing. -->
+              <span
+                v-if="productTagOther(tag)"
+                class="text-[10px] font-normal opacity-60"
+                :dir="otherLocale === 'ar' ? 'rtl' : 'ltr'"
+              >
+                {{ productTagOther(tag) }}
+              </span>
             </label>
           </div>
+          <p class="text-[11px] text-muted-foreground">Tap to select or deselect. Tags surface the product in tag-based sections and offers.</p>
         </div>
       </div>
     </div>
 
+    </template>
+
+    <template v-else-if="activeTab === 'media'">
     <!-- Banner Card — same config shape as the facility banner -->
     <div class="bg-card text-card-foreground flex flex-col gap-2 sm:gap-3 md:gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm">
       <div class="py-2 px-3 sm:px-4 md:px-6">
@@ -225,6 +251,7 @@
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
               placeholder="قريباً"
             />
+            <p class="text-[11px] text-muted-foreground">Ribbon text shown to Arabic-speaking visitors.</p>
           </div>
 
           <div class="grid gap-1">
@@ -236,6 +263,7 @@
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
               placeholder="COMING SOON"
             />
+            <p class="text-[11px] text-muted-foreground">Ribbon text shown to English-speaking visitors.</p>
           </div>
 
           <div class="grid gap-1">
@@ -267,6 +295,7 @@
                 <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.text_color) }}%</span>
               </div>
             </div>
+            <p class="text-[11px] text-muted-foreground mt-1">Color of the ribbon text.</p>
           </div>
 
           <div class="grid gap-1">
@@ -298,6 +327,7 @@
                 <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.bg_color) }}%</span>
               </div>
             </div>
+            <p class="text-[11px] text-muted-foreground mt-1">Ribbon background — pick something that contrasts with the photo.</p>
           </div>
 
           <div class="grid gap-1">
@@ -311,6 +341,7 @@
               max="72"
               placeholder="15"
             />
+            <p class="text-[11px] text-muted-foreground">Ribbon text size in pixels — 15 fits most screens.</p>
           </div>
 
           <div class="grid gap-1">
@@ -324,9 +355,10 @@
                 @input="updateBannerConfig('angle', Number($event.target.value))"
                 class="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-golden-yellow"
               />
-              <span class="text-xs text-muted-foreground w-8 text-right">{{ bannerConfig.angle }}°</span>
+                <span class="text-xs text-muted-foreground w-8 text-right">{{ bannerConfig.angle }}°</span>
+              </div>
+              <p class="text-[11px] text-muted-foreground mt-1">Ribbon rotation — 0° is horizontal, 45° is the classic diagonal.</p>
             </div>
-          </div>
 
           <div class="grid gap-1">
             <label class="block text-sm font-medium mb-1">Shadow Color</label>
@@ -357,6 +389,7 @@
                 <span class="text-xs text-muted-foreground w-8 text-right">{{ hexToOpacity(bannerConfig.shadow_color) }}%</span>
               </div>
             </div>
+            <p class="text-[11px] text-muted-foreground mt-1">Soft shadow behind the ribbon so it stands out from busy photos.</p>
           </div>
 
           <div class="grid gap-1 lg:col-span-2">
@@ -435,6 +468,7 @@
               @change="handleLargeImage"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground"
             />
+            <p class="text-[11px] text-muted-foreground">Main product photo on the product page — square, 800×800 px or larger, JPG/PNG.</p>
           </div>
 
           <div class="space-y-2">
@@ -473,6 +507,7 @@
               @change="handleSmallImage"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground"
             />
+            <p class="text-[11px] text-muted-foreground">Compact thumbnail used in lists and carts — square, around 300×300 px.</p>
           </div>
         </div>
 
@@ -528,6 +563,12 @@
       </div>
     </div>
 
+    </template>
+
+    <template v-else-if="activeTab === 'seo'">
+      <ProductSeoCard :slug="slug" />
+    </template>
+
     <ImageLightbox :images="formImages" v-model:index="lightboxIndex" />
   </div>
 </template>
@@ -535,6 +576,8 @@
 <script setup>
 import { FormTranslatableInput } from "@/Components/form";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
+import TabBar from "@/Components/ui/TabBar.vue";
+import ProductSeoCard from "./ProductSeoCard.vue";
 import { useProductStore } from "../../Stores/ProductStore";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -546,12 +589,85 @@ const props = defineProps({
   existingLargeImage: { type: String, default: null },
   existingSmallImage: { type: String, default: null },
   existingGallery: { type: Array, default: () => [] },
+  slug: { type: String, default: '' },
 });
 
 const productStore = useProductStore();
 const { form } = storeToRefs(productStore);
 
+// --- Tabs ----------------------------------------------------------------
+
+const activeTab = ref('general');
+
+const hasAnyError = (prefixes) => {
+  const errors = productStore.validationErrors || {};
+  return Object.keys(errors).some((key) =>
+    prefixes.some((prefix) => key === prefix || key.startsWith(`${prefix}.`))
+  );
+};
+
+const formTabs = computed(() => [
+  {
+    key: 'general',
+    label: 'General',
+    hasError: hasAnyError(['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'admin_note', 'tag_ids']),
+  },
+  {
+    key: 'media',
+    label: 'Images & Banner',
+    hasError: hasAnyError(['large_image', 'small_image', 'gallery', 'banner_config']),
+  },
+  {
+    key: 'seo',
+    label: 'SEO',
+    hasError: hasAnyError(['meta_title', 'meta_description', 'meta_keywords', 'canonical_url']),
+  },
+]);
+
+// Jump to the first tab holding an error so the message is never invisible.
+watch(() => productStore.validationErrors, (errors) => {
+  if (!errors || Object.keys(errors).length === 0) return;
+  const failing = formTabs.value.find((tab) => tab.hasError);
+  if (failing) activeTab.value = failing.key;
+});
+
 const currentLocale = usePage().props.locale || 'ar';
+const otherLocale = currentLocale === 'ar' ? 'en' : 'ar';
+
+// Both names travel with every tag; fall back to the single localized
+// `name` for older payloads that have no translation map.
+const tagNameIn = (tag, lang) => {
+  const map = tag.name_translations;
+  if (map && typeof map === 'object') return map[lang] || '';
+  return lang === currentLocale ? (typeof tag.name === 'string' ? tag.name : '') : '';
+};
+
+const productTagPrimary = (tag) =>
+  tagNameIn(tag, currentLocale) || tagNameIn(tag, otherLocale) || (typeof tag.name === 'string' ? tag.name : '');
+
+const productTagOther = (tag) => {
+  const other = tagNameIn(tag, otherLocale);
+  return other && other !== tagNameIn(tag, currentLocale) ? other : '';
+};
+
+// Selected chips wear the solid tag color; unselected ones keep a readable
+// foreground label with the color carried by the dot and border instead of
+// dim colored text that disappears against the card background.
+const productTagStyle = (tag, selected) => {
+  const color = tag.color || '#6B7280';
+  if (selected) {
+    return {
+      backgroundColor: color,
+      borderColor: color,
+      color: '#fff',
+      boxShadow: `0 0 0 3px ${color}59`,
+    };
+  }
+  return {
+    backgroundColor: `${color}1F`,
+    borderColor: `${color}80`,
+  };
+};
 
 // Banner: one JSON blob on the product, same shape as the facility banner.
 const DEFAULT_BANNER = {

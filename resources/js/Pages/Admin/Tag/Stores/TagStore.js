@@ -4,10 +4,38 @@ import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 
 const emptyForm = () => ({
-    name: '',
+    // A map of locale to text — the name is translatable.
+    name: {},
     icon: '',
     color: '',
 });
+
+/**
+ * The name as an object, whatever the server sent.
+ *
+ * A row saved before the name became translatable comes back as a plain
+ * string; it is written to both languages rather than dropped, so editing it
+ * starts from the name that is already on the tag.
+ */
+const nameObject = (name) => {
+    if (typeof name === 'string') {
+        try {
+            const parsed = JSON.parse(name);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch {
+            // Not json — one name in both languages.
+        }
+        return name ? { ar: name, en: name } : {};
+    }
+
+    if (!name || typeof name !== 'object' || Array.isArray(name)) {
+        return {};
+    }
+
+    return name;
+};
 
 export const useTagStore = defineStore('tag', {
     state: () => ({
@@ -30,7 +58,7 @@ export const useTagStore = defineStore('tag', {
         setTag(tag) {
             this.form = useForm({
                 id: tag.id,
-                name: tag.name || '',
+                name: nameObject(tag.name),
                 icon: tag.icon || '',
                 color: tag.color || '',
             });

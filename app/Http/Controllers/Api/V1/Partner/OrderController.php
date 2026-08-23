@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Partner\StoreOrderReceiptRequest;
 use App\Http\Requests\Api\V1\Partner\StoreOrderRequest;
 use App\Http\Resources\Api\V1\Partner\OrderResource;
+use App\Models\Membership;
 use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderProduct;
@@ -38,10 +39,16 @@ class OrderController extends Controller
      * Prices are read out of the catalogue here and archived onto each line;
      * nothing the caller sends decides what anything costs. The whole write is
      * one transaction, so a basket that half-priced leaves no order behind.
+     *
+     * The member price is earned by a CARD, not by the box being filled in:
+     * the number is looked up here, and a missing, unknown, hidden, switched
+     * off or expired one pays the full price. The storefront quotes the same
+     * two figures, but it is this check that decides them.
      */
     public function store(StoreOrderRequest $request): JsonResponse
     {
         $items = $request->items();
+        $memberPrice = Membership::earnsMemberPrice($request->input('membership_number'));
 
         /** @var \Illuminate\Support\Collection<int, Product> $products */
         $products = Product::query()
@@ -62,7 +69,7 @@ class OrderController extends Controller
         }
 
         try {
-            $order = DB::transaction(function () use ($request, $items, $products) {
+            $order = DB::transaction(function () use ($request, $items, $products, $memberPrice) {
                 $lines = [];
                 $total = 0.0;
                 $totalBeforeDiscount = 0.0;
@@ -80,7 +87,7 @@ class OrderController extends Controller
                         continue;
                     }
 
-                    $line = OrderProduct::fromProduct($product, $quantity);
+                    $line = OrderProduct::fromProduct($product, $quantity, $memberPrice);
 
                     $total += (float) $line->line_total;
                     $totalBeforeDiscount += (float) ($line->old_price ?? $line->new_price ?? 0) * $quantity;
@@ -147,6 +154,11 @@ class OrderController extends Controller
                 'total_amount' => (float) $order->total_amount,
                 'payment_type' => $order->payment_type->value,
                 'source' => $order->source,
+                /* Whether the card in the box was honoured. Without it a
+                   full-priced order carrying a membership number reads like a
+                   pricing bug rather than a card that did not check out. */
+                'membership_number' => $order->membership_number,
+                'member_price_applied' => $memberPrice,
                 /* The buyer's address, not the storefront server's — the log
                    would otherwise record the same IP for every order. */
                 'visitor_ip' => $order->ip_address,

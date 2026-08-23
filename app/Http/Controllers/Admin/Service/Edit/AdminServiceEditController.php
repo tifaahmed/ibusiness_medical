@@ -20,8 +20,15 @@ class AdminServiceEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SERVICES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+    }
 
     public function __invoke(Request $request, string $service): Response
     {
@@ -56,7 +63,7 @@ class AdminServiceEditController extends BaseController
             'governorates' => $governorates,
             'cities' => $cities,
             'tagOptions' => ServiceTagEnum::getOptions(),
-            'tags' => Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']),
+            'tags' => Tag::forPicker(),
         ]);
     }
 }

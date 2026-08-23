@@ -15,10 +15,16 @@ class AdminTagListCollection
             'data' => $this->tags->map(function ($tag) {
                 return [
                     'id' => $tag->id,
-                    'name' => $tag->name,
+                    // Both names, so the table can list them side by side.
+                    'name' => $tag->getTranslations('name'),
                     'icon' => $tag->icon,
                     'color' => $tag->color,
-                    'services_count' => $tag->services()->count(),
+                    'services_count' => $tag->services_count ?? $tag->services()->count(),
+                    'facilities_count' => $tag->facilities_count ?? 0,
+                    'products_count' => $tag->products_count ?? 0,
+                    'usage_count' => ($tag->services_count ?? 0)
+                        + ($tag->facilities_count ?? 0)
+                        + ($tag->products_count ?? 0),
                     'creator' => $tag->creator,
                     'created_at' => $tag->created_at,
                     'updated_at' => $tag->updated_at,

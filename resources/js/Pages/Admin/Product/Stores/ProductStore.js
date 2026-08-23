@@ -17,6 +17,10 @@ export const useProductStore = defineStore('product', {
             product_type_id: '',
             admin_note: '',
             banner_config: null,
+            meta_title: {},
+            meta_description: {},
+            meta_keywords: {},
+            canonical_url: '',
             tag_ids: [],
             // Marks the tag selection as authoritative: an empty selection is dropped
             // from multipart bodies, so this flag tells the backend to still sync.
@@ -45,6 +49,10 @@ export const useProductStore = defineStore('product', {
                 product_type_id: '',
                 admin_note: '',
                 banner_config: null,
+                meta_title: {},
+                meta_description: {},
+                meta_keywords: {},
+                canonical_url: '',
                 tag_ids: [],
                 sync_tags: true,
                 large_image: null,
@@ -76,6 +84,14 @@ export const useProductStore = defineStore('product', {
             }
             if (!descriptionValue || typeof descriptionValue !== 'object' || Array.isArray(descriptionValue)) descriptionValue = {};
 
+            const seoMap = (value) => {
+                let parsed = value || {};
+                if (typeof parsed === 'string') {
+                    try { parsed = JSON.parse(parsed); } catch { parsed = {}; }
+                }
+                return (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) ? {} : parsed;
+            };
+
             this.form = useForm({
                 name: nameValue,
                 short_subject: shortSubjectValue,
@@ -87,6 +103,10 @@ export const useProductStore = defineStore('product', {
                 product_type_id: product.product_type_id || '',
                 admin_note: product.admin_note || '',
                 banner_config: product.banner_config ?? null,
+                meta_title: seoMap(product.meta_title),
+                meta_description: seoMap(product.meta_description),
+                meta_keywords: seoMap(product.meta_keywords),
+                canonical_url: product.canonical_url || '',
                 tag_ids: (product.tags || []).map(t => t.id),
                 sync_tags: true,
                 large_image: null,

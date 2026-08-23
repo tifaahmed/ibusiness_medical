@@ -130,7 +130,10 @@ use App\Http\Controllers\Admin\Offer\List\AdminOfferListController;
 use App\Http\Controllers\Admin\Offer\Show\AdminOfferShowController;
 use App\Http\Controllers\Admin\Offer\Store\AdminOfferStoreController;
 use App\Http\Controllers\Admin\Offer\Update\AdminOfferUpdateController;
+use App\Http\Controllers\Admin\Order\Edit\AdminOrderEditController;
 use App\Http\Controllers\Admin\Order\List\AdminOrderListController;
+use App\Http\Controllers\Admin\Order\Show\AdminOrderShowController;
+use App\Http\Controllers\Admin\Order\Update\AdminOrderUpdateController;
 use App\Http\Controllers\Admin\Partner\Create\AdminPartnerCreateController;
 use App\Http\Controllers\Admin\Partner\Delete\AdminPartnerDeleteController;
 use App\Http\Controllers\Admin\Partner\Edit\AdminPartnerEditController;
@@ -567,8 +570,17 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     });
 
     // ---- Order (manage orders OR own) ----
+    Route::middleware('permission:manage orders|manage own orders')->group(function () {
+        Route::get('/admin/order/{order}/edit', AdminOrderEditController::class)->name('admin.order.edit');
+        Route::put('/admin/order/{order}', AdminOrderUpdateController::class)->name('admin.order.update');
+    });
     Route::middleware('permission:manage orders|manage own orders|view orders')->group(function () {
         Route::get('/admin/order', AdminOrderListController::class)->name('admin.order.list');
+        /* Bound by `order_code`, the key the order is known by everywhere else.
+           Constrained so it cannot swallow a future `/admin/order/create`. */
+        Route::get('/admin/order/{order}', AdminOrderShowController::class)
+            ->where('order', '[A-Za-z0-9\\-]+')
+            ->name('admin.order.show');
     });
 
     // ---- Offer (manage offers OR own) ----

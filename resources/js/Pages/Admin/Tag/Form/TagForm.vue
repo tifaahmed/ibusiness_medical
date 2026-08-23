@@ -11,12 +11,12 @@
         </div>
       </div>
       <div data-slot="card-content" class="px-6 space-y-4">
-        <FormInput
+        <FormTranslatableInput
           v-model="formName"
           :label="t.tag?.name || 'Name'"
-          :error="tagStore.validationErrors?.name"
-          :placeholder="t.tag?.name_placeholder || 'Enter tag name'"
+          :error="nameErrors"
           required
+          :locales="['ar', 'en']"
         />
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -25,7 +25,7 @@
               v-model="formIcon"
               :label="t.tag?.icon || 'Icon'"
               :error="tagStore.validationErrors?.icon"
-              :options="iconOptions"
+              :options="decoratedIconOptions"
               :placeholder="t.tag?.icon_placeholder || 'Select icon'"
             />
             <button
@@ -75,11 +75,12 @@
             <label
               v-for="option in filteredIconOptions"
               :key="option.value"
-              class="flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer transition-colors text-center"
+              class="relative flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer transition-colors text-center"
               :class="formIcon === option.value
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border bg-background text-muted-foreground hover:bg-muted'"
-              :title="option.label"
+              :style="tileStyle(option)"
+              :title="tileTitle(option)"
             >
               <input
                 type="radio"
@@ -89,7 +90,13 @@
                 class="sr-only"
               />
               <span class="text-xl leading-none">{{ option.value }}</span>
-              <span class="text-[10px] leading-tight break-words">{{ iconName(option) }}</span>
+              <!-- The name this icon was given on a previous tag, when it has one. -->
+              <span
+                class="text-[10px] leading-tight break-words"
+                :style="usageFor(option) && formIcon !== option.value ? { color: usageFor(option).color || '#6B7280' } : null"
+              >
+                {{ tileLabel(option) }}
+              </span>
             </label>
           </div>
           <p v-else class="text-xs text-muted-foreground">
@@ -97,14 +104,14 @@
           </p>
         </div>
 
-        <div v-if="formName || formIcon || formColor" class="flex items-center gap-2 pt-1">
+        <div v-if="previewName || formIcon || formColor" class="flex items-center gap-2 pt-1">
           <span class="text-xs font-medium text-muted-foreground">{{ t.tag?.preview || 'Preview' }}:</span>
           <span
             class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset"
             :style="previewStyle"
           >
             <span v-if="formIcon">{{ formIcon }}</span>
-            {{ formName || (t.tag?.name || 'Name') }}
+            {{ previewName || (t.tag?.name || 'Name') }}
           </span>
         </div>
       </div>
@@ -113,7 +120,7 @@
 </template>
 
 <script setup>
-import { FormInput, FormSelect } from "@/Components/form";
+import { FormSelect, FormTranslatableInput } from "@/Components/form";
 import { useTagStore } from "../Stores/TagStore";
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
@@ -131,6 +138,11 @@ const props = defineProps({
   colorOptions: {
     type: Array,
     default: () => []
+  },
+  // [{ icon, color, name }] — how each already used icon looked before.
+  iconUsages: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -138,11 +150,36 @@ const tagStore = useTagStore();
 const { form } = storeToRefs(tagStore);
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
+const locale = computed(() => page.props.locale || 'ar');
 
+// The name is a map of locale to text; the input needs a real object even
+// when the form has not been filled in yet.
 const formName = computed({
-  get: () => form.value.name ?? '',
+  get: () => {
+    const name = form.value.name;
+    if (!name || typeof name !== 'object' || Array.isArray(name)) {
+      return {};
+    }
+    return name;
+  },
   set: (value) => { form.value.name = value; },
 });
+
+// Laravel reports "name.ar" / "name.en"; the input wants them keyed by locale.
+const nameErrors = computed(() => {
+  const errors = tagStore.validationErrors || {};
+  const perLocale = {};
+
+  for (const code of ['ar', 'en']) {
+    if (errors[`name.${code}`]) {
+      perLocale[code] = errors[`name.${code}`];
+    }
+  }
+
+  return Object.keys(perLocale).length ? perLocale : (errors.name || null);
+});
+
+const previewName = computed(() => formName.value[locale.value] || formName.value.ar || formName.value.en || '');
 
 const formIcon = computed({
   get: () => form.value.icon ?? '',
@@ -160,12 +197,66 @@ const iconSearch = ref('');
 // Labels arrive as "<emoji> <name>"; the grid tiles show the emoji separately.
 const iconName = (option) => (option.label || '').replace(option.value, '').trim() || option.value;
 
+// Previously used icons, keyed by the emoji itself.
+const usageByIcon = computed(() => {
+  const map = new Map();
+  for (const usage of props.iconUsages || []) {
+    if (usage?.icon) map.set(usage.icon, usage);
+  }
+  return map;
+});
+
+const usageFor = (option) => usageByIcon.value.get(option.value) || null;
+
+// The name a previous tag gave this icon, in the current locale when possible.
+const usageName = (usage) => {
+  if (!usage) return '';
+  const name = usage.name;
+  if (typeof name === 'string') return name;
+  return name?.[locale.value] || name?.en || name?.ar || Object.values(name || {})[0] || '';
+};
+
+// Dropdown labels gain the previous name, e.g. "🔥 Fire — Hot Deals".
+const decoratedIconOptions = computed(() => props.iconOptions.map((option) => {
+  const previous = usageName(usageFor(option));
+  if (!previous) return option;
+  return { ...option, label: `${option.label} — ${previous}` };
+}));
+
+// Tiles keep the generic label unless a previous tag already named this icon.
+const tileLabel = (option) => {
+  const previous = usageName(usageFor(option));
+  return previous || iconName(option);
+};
+
+const tileTitle = (option) => {
+  const previous = usageName(usageFor(option));
+  if (!previous) return option.label;
+  return `${option.label} — ${t.value?.used_before_as || 'Used before as'} "${previous}"`;
+};
+
+// Used-before tiles are tinted with the color their tag wore.
+const tileStyle = (option) => {
+  if (formIcon.value === option.value) return null;
+  const usage = usageFor(option);
+  if (!usage?.color) return null;
+  return {
+    borderColor: `${usage.color}66`,
+    backgroundColor: `${usage.color}14`,
+  };
+};
+
 const filteredIconOptions = computed(() => {
   const term = iconSearch.value.trim().toLowerCase();
   if (!term) return props.iconOptions;
-  return props.iconOptions.filter((option) =>
-    (option.label || '').toLowerCase().includes(term) || option.value === term
-  );
+  // Search matches the stock label, the emoji, and any previous tag name.
+  return props.iconOptions.filter((option) => {
+    const haystacks = [
+      option.label || '',
+      usageName(usageFor(option)),
+    ];
+    return haystacks.some((text) => text.toLowerCase().includes(term)) || option.value === term;
+  });
 });
 
 const previewStyle = computed(() => {

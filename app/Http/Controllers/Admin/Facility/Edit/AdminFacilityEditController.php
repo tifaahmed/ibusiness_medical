@@ -85,7 +85,7 @@ class AdminFacilityEditController extends BaseController
                     ?: "#{$sale->id}",
             ])->toArray();
 
-        $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
+        $tags = Tag::forPicker();
 
         $result = [
             'facility' => $resourceArray,

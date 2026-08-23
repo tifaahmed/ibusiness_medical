@@ -40,11 +40,11 @@ class ProductsApiTest extends TestCase
         $devices = ProductType::create(['name' => ['en' => 'Devices', 'ar' => 'أجهزة']]);
         $consumables = ProductType::create(['name' => ['en' => 'Consumables', 'ar' => 'مستهلكات']]);
 
-        $bestSeller = Tag::create(['name' => 'Best seller', 'color' => '#111111']);
-        $sterile = Tag::create(['name' => 'Sterile', 'color' => '#222222']);
+        $bestSeller = Tag::create(['name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا'], 'color' => '#111111']);
+        $sterile = Tag::create(['name' => ['en' => 'Sterile', 'ar' => 'معقم'], 'color' => '#222222']);
         /* Tags are shared with facilities and services, so one no product
            carries must never reach a shop sidebar. */
-        Tag::create(['name' => 'Clinic only', 'color' => '#333333']);
+        Tag::create(['name' => ['en' => 'Clinic only', 'ar' => 'للعيادات فقط'], 'color' => '#333333']);
 
         $monitor = $this->product('Monitor', 'شاشة', [
             'new_price' => 750,
@@ -121,7 +121,7 @@ class ProductsApiTest extends TestCase
     public function test_the_catalogue_lists_products_with_its_filter_options(): void
     {
         $type = ProductType::create(['name' => ['en' => 'Devices', 'ar' => 'أجهزة']]);
-        $tag = Tag::create(['name' => 'Best seller', 'color' => '#ff0000']);
+        $tag = Tag::create(['name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا'], 'icon' => '🔥', 'color' => '#ff0000']);
 
         $product = $this->product('Blood pressure monitor', 'جهاز قياس الضغط', [
             'old_price' => 1000,
@@ -137,12 +137,41 @@ class ProductsApiTest extends TestCase
             ->assertJsonPath('products.data.0.discount_percent', 25)
             ->assertJsonPath('products.data.0.product_type.name', 'Devices')
             ->assertJsonPath('products.data.0.tags.0.name', 'Best seller')
+            ->assertJsonPath('products.data.0.tags.0.icon', '🔥')
             ->assertJsonPath('products.meta.total', 1)
             ->assertJsonPath('product_types.0.products_count', 1)
             ->assertJsonPath('tags.0.products_count', 1)
             ->assertJsonPath('price_range.min', 750)
             ->assertJsonPath('price_range.max', 750)
             ->assertJsonPath('product_names.0.slug', $product->slug);
+    }
+
+    /**
+     * Tag names are translatable like every other name in the catalogue, so an
+     * Arabic storefront must get the Arabic tag rather than the English one it
+     * was filed under.
+     */
+    public function test_a_tag_name_follows_the_requested_language(): void
+    {
+        $tag = Tag::create([
+            'name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا'],
+            'icon' => '🔥',
+            'color' => '#ff0000',
+        ]);
+
+        $this->product('Blood pressure monitor', 'جهاز قياس الضغط', ['new_price' => 750])
+            ->tags()->attach($tag);
+
+        $this->getJson('/api/v1/products?lang=ar')
+            ->assertOk()
+            ->assertJsonPath('products.data.0.tags.0.name', 'الأكثر مبيعًا')
+            ->assertJsonPath('products.data.0.tags.0.icon', '🔥')
+            ->assertJsonPath('tags.0.name', 'الأكثر مبيعًا');
+
+        $this->getJson('/api/v1/products?lang=en')
+            ->assertOk()
+            ->assertJsonPath('products.data.0.tags.0.name', 'Best seller')
+            ->assertJsonPath('tags.0.name', 'Best seller');
     }
 
     /**
@@ -163,7 +192,7 @@ class ProductsApiTest extends TestCase
     {
         $devices = ProductType::create(['name' => ['en' => 'Devices', 'ar' => 'أجهزة']]);
         $supplies = ProductType::create(['name' => ['en' => 'Supplies', 'ar' => 'مستلزمات']]);
-        $tag = Tag::create(['name' => 'Best seller']);
+        $tag = Tag::create(['name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا']]);
 
         $monitor = $this->product('Monitor', 'مونيتور', ['new_price' => 900, 'product_type_id' => $devices->id]);
         $monitor->tags()->attach($tag);

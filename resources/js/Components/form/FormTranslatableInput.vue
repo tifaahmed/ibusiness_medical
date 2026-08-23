@@ -29,6 +29,7 @@
       </div>
     </div>
     <p v-if="error && typeof error === 'string'" class="mt-1 text-sm text-destructive">{{ error }}</p>
+    <p v-if="hint && !error" class="mt-1 text-[11px] text-muted-foreground">{{ hint }}</p>
   </div>
 </template>
 
@@ -46,6 +47,11 @@ const props = defineProps({
   locales: {
     type: Array,
     default: () => ['ar', 'en']
+  },
+  // Non-error helper copy rendered under both inputs.
+  hint: {
+    type: String,
+    default: ''
   },
 });
 

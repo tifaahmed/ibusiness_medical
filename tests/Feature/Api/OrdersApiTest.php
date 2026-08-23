@@ -56,6 +56,11 @@ class OrdersApiTest extends TestCase
             ->postJson('/api/v1/partner/orders', $payload);
     }
 
+    /**
+     * No membership number, so the full price: `new_price` is the MEMBER price
+     * and it is earned by a card, not by a basket — see
+     * `PartnerOrderPricingTest` for the whole rule.
+     */
     public function test_an_order_is_priced_from_the_catalogue_and_archived_on_its_lines(): void
     {
         $monitor = $this->product('Blood pressure monitor', [
@@ -79,15 +84,17 @@ class OrdersApiTest extends TestCase
             ],
         ])->assertCreated();
 
-        // 750*2 + 50*3 = 1650
-        $response->assertJsonPath('order.total_amount', 1650)
+        // 1000*2 + 50*3 = 2150, at the no-card price.
+        $response->assertJsonPath('order.total_amount', 2150)
             ->assertJsonPath('order.payment_status.value', PaymentStatusEnum::PENDING->value)
             ->assertJsonPath('order.awaiting_receipt', false)
             ->assertJsonPath('order.items.0.quantity', 2)
-            ->assertJsonPath('order.items.0.new_price', 750)
-            ->assertJsonPath('order.items.0.old_price', 1000)
-            ->assertJsonPath('order.items.0.line_total', 1500)
-            /* Never discounted, so no struck-through price to archive. */
+            ->assertJsonPath('order.items.0.new_price', 1000)
+            ->assertJsonPath('order.items.0.line_total', 2000)
+            /* No markdown was given, so none is archived — on the discounted
+               product because this buyer showed no card, and on the gloves
+               because they were never discounted at all. */
+            ->assertJsonPath('order.items.0.old_price', null)
             ->assertJsonPath('order.items.1.old_price', null)
             ->assertJsonPath('order.items.1.line_total', 150);
 

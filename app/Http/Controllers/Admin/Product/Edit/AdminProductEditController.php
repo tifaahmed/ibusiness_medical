@@ -17,8 +17,15 @@ class AdminProductEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PRODUCTS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PRODUCTS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PRODUCTS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PRODUCTS;
+    }
 
     /**
      * Show the form for editing the specified product.
@@ -35,7 +42,7 @@ class AdminProductEditController extends BaseController
             ];
         });
 
-        $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
+        $tags = Tag::forPicker();
 
         $result = [
             'product' => (new AdminProductEditResource($product))->toArray($request),

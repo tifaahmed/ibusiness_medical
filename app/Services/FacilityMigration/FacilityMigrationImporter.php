@@ -996,9 +996,18 @@ class FacilityMigrationImporter
             }
             $key = Str::lower($name);
             if (! isset($this->tagCache[$key])) {
-                $found = Tag::whereRaw('LOWER(name) = ?', [$key])->first()
+                /*
+                 * The name is a json map of locale to text, so the match is
+                 * against each language rather than the whole column — the
+                 * import only knows one name, which is written to both.
+                 */
+                $found = Tag::query()
+                    ->where(fn ($query) => $query
+                        ->whereRaw("LOWER(json_unquote(json_extract(name, '$.en'))) = ?", [$key])
+                        ->orWhereRaw("LOWER(json_unquote(json_extract(name, '$.ar'))) = ?", [$key]))
+                    ->first()
                     ?: Tag::create([
-                        'name' => $name,
+                        'name' => ['ar' => $name, 'en' => $name],
                         'icon' => $tag['icon'] ?? null,
                         'color' => $tag['color'] ?? null,
                     ]);

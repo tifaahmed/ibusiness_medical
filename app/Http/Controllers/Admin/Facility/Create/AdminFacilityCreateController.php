@@ -49,7 +49,7 @@ class AdminFacilityCreateController extends BaseController
                     ?: "#{$sale->id}",
             ])->toArray();
 
-        $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
+        $tags = Tag::forPicker();
 
         return Inertia::render('Admin/Facility/Create/FacilityCreateView', [
             'facilityTypes' => $facilityTypes,

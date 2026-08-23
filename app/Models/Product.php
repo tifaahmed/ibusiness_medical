@@ -32,6 +32,9 @@ class Product extends Model implements HasMedia
         'name',
         'short_subject',
         'description',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
     ];
 
     /**
@@ -51,6 +54,10 @@ class Product extends Model implements HasMedia
         'product_type_id',
         'admin_note',
         'banner_config',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        'canonical_url',
         'created_by',
     ];
 

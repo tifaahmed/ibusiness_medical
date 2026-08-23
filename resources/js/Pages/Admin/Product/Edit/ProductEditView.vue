@@ -16,6 +16,7 @@
               <ProductForm
                 :product-types="productTypes"
                 :tags="tags"
+                :slug="product.slug"
                 :existing-large-image="product.large_image"
                 :existing-small-image="product.small_image"
                 :existing-gallery="product.gallery"

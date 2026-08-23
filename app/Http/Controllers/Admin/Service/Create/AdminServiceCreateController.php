@@ -42,7 +42,7 @@ class AdminServiceCreateController extends BaseController
             'governorates' => $governorates,
             'cities' => $cities,
             'tagOptions' => ServiceTagEnum::getOptions(),
-            'tags' => Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']),
+            'tags' => Tag::forPicker(),
         ]);
     }
 }

@@ -17,8 +17,12 @@
           <div class="p-3">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
-                <label class="text-xs font-medium text-muted-foreground">{{ t.tag?.name || 'Name' }}</label>
-                <p class="text-sm font-medium mt-0.5 text-white">{{ tag.name || t.common?.n_a || 'N/A' }}</p>
+                <label class="text-xs font-medium text-muted-foreground">{{ t.tag?.name_en || 'Name (English)' }}</label>
+                <p dir="ltr" class="text-sm font-medium mt-0.5 text-white break-words">{{ nameIn('en') || t.common?.n_a || 'N/A' }}</p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-muted-foreground">{{ t.tag?.name_ar || 'Name (Arabic)' }}</label>
+                <p dir="rtl" class="text-sm font-medium mt-0.5 text-white break-words">{{ nameIn('ar') || t.common?.n_a || 'N/A' }}</p>
               </div>
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.common?.id || 'ID' }}</label>
@@ -50,7 +54,7 @@
                   :style="previewStyle"
                 >
                   <span v-if="tag.icon">{{ tag.icon }}</span>
-                  {{ tag.name }}
+                  {{ nameIn(locale) || nameIn('ar') || nameIn('en') }}
                 </span>
               </div>
             </div>
@@ -98,7 +102,17 @@ const props = defineProps({
 });
 
 const page = usePage();
+const locale = page.props.locale || 'ar';
 const t = computed(() => page.props.translations?.admin || {});
+
+// One specific locale, with no fallback: both names are shown, so a missing
+// translation must read as missing rather than echo the other language.
+const nameIn = (lang) => {
+  const name = props.tag.name;
+  if (typeof name === 'string') return lang === locale ? name : '';
+  if (typeof name === 'object' && name !== null) return name[lang] || '';
+  return '';
+};
 
 const previewStyle = computed(() => {
   const color = props.tag.color || '#6B7280';

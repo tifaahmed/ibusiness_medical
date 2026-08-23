@@ -52,11 +52,23 @@
               :key="tagItem.id"
               type="button"
               @click="toggleTag(tagItem.id)"
-              class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition-opacity cursor-pointer"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-all cursor-pointer"
               :style="tagChipStyle(tagItem, isTagSelected(tagItem.id))"
             >
               <span v-if="tagItem.icon">{{ tagItem.icon }}</span>
-              {{ tagItem.name }}
+              <span
+                class="w-2 h-2 rounded-full shrink-0 ring-1 ring-white/30"
+                :style="{ backgroundColor: tagItem.color || '#6B7280' }"
+              ></span>
+              {{ tagPrimaryName(tagItem) }}
+              <!-- The name in the other language, so both are readable while choosing. -->
+              <span
+                v-if="tagOtherName(tagItem)"
+                class="text-[10px] font-normal opacity-60"
+                :dir="otherLocale === 'ar' ? 'rtl' : 'ltr'"
+              >
+                {{ tagOtherName(tagItem) }}
+              </span>
             </button>
           </div>
           <p v-else class="text-xs text-muted-foreground">
@@ -431,19 +443,41 @@ const toggleTag = (id) => {
   }
 };
 
+const pageLocale = page.props.locale || 'ar';
+const otherLocale = pageLocale === 'ar' ? 'en' : 'ar';
+
+// Both names travel with every tag; fall back to the single localized
+// `name` for older payloads that have no translation map.
+const tagNameIn = (tag, lang) => {
+  const map = tag.name_translations;
+  if (map && typeof map === 'object') return map[lang] || '';
+  return lang === pageLocale ? (typeof tag.name === 'string' ? tag.name : '') : '';
+};
+
+const tagPrimaryName = (tag) =>
+  tagNameIn(tag, pageLocale) || tagNameIn(tag, otherLocale) || (typeof tag.name === 'string' ? tag.name : '');
+
+const tagOtherName = (tag) => {
+  const other = tagNameIn(tag, otherLocale);
+  return other && other !== tagNameIn(tag, pageLocale) ? other : '';
+};
+
+// Selected chips wear the solid tag color; unselected ones keep a readable
+// foreground label with the color carried by the dot and border instead of
+// dim colored text that disappears against the card background.
 const tagChipStyle = (tagItem, selected) => {
   const color = tagItem.color || '#6B7280';
   if (selected) {
     return {
       backgroundColor: color,
-      color: '#fff',
       borderColor: color,
+      color: '#fff',
+      boxShadow: `0 0 0 3px ${color}59`,
     };
   }
   return {
-    backgroundColor: `${color}1A`,
-    color,
-    borderColor: `${color}33`,
+    backgroundColor: `${color}1F`,
+    borderColor: `${color}80`,
   };
 };
 

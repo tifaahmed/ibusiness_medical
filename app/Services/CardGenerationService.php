@@ -6,6 +6,7 @@ use App\Enums\CardTemplate\CardTemplateStatusEnum;
 use App\Models\CardLayout;
 use App\Models\CardTemplate;
 use App\Models\Membership;
+use App\Support\ArabicText;
 use App\Support\CardTemplateLayoutDefaults;
 use App\Support\PublicMembershipUrl;
 use Endroid\QrCode\Builder\Builder;
@@ -319,6 +320,7 @@ class CardGenerationService
 
         return $fields;
     }
+
     /**
      * Contain-fit an image inside the field box, centered — matches the JS
      * drawImageField().
@@ -509,6 +511,10 @@ class CardGenerationService
         if (! $fontPath) {
             return;
         }
+
+        // GD neither shapes nor reorders Arabic, so hand it the visual-order
+        // string the browser's canvas would have produced for the live preview.
+        $text = ArabicText::forRendering($text);
 
         $fontSize = $field['fontSize'];
         $color = $this->hexToRgb($field['color']);

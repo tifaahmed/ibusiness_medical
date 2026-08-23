@@ -31,6 +31,11 @@ class UpdateProductAction
                 'product_type_id' => $validated['product_type_id'] ?? null,
                 'admin_note' => $validated['admin_note'] ?? null,
                 'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
+                // Empty translation maps are stored as null so fallbacks kick in.
+                'meta_title' => !empty($validated['meta_title']) ? $validated['meta_title'] : null,
+                'meta_description' => !empty($validated['meta_description']) ? $validated['meta_description'] : null,
+                'meta_keywords' => !empty($validated['meta_keywords']) ? $validated['meta_keywords'] : null,
+                'canonical_url' => $validated['canonical_url'] ?? null,
                 // `created_by` is stamped once at creation and never reassigned.
             ]);
 

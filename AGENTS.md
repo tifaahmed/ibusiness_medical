@@ -41,3 +41,11 @@ Every new feature must log errors on both sides to make debugging possible:
   - `OrderLog::record($orderId, $adminId, $action, $oldValues, $newValues, $request)` → `order_logs`
   - `ProductLog::record(...)` → `product_logs`
   (same pattern as `FacilityLog`: old/new values JSON + changed_fields + ip/user_agent).
+- Reads count too: opening an order (`OrderLog::ACTION_VIEWED`) or its edit form
+  (`ACTION_EDIT_VIEWED`) is filed by `OrderLog::recordVisit()`, which folds a repeat
+  visit by the same admin inside `VISIT_THROTTLE_MINUTES` into the one already logged —
+  otherwise a refreshed page buries every real change. A failed log must never cost the
+  admin the page: warn and carry on.
+- An order's `order_code`, `ip_address` and `user_agent` are never editable. The code is
+  the buyer's only credential; the other two are the only record of where the order came
+  from (the buyer's, forwarded by the storefront — not the caller's).

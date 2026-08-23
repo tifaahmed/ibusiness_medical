@@ -9,8 +9,8 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap min-w-[200px] sm:min-w-[300px]">
                   {{ t.tag?.details || 'Tag' }}
                 </th>
-                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-20 sm:w-28 text-center hidden md:table-cell">
-                  {{ t.tag?.services_count || 'Services' }}
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 sm:w-32 text-center hidden md:table-cell">
+                  {{ t.tag?.usage || 'Used' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-20 sm:w-28 text-center">
                   {{ t.common?.actions || 'Actions' }}
@@ -25,20 +25,34 @@
                 class="border-b border-border transition-colors hover:bg-muted/50"
               >
                 <td data-slot="table-cell" class="p-2 sm:p-3 align-middle">
-                  <div class="flex items-center gap-2 sm:gap-3">
-                    <Link :href="getEditRoute(tag.id)">
+                  <div class="flex flex-col gap-1">
+                    <Link :href="getEditRoute(tag.id)" class="self-start">
                       <span
                         class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset whitespace-nowrap"
                         :style="badgeStyle(tag.color)"
                       >
                         <span v-if="tag.icon">{{ tag.icon }}</span>
-                        {{ tag.name || '-' }}
+                        {{ nameIn(tag.name, locale) || '-' }}
                       </span>
                     </Link>
+                    <!-- The other language, so both names are readable from the list. -->
+                    <span
+                      class="text-xs text-muted-foreground"
+                      :dir="otherLocale === 'ar' ? 'rtl' : 'ltr'"
+                    >
+                      {{ otherLocale.toUpperCase() }}: {{ nameIn(tag.name, otherLocale) || '-' }}
+                    </span>
                   </div>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden md:table-cell">
-                  <span class="text-muted-foreground text-sm">{{ tag.services_count || 0 }}</span>
+                  <span
+                    class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset"
+                    :style="usageBadgeStyle(tag)"
+                    :title="usageTitle(tag)"
+                  >
+                    {{ tag.usage_count > 0 ? '✔' : '✕' }}
+                    {{ tag.usage_count > 0 ? tag.usage_count : (t.tag?.never_used_short || 'Unused') }}
+                  </span>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
@@ -156,7 +170,17 @@ const props = defineProps({
 defineEmits(['delete']);
 
 const page = usePage();
+const locale = page.props.locale || 'ar';
+const otherLocale = locale === 'ar' ? 'en' : 'ar';
 const t = computed(() => page.props.translations?.admin || {});
+
+// One specific locale, with no fallback: the row shows both names, so an empty
+// translation must read as empty instead of echoing the other language.
+const nameIn = (name, lang) => {
+  if (typeof name === 'string') return lang === locale ? name : '';
+  if (typeof name === 'object' && name !== null) return name[lang] || '';
+  return '';
+};
 
 const badgeStyle = (color) => {
   const c = color || '#6B7280';
@@ -165,6 +189,21 @@ const badgeStyle = (color) => {
     color: c,
     borderColor: `${c}33`,
   };
+};
+
+const USAGE_COLORS = {
+  used: '#10B981',
+  unused: '#6B7280',
+};
+
+const usageBadgeStyle = (tag) =>
+  badgeStyle(tag.usage_count > 0 ? USAGE_COLORS.used : USAGE_COLORS.unused);
+
+const usageTitle = (tag) => {
+  if (!(tag.usage_count > 0)) {
+    return t.value?.tag?.never_used_message || 'This tag has never been used.';
+  }
+  return `${t.value?.tag?.services_count || 'Services'}: ${tag.services_count || 0} · ${t.value?.tag?.facilities || 'Facilities'}: ${tag.facilities_count || 0} · ${t.value?.tag?.products || 'Products'}: ${tag.products_count || 0}`;
 };
 
 const getEditRoute = (id) => {

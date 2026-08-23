@@ -17,7 +17,7 @@ class AdminProductCreateController extends BaseController
             'name' => $type->name,
         ]);
 
-        $tags = Tag::orderBy('name')->get(['id', 'name', 'icon', 'color']);
+        $tags = Tag::forPicker();
 
         return Inertia::render('Admin/Product/Create/ProductCreateView', [
             'productTypes' => $productTypes,

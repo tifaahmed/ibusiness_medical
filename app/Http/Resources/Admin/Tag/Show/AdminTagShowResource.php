@@ -18,7 +18,8 @@ class AdminTagShowResource extends JsonResource
     {
         return [
             'id' => $this->tag->id,
-            'name' => $this->tag->name,
+            // All translations, so the form can edit each language.
+            'name' => $this->tag->getTranslations('name'),
             'icon' => $this->tag->icon,
             'color' => $this->tag->color,
             'services_count' => $this->tag->services()->count(),

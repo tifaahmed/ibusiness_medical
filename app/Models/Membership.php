@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -18,10 +17,10 @@ use Spatie\Translatable\HasTranslations;
 class Membership extends Model implements HasMedia
 {
     use HasFactory;
-    use InteractsWithMedia;
     use HasSlug;
-    use SoftDeletes;
     use HasTranslations;
+    use InteractsWithMedia;
+    use SoftDeletes;
 
     public $translatable = ['job_title'];
 
@@ -195,6 +194,59 @@ class Membership extends Model implements HasMedia
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope a query to the card with this number, matching the slug too.
+     *
+     * The slug is what a member sees in their own card URL, so it is what they
+     * are most likely to paste in. Kept here rather than repeated at each call
+     * site so the partner lookup and the order-time price check can never
+     * disagree about what "this number" resolves to.
+     */
+    public function scopeMatchingNumber($query, string $numberOrSlug)
+    {
+        return $query->where(fn ($nested) => $nested
+            ->where('membership_number', $numberOrSlug)
+            ->orWhere('slug', $numberOrSlug));
+    }
+
+    /**
+     * Whether this card is good today: switched on, and not past its expiry.
+     *
+     * Expiry is read the same way `PartnerMembershipResource` reports
+     * `is_expired`, so a checkout that was told a card is valid and the order
+     * that prices it agree.
+     */
+    public function isCurrent(): bool
+    {
+        return (bool) $this->is_active && ! ($this->expiration_date?->isPast() ?? false);
+    }
+
+    /**
+     * Whether a membership number typed at a partner checkout earns the member
+     * price.
+     *
+     * Deliberately a lookup rather than a presence check: `new_price` is the
+     * member price, and without this any string in the box would buy the
+     * discount. Missing, unknown, hidden, switched off or expired all pay the
+     * full price.
+     */
+    public static function earnsMemberPrice(?string $numberOrSlug): bool
+    {
+        $number = trim((string) $numberOrSlug);
+
+        if ($number === '') {
+            return false;
+        }
+
+        /* `visible()` matches the partner lookup: a hidden card answers "no
+           such card" at the checkout, so it must not quietly price as one. */
+        return static::query()
+            ->visible()
+            ->matchingNumber($number)
+            ->first()
+            ?->isCurrent() ?? false;
     }
 
     /**

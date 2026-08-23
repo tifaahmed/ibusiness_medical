@@ -17,6 +17,9 @@ class AdminProductEditResource extends JsonResource
         $nameTranslations = $this->getTranslations('name');
         $shortSubjectTranslations = $this->getTranslations('short_subject');
         $descriptionTranslations = $this->getTranslations('description');
+        $metaTitleTranslations = $this->getTranslations('meta_title');
+        $metaDescriptionTranslations = $this->getTranslations('meta_description');
+        $metaKeywordsTranslations = $this->getTranslations('meta_keywords');
 
         return [
             'id' => $this->id,
@@ -24,6 +27,10 @@ class AdminProductEditResource extends JsonResource
             'short_subject' => $shortSubjectTranslations,
             'description' => $descriptionTranslations,
             'slug' => $this->slug,
+            'meta_title' => $metaTitleTranslations,
+            'meta_description' => $metaDescriptionTranslations,
+            'meta_keywords' => $metaKeywordsTranslations,
+            'canonical_url' => $this->canonical_url,
             'old_price' => $this->old_price,
             'new_price' => $this->new_price,
             'cost_price' => $this->cost_price,

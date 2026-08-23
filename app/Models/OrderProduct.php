@@ -77,10 +77,26 @@ class OrderProduct extends Model
      *
      * The one place a line is created, so an order taken over the API and one
      * entered by an admin archive the same fields.
+     *
+     * `new_price` on a product is the MEMBER price, so `$memberPrice` decides
+     * which of the two the buyer is charged: a buyer with no valid card pays
+     * the marked-down-from price and the line archives no markdown, because
+     * none was given. The argument has no default on purpose — an order priced
+     * without deciding is how a discount gets handed out for free.
      */
-    public static function fromProduct(Product $product, int $quantity): self
+    public static function fromProduct(Product $product, int $quantity, bool $memberPrice): self
     {
-        $unitPrice = $product->new_price ?? $product->old_price;
+        $markdown = self::markdownPrice($product);
+        $memberUnit = $product->new_price ?? $product->old_price;
+
+        /*
+         * Falling back to the member price when there is no markdown is not a
+         * loophole: a product that has only ever had one price has no member
+         * discount to withhold. Going through `markdownPrice()` also means a
+         * mis-keyed `old_price` below the selling price can never make the
+         * full price the CHEAPER of the two.
+         */
+        $unitPrice = $memberPrice ? $memberUnit : ($markdown ?? $memberUnit);
         $price = $unitPrice === null ? 0.0 : (float) $unitPrice;
 
         return new self([
@@ -95,8 +111,10 @@ class OrderProduct extends Model
             /* Only when it is a real markdown — an `old_price` at or above the
                selling price is a data slip, and archiving it would print a
                struck-through price on the receipt for a product nobody
-               discounted. */
-            'old_price' => self::markdownPrice($product),
+               discounted. A full-price line archives none either: the buyer
+               was charged that figure, so striking it through would show them
+               a saving they did not get. */
+            'old_price' => $memberPrice ? $markdown : null,
             'new_price' => $unitPrice,
             'line_total' => round($price * $quantity, 2),
             'cost_price' => $product->cost_price,

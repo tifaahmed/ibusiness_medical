@@ -54,7 +54,7 @@ class FacilityMigrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $tag = Tag::create(['name' => 'Featured', 'color' => '#F59E0B']);
+        $tag = Tag::create(['name' => ['en' => 'Featured', 'ar' => 'مختار'], 'color' => '#F59E0B']);
 
         $facility = Facility::create([
             'name' => ['en' => 'Sunrise Clinic', 'ar' => 'عيادة الشروق'],

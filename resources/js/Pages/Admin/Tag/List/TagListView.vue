@@ -70,7 +70,9 @@ const props = defineProps({
   filters: {
     type: Object,
     default: () => ({
-      search: ''
+      search: '',
+      sort: 'newest',
+      used: ''
     })
   }
 });
@@ -81,7 +83,9 @@ tagStore.setTags(props.tags);
 const tags = computed(() => props.tags);
 
 const filters = ref(props.filters || {
-  search: ''
+  search: '',
+  sort: 'newest',
+  used: ''
 });
 
 const handleDelete = (tagId) => {
