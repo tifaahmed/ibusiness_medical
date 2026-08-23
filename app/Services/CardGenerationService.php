@@ -67,6 +67,44 @@ class CardGenerationService
         'contact' => ['facebook', 'website', 'phone'],
     ];
 
+    /**
+     * Drop the cached front-card render for every membership that still
+     * follows this template's design, so the next view regenerates it from
+     * the template's current artwork/layout/sample_data instead of serving a
+     * render frozen from before this edit.
+     *
+     * A customised card (its own saved `layout`/`field_values`, or one of the
+     * legacy per-field overrides — see `CardLayout::customisedMembershipIds()`)
+     * deliberately stopped following the design, so a template edit must not
+     * silently change how it looks. Only "follows the design" cards — no
+     * override of their own, linked to this template either explicitly via
+     * `card_template_id` or implicitly by the membership's partner status —
+     * are cleared.
+     */
+    public function invalidateCachesFor(CardTemplate $template): void
+    {
+        $customisedIds = CardLayout::customisedMembershipIds();
+
+        CardLayout::query()
+            ->whereNotNull('generated_image_path')
+            ->when($customisedIds !== [], fn ($query) => $query->whereNotIn('membership_id', $customisedIds))
+            ->where(function ($query) use ($template) {
+                $query->where('card_template_id', $template->id)
+                    ->orWhere(function ($query) use ($template) {
+                        $query->whereNull('card_template_id')
+                            ->whereHas('membership', function ($query) use ($template) {
+                                $template->status === CardTemplateStatusEnum::WITH_PARTNER
+                                    ? $query->whereNotNull('partner_id')
+                                    : $query->whereNull('partner_id');
+                            });
+                    });
+            })
+            ->each(function (CardLayout $layout) {
+                Storage::disk('public')->delete($layout->generated_image_path);
+                $layout->update(['generated_image_path' => null]);
+            });
+    }
+
     public function generate(Membership $membership, string $mode = 'full'): ?string
     {
         $layout = $membership->cardLayouts()->where('mode', $mode)->first();

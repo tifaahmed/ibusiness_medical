@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CardTemplate\CardTemplateStatusEnum;
+use App\Services\CardGenerationService;
 use App\Support\CardTemplateLayoutDefaults;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -67,6 +68,20 @@ class CardTemplate extends Model
         return SlugOptions::create()
             ->generateSlugsFrom('name')
             ->saveSlugsTo('slug');
+    }
+
+    /**
+     * Every card generated from this design has to stop looking frozen the
+     * moment the design changes — see
+     * {@see \App\Services\CardGenerationService::invalidateCachesFor()}.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $template) {
+            if ($template->wasChanged(['layout', 'sample_data', 'card_empty', 'status'])) {
+                app(CardGenerationService::class)->invalidateCachesFor($template);
+            }
+        });
     }
 
     public function scopeWithPartner(Builder $query): Builder
