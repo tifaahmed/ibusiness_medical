@@ -53,6 +53,32 @@ class PartnerMembershipResource extends JsonResource
                 ])
                 ->values()
                 ->all(), []),
+            /*
+             * Where the member can be found, in the detail their own card
+             * keeps. The labels arrive translated because the caller sends
+             * `X-Locale` — the same arrangement the family labels follow.
+             */
+            'addresses' => $this->whenLoaded('addresses', fn () => $this->addresses
+                ->map(fn ($address) => [
+                    'type' => $address->type?->value,
+                    'type_label' => $address->type?->label(),
+                    'address' => $address->address,
+                    'street' => $address->street,
+                    'governorate_label' => $address->governorate
+                        ? ($address->governorate->getTranslation('name', $locale)
+                            ?: $address->governorate->getTranslation('name', $fallback))
+                        : null,
+                    'city_label' => $address->city
+                        ? ($address->city->getTranslation('name', $locale)
+                            ?: $address->city->getTranslation('name', $fallback))
+                        : null,
+                    'building_number' => $address->building_number,
+                    'apartment_number' => $address->apartment_number,
+                    'floor_number' => $address->floor_number,
+                    'special_mark' => $address->special_mark,
+                ])
+                ->values()
+                ->all(), []),
         ];
     }
 

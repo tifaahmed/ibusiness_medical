@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Product\Actions\Store;
 
+use App\Http\Controllers\Admin\Product\Actions\Concerns\AttachesEditorGalleryImages;
 use App\Models\Product;
 use App\Models\ProductGallery;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class StoreProductAction
 {
+    use AttachesEditorGalleryImages;
+
     /**
      * Execute the action to store a product.
      *
@@ -29,6 +32,10 @@ class StoreProductAction
                 'cost_price' => $validated['cost_price'] ?? null,
                 'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                // A new product is listed, openable and sellable unless said otherwise.
+                'is_visible' => Product::normalizeFlag($validated, 'is_visible', true),
+                'is_accessible' => Product::normalizeFlag($validated, 'is_accessible', true),
+                'is_purchasable' => Product::normalizeFlag($validated, 'is_purchasable', true),
                 'admin_note' => $validated['admin_note'] ?? null,
                 'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
                 // Empty translation maps are stored as null so fallbacks kick in.
@@ -61,6 +68,8 @@ class StoreProductAction
                     ]);
                 }
             }
+
+            $this->attachEditorGalleryImages($product, $validated);
 
             // An empty tag selection is dropped from multipart bodies, so the form
             // sends `sync_tags` to say the (possibly empty) selection is authoritative.

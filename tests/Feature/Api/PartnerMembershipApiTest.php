@@ -2,8 +2,11 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\Address\AddressTypeEnum;
 use App\Enums\FamilyMember\RelationshipEnum;
+use App\Models\Address;
 use App\Models\FamilyMember;
+use App\Models\Governorate;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,6 +81,56 @@ class PartnerMembershipApiTest extends TestCase
             ->assertJsonCount(1, 'data.family_members')
             ->assertJsonPath('data.family_members.0.name', 'Youssef Adel')
             ->assertJsonPath('data.family_members.0.relationship', 'son');
+    }
+
+    /** @test */
+    public function the_card_carries_the_members_addresses_with_translated_labels(): void
+    {
+        $governorate = Governorate::create(['name' => ['en' => 'Cairo', 'ar' => 'القاهرة']]);
+        $city = \App\Models\City::create([
+            'name' => ['en' => 'Nasr City', 'ar' => 'مدينة نصر'],
+            'governorate_id' => $governorate->id,
+        ]);
+        $membership = Membership::factory()->create();
+
+        Address::factory()->for($membership)->create([
+            'type' => AddressTypeEnum::HOME,
+            'address' => 'Behind the central hospital',
+            'street' => 'Abbas El Akkad',
+            'governorate_id' => $governorate->id,
+            'city_id' => $city->id,
+            'building_number' => '12',
+            'apartment_number' => '3',
+            'floor_number' => '5',
+            'special_mark' => 'Next to the pharmacy',
+        ]);
+
+        $this->lookup($membership->membership_number, key: self::KEY)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.addresses')
+            ->assertJsonPath('data.addresses.0.type', 'home')
+            ->assertJsonPath('data.addresses.0.type_label', __('admin.member.address_type_home'))
+            ->assertJsonPath('data.addresses.0.address', 'Behind the central hospital')
+            ->assertJsonPath('data.addresses.0.street', 'Abbas El Akkad')
+            ->assertJsonPath('data.addresses.0.governorate_label', 'Cairo')
+            ->assertJsonPath('data.addresses.0.city_label', 'Nasr City')
+            ->assertJsonPath('data.addresses.0.building_number', '12')
+            ->assertJsonPath('data.addresses.0.apartment_number', '3')
+            ->assertJsonPath('data.addresses.0.floor_number', '5')
+            ->assertJsonPath('data.addresses.0.special_mark', 'Next to the pharmacy');
+    }
+
+    /** @test */
+    public function an_address_the_member_removed_is_not_published(): void
+    {
+        $membership = Membership::factory()->create();
+
+        Address::factory()->for($membership)->create();
+        Address::factory()->for($membership)->create()->delete();
+
+        $this->lookup($membership->membership_number)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.addresses');
     }
 
     /**

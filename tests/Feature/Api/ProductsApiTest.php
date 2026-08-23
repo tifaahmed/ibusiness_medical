@@ -287,4 +287,115 @@ class ProductsApiTest extends TestCase
     {
         $this->getJson('/api/v1/products/nothing-here')->assertNotFound();
     }
+
+    /**
+     * The three storefront switches, which are independent on purpose: a
+     * product can be listed but not openable, openable but not listed, or
+     * readable but not sellable.
+     */
+    public function test_a_hidden_product_is_not_in_the_listing(): void
+    {
+        $this->product('Monitor', 'شاشة', ['new_price' => 750]);
+        $this->product('Withdrawn', 'مسحوب', ['new_price' => 100, 'is_visible' => false]);
+
+        $response = $this->getJson('/api/v1/products')->assertOk();
+
+        $slugs = array_column($response->json('products.data'), 'slug');
+
+        $this->assertContains('monitor', $slugs);
+        $this->assertNotContains('withdrawn', $slugs);
+    }
+
+    /**
+     * The sidebar counts and the price slider are drawn from the same
+     * catalogue, so a hidden product must not put a count against a category
+     * nobody can reach or stretch the slider past the cheapest thing on sale.
+     */
+    public function test_a_hidden_product_counts_towards_nothing(): void
+    {
+        $devices = ProductType::create(['name' => ['en' => 'Devices', 'ar' => 'أجهزة']]);
+        $tag = Tag::create(['name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا'], 'color' => '#111111']);
+
+        $hidden = $this->product('Withdrawn', 'مسحوب', [
+            'new_price' => 10,
+            'product_type_id' => $devices->id,
+            'is_visible' => false,
+        ]);
+        $hidden->tags()->attach($tag);
+
+        $this->product('Monitor', 'شاشة', ['new_price' => 750]);
+
+        $response = $this->getJson('/api/v1/products')->assertOk();
+
+        $this->assertSame([], $response->json('product_types'));
+        $this->assertSame([], $response->json('tags'));
+        $this->assertEquals(750, $response->json('price_range.min'));
+        $this->assertNotContains('withdrawn', array_column($response->json('product_names'), 'slug'));
+    }
+
+    /**
+     * Hiding a product from the shop window must not empty the baskets of the
+     * people who put it there while it was up — a storefront re-pricing a
+     * basket asks by name, which is not browsing.
+     */
+    public function test_a_hidden_product_is_still_priced_when_asked_for_by_slug(): void
+    {
+        $this->product('Withdrawn', 'مسحوب', ['new_price' => 100, 'is_visible' => false]);
+
+        $response = $this->getJson('/api/v1/products?slugs[]=withdrawn')->assertOk();
+
+        $this->assertSame(['withdrawn'], array_column($response->json('products.data'), 'slug'));
+    }
+
+    /** A product that may not be opened does not exist to a visitor. */
+    public function test_an_inaccessible_product_is_a_404(): void
+    {
+        $this->product('Teaser', 'تشويق', ['new_price' => 100, 'is_accessible' => false]);
+
+        $this->getJson('/api/v1/products/teaser')->assertNotFound();
+    }
+
+    /**
+     * Hidden is not the same as closed. An unlisted link handed to one
+     * customer is exactly this combination, and it has to keep working.
+     */
+    public function test_a_hidden_product_can_still_be_opened_by_its_link(): void
+    {
+        $this->product('Unlisted', 'غير مدرج', ['new_price' => 100, 'is_visible' => false]);
+
+        $this->getJson('/api/v1/products/unlisted')
+            ->assertOk()
+            ->assertJsonPath('product.slug', 'unlisted');
+    }
+
+    /**
+     * The storefront cannot enforce what it does not know: it has to draw a
+     * card without a link and a page without a buy button.
+     */
+    public function test_the_two_switches_the_storefront_draws_are_shipped(): void
+    {
+        $this->product('Monitor', 'شاشة', [
+            'new_price' => 750,
+            'is_purchasable' => false,
+        ]);
+
+        $this->getJson('/api/v1/products')
+            ->assertOk()
+            ->assertJsonPath('products.data.0.is_accessible', true)
+            ->assertJsonPath('products.data.0.is_purchasable', false);
+
+        $this->getJson('/api/v1/products/monitor')
+            ->assertOk()
+            ->assertJsonPath('product.is_purchasable', false);
+    }
+
+    /** Everything is on by default, so an existing catalogue does not change. */
+    public function test_a_product_is_live_everywhere_unless_said_otherwise(): void
+    {
+        $product = $this->product('Monitor', 'شاشة', ['new_price' => 750]);
+
+        $this->assertTrue($product->fresh()->is_visible);
+        $this->assertTrue($product->fresh()->is_accessible);
+        $this->assertTrue($product->fresh()->is_purchasable);
+    }
 }

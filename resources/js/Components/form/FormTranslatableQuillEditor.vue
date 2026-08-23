@@ -9,11 +9,13 @@
         <label :for="`${id}-${locale}`" class="block text-xs font-medium text-muted-foreground mb-1">
           {{ locale.toUpperCase() }}
         </label>
-        <QuillTextEditor
+        <RichTextEditor
           :id="`${id}-${locale}`"
           :model-value="getLocaleValue(locale)"
           :placeholder="`Enter ${label.toLowerCase()} in ${locale.toUpperCase()}`"
           :error="getLocaleError(locale)"
+          :direction="rtlLocales.includes(locale) ? 'rtl' : 'ltr'"
+          :image-uploader="imageUploader"
           @update:model-value="updateLocaleValue(locale, $event)"
         />
       </div>
@@ -24,7 +26,7 @@
 
 <script setup>
 import { computed } from "vue";
-import QuillTextEditor from "./QuillTextEditor.vue";
+import RichTextEditor from "./editor/RichTextEditor.vue";
 
 const props = defineProps({
   modelValue: {
@@ -37,6 +39,15 @@ const props = defineProps({
   locales: {
     type: Array,
     default: () => ['ar', 'en']
+  },
+  rtlLocales: {
+    type: Array,
+    default: () => ['ar']
+  },
+  // async (File) => url, passed straight to each locale's editor.
+  imageUploader: {
+    type: Function,
+    default: null
   },
 });
 

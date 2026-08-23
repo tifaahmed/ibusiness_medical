@@ -46,18 +46,22 @@
                       </p>
                     </div>
                   </div>
-                  <div v-if="translationPairs(product.description).length">
+                  <div v-if="descriptionPairs.length">
                     <label class="text-xs font-medium text-muted-foreground">Description</label>
                     <div class="mt-0.5 space-y-2">
-                      <p
-                        v-for="pair in translationPairs(product.description)"
+                      <div
+                        v-for="pair in descriptionPairs"
                         :key="`desc-${pair.lang}`"
-                        class="text-sm whitespace-pre-wrap"
                         :dir="pair.lang === 'AR' ? 'rtl' : 'ltr'"
                       >
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border border-border bg-muted/50 text-muted-foreground me-1 align-middle">{{ pair.lang }}</span>
-                        {{ pair.text }}
-                      </p>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border border-border bg-muted/50 text-muted-foreground align-middle">{{ pair.lang }}</span>
+                        <!-- The editor stores rich text, so it is rendered as
+                             markup here instead of showing the raw tags. -->
+                        <div
+                          class="prose prose-sm prose-invert max-w-none text-sm mt-1 [&_img]:rounded-lg [&_img]:border [&_img]:border-border"
+                          v-html="pair.text"
+                        ></div>
+                      </div>
                     </div>
                   </div>
                   <div class="flex gap-4 flex-wrap">
@@ -216,6 +220,18 @@ const translationPairs = (value) => {
   }
   return [];
 };
+
+/* Quill always leaves a wrapper behind — `<p><br></p>` for an untouched editor —
+   so emptiness is judged on the text and embeds, not on the markup. */
+const isBlankHtml = (html) => {
+  const value = html || '';
+  if (/<(img|iframe|video|table)\b/i.test(value)) return false;
+  return value.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim() === '';
+};
+
+const descriptionPairs = computed(() =>
+  translationPairs(props.product.description).filter((pair) => !isBlankHtml(pair.text))
+);
 
 const formatPrice = (price) => {
   if (price === null || price === undefined) return '';

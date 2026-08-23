@@ -19,7 +19,7 @@
         <FormTranslatableInput
           v-model="formName"
           label="Name"
-          :error="productStore.validationErrors?.name"
+          :error="nameError"
           placeholder="Enter product name"
           required
           :locales="['ar', 'en']"
@@ -29,42 +29,21 @@
         <FormTranslatableInput
           v-model="formShortSubject"
           label="Short Description"
-          :error="productStore.validationErrors?.['short_subject']"
+          :error="shortSubjectError"
           placeholder="Enter short description"
           :locales="['ar', 'en']"
           hint="One-line summary shown under the name in product lists and cards."
         />
 
         <div class="space-y-2">
-          <label class="text-sm font-medium">Description</label>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-medium text-muted-foreground mb-1">AR</label>
-              <textarea
-                :value="productStore.form.description?.ar || ''"
-                @input="updateDescriptionLocale('ar', $event.target.value)"
-                rows="4"
-                dir="rtl"
-                placeholder="Enter description in AR"
-                class="w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md focus:ring-[3px] focus:ring-ring/50"
-                :class="descriptionErrorClass"
-              ></textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-muted-foreground mb-1">EN</label>
-              <textarea
-                :value="productStore.form.description?.en || ''"
-                @input="updateDescriptionLocale('en', $event.target.value)"
-                rows="4"
-                dir="ltr"
-                placeholder="Enter description in EN"
-                class="w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md focus:ring-[3px] focus:ring-ring/50"
-                :class="descriptionErrorClass"
-              ></textarea>
-            </div>
-          </div>
-          <p v-if="descriptionError" class="mt-1 text-sm text-destructive">{{ descriptionError }}</p>
-          <p v-else class="text-[11px] text-muted-foreground">Full details customers read on the product page — specs, what's included, how to use it.</p>
+          <FormTranslatableQuillEditor
+            v-model="formDescription"
+            label="Description"
+            :error="descriptionError"
+            :locales="['ar', 'en']"
+            :image-uploader="uploadEditorImage"
+          />
+          <p class="text-[11px] text-muted-foreground">Full details customers read on the product page — specs, what's included, how to use it. Images you add here (toolbar, paste or drag &amp; drop) are uploaded and saved to the product gallery.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -78,7 +57,8 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
-            <p class="text-[11px] text-muted-foreground">The price customers pay today.</p>
+            <p v-if="fieldError('new_price')" class="text-xs text-destructive">{{ fieldError('new_price') }}</p>
+            <p v-else class="text-[11px] text-muted-foreground">The price customers pay today.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Old Price</label>
@@ -90,7 +70,8 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
-            <p class="text-[11px] text-muted-foreground">Shown struck-through next to the new price to advertise a discount. Leave empty if none.</p>
+            <p v-if="fieldError('old_price')" class="text-xs text-destructive">{{ fieldError('old_price') }}</p>
+            <p v-else class="text-[11px] text-muted-foreground">Shown struck-through next to the new price to advertise a discount. Leave empty if none.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Cost Price</label>
@@ -102,7 +83,8 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
-            <p class="text-[11px] text-muted-foreground">Internal only — what you pay your supplier. Never shown to customers.</p>
+            <p v-if="fieldError('cost_price')" class="text-xs text-destructive">{{ fieldError('cost_price') }}</p>
+            <p v-else class="text-[11px] text-muted-foreground">Internal only — what you pay your supplier. Never shown to customers.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Profit Price</label>
@@ -114,7 +96,8 @@
               placeholder="0.00"
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
-            <p class="text-[11px] text-muted-foreground">Internal only — expected margin per unit, used for reports.</p>
+            <p v-if="fieldError('profit_price')" class="text-xs text-destructive">{{ fieldError('profit_price') }}</p>
+            <p v-else class="text-[11px] text-muted-foreground">Internal only — expected margin per unit, used for reports.</p>
           </div>
         </div>
 
@@ -129,7 +112,38 @@
               {{ getTranslatedName(pt.name) }}
             </option>
           </select>
-          <p class="text-[11px] text-muted-foreground">Groups the product under a category — used for menus and filtering.</p>
+          <p v-if="fieldError('product_type_id')" class="text-xs text-destructive">{{ fieldError('product_type_id') }}</p>
+            <p v-else class="text-[11px] text-muted-foreground">Groups the product under a category — used for menus and filtering.</p>
+        </div>
+
+        <!--
+          Storefront availability. Three switches rather than one status because
+          they answer different questions and get used in combination: listed
+          but not openable (a teaser), openable but not listed (an unlisted link
+          for one customer), readable but not sellable (out of stock).
+        -->
+        <div class="space-y-3">
+          <label class="text-sm font-medium">Storefront availability</label>
+
+          <div
+            v-for="option in availabilityOptions"
+            :key="option.key"
+            class="flex items-start gap-3"
+          >
+            <label class="relative inline-flex items-center cursor-pointer mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                v-model="productStore.form[option.key]"
+                class="sr-only peer"
+              />
+              <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-golden-yellow"></div>
+            </label>
+            <div class="grid gap-0.5">
+              <span class="text-sm font-medium">{{ option.label }}</span>
+              <span class="text-[11px] text-muted-foreground">{{ option.hint }}</span>
+              <p v-if="fieldError(option.key)" class="text-xs text-destructive">{{ fieldError(option.key) }}</p>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-2">
@@ -514,7 +528,7 @@
         <div class="space-y-2">
           <label class="text-sm font-medium">Gallery</label>
 
-          <div v-if="visibleExistingGallery.length || galleryPreviews.length" class="flex flex-wrap gap-3">
+          <div v-if="visibleExistingGallery.length || galleryPreviews.length || editorGalleryImages.length" class="flex flex-wrap gap-3">
             <div v-for="img in visibleExistingGallery" :key="`existing-${img.key}`" class="relative">
               <img :src="img.url" class="w-20 h-20 rounded-lg border border-border object-cover cursor-zoom-in transition hover:opacity-90" @click="openLightbox(img.url)" />
               <button
@@ -543,7 +557,16 @@
                 </svg>
               </button>
             </div>
+
+            <div v-for="img in editorGalleryImages" :key="`editor-${img.path}`" class="relative">
+              <img :src="img.url" class="w-20 h-20 rounded-lg border-2 border-dashed border-primary/60 object-cover cursor-zoom-in transition hover:opacity-90" @click="openLightbox(img.url)" />
+              <span class="absolute -top-2 -left-2 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 shadow-sm" title="Uploaded from the description editor">desc</span>
+            </div>
           </div>
+
+          <p v-if="editorGalleryImages.length" class="text-xs text-muted-foreground">
+            {{ editorGalleryImages.length }} image(s) added from the description editor will be saved to the gallery.
+          </p>
 
           <p v-if="removedGalleryCount" class="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{{ removedGalleryCount }} image(s) will be deleted on save.</span>
@@ -570,18 +593,27 @@
     </template>
 
     <ImageLightbox :images="formImages" v-model:index="lightboxIndex" />
+
+    <ValidationErrorsDialog
+      v-model:open="showValidationDialog"
+      :errors="productStore.validationErrors || {}"
+      :labels="errorLabels"
+      @select="goToErrorField"
+    />
   </div>
 </template>
 
 <script setup>
-import { FormTranslatableInput } from "@/Components/form";
+import { FormTranslatableInput, FormTranslatableQuillEditor } from "@/Components/form";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
+import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ProductSeoCard from "./ProductSeoCard.vue";
 import { useProductStore } from "../../Stores/ProductStore";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from "@inertiajs/vue3";
+import { useNotification } from "@/composables/useNotification";
 
 const props = defineProps({
   productTypes: { type: Array, default: () => [] },
@@ -595,40 +627,94 @@ const props = defineProps({
 const productStore = useProductStore();
 const { form } = storeToRefs(productStore);
 
+// What each storefront switch does, in the words an admin needs rather than
+// the column names. Order matters: it reads as a funnel — found, opened, bought.
+const availabilityOptions = [
+  {
+    key: 'is_visible',
+    label: 'Visible in the shop',
+    hint: 'Off: it disappears from the product listing, search and related rails. A direct link still works.',
+  },
+  {
+    key: 'is_accessible',
+    label: 'Product page can be opened',
+    hint: 'Off: its own page returns "not found", and its card in the listing stops being a link.',
+  },
+  {
+    key: 'is_purchasable',
+    label: 'Can be bought',
+    hint: 'Off: no add-to-basket button, and any order still carrying it is refused.',
+  },
+];
+
 // --- Tabs ----------------------------------------------------------------
 
 const activeTab = ref('general');
 
-const hasAnyError = (prefixes) => {
+// Which tab owns which field — drives the tab error badges and the jump from
+// a row of the validation dialog.
+const TAB_FIELDS = {
+  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'is_visible', 'is_accessible', 'is_purchasable', 'admin_note', 'tag_ids'],
+  media: ['large_image', 'small_image', 'gallery', 'banner_config', 'editor_gallery_paths'],
+  seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url'],
+};
+
+// `name.ar` belongs to the `name` field.
+const matchesField = (key, field) => key === field || key.startsWith(`${field}.`);
+
+const hasAnyError = (fields) => {
   const errors = productStore.validationErrors || {};
-  return Object.keys(errors).some((key) =>
-    prefixes.some((prefix) => key === prefix || key.startsWith(`${prefix}.`))
-  );
+  return Object.keys(errors).some((key) => fields.some((field) => matchesField(key, field)));
 };
 
 const formTabs = computed(() => [
-  {
-    key: 'general',
-    label: 'General',
-    hasError: hasAnyError(['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'admin_note', 'tag_ids']),
-  },
-  {
-    key: 'media',
-    label: 'Images & Banner',
-    hasError: hasAnyError(['large_image', 'small_image', 'gallery', 'banner_config']),
-  },
-  {
-    key: 'seo',
-    label: 'SEO',
-    hasError: hasAnyError(['meta_title', 'meta_description', 'meta_keywords', 'canonical_url']),
-  },
+  { key: 'general', label: 'General', hasError: hasAnyError(TAB_FIELDS.general) },
+  { key: 'media', label: 'Images & Banner', hasError: hasAnyError(TAB_FIELDS.media) },
+  { key: 'seo', label: 'SEO', hasError: hasAnyError(TAB_FIELDS.seo) },
 ]);
 
-// Jump to the first tab holding an error so the message is never invisible.
+const showValidationDialog = ref(false);
+
+const errorLabels = {
+  name: 'Name',
+  short_subject: 'Short description',
+  description: 'Description',
+  new_price: 'New price',
+  old_price: 'Old price',
+  cost_price: 'Cost price',
+  profit_price: 'Profit price',
+  product_type_id: 'Product type',
+  is_visible: 'Visible in the shop',
+  is_accessible: 'Product page can be opened',
+  is_purchasable: 'Can be bought',
+  admin_note: 'Admin note',
+  tag_ids: 'Tags',
+  large_image: 'Large image',
+  small_image: 'Small image',
+  gallery: 'Gallery',
+  editor_gallery_paths: 'Description images',
+  banner_config: 'Banner',
+  meta_title: 'Meta title',
+  meta_description: 'Meta description',
+  meta_keywords: 'Meta keywords',
+  canonical_url: 'Canonical URL',
+};
+
+const goToErrorField = (key) => {
+  const entry = Object.entries(TAB_FIELDS).find(([, fields]) => fields.some((field) => matchesField(key, field)));
+  if (entry) activeTab.value = entry[0];
+};
+
+// A failed submit puts the errors on screen twice over: the tab badge plus the
+// inline message can both sit out of view, so the full list opens as a dialog.
 watch(() => productStore.validationErrors, (errors) => {
-  if (!errors || Object.keys(errors).length === 0) return;
+  if (!errors || Object.keys(errors).length === 0) {
+    showValidationDialog.value = false;
+    return;
+  }
   const failing = formTabs.value.find((tab) => tab.hasError);
   if (failing) activeTab.value = failing.key;
+  showValidationDialog.value = true;
 });
 
 const currentLocale = usePage().props.locale || 'ar';
@@ -766,15 +852,44 @@ const formShortSubject = computed({
   set: (value) => { form.value.short_subject = value; }
 });
 
-const descriptionError = computed(() =>
-  productStore.validationErrors?.['description']
-  || productStore.validationErrors?.['description.ar']
-  || productStore.validationErrors?.['description.en']
-);
+/* Errors arrive keyed per locale (`name.ar`) from both the client validator and
+   Laravel, but the translatable inputs read an { ar, en } object — without this
+   regrouping the message has nowhere to render and the field looks fine. */
+const translatableError = (field) => {
+  const errors = productStore.validationErrors || {};
+  const first = (value) => (Array.isArray(value) ? value[0] : value) || null;
 
-const descriptionErrorClass = computed(() => (descriptionError.value
-  ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
-  : ''));
+  const general = first(errors[field]);
+  const ar = first(errors[`${field}.ar`]);
+  const en = first(errors[`${field}.en`]);
+
+  if (!general && !ar && !en) return null;
+  return { ar: ar || general || null, en: en || general || null };
+};
+
+const nameError = computed(() => translatableError('name'));
+const shortSubjectError = computed(() => translatableError('short_subject'));
+const descriptionError = computed(() => translatableError('description'));
+
+/** Single-value fields: first message for the key, as a string. */
+const fieldError = (key) => {
+  const value = productStore.validationErrors?.[key];
+  return (Array.isArray(value) ? value[0] : value) || null;
+};
+
+// The Quill editor works on a plain { ar, en } object; normalize whatever
+// shape the backend/store currently holds before handing it over.
+const formDescription = computed({
+  get: () => {
+    const val = form.value.description;
+    if (typeof val === 'string') {
+      try { return JSON.parse(val) || {}; } catch { return {}; }
+    }
+    if (!val || Array.isArray(val)) return {};
+    return val;
+  },
+  set: (value) => { form.value.description = value; }
+});
 
 const adminNoteError = computed(() =>
   productStore.validationErrors?.['admin_note']
@@ -783,14 +898,6 @@ const adminNoteError = computed(() =>
 const adminNoteErrorClass = computed(() => (adminNoteError.value
   ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
   : ''));
-
-const updateDescriptionLocale = (locale, value) => {
-  const current = productStore.form.description && typeof productStore.form.description === 'object' && !Array.isArray(productStore.form.description)
-    ? { ...productStore.form.description }
-    : {};
-  current[locale] = value;
-  productStore.form.description = current;
-};
 
 // Object URLs for files picked in this session; existing images come from props.
 const largePreview = ref(null);
@@ -816,6 +923,32 @@ const visibleExistingGallery = computed(() => existingGalleryItems.value
 
 const removedGalleryCount = computed(() => productStore.form.removed_gallery_ids.length);
 
+// Images uploaded from inside the description editor. The file is already on
+// disk (the editor needs a URL right away); the gallery row is created on save.
+const editorGalleryImages = ref([]);
+
+const uploadEditorImage = async (file) => {
+  const data = new FormData();
+  data.append('image', file);
+
+  try {
+    const { data: uploaded } = await window.axios.post(route('admin.product.editor-image'), data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    if (!productStore.form.editor_gallery_paths.includes(uploaded.path)) {
+      productStore.form.editor_gallery_paths.push(uploaded.path);
+      editorGalleryImages.value.push({ path: uploaded.path, url: uploaded.url });
+    }
+
+    return uploaded.url;
+  } catch (error) {
+    const message = error?.response?.data?.errors?.image?.[0] || 'Failed to upload the image';
+    useNotification().error(message);
+    return null;
+  }
+};
+
 // Every picture the form currently shows, in display order — one shared
 // lightbox walks them all, exactly like on the product show page.
 const formImages = computed(() => {
@@ -834,6 +967,10 @@ const formImages = computed(() => {
 
   galleryPreviews.value.forEach((preview, i) => {
     if (preview.url) images.push({ url: preview.url, alt: `${name} — new gallery ${i + 1}` });
+  });
+
+  editorGalleryImages.value.forEach((img, i) => {
+    if (img.url) images.push({ url: img.url, alt: `${name} — description image ${i + 1}` });
   });
 
   return images;
@@ -938,6 +1075,7 @@ watch(() => [props.existingLargeImage, props.existingSmallImage], () => {
   clearSmallSelection();
   galleryPreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url));
   galleryPreviews.value = [];
+  editorGalleryImages.value = [];
   syncGalleryFiles();
 });
 

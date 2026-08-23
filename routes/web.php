@@ -157,6 +157,7 @@ use App\Http\Controllers\Admin\PartnerOfferRequest\Show\AdminPartnerOfferRequest
 use App\Http\Controllers\Admin\Product\Create\AdminProductCreateController;
 use App\Http\Controllers\Admin\Product\Delete\AdminProductDeleteController;
 use App\Http\Controllers\Admin\Product\Edit\AdminProductEditController;
+use App\Http\Controllers\Admin\Product\Gallery\AdminProductEditorImageUploadController;
 use App\Http\Controllers\Admin\Product\List\AdminProductListController;
 use App\Http\Controllers\Admin\Product\Show\AdminProductShowController;
 use App\Http\Controllers\Admin\Product\Store\AdminProductStoreController;
@@ -568,6 +569,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage products|manage own products')->group(function () {
         Route::get('/admin/product/create', AdminProductCreateController::class)->name('admin.product.create');
         Route::post('/admin/product', AdminProductStoreController::class)->name('admin.product.store');
+        // Images uploaded from inside the description editor (create and edit alike).
+        Route::post('/admin/product/editor-image', AdminProductEditorImageUploadController::class)->name('admin.product.editor-image');
         Route::get('/admin/product/{product}/edit', AdminProductEditController::class)->name('admin.product.edit');
         Route::put('/admin/product/{product}', AdminProductUpdateController::class)->name('admin.product.update');
         Route::delete('/admin/product/{product}', AdminProductDeleteController::class)->name('admin.product.destroy');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Product\Actions\Update;
 
+use App\Http\Controllers\Admin\Product\Actions\Concerns\AttachesEditorGalleryImages;
 use App\Models\Product;
 use App\Models\ProductGallery;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 
 class UpdateProductAction
 {
+    use AttachesEditorGalleryImages;
+
     /**
      * Execute the action to update a product.
      *
@@ -29,6 +32,10 @@ class UpdateProductAction
                 'cost_price' => $validated['cost_price'] ?? null,
                 'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                // Absent means the form never asked: keep what the product already says.
+                'is_visible' => Product::normalizeFlag($validated, 'is_visible', $product->is_visible),
+                'is_accessible' => Product::normalizeFlag($validated, 'is_accessible', $product->is_accessible),
+                'is_purchasable' => Product::normalizeFlag($validated, 'is_purchasable', $product->is_purchasable),
                 'admin_note' => $validated['admin_note'] ?? null,
                 'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
                 // Empty translation maps are stored as null so fallbacks kick in.
@@ -81,6 +88,8 @@ class UpdateProductAction
                     ]);
                 }
             }
+
+            $this->attachEditorGalleryImages($product, $validated);
 
             // An empty tag selection is dropped from multipart bodies, so the form
             // sends `sync_tags` to say the (possibly empty) selection is authoritative.

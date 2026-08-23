@@ -11,6 +11,7 @@ use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * The public product catalogue, read by the Deilar storefront.
@@ -71,6 +72,18 @@ class ProductController extends Controller
      */
     public function show(Request $request, Product $product): JsonResponse
     {
+        /*
+         * A product switched off for access is a 404, not a 403: telling a
+         * visitor that a product exists but is closed to them is an answer
+         * about a shop's stock that nobody asked for, and every consumer
+         * already renders a missing product properly.
+         *
+         * `is_visible` deliberately does NOT gate this. Hiding a product from
+         * the listing while leaving it openable is how an unlisted link handed
+         * to one customer works; the two switches are separate for that reason.
+         */
+        abort_unless($product->is_accessible, Response::HTTP_NOT_FOUND);
+
         $product->load(['productType:id,name,slug', 'tags:id,name,icon,color', 'galleries', 'media']);
 
         return response()->json([
@@ -174,6 +187,19 @@ class ProductController extends Controller
         $price = $this->priceExpression();
 
         $query
+            /*
+             * Every catalogue query — the grid and both facet counts — runs
+             * through here, which is why the visibility switch is applied at
+             * this one point rather than at each call site. A hidden product
+             * is not in the grid, and it does not put a count against a
+             * category or a tag in the sidebar either.
+             *
+             * Named slugs are the exception, and deliberately so: that is a
+             * storefront re-pricing a basket it already holds, not somebody
+             * browsing. Hiding a product from the shop window must not empty
+             * the baskets of the people who put it there while it was up.
+             */
+            ->when($filters['slugs'] === [], fn (Builder $q) => $q->visibleInShop())
             ->when($filters['slugs'] !== [], fn (Builder $q) => $q->whereIn('products.slug', $filters['slugs']))
             ->when($filters['search'] !== '', fn (Builder $q) => $this->applySearch($q, $filters['search']))
             ->when(
@@ -346,6 +372,7 @@ class ProductController extends Controller
         $price = $this->priceExpression();
 
         $row = Product::query()
+            ->visibleInShop()
             ->selectRaw("min({$price}) as min_price, max({$price}) as max_price")
             ->first();
 
@@ -363,6 +390,7 @@ class ProductController extends Controller
     private function productNames(): array
     {
         return Product::query()
+            ->visibleInShop()
             ->select(['slug', 'name'])
             ->limit(self::MAX_SUGGESTIONS)
             ->get()
@@ -389,6 +417,7 @@ class ProductController extends Controller
         $with = ['productType:id,name,slug', 'tags:id,name,icon,color', 'media'];
 
         $related = Product::query()
+            ->visibleInShop()
             ->with($with)
             ->where('id', '!=', $product->id)
             ->when(
@@ -409,6 +438,7 @@ class ProductController extends Controller
         if ($tagIds->isNotEmpty()) {
             $related = $related->concat(
                 Product::query()
+                    ->visibleInShop()
                     ->with($with)
                     ->whereNotIn('id', $related->pluck('id')->push($product->id))
                     ->whereHas('tags', fn ($t) => $t->whereIn('tags.id', $tagIds))
@@ -424,6 +454,7 @@ class ProductController extends Controller
 
         return $related->concat(
             Product::query()
+                ->visibleInShop()
                 ->with($with)
                 ->whereNotIn('id', $related->pluck('id')->push($product->id))
                 ->latest('id')

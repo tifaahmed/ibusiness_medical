@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Order\Update;
 
 use App\Http\Controllers\Admin\Order\Actions\Update\UpdateOrderAction;
+use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressFromOrderAction;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Order\UpdateOrderRequest;
 use App\Models\Order;
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\Log;
 
 class AdminOrderUpdateController extends BaseController
 {
-    public function __construct(private readonly UpdateOrderAction $updateAction) {}
+    public function __construct(
+        private readonly UpdateOrderAction $updateAction,
+        private readonly UpsertMemberAddressFromOrderAction $syncMemberAddressAction,
+    ) {}
 
     /**
      * Update one order, its lines and its statuses.
@@ -28,6 +32,26 @@ class AdminOrderUpdateController extends BaseController
                 ->firstOrFail();
 
             $updated = $this->updateAction->execute($orderModel, $validated, $request);
+
+            /*
+             * The admin may have edited the order's address (or its membership
+             * number) — mirror it back onto the buyer member's address book:
+             * same type updates in place, a new type is added. A sync failure
+             * must not undo the saved order, so it is logged and the redirect
+             * proceeds.
+             */
+            try {
+                $this->syncMemberAddressAction->execute($updated, $request);
+            } catch (\Throwable $exception) {
+                Log::error('Order address could not be synced to the member\'s address book.', [
+                    'route' => $request->path(),
+                    'order_code' => $updated->order_code,
+                    'membership_number' => $updated->membership_number,
+                    'admin_id' => Auth::id(),
+                    'message' => $exception->getMessage(),
+                    'trace' => $exception->getTraceAsString(),
+                ]);
+            }
 
             return redirect()->route('admin.order.show', $updated->order_code)
                 ->with('success', 'Order updated successfully.');

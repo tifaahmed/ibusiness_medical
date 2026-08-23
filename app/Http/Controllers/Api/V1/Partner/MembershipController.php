@@ -27,6 +27,13 @@ class MembershipController extends Controller
                 'familyMembers' => fn ($query) => $query
                     ->where('is_active', true)
                     ->orderBy('created_at'),
+                /*
+                 * The member's own addresses, with the governorate and city
+                 * names the resource translates for the caller's locale.
+                 */
+                'addresses' => fn ($query) => $query
+                    ->with(['governorate', 'city'])
+                    ->orderBy('created_at'),
             ])
             /*
              * Slug as well as number: the slug is what the member sees in their

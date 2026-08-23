@@ -26,6 +26,15 @@ class UpdateProductRequest extends FormRequest
             'cost_price' => 'nullable|numeric|min:0',
             'profit_price' => 'nullable|numeric|min:0',
             'product_type_id' => 'nullable|exists:product_types,id',
+            /*
+             * The three storefront switches. Nullable because a multipart form
+             * that leaves one out means "unchanged"; the actions below coerce
+             * what does arrive, since multipart turns every value into a string
+             * and "0" is truthy in JavaScript.
+             */
+            'is_visible' => 'nullable|boolean',
+            'is_accessible' => 'nullable|boolean',
+            'is_purchasable' => 'nullable|boolean',
             'admin_note' => 'nullable|string|max:5000',
             'meta_title' => 'nullable|array',
             'meta_title.*' => 'nullable|string|max:60',
@@ -54,6 +63,10 @@ class UpdateProductRequest extends FormRequest
             // New gallery files are appended; existing ones are dropped by id.
             'gallery' => 'nullable|array',
             'gallery.*' => 'image|max:10240',
+            // Paths returned by the description-editor upload endpoint; they
+            // become gallery rows on save.
+            'editor_gallery_paths' => 'nullable|array',
+            'editor_gallery_paths.*' => 'string|max:2048',
             'removed_gallery_ids' => 'nullable|array',
             'removed_gallery_ids.*' => 'integer',
         ];

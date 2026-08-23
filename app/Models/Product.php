@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\MediaImageTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,6 +53,9 @@ class Product extends Model implements HasMedia
         'cost_price',
         'profit_price',
         'product_type_id',
+        'is_visible',
+        'is_accessible',
+        'is_purchasable',
         'admin_note',
         'banner_config',
         'meta_title',
@@ -63,11 +67,43 @@ class Product extends Model implements HasMedia
 
     protected $casts = [
         'banner_config' => 'array',
+        'is_visible' => 'boolean',
+        'is_accessible' => 'boolean',
+        'is_purchasable' => 'boolean',
         'old_price' => 'decimal:2',
         'new_price' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'profit_price' => 'decimal:2',
     ];
+
+    /**
+     * Only the products the shop's listing may show.
+     *
+     * Table-qualified because the same constraint runs inside the `withCount`
+     * subqueries the catalogue's sidebar counts with, where `products` is
+     * joined alongside `tags` and `product_types`.
+     *
+     * @param  Builder<Product>  $query
+     */
+    public function scopeVisibleInShop(Builder $query): void
+    {
+        $query->where('products.is_visible', true);
+    }
+
+    /**
+     * One of the three storefront switches, as the form actually submits it.
+     *
+     * A form carrying an image is sent as multipart, which turns every value
+     * into a string — an unticked switch arrives as "0", and "0" is truthy
+     * everywhere that does not check. A key that is absent altogether means
+     * the form never asked, so the fallback stands.
+     */
+    public static function normalizeFlag(array $validated, string $key, bool $default): bool
+    {
+        return array_key_exists($key, $validated) && $validated[$key] !== null
+            ? filter_var($validated[$key], FILTER_VALIDATE_BOOLEAN)
+            : $default;
+    }
 
     /**
      * Coerce a submitted banner config into real types.

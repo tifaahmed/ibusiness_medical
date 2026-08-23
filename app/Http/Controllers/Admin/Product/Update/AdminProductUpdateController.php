@@ -47,7 +47,9 @@ class AdminProductUpdateController extends BaseController
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('admin.product.list')
+            $afterSave = $request->input('after_save');
+
+            return $this->redirectAfterSave(is_string($afterSave) ? $afterSave : null, $updatedProduct)
                 ->with('success', 'Product updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update product', [
@@ -61,5 +63,18 @@ class AdminProductUpdateController extends BaseController
             return back()->withErrors(['error' => 'Failed to update product. Please try again.'])
                 ->withInput();
         }
+    }
+
+    /**
+     * Where to land once the update succeeded: stay on the edit form,
+     * open the product page, or go back to the list (default).
+     */
+    private function redirectAfterSave(?string $intent, Product $product): RedirectResponse
+    {
+        return match ($intent) {
+            'stay' => redirect()->route('admin.product.edit', $product->slug),
+            'show' => redirect()->route('admin.product.show', $product->slug),
+            default => redirect()->route('admin.product.list'),
+        };
     }
 }

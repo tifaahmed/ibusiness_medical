@@ -229,4 +229,75 @@ class PartnerOrderPricingTest extends TestCase
 
         $this->assertSame('1000.00', Order::query()->sole()->total_amount);
     }
+
+    /**
+     * A basket can sit in a session for an hour. `is_purchasable` is enforced
+     * where the order is actually written, not only on the storefront, so a
+     * product taken off sale in the meantime never becomes a sale.
+     *
+     * @test
+     */
+    public function a_product_taken_off_sale_cannot_be_ordered(): void
+    {
+        Product::query()->create([
+            'name' => ['en' => 'Steam autoclave', 'ar' => 'أوتوكلاف بخاري'],
+            'slug' => 'steam-autoclave',
+            'new_price' => 750,
+            'is_purchasable' => false,
+        ]);
+
+        $this->placeOrder()->assertUnprocessable();
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
+    /**
+     * One unsellable line is not a dead basket: the rest of it is still a
+     * sale, exactly as a withdrawn product already behaves.
+     *
+     * @test
+     */
+    public function an_unsellable_line_drops_out_and_the_rest_of_the_order_stands(): void
+    {
+        $this->markedDownProduct();
+
+        Product::query()->create([
+            'name' => ['en' => 'Gloves', 'ar' => 'قفازات'],
+            'slug' => 'gloves',
+            'new_price' => 50,
+            'is_purchasable' => false,
+        ]);
+
+        $this->placeOrder([
+            'items' => [
+                ['slug' => 'steam-autoclave', 'quantity' => 2],
+                ['slug' => 'gloves', 'quantity' => 4],
+            ],
+        ])->assertCreated();
+
+        $order = Order::query()->with('products')->sole();
+
+        $this->assertSame('2000.00', $order->total_amount);
+        $this->assertSame(['steam-autoclave'], $order->products->pluck('slug')->all());
+    }
+
+    /**
+     * Hidden from the shop window is not off sale. Somebody who already has it
+     * in a basket must still be able to check out.
+     *
+     * @test
+     */
+    public function a_product_hidden_from_the_listing_can_still_be_ordered(): void
+    {
+        Product::query()->create([
+            'name' => ['en' => 'Steam autoclave', 'ar' => 'أوتوكلاف بخاري'],
+            'slug' => 'steam-autoclave',
+            'new_price' => 750,
+            'is_visible' => false,
+        ]);
+
+        $this->placeOrder()->assertCreated();
+
+        $this->assertSame('1500.00', Order::query()->sole()->total_amount);
+    }
 }

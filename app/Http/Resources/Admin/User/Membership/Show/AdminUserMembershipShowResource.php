@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\User\Membership\Show;
 
+use App\Http\Resources\Admin\User\Membership\Address\AddressResource;
 use App\Http\Resources\Admin\User\Membership\FamilyMember\FamilyMemberResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -79,6 +80,11 @@ class AdminUserMembershipShowResource extends JsonResource
                             'url' => $m->getUrl(),
                             'name' => $m->name,
                         ])->values(),
+                        'addresses' => $membership->relationLoaded('addresses')
+                            ? $membership->addresses->map(function ($address) use ($request) {
+                                return (new AddressResource($address))->toArray($request);
+                            })->values()->toArray()
+                            : [],
                         'family_members' => $membership->relationLoaded('familyMembers')
                             ? $membership->familyMembers->map(function ($familyMember) use ($request) {
                                 return (new FamilyMemberResource($familyMember))->toArray($request);

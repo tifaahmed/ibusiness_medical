@@ -48,6 +48,13 @@ class ProductDetailResource extends JsonResource
                 'icon' => $tag->icon,
                 'color' => $tag->color,
             ])),
+            /*
+             * A product reaching this resource is already accessible — see the
+             * controller — so what matters on the page is whether it can be
+             * bought.
+             */
+            'is_accessible' => (bool) $this->is_accessible,
+            'is_purchasable' => (bool) $this->is_purchasable,
             'banner_config' => ProductResource::resolvedBannerConfig($this->resource),
             'created_at' => $this->created_at?->toAtomString(),
             'updated_at' => $this->updated_at?->toAtomString(),

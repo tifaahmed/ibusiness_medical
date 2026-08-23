@@ -15,6 +15,10 @@ export const useProductStore = defineStore('product', {
             cost_price: '',
             profit_price: '',
             product_type_id: '',
+            // The three storefront switches. A new product is live everywhere.
+            is_visible: true,
+            is_accessible: true,
+            is_purchasable: true,
             admin_note: '',
             banner_config: null,
             meta_title: {},
@@ -31,6 +35,9 @@ export const useProductStore = defineStore('product', {
             remove_small_image: false,
             gallery: [],
             removed_gallery_ids: [],
+            // Disk paths of images uploaded from inside the description editor;
+            // they become gallery rows when the form is saved.
+            editor_gallery_paths: [],
         }),
         validationErrors: null,
         isLoading: false
@@ -47,6 +54,10 @@ export const useProductStore = defineStore('product', {
                 cost_price: '',
                 profit_price: '',
                 product_type_id: '',
+                // The three storefront switches. A new product is live everywhere.
+                is_visible: true,
+                is_accessible: true,
+                is_purchasable: true,
                 admin_note: '',
                 banner_config: null,
                 meta_title: {},
@@ -61,6 +72,7 @@ export const useProductStore = defineStore('product', {
                 remove_small_image: false,
                 gallery: [],
                 removed_gallery_ids: [],
+                editor_gallery_paths: [],
             });
             this.validationErrors = null;
         },
@@ -101,6 +113,14 @@ export const useProductStore = defineStore('product', {
                 cost_price: product.cost_price || '',
                 profit_price: product.profit_price || '',
                 product_type_id: product.product_type_id || '',
+                /*
+                 * `?? true` and not `||`: a switched-off flag arrives as
+                 * false, and `false || true` would turn every hidden product
+                 * back on the moment somebody opened its edit form.
+                 */
+                is_visible: product.is_visible ?? true,
+                is_accessible: product.is_accessible ?? true,
+                is_purchasable: product.is_purchasable ?? true,
                 admin_note: product.admin_note || '',
                 banner_config: product.banner_config ?? null,
                 meta_title: seoMap(product.meta_title),
@@ -115,6 +135,7 @@ export const useProductStore = defineStore('product', {
                 remove_small_image: false,
                 gallery: [],
                 removed_gallery_ids: [],
+                editor_gallery_paths: [],
             });
 
             this.validationErrors = null;
@@ -153,17 +174,19 @@ export const useProductStore = defineStore('product', {
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
                         useNotification().error('Failed to create product');
-                    }
+                    },
+                    onFinish: () => { this.isLoading = false; }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
                 useNotification().error('An unexpected error occurred');
-            } finally {
                 this.isLoading = false;
             }
         },
 
-        async updateForm(slug) {
+        // afterSave: 'return' (back to the list), 'stay' (reload the edit form)
+        // or 'show' (open the product page). The backend owns the redirect.
+        async updateForm(slug, afterSave = 'return') {
             this.isLoading = true;
             try {
                 const validation = validateProductForm({
@@ -188,23 +211,21 @@ export const useProductStore = defineStore('product', {
 
                 // POST + method spoofing: a real PUT body is not parsed by PHP,
                 // so uploaded files would be dropped.
-                this.form.transform((data) => ({ ...data, _method: 'PUT' }))
+                this.form.transform((data) => ({ ...data, _method: 'PUT', after_save: afterSave }))
                     .post(route('admin.product.update', slug), {
                         preserveScroll: true,
                         onSuccess: () => {
                             useNotification().success('Product updated successfully');
-                            this.initializeForm();
-                            router.visit(route('admin.product.list'));
                         },
                         onError: (errors) => {
                             this.validationErrors = { ...this.validationErrors, ...errors };
                             useNotification().error('Failed to update product');
-                        }
+                        },
+                        onFinish: () => { this.isLoading = false; }
                     });
             } catch (error) {
                 console.error('Error updating product:', error);
                 useNotification().error('An unexpected error occurred');
-            } finally {
                 this.isLoading = false;
             }
         }

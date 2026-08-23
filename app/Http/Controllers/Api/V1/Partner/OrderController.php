@@ -6,6 +6,7 @@ use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
+use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressFromOrderAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Partner\StoreOrderReceiptRequest;
 use App\Http\Requests\Api\V1\Partner\StoreOrderRequest;
@@ -34,6 +35,8 @@ use Throwable;
  */
 class OrderController extends Controller
 {
+    public function __construct(private readonly UpsertMemberAddressFromOrderAction $syncMemberAddressAction) {}
+
     /**
      * Place an order from a basket of slugs and quantities.
      *
@@ -52,8 +55,16 @@ class OrderController extends Controller
         $memberPrice = Membership::earnsMemberPrice($request->input('membership_number'));
 
         /** @var \Illuminate\Support\Collection<int, Product> $products */
+        /*
+         * `is_purchasable` is enforced here rather than only on the storefront:
+         * this is where an order is actually written, and a basket that sat in
+         * a session while a product was switched off must not become a sale.
+         * A line that fails it is treated exactly like a withdrawn product
+         * below — dropped, with the rest of the basket still an order.
+         */
         $products = Product::query()
             ->whereIn('slug', array_keys($items))
+            ->where('is_purchasable', true)
             ->get()
             ->keyBy('slug');
 
@@ -178,6 +189,25 @@ class OrderController extends Controller
             ],
             $request,
         );
+
+        /*
+         * The buyer member keeps the address they checked out with: an order
+         * carrying a membership number mirrors its typed address onto the
+         * card's address book (same type updates, a new type is added). It
+         * runs after the order is safely committed and must never cost the
+         * storefront its 201 — any failure here is logged, not raised.
+         */
+        try {
+            $this->syncMemberAddressAction->execute($order->loadMissing('products'), $request);
+        } catch (Throwable $exception) {
+            Log::error('Order address could not be synced to the member\'s address book.', [
+                'route' => $request->path(),
+                'order_code' => $order->order_code,
+                'membership_number' => $order->membership_number,
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+        }
 
         return response()->json([
             'order' => new OrderResource($order->load('products')),

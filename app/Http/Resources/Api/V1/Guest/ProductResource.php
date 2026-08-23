@@ -50,6 +50,15 @@ class ProductResource extends JsonResource
                 'icon' => $tag->icon,
                 'color' => $tag->color,
             ])),
+            /*
+             * The storefront's three switches. `is_visible` is enforced here —
+             * an invisible product never reaches a listing — but the other two
+             * are shipped because the storefront has to DRAW them: a card that
+             * cannot be opened is not a link, and one that cannot be bought has
+             * no add-to-basket button.
+             */
+            'is_accessible' => (bool) $this->is_accessible,
+            'is_purchasable' => (bool) $this->is_purchasable,
             'banner_config' => self::resolvedBannerConfig($this->resource),
             'created_at' => $this->created_at?->toAtomString(),
         ];

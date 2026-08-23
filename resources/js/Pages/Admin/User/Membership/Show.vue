@@ -274,6 +274,66 @@
                   <p v-else class="text-xs text-white/60">{{ t.member?.no_gallery_images || 'No gallery images uploaded.' }}</p>
                 </div>
 
+                <!-- Addresses -->
+                <div class="pt-4 border-t border-border">
+                  <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    {{ t.member?.addresses || 'Addresses' }}
+                    <span v-if="membership.addresses?.length" class="text-xs text-muted-foreground">({{ membership.addresses.length }})</span>
+                  </h3>
+                  <div v-if="membership.addresses && membership.addresses.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      v-for="address in membership.addresses"
+                      :key="address.id"
+                      class="p-4 bg-accent/30 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                    >
+                      <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/70">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                          </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 mb-1 flex-wrap">
+                            <span
+                              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border"
+                              :class="addressTypeBadgeClass(address.type)"
+                            >
+                              {{ address.type_label || addressTypeLabel(address.type) }}
+                            </span>
+                          </div>
+                          <p v-if="address.governorate_label || address.city_label" class="text-sm text-white mb-1">
+                            <span class="font-medium">{{ [address.governorate_label, address.city_label].filter(Boolean).join(' - ') }}</span>
+                          </p>
+                          <p v-if="address.address" class="text-sm text-white/80 mb-2">{{ address.address }}</p>
+                          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
+                            <span v-if="address.street">
+                              {{ t.member?.street || 'Street' }}: {{ address.street }}
+                            </span>
+                            <span v-if="address.building_number">
+                              {{ t.member?.building_number || 'Building' }}: {{ address.building_number }}
+                            </span>
+                            <span v-if="address.apartment_number">
+                              {{ t.member?.apartment_number || 'Apartment' }}: {{ address.apartment_number }}
+                            </span>
+                            <span v-if="address.floor_number">
+                              {{ t.member?.floor_number || 'Floor' }}: {{ address.floor_number }}
+                            </span>
+                          </div>
+                          <p v-if="address.special_mark" class="text-xs text-white/60 mt-2 italic">
+                            {{ t.member?.special_mark_short || 'Mark' }}: {{ address.special_mark }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p v-else class="text-xs text-white/60">{{ t.member?.no_addresses || 'No addresses added yet.' }}</p>
+                </div>
+
                 <!-- Family Members Section -->
                 <div v-if="membership.family_members && membership.family_members.length > 0" class="pt-4 border-t border-border">
                   <h3 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
@@ -694,6 +754,23 @@ function openAdminCardPopup(membership, mode) {
 
 function onPopupCardRendered(event) {
   popupRenderedCanvas.value = event.canvas;
+}
+
+/* Address type rendered read-only here; the edit page owns the CRUD. */
+function addressTypeLabel(type) {
+  if (!type) return t.value.member?.address_type || 'Address';
+  return t.value.member?.[`address_type_${type}`] || type;
+}
+
+function addressTypeBadgeClass(type) {
+  switch (type) {
+    case 'home':
+      return 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40';
+    case 'work':
+      return 'bg-blue-500/20 text-blue-200 border-blue-500/40';
+    default:
+      return 'bg-slate-500/20 text-slate-200 border-slate-500/40';
+  }
 }
 
 const activeMembership = computed(() => {
