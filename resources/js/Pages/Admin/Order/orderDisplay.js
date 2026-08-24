@@ -20,6 +20,14 @@ export const statusClass = {
         'on-delivery': 'border-violet-500/30 bg-violet-500/10 text-violet-500',
         completed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     },
+    /* The order's own outcome. Success and failure read the same green/red as
+       an accepted and a rejected payment on purpose — an admin scanning the
+       table is reading colour first and words second. */
+    order: {
+        pending: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+        success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
+        failed: 'border-red-500/30 bg-red-500/10 text-red-500',
+    },
 };
 
 export const paymentTypeClass = {
@@ -37,6 +45,7 @@ export const logActionClass = {
     deleted: 'border-red-500/30 bg-red-500/10 text-red-500',
     payment_status_changed: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
     delivery_status_changed: 'border-violet-500/30 bg-violet-500/10 text-violet-500',
+    order_status_changed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     products_changed: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
     canceled: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400',
     viewed: 'border-border bg-muted/50 text-muted-foreground',
@@ -69,6 +78,12 @@ export const deliveryStatusLabel = (t, status) => labelled(t, {
     processing: 'delivery_processing',
     'on-delivery': 'delivery_on_delivery',
     completed: 'delivery_completed',
+}, status, typeof status === 'object' ? status?.label : null);
+
+export const orderStatusLabel = (t, status) => labelled(t, {
+    pending: 'order_status_pending',
+    success: 'order_status_success',
+    failed: 'order_status_failed',
 }, status, typeof status === 'object' ? status?.label : null);
 
 export const paymentTypeLabel = (t, type) => labelled(t, {

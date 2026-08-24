@@ -66,6 +66,10 @@ class AdminOrderShowResource extends JsonResource
                 'value' => $this->delivery_status?->value,
                 'label' => $this->delivery_status?->label(),
             ],
+            'order_status' => [
+                'value' => $this->order_status?->value,
+                'label' => $this->order_status?->label(),
+            ],
             'payment_type' => [
                 'value' => $this->payment_type?->value,
                 'label' => $this->payment_type?->label(),
@@ -96,6 +100,9 @@ class AdminOrderShowResource extends JsonResource
 
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            /* Set only for an order opened out of the trash — the page reads
+               it to say so, and to swap Edit for Restore. */
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
         ];
     }
 }

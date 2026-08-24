@@ -18,6 +18,9 @@ class OrderLog extends Model
 
     public const ACTION_DELIVERY_STATUS_CHANGED = 'delivery_status_changed';
 
+    /** The order's own outcome moved — pending / success / failed. */
+    public const ACTION_ORDER_STATUS_CHANGED = 'order_status_changed';
+
     public const ACTION_CANCELED = 'canceled';
 
     /** An admin opened the order's page. A read, not a change. */

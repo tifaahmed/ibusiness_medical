@@ -12,7 +12,7 @@
         </div>
       </div>
       <div class="px-3 sm:px-6 space-y-2.5 sm:space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <FormSelect
             v-model="form.payment_status"
             :label="t.order?.payment_status || 'Payment Status'"
@@ -25,6 +25,13 @@
             :label="t.order?.delivery_status || 'Delivery Status'"
             :options="deliveryStatuses"
             :error="errorFor('delivery_status')"
+            required
+          />
+          <FormSelect
+            v-model="form.order_status"
+            :label="t.order?.order_status || 'Order Status'"
+            :options="orderStatusChoices"
+            :error="errorFor('order_status')"
             required
           />
           <FormSelect
@@ -52,6 +59,10 @@
         </p>
       </div>
     </div>
+
+    <!-- Whether this customer bought on a card, and which one. Above the
+         customer block because it is the thing that explains the amounts. -->
+    <OrderMembershipCard :membership="membership" :current-number="form.membership_number" />
 
     <!-- Customer -->
     <div class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
@@ -333,15 +344,46 @@
             :error="errorFor('total_amount')"
             required
           />
-          <FormInput
-            v-model="form.total_paid"
-            :label="t.order?.total_paid || 'Total Paid'"
-            type="number"
-            min="0"
-            step="0.01"
-            :error="errorFor('total_paid')"
-            required
-          />
+          <div class="space-y-1.5">
+            <FormInput
+              v-model="form.total_paid"
+              :label="t.order?.total_paid || 'Total Paid'"
+              type="number"
+              min="0"
+              step="0.01"
+              :error="errorFor('total_paid')"
+              required
+            />
+            <!-- The common case, one click: the customer paid what they were
+                 charged. It copies the amount rather than adding to what is
+                 already there, so clicking twice cannot double the payment. -->
+            <button
+              type="button"
+              @click="orderStore.applyFullPayment()"
+              :disabled="alreadyPaidInFull"
+              class="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-emerald-500/40 px-2.5 py-1.5 text-xs font-medium text-emerald-500 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+              {{ t.order?.paid_full_price || 'Paid the full price' }}
+            </button>
+            <p class="text-xs" :class="settlement.tone">{{ settlement.text }}</p>
+          </div>
+        </div>
+
+        <!-- Discount or full price, as the amounts stand right now: the gap
+             between what the order would have cost and what it is charging.
+             Derived from the form rather than the saved order so an admin
+             editing either figure sees what they are about to save. -->
+        <div :class="['flex flex-col gap-1.5 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between', discount.box]">
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="discount.tone">
+              <line x1="19" x2="5" y1="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle>
+            </svg>
+            <span class="text-sm font-semibold" :class="discount.tone">{{ discount.label }}</span>
+          </div>
+          <p class="text-xs" :class="discount.tone">{{ discount.detail }}</p>
         </div>
 
         <!--
@@ -566,11 +608,17 @@ import { useNotification } from "@/composables/useNotification";
 import { FormInput, FormSearchableSelect, FormSelect, FormTextarea } from "@/Components/form";
 import { useOrderStore } from "../../Stores/OrderStore";
 import { formatPrice, translatedName } from "../../orderDisplay.js";
+import OrderMembershipCard from "./OrderMembershipCard.vue";
 
 const props = defineProps({
   order: { type: Object, required: true },
+  membership: {
+    type: Object,
+    default: () => ({ status: 'none', number: null, earns_member_price: false, card: null }),
+  },
   paymentStatuses: { type: Array, default: () => [] },
   deliveryStatuses: { type: Array, default: () => [] },
+  orderStatuses: { type: Array, default: () => [] },
   paymentTypes: { type: Array, default: () => [] },
   products: { type: Array, default: () => [] },
 });
@@ -588,6 +636,15 @@ const { form } = storeToRefs(orderStore);
 const errorFor = (field) => orderStore.validationErrors?.[field] || form.value.errors?.[field] || '';
 
 const productToAdd = ref(null);
+
+/* Same shape as `addressTypeOptions`: the server sends the enum's English
+   labels, and the admin's own wording wins where there is one. */
+const orderStatusChoices = computed(() =>
+  props.orderStatuses.map(option => ({
+    value: option.value,
+    label: t.value.order?.[`order_status_${option.value}`] || option.label,
+  }))
+);
 
 const addressTypeOptions = computed(() =>
   (page.props.addressTypeOptions || []).map(option => ({
@@ -635,6 +692,79 @@ const totalDiffersFromLines = computed(() => {
 });
 
 const paymentTypeChanged = computed(() => form.value.payment_type !== props.order.payment_type);
+
+/* Settled, short, or over — all three are worth naming. `outstanding` is
+   signed, so an overpayment reads as one rather than as a settled order. */
+const alreadyPaidInFull = computed(() => Math.abs(orderStore.outstanding) < 0.005);
+
+const settlement = computed(() => {
+  const owed = orderStore.outstanding;
+  if (Math.abs(owed) < 0.005) {
+    return { text: t.value.order?.paid_in_full || 'Paid in full.', tone: 'text-emerald-500' };
+  }
+  if (owed > 0) {
+    return {
+      text: (t.value.order?.outstanding_amount || 'Outstanding: :amount').replace(':amount', formatPrice(owed)),
+      tone: 'text-amber-500',
+    };
+  }
+  return {
+    text: (t.value.order?.overpaid || 'Overpaid by :amount').replace(':amount', formatPrice(Math.abs(owed))),
+    tone: 'text-sky-500',
+  };
+});
+
+/*
+  Three answers, not two. A discount is a figure; "full price" is the absence
+  of one; and an order with no before-discount figure at all was never priced
+  against a member price, which is different from having been offered nothing.
+*/
+const discount = computed(() => {
+  const saved = orderStore.membershipDiscount;
+  const before = Number(form.value.total_amount_before_discount);
+
+  if (saved === null) {
+    return {
+      label: t.value.order?.price_unknown || 'No comparison price',
+      detail: t.value.order?.price_unknown_hint || 'This order has no before-discount figure to compare against.',
+      tone: 'text-muted-foreground',
+      box: 'border-border bg-muted/30',
+    };
+  }
+
+  if (saved > 0.005) {
+    const percent = before > 0 ? Math.round((saved / before) * 100) : null;
+    return {
+      label: (t.value.order?.discounted || 'Discounted — saved :amount').replace(':amount', formatPrice(saved)),
+      detail: (t.value.order?.discounted_hint || ':before before discount → :after charged:percent')
+        .replace(':before', formatPrice(before))
+        .replace(':after', formatPrice(Number(form.value.total_amount)))
+        .replace(':percent', percent === null ? '' : ` (−${percent}%)`),
+      tone: 'text-emerald-500',
+      box: 'border-emerald-500/40 bg-emerald-500/10',
+    };
+  }
+
+  if (saved < -0.005) {
+    /* Charged MORE than the before-discount figure — not a discount at all,
+       and almost always a typo in one of the two boxes. */
+    return {
+      label: t.value.order?.price_above_list || 'Charged above the list price',
+      detail: (t.value.order?.price_above_list_hint || 'Charged :after against a list price of :before — check both figures.')
+        .replace(':after', formatPrice(Number(form.value.total_amount)))
+        .replace(':before', formatPrice(before)),
+      tone: 'text-red-400',
+      box: 'border-red-500/40 bg-red-500/10',
+    };
+  }
+
+  return {
+    label: t.value.order?.full_price || 'Full price — no discount',
+    detail: t.value.order?.full_price_hint || 'The customer is paying the full price of the items.',
+    tone: 'text-zinc-400',
+    box: 'border-zinc-500/40 bg-zinc-500/10',
+  };
+});
 
 /* Receipts: the same file types the buyer's upload endpoint accepts, mirrored
    client-side so the picker refuses a video before it is uploaded rather than

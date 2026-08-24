@@ -242,19 +242,36 @@ class Membership extends Model implements HasMedia
      */
     public static function earnsMemberPrice(?string $numberOrSlug): bool
     {
+        return static::cardFor($numberOrSlug)?->isCurrent() ?? false;
+    }
+
+    /**
+     * The card a membership number resolves to, or null if it resolves to none.
+     *
+     * The one lookup behind both the price decision and everything an admin is
+     * shown about it: `earnsMemberPrice()` is this plus `isCurrent()`. Kept
+     * that way on purpose — an order page that reports "member card valid"
+     * must be reading the same row the checkout priced against, or the two
+     * quietly disagree about an order nobody can then explain.
+     *
+     * `visible()` matches the partner lookup: a hidden card answers "no such
+     * card" at the checkout, so it must not quietly price as one.
+     *
+     * @param  array<int, string>  $with  relations to eager load on the card
+     */
+    public static function cardFor(?string $numberOrSlug, array $with = []): ?self
+    {
         $number = trim((string) $numberOrSlug);
 
         if ($number === '') {
-            return false;
+            return null;
         }
 
-        /* `visible()` matches the partner lookup: a hidden card answers "no
-           such card" at the checkout, so it must not quietly price as one. */
         return static::query()
             ->visible()
             ->matchingNumber($number)
-            ->first()
-            ?->isCurrent() ?? false;
+            ->with($with)
+            ->first();
     }
 
     /**

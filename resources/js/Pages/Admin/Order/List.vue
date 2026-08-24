@@ -1,5 +1,5 @@
 <template>
-  <OrderListView :orders="orders" :filters="filters" />
+  <OrderListView :orders="orders" :filters="filters" :order-statuses="orderStatuses" />
 </template>
 
 <script setup>
@@ -16,8 +16,15 @@ const props = defineProps({
       search: '',
       payment_status: '',
       delivery_status: '',
-      payment_type: ''
+      order_status: '',
+      payment_type: '',
+      created_from: '',
+      created_to: ''
     })
+  },
+  orderStatuses: {
+    type: Array,
+    default: () => []
   }
 });
 </script>

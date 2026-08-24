@@ -76,6 +76,24 @@
         />
       </div>
 
+      <!-- Order Status Filter -->
+      <div class="min-w-0">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="order_status"
+        >
+          {{ t.order?.order_status || 'Order Status' }}
+        </label>
+        <Select
+          v-model="filters.order_status"
+          :options="orderStatusOptions"
+          :placeholder="t.order?.all_statuses || 'All'"
+          id="order_status"
+          @change="applyFilters()"
+        />
+      </div>
+
       <!-- Payment Type Filter -->
       <div class="min-w-0">
         <label
@@ -91,6 +109,43 @@
           :placeholder="t.order?.all_statuses || 'All'"
           id="payment_type"
           @change="applyFilters()"
+        />
+      </div>
+
+      <!-- Created from -->
+      <div class="min-w-0">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="order-created-from"
+        >
+          {{ t.order?.created_from_label || 'Created from' }}
+        </label>
+        <input
+          id="order-created-from"
+          v-model="filters.created_from"
+          @change="applyFilters()"
+          type="date"
+          class="border border-border bg-transparent text-foreground rounded-md flex h-7 sm:h-8 md:h-9 w-full min-w-0 max-w-full px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] [color-scheme:dark] cursor-pointer"
+        />
+      </div>
+
+      <!-- Created to -->
+      <div class="min-w-0">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="order-created-to"
+        >
+          {{ t.order?.created_to_label || 'Created to' }}
+        </label>
+        <input
+          id="order-created-to"
+          v-model="filters.created_to"
+          @change="applyFilters()"
+          type="date"
+          :min="filters.created_from || null"
+          class="border border-border bg-transparent text-foreground rounded-md flex h-7 sm:h-8 md:h-9 w-full min-w-0 max-w-full px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] [color-scheme:dark] cursor-pointer"
         />
       </div>
     </div>
@@ -134,10 +189,21 @@ const props = defineProps({
       search: '',
       payment_status: '',
       delivery_status: '',
-      payment_type: ''
+      order_status: '',
+      payment_type: '',
+      created_from: '',
+      created_to: ''
     })
+  },
+  /* Which screen the filters belong to. The trash page reuses this component
+     whole and must filter itself, not send the admin back to the live list. */
+  routeName: {
+    type: String,
+    default: 'admin.order.list',
   }
 });
+
+const emit = defineEmits(['filter-change']);
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -156,6 +222,12 @@ const deliveryStatusOptions = computed(() => [
   { value: 'completed', label: t.value.order?.delivery_completed || 'Completed' },
 ]);
 
+const orderStatusOptions = computed(() => [
+  { value: 'pending', label: t.value.order?.order_status_pending || 'Pending' },
+  { value: 'success', label: t.value.order?.order_status_success || 'Success' },
+  { value: 'failed', label: t.value.order?.order_status_failed || 'Failed' },
+]);
+
 const paymentTypeOptions = computed(() => [
   { value: 'cod', label: t.value.order?.type_cod || 'Cash on Delivery' },
   { value: 'transfer-wallet', label: t.value.order?.type_transfer_wallet || 'Transfer Wallet' },
@@ -166,7 +238,10 @@ const getInitialFilters = () => {
     search: '',
     payment_status: '',
     delivery_status: '',
-    payment_type: ''
+    order_status: '',
+    payment_type: '',
+    created_from: '',
+    created_to: ''
   };
 
   if (props.initialFilters) {
@@ -179,7 +254,10 @@ const getInitialFilters = () => {
       search: urlParams.get('search') || '',
       payment_status: urlParams.get('payment_status') || '',
       delivery_status: urlParams.get('delivery_status') || '',
-      payment_type: urlParams.get('payment_type') || ''
+      order_status: urlParams.get('order_status') || '',
+      payment_type: urlParams.get('payment_type') || '',
+      created_from: urlParams.get('created_from') || '',
+      created_to: urlParams.get('created_to') || ''
     };
   }
   return defaults;
@@ -191,7 +269,10 @@ const hasActiveFilters = computed(() => {
   return !!(filters.value.search
     || filters.value.payment_status
     || filters.value.delivery_status
-    || filters.value.payment_type);
+    || filters.value.order_status
+    || filters.value.payment_type
+    || filters.value.created_from
+    || filters.value.created_to);
 });
 
 let searchTimeout = null;
@@ -208,7 +289,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', payment_status: '', delivery_status: '', payment_type: '' };
+  filters.value = { search: '', payment_status: '', delivery_status: '', order_status: '', payment_type: '', created_from: '', created_to: '' };
   applyFilters();
 };
 
@@ -218,9 +299,16 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.search) params.search = currentFilters.search;
   if (currentFilters.payment_status) params.payment_status = currentFilters.payment_status;
   if (currentFilters.delivery_status) params.delivery_status = currentFilters.delivery_status;
+  if (currentFilters.order_status) params.order_status = currentFilters.order_status;
   if (currentFilters.payment_type) params.payment_type = currentFilters.payment_type;
+  if (currentFilters.created_from) params.created_from = currentFilters.created_from;
+  if (currentFilters.created_to) params.created_to = currentFilters.created_to;
 
-  router.get(route('admin.order.list'), params, {
+  // The export link is built from the filters the admin is looking at, so
+  // the parent needs every change — not just the ones that hit the server.
+  emit('filter-change', { ...currentFilters });
+
+  router.get(route(props.routeName), params, {
     preserveState: true,
     preserveScroll: true,
     replace: true

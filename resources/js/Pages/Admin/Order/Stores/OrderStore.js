@@ -32,6 +32,7 @@ const emptyForm = () => ({
     membership_number: '',
     payment_status: '',
     delivery_status: '',
+    order_status: '',
     payment_type: '',
     cancel_reason: '',
     total_paid: 0,
@@ -96,9 +97,7 @@ export const useOrderStore = defineStore('order', {
     getters: {
         /** Receipts already stored on the order as it was last loaded. */
         existingReceiptCount: (state) => state.orderReceipts.length,
-    },
 
-    getters: {
         /**
          * What the lines add up to right now — the figure the amounts card
          * offers to copy into `total_amount`. Derived, never posted: the server
@@ -120,6 +119,33 @@ export const useOrderStore = defineStore('order', {
         deliveryProfit: (state) => Math.round(
             ((num(state.form.delivery_price) ?? 0) - (num(state.form.delivery_cost) ?? 0)) * 100,
         ) / 100,
+
+        /**
+         * What is still owed on the order as the two amount fields stand.
+         *
+         * Positive is owed by the customer, negative is overpaid — both are
+         * states an admin needs to see, so this is not clamped at zero.
+         */
+        outstanding: (state) => Math.round(
+            ((num(state.form.total_amount) ?? 0) - (num(state.form.total_paid) ?? 0)) * 100,
+        ) / 100,
+
+        /**
+         * What the membership took off this order: the gap between the price
+         * before the discount and the price charged.
+         *
+         * The same arithmetic as `savedAmount()` on the read pages, but over
+         * the FORM rather than the saved order, so the badge answers for the
+         * figures about to be saved. Null when there is nothing to compare —
+         * an order with no before-discount figure is not a discount of zero,
+         * it is an order that was never priced against one.
+         */
+        membershipDiscount: (state) => {
+            const before = num(state.form.total_amount_before_discount);
+            const after = num(state.form.total_amount);
+            if (before === null || after === null) return null;
+            return Math.round((before - after) * 100) / 100;
+        },
     },
 
     actions: {
@@ -141,6 +167,7 @@ export const useOrderStore = defineStore('order', {
                 membership_number: order.membership_number ?? '',
                 payment_status: order.payment_status ?? '',
                 delivery_status: order.delivery_status ?? '',
+                order_status: order.order_status ?? 'pending',
                 payment_type: order.payment_type ?? '',
                 cancel_reason: order.cancel_reason ?? '',
                 total_paid: order.total_paid ?? 0,
@@ -232,6 +259,19 @@ export const useOrderStore = defineStore('order', {
             const delivery = num(this.form.delivery_price) ?? 0;
 
             this.form.total_amount = Math.round((this.linesTotal + delivery) * 100) / 100;
+        },
+
+        /**
+         * Settle the order: the customer paid all of what they were charged.
+         *
+         * Copies the amount charged rather than adding to what is already
+         * there — "paid in full" is a statement about the total, and an admin
+         * clicking it twice must not bill the customer twice. It does not
+         * touch the payment status: whether the money actually arrived is a
+         * decision with an audit row behind it, not a side effect of a button.
+         */
+        applyFullPayment() {
+            this.form.total_paid = num(this.form.total_amount) ?? 0;
         },
 
         updateOrder() {

@@ -23,10 +23,15 @@ class AdminOrderShowController extends BaseController
      *
      * `orders` carries no `created_by`, so — as on the list — there is no row
      * ownership to scope by yet and either permission opens the order.
+     *
+     * Trashed orders open here too. The trash page offers a "view" beside its
+     * restore and erase, and an admin deciding between those two needs to read
+     * the order first — sending them to a 404 would make the decision blind.
+     * The page marks it as deleted; the edit form still refuses.
      */
     public function __invoke(Request $request, string $order): Response
     {
-        $orderModel = Order::query()
+        $orderModel = Order::withTrashed()
             ->with(['products.product:id,slug', 'logs.admin:id,name,email', 'media'])
             ->where('order_code', $order)
             ->firstOrFail();

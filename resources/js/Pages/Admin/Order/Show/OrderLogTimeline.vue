@@ -116,6 +116,7 @@ const dotClass = (action) => ({
   deleted: 'bg-red-500',
   payment_status_changed: 'bg-amber-500',
   delivery_status_changed: 'bg-violet-500',
+  order_status_changed: 'bg-emerald-500',
   products_changed: 'bg-sky-500',
   canceled: 'bg-zinc-500',
 }[action] || 'bg-muted-foreground/50');

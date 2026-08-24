@@ -14,8 +14,10 @@
         <form @submit.prevent="handleSubmit" class="space-y-2 sm:space-y-3 md:space-y-4">
           <OrderForm
             :order="order"
+            :membership="membership"
             :payment-statuses="paymentStatuses"
             :delivery-statuses="deliveryStatuses"
+            :order-statuses="orderStatuses"
             :payment-types="paymentTypes"
             :products="products"
           />
@@ -67,8 +69,15 @@ import { useOrderStore } from "../Stores/OrderStore";
 
 const props = defineProps({
   order: { type: Object, required: true },
+  /* Resolved server-side from `order.membership_number` — see
+     AdminOrderMembershipResource for why it hangs off the order. */
+  membership: {
+    type: Object,
+    default: () => ({ status: 'none', number: null, earns_member_price: false, card: null }),
+  },
   paymentStatuses: { type: Array, default: () => [] },
   deliveryStatuses: { type: Array, default: () => [] },
+  orderStatuses: { type: Array, default: () => [] },
   paymentTypes: { type: Array, default: () => [] },
   products: { type: Array, default: () => [] },
 });

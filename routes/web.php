@@ -130,9 +130,15 @@ use App\Http\Controllers\Admin\Offer\List\AdminOfferListController;
 use App\Http\Controllers\Admin\Offer\Show\AdminOfferShowController;
 use App\Http\Controllers\Admin\Offer\Store\AdminOfferStoreController;
 use App\Http\Controllers\Admin\Offer\Update\AdminOfferUpdateController;
+use App\Http\Controllers\Admin\Order\BulkStatus\AdminOrderBulkStatusController;
+use App\Http\Controllers\Admin\Order\Delete\AdminOrderDeleteController;
 use App\Http\Controllers\Admin\Order\Edit\AdminOrderEditController;
+use App\Http\Controllers\Admin\Order\Export\AdminOrderExportController;
+use App\Http\Controllers\Admin\Order\ForceDelete\AdminOrderForceDeleteController;
 use App\Http\Controllers\Admin\Order\List\AdminOrderListController;
+use App\Http\Controllers\Admin\Order\Restore\AdminOrderRestoreController;
 use App\Http\Controllers\Admin\Order\Show\AdminOrderShowController;
+use App\Http\Controllers\Admin\Order\Trash\AdminOrderTrashController;
 use App\Http\Controllers\Admin\Order\Update\AdminOrderUpdateController;
 use App\Http\Controllers\Admin\Partner\Create\AdminPartnerCreateController;
 use App\Http\Controllers\Admin\Partner\Delete\AdminPartnerDeleteController;
@@ -582,11 +588,35 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     // ---- Order (manage orders OR own) ----
     Route::middleware('permission:manage orders|manage own orders')->group(function () {
+        /* Declared before `/admin/order/{order}` below so the show route's
+           `[A-Za-z0-9-]+` binding cannot swallow `export`. */
+        Route::get('/admin/order/export', AdminOrderExportController::class)->name('admin.order.export');
+        /* Same reason: a POST path under `/admin/order` that the show route's
+           binding must never claim. */
+        Route::post('/admin/order/bulk-status', AdminOrderBulkStatusController::class)->name('admin.order.bulk-status');
         Route::get('/admin/order/{order}/edit', AdminOrderEditController::class)->name('admin.order.edit');
         Route::put('/admin/order/{order}', AdminOrderUpdateController::class)->name('admin.order.update');
+        /* Soft delete — bound by `order_code` like the edit and update above it,
+           and constrained the same way so it cannot answer for `/export`. */
+        Route::delete('/admin/order/{order}', AdminOrderDeleteController::class)
+            ->where('order', '[A-Za-z0-9\\-]+')
+            ->name('admin.order.destroy');
+        /* The two trash actions take an id, not a code: only the trash page
+           offers them, and it lists ids. `whereNumber` keeps them off the
+           `{order}` code routes entirely. */
+        Route::post('/admin/order/{order}/restore', AdminOrderRestoreController::class)
+            ->whereNumber('order')
+            ->name('admin.order.restore');
+        Route::delete('/admin/order/{order}/force-delete', AdminOrderForceDeleteController::class)
+            ->whereNumber('order')
+            ->name('admin.order.force-delete');
     });
     Route::middleware('permission:manage orders|manage own orders|view orders')->group(function () {
         Route::get('/admin/order', AdminOrderListController::class)->name('admin.order.list');
+        /* Ahead of `/admin/order/{order}`: `trash` matches that route's binding
+           character for character, so the wildcard would otherwise look for an
+           order coded "trash". */
+        Route::get('/admin/order/trash', AdminOrderTrashController::class)->name('admin.order.trash');
         /* Bound by `order_code`, the key the order is known by everywhere else.
            Constrained so it cannot swallow a future `/admin/order/create`. */
         Route::get('/admin/order/{order}', AdminOrderShowController::class)

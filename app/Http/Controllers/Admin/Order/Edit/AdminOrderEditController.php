@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin\Order\Edit;
 
 use App\Enums\Order\DeliveryStatusEnum;
+use App\Enums\Order\OrderStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Order\Edit\AdminOrderEditResource;
+use App\Http\Resources\Admin\Order\Edit\AdminOrderMembershipResource;
 use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\Product;
@@ -32,8 +34,13 @@ class AdminOrderEditController extends BaseController
 
         return Inertia::render('Admin/Order/Edit/OrderEditView', [
             'order' => (new AdminOrderEditResource($orderModel))->toArray($request),
+            /* Resolved here rather than on the order resource: it is a second
+               query against a second table, and the edit form is the only page
+               that asks "is this customer actually a member?". */
+            'membership' => (new AdminOrderMembershipResource($orderModel))->toArray($request),
             'paymentStatuses' => array_values(PaymentStatusEnum::getOptions()),
             'deliveryStatuses' => array_values(DeliveryStatusEnum::getOptions()),
+            'orderStatuses' => array_values(OrderStatusEnum::getOptions()),
             'paymentTypes' => array_values(PaymentTypeEnum::getOptions()),
             'addressTypeOptions' => array_values(\App\Enums\Address\AddressTypeEnum::getOptions()),
             'products' => $this->productPicker(),

@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
+use App\Enums\Order\OrderStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -16,6 +18,13 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Order extends Model implements HasMedia
 {
     use InteractsWithMedia;
+
+    /*
+     * A deleted order keeps its lines, its receipts and its audit trail, and
+     * an admin can put it back. See the `deleted_at` migration for why an
+     * order is never dropped outright by the admin screens.
+     */
+    use SoftDeletes;
 
     /** Where a storefront order says it came from. */
     public const SOURCE_STOREFRONT = 'storefront';
@@ -60,6 +69,7 @@ class Order extends Model implements HasMedia
         'membership_number',
         'payment_status',
         'delivery_status',
+        'order_status',
         'payment_type',
         'cancel_reason',
         'ip_address',
@@ -78,6 +88,7 @@ class Order extends Model implements HasMedia
             'delivery_profit' => 'decimal:2',
             'payment_status' => PaymentStatusEnum::class,
             'delivery_status' => DeliveryStatusEnum::class,
+            'order_status' => OrderStatusEnum::class,
             'payment_type' => PaymentTypeEnum::class,
             'customer_address_type' => AddressTypeEnum::class,
         ];
@@ -163,6 +174,11 @@ class Order extends Model implements HasMedia
      * order with, and a sequential one would let anybody read the order before
      * and after their own. Ambiguous characters are left out so a code read
      * aloud or copied off a screen does not come back as a different order.
+     *
+     * The uniqueness check runs `withTrashed` because the unique index on
+     * `order_code` does not care about `deleted_at`: a code handed out again
+     * because its first order sits in the trash would fail on insert, and
+     * would collide with the original the moment somebody restored it.
      */
     public static function generateCode(): string
     {
@@ -172,13 +188,17 @@ class Order extends Model implements HasMedia
             $code = 'DL-'.collect(range(1, 8))
                 ->map(fn () => $alphabet[random_int(0, strlen($alphabet) - 1)])
                 ->implode('');
-        } while (self::query()->where('order_code', $code)->exists());
+        } while (self::withTrashed()->where('order_code', $code)->exists());
 
         return $code;
     }
 
     /**
      * Find an order by the code a buyer typed, however they typed it.
+     *
+     * Trashed orders stay hidden here on purpose: this is what the buyer's
+     * tracking page asks, and a deleted order has no answer to give them. The
+     * admin screens that must see one ask `withTrashed` for themselves.
      */
     public static function findByCode(string $code): ?self
     {

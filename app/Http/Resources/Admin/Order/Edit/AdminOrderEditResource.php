@@ -57,6 +57,7 @@ class AdminOrderEditResource extends JsonResource
 
             'payment_status' => $this->payment_status?->value,
             'delivery_status' => $this->delivery_status?->value,
+            'order_status' => $this->order_status?->value,
             'payment_type' => $this->payment_type?->value,
             'cancel_reason' => $this->cancel_reason,
             'source' => $this->source,

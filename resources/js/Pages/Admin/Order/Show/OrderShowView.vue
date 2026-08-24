@@ -10,6 +10,23 @@
       />
 
       <div class="max-w-7xl mx-auto mt-2 space-y-3">
+        <!--
+          Opened out of the trash. Said before anything else on the page,
+          because every figure below it belongs to an order that is not on the
+          list any more — and an admin who missed that would go looking for it.
+        -->
+        <div
+          v-if="order.deleted_at"
+          class="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0">
+            <path d="M3 6h18"></path>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          </svg>
+          <span>{{ (t.order?.deleted_banner || 'This order is in the trash. It was deleted on :date.').replace(':date', order.deleted_at) }}</span>
+        </div>
+
         <!-- Header: the code, what state it is in, and what can be done to it -->
         <div class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -28,6 +45,9 @@
                 </span>
                 <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', statusClass.delivery[order.delivery_status?.value]]">
                   {{ deliveryStatusLabel(t, order.delivery_status) }}
+                </span>
+                <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', statusClass.order[order.order_status?.value]]">
+                  {{ orderStatusLabel(t, order.order_status) }}
                 </span>
                 <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', paymentTypeClass[order.payment_type?.value]]">
                   {{ paymentTypeLabel(t, order.payment_type) }}
@@ -53,6 +73,41 @@
             </div>
 
             <div class="flex flex-wrap gap-2 shrink-0">
+              <!--
+                Two printable copies, never one with a checkbox. The internal
+                one carries cost, margin, the buyer's IP and the audit trail;
+                the customer's carries none of it. See orderPdf.js.
+              -->
+              <button
+                type="button"
+                @click="downloadPdf('admin')"
+                :disabled="exporting !== null"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                  <path d="M6 9V2h12v7"></path>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8" rx="1"></rect>
+                </svg>
+                {{ exporting === 'admin'
+                  ? (t.order?.export_generating || 'Generating…')
+                  : (t.order?.export_admin_pdf || 'Full details (PDF)') }}
+              </button>
+              <button
+                type="button"
+                @click="downloadPdf('receipt')"
+                :disabled="exporting !== null"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
+                  <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+                  <path d="M12 17.5v-11"></path>
+                </svg>
+                {{ exporting === 'receipt'
+                  ? (t.order?.export_generating || 'Generating…')
+                  : (t.order?.export_receipt_pdf || 'Customer receipt (PDF)') }}
+              </button>
               <Link
                 :href="route('admin.order.list')"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5"
@@ -63,7 +118,21 @@
                 {{ t.common?.back || 'Back to List' }}
               </Link>
               <Link
-                v-if="canManage"
+                v-if="order.deleted_at"
+                :href="route('admin.order.trash')"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+                {{ t.order?.trash_title || 'Trash - Deleted Orders' }}
+              </Link>
+              <!-- The edit form refuses a trashed order, so the page does not
+                   offer it one: restore it first, from the trash page. -->
+              <Link
+                v-if="canManage && !order.deleted_at"
                 :href="route('admin.order.edit', order.order_code)"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 px-3 py-1.5"
               >
@@ -389,10 +458,12 @@ import { computed, ref } from "vue";
 import OrderLayout from "../OrderLayout.vue";
 import OrderLogTimeline from "./OrderLogTimeline.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
+import { useNotification } from "@/composables/useNotification";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import {
   deliveryStatusLabel,
   formatPrice,
+  orderStatusLabel,
   paymentStatusLabel,
   paymentTypeClass,
   paymentTypeLabel,
@@ -428,6 +499,56 @@ const canManage = computed(() => {
 });
 
 const saved = computed(() => savedAmount(props.order));
+
+/* Which export is running, or null. One at a time: both rasterise a node into
+   the same document body, and two at once would measure each other. */
+const exporting = ref(null);
+
+const downloadPdf = async (variant) => {
+  if (exporting.value !== null) return;
+  exporting.value = variant;
+  try {
+    // Dynamic import — jsPDF and html2canvas are chunked, and an admin who
+    // never prints an order should never download them.
+    const { exportAdminOrderPdf, exportCustomerReceiptPdf } = await import('../orderPdf.js');
+    const options = {
+      order: props.order,
+      t: t.value,
+      locale: locale.value,
+      appName: page.props.appName || '',
+      logoUrl: page.props.appLogo || null,
+      currency: t.value.order?.currency || 'EGP',
+    };
+    await (variant === 'admin' ? exportAdminOrderPdf(options) : exportCustomerReceiptPdf(options));
+  } catch (error) {
+    // AGENTS.md: front-end failures are reported, not swallowed.
+    useNotification().error(t.value.order?.export_failed || 'Could not generate the PDF.');
+    reportClientError('Order PDF export failed', { variant, message: error?.message }, props.order.order_code);
+  } finally {
+    exporting.value = null;
+  }
+};
+
+/**
+ * Ship the failure to the client-error endpoint so a PDF nobody can generate
+ * shows up in /admin/client-error-logs rather than only in the admin's face.
+ */
+function reportClientError(message, extra, orderCode) {
+  try {
+    fetch('/api/v1/client-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        message,
+        route: window.location.pathname,
+        fatal: false,
+        extra: { order_code: orderCode, ...extra },
+      }),
+    }).catch(() => {});
+  } catch {
+    // Reporting is never worth a second error.
+  }
+}
 
 /* Any one detail present is enough to show the block; orders placed before
    these fields existed stay as they were. */

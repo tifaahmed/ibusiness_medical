@@ -1,11 +1,72 @@
 <template>
   <div data-slot="card" class="bg-card text-card-foreground flex flex-col h-full lg:h-auto rounded-xl border border-border shadow-sm" :key="`order-table-${locale}`">
+    <!--
+      Bulk order status. Appears only once rows are ticked, so the table reads
+      the same as it always did until an admin is actually about to change
+      something — and never at all for an account that may only look.
+    -->
+    <div
+      v-if="canManage && selectedIds.length > 0"
+      class="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 sm:px-4"
+    >
+      <span class="text-xs sm:text-sm font-medium text-foreground">
+        {{ (t.order?.selected_count || ':count selected').replace(':count', selectedIds.length) }}
+      </span>
+      <button
+        type="button"
+        @click="clearSelection"
+        class="text-xs text-muted-foreground underline hover:text-foreground cursor-pointer"
+      >
+        {{ t.order?.clear_selection || 'Clear' }}
+      </button>
+
+      <div class="flex flex-wrap items-center gap-2 ms-auto">
+        <label class="text-xs font-medium text-muted-foreground whitespace-nowrap" for="bulk-order-status">
+          {{ t.order?.bulk_status_label || 'Set order status' }}
+        </label>
+        <select
+          id="bulk-order-status"
+          v-model="bulkStatus"
+          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-background text-foreground px-2 py-1.5 text-xs sm:text-sm shadow-xs outline-none focus-visible:ring-[3px] h-8 cursor-pointer"
+        >
+          <option value="">{{ t.order?.bulk_status_placeholder || 'Choose a status' }}</option>
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ orderStatusLabel(t, option.value) }}
+          </option>
+        </select>
+        <button
+          type="button"
+          :disabled="!bulkStatus || bulkSaving"
+          @click="applyBulkStatus"
+          class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-primary text-primary-foreground h-8 px-3 text-xs sm:text-sm font-semibold shadow-xs transition-all hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 cursor-pointer btn-golden"
+        >
+          <svg v-if="bulkSaving" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.22-8.56"></path>
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6 9 17l-5-5"></path>
+          </svg>
+          {{ t.order?.bulk_status_apply || 'Apply' }}
+        </button>
+      </div>
+    </div>
+
     <div v-if="orders?.data?.length > 0" class="flex flex-col h-full lg:h-auto min-h-0 lg:min-h-fit">
       <div class="flex-1 min-h-0 lg:min-h-fit overflow-y-auto lg:overflow-y-visible overflow-x-auto">
         <div data-slot="table-container" class="relative w-full py-3 sm:py-4">
           <table data-slot="table" class="w-full caption-bottom text-xs sm:text-sm min-w-full">
             <thead data-slot="table-header" class="[&_tr]:border-b [&_tr]:border-border">
               <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b border-border transition-colors">
+                <th v-if="canManage" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium w-10 text-center">
+                  <input
+                    type="checkbox"
+                    :checked="allOnPageSelected"
+                    :indeterminate.prop="someOnPageSelected"
+                    @change="toggleAllOnPage"
+                    class="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
+                    :aria-label="t.order?.select_all_rows || 'Select all orders on this page'"
+                  />
+                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap min-w-[170px]">
                   {{ t.order?.order_code || 'Order Code' }}
                 </th>
@@ -15,14 +76,20 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-32 text-center hidden md:table-cell">
                   {{ t.order?.membership_number || 'Membership No.' }}
                 </th>
-                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-44 text-center hidden md:table-cell">
-                  {{ t.order?.amounts || 'Amounts' }}
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-28 text-center hidden md:table-cell">
+                  {{ t.order?.paid || 'Paid' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-48 text-center hidden md:table-cell">
+                  {{ t.order?.order_cost || 'Order cost' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-28 text-center">
                   {{ t.order?.payment_status || 'Payment' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-32 text-center">
                   {{ t.order?.delivery_status || 'Delivery' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-28 text-center">
+                  {{ t.order?.order_status || 'Order Status' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-36 text-center hidden lg:table-cell">
                   {{ t.order?.created_at || 'Created At' }}
@@ -37,8 +104,19 @@
                 v-for="order in orders.data"
                 :key="order.id"
                 data-slot="table-row"
+                :data-state="isSelected(order.id) ? 'selected' : undefined"
                 class="data-[state=selected]:bg-muted border-b border-border transition-colors hover:bg-muted/50"
               >
+                <!-- Row selection, for the bulk status change above -->
+                <td v-if="canManage" data-slot="table-cell" class="p-2 align-middle text-center">
+                  <input
+                    type="checkbox"
+                    :checked="isSelected(order.id)"
+                    @change="toggleRow(order.id)"
+                    class="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
+                    :aria-label="t.order?.select_row || 'Select this order'"
+                  />
+                </td>
                 <!-- Order code + payment type -->
                 <td data-slot="table-cell" class="p-2 sm:p-3 align-middle">
                   <div class="flex items-start gap-2">
@@ -81,7 +159,19 @@
                   >{{ order.membership_number }}</span>
                   <span v-else class="text-muted-foreground text-xs">—</span>
                 </td>
-                <!-- Amounts -->
+                <!-- What the customer has actually handed over -->
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell">
+                  <span v-if="order.total_paid" class="text-sm font-semibold text-foreground">
+                    {{ formatPrice(order.total_paid) }}
+                  </span>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
+                <!--
+                  What the customer owes: the lines plus the delivery they were
+                  charged. The breakdown sits under the total because the two
+                  halves are billed by different rules — an admin asking "why is
+                  this 20?" gets the answer without opening the order.
+                -->
                 <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell">
                   <div class="inline-flex flex-col items-center gap-0.5">
                     <span
@@ -91,6 +181,13 @@
                       {{ formatPrice(order.total_amount_before_discount) }}
                     </span>
                     <span class="text-sm font-semibold text-foreground">{{ formatPrice(order.total_amount) }}</span>
+                    <span
+                      class="text-[11px] text-muted-foreground whitespace-nowrap"
+                      dir="ltr"
+                      :title="costBreakdown(order)"
+                    >
+                      {{ formatPrice(order.products_total) }} + {{ formatPrice(order.delivery_price) }}
+                    </span>
                     <span
                       v-if="savedAmount(order)"
                       class="text-[11px] font-medium text-emerald-500"
@@ -147,6 +244,24 @@
                     {{ deliveryStatusLabel(order.delivery_status) }}
                   </span>
                 </td>
+                <!-- Order status badge -->
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
+                  <span
+                    data-slot="badge"
+                    :class="['relative inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium capitalize', statusClass.order[order.order_status?.value]]"
+                  >
+                    <svg v-if="order.order_status?.value === 'pending'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <svg v-else-if="order.order_status?.value === 'success'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21.801 10A10 10 0 1 1 17 3.335"></path><path d="m9 11 3 3L22 4"></path>
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path>
+                    </svg>
+                    {{ orderStatusLabel(t, order.order_status) }}
+                  </span>
+                </td>
                 <!-- Created at -->
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden lg:table-cell">
                   <span class="text-xs text-muted-foreground tabular-nums">{{ order.created_at }}</span>
@@ -177,6 +292,28 @@
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                       </svg>
                     </Link>
+                    <!--
+                      Soft delete: the order goes to the trash, where it can be
+                      restored or erased for good. Nothing on this page deletes
+                      an order outright.
+                    -->
+                    <button
+                      v-if="canManage"
+                      type="button"
+                      @click="deleteOrder(order)"
+                      :disabled="deletingCode === order.order_code"
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-50"
+                      :title="t.order?.delete_order || 'Move to trash'"
+                      :aria-label="t.order?.delete_order || 'Move to trash'"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        <line x1="10" x2="10" y1="11" y2="17"></line>
+                        <line x1="14" x2="14" y1="11" y2="17"></line>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -238,13 +375,21 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import { orderStatusLabel } from "../orderDisplay";
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useNotification } from '@/composables/useNotification';
 
 const props = defineProps({
   orders: {
     type: Object,
     required: true,
+  },
+  /* Served by the list controller straight from the enum, so the bulk control
+     cannot offer a status the request would then refuse. */
+  orderStatuses: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -276,6 +421,11 @@ const statusClass = {
     processing: 'border-blue-500/30 bg-blue-500/10 text-blue-500',
     'on-delivery': 'border-violet-500/30 bg-violet-500/10 text-violet-500',
     completed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
+  },
+  order: {
+    pending: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+    success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
+    failed: 'border-red-500/30 bg-red-500/10 text-red-500',
   },
 };
 
@@ -317,6 +467,18 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
 };
 
+/*
+ * The two halves of the order cost, spelled out for the tooltip — the row
+ * itself only has room for "10.00 + 10.00", which says nothing about which
+ * figure is which.
+ */
+const costBreakdown = (order) => {
+  const template = t.value.order?.order_cost_breakdown || 'Order :order + delivery :delivery';
+  return template
+    .replace(':order', formatPrice(order.products_total))
+    .replace(':delivery', formatPrice(order.delivery_price));
+};
+
 // What the membership saved the customer: before-discount minus payable.
 const savedAmount = (order) => {
   const before = Number(order.total_amount_before_discount);
@@ -324,6 +486,109 @@ const savedAmount = (order) => {
   if (!Number.isFinite(before) || !Number.isFinite(after)) return null;
   const diff = Math.round((before - after) * 100) / 100;
   return diff > 0 ? diff : null;
+};
+
+/* ---- Move one order to the trash ------------------------------------ */
+
+/* Shared with the bulk action further down: both report their failures the
+   same way, since neither reloads the page on the way to an error. */
+const notification = useNotification();
+
+/* The code of the row being deleted, so only that button goes dead while the
+   request is in flight — a page-wide flag would freeze every row. */
+const deletingCode = ref('');
+
+const deleteOrder = (order) => {
+  if (deletingCode.value) return;
+
+  const question = (t.value.order?.confirm_delete
+      || 'Move order :code to the trash? It leaves the list but can be restored.')
+    .replace(':code', order.order_code);
+
+  if (!confirm(question)) return;
+
+  deletingCode.value = order.order_code;
+  router.delete(route('admin.order.destroy', order.order_code), {
+    preserveScroll: true,
+    onError: (errors) => {
+      notification.error(
+        Object.values(errors || {})[0]
+          || t.value.order?.deleted_failed
+          || 'Could not move the order to trash.'
+      );
+    },
+    onFinish: () => { deletingCode.value = ''; },
+  });
+};
+
+/* ---- Bulk order status ---------------------------------------------- */
+
+const selectedIds = ref([]);
+const bulkStatus = ref('');
+const bulkSaving = ref(false);
+
+const statusOptions = computed(() => (
+  props.orderStatuses.length
+    ? props.orderStatuses
+    : [{ value: 'pending' }, { value: 'success' }, { value: 'failed' }]
+));
+
+const pageIds = computed(() => (props.orders?.data || []).map((order) => order.id));
+const isSelected = (id) => selectedIds.value.includes(id);
+const allOnPageSelected = computed(() => pageIds.value.length > 0 && pageIds.value.every(isSelected));
+const someOnPageSelected = computed(() => !allOnPageSelected.value && pageIds.value.some(isSelected));
+
+const toggleRow = (id) => {
+  selectedIds.value = isSelected(id)
+    ? selectedIds.value.filter((selected) => selected !== id)
+    : [...selectedIds.value, id];
+};
+
+const toggleAllOnPage = () => {
+  selectedIds.value = allOnPageSelected.value ? [] : [...pageIds.value];
+};
+
+const clearSelection = () => {
+  selectedIds.value = [];
+  bulkStatus.value = '';
+};
+
+/* A selection only ever means the rows on screen. Paging or re-filtering
+   replaces them, and carrying ids the admin can no longer see into an Apply
+   is how a bulk action changes orders nobody meant to touch. */
+watch(pageIds, (ids) => {
+  selectedIds.value = selectedIds.value.filter((id) => ids.includes(id));
+}, { deep: true });
+
+const applyBulkStatus = () => {
+  if (!bulkStatus.value || !selectedIds.value.length || bulkSaving.value) return;
+
+  const label = orderStatusLabel(t.value, bulkStatus.value);
+  const question = (t.value.order?.bulk_status_confirm || 'Move :count order(s) to ":status"?')
+    .replace(':count', selectedIds.value.length)
+    .replace(':status', label);
+
+  if (!confirm(question)) return;
+
+  bulkSaving.value = true;
+  router.post(route('admin.order.bulk-status'), {
+    ids: selectedIds.value,
+    order_status: bulkStatus.value,
+  }, {
+    preserveScroll: true,
+    /* The rows have to come back carrying their new status, so the list is
+       re-read rather than preserved. */
+    preserveState: false,
+    onSuccess: () => clearSelection(),
+    onError: (errors) => {
+      notification.error(
+        Object.values(errors || {})[0]
+          || t.value.order?.bulk_status_failed
+          || 'The selected orders could not be updated.'
+      );
+    },
+    onFinish: () => { bulkSaving.value = false; },
+  });
 };
 
 const handlePerPageChange = (event) => {

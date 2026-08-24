@@ -51,6 +51,9 @@ class UpdateOrderAction
                 'membership_number' => $validated['membership_number'] ?? null,
                 'payment_status' => $validated['payment_status'],
                 'delivery_status' => $validated['delivery_status'],
+                /* Absent from an older form's post: leave the outcome as it
+                   was rather than resetting a settled order to pending. */
+                'order_status' => $validated['order_status'] ?? $order->order_status?->value,
                 'payment_type' => $validated['payment_type'],
                 /* Cleared when the order leaves the canceled state, so a
                    reinstated order does not keep explaining a cancellation
@@ -306,6 +309,7 @@ class UpdateOrderAction
             'membership_number' => $order->membership_number,
             'payment_status' => $order->payment_status?->value,
             'delivery_status' => $order->delivery_status?->value,
+            'order_status' => $order->order_status?->value,
             'payment_type' => $order->payment_type?->value,
             'cancel_reason' => $order->cancel_reason,
             'total_paid' => (float) $order->total_paid,
@@ -390,6 +394,17 @@ class UpdateOrderAction
                 OrderLog::ACTION_DELIVERY_STATUS_CHANGED,
                 ['delivery_status' => $before['delivery_status']],
                 ['delivery_status' => $after['delivery_status']],
+                $request,
+            );
+        }
+
+        if ($before['order_status'] !== $after['order_status']) {
+            OrderLog::record(
+                $order->id,
+                $adminId,
+                OrderLog::ACTION_ORDER_STATUS_CHANGED,
+                ['order_status' => $before['order_status']],
+                ['order_status' => $after['order_status']],
                 $request,
             );
         }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Order;
 
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
+use App\Enums\Order\OrderStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Http\Requests\Api\V1\Partner\StoreOrderReceiptRequest;
@@ -46,6 +47,11 @@ class UpdateOrderRequest extends FormRequest
 
             'payment_status' => ['required', Rule::in(PaymentStatusEnum::values())],
             'delivery_status' => ['required', Rule::in(DeliveryStatusEnum::values())],
+
+            /* `sometimes`, unlike its two neighbours: the column arrived after
+               this form did, and a caller posting the older shape should leave
+               the outcome alone rather than have the save refused. */
+            'order_status' => ['sometimes', Rule::in(OrderStatusEnum::values())],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values())],
 
             /*
