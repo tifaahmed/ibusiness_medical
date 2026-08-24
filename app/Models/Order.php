@@ -21,22 +21,30 @@ class Order extends Model implements HasMedia
     public const SOURCE_STOREFRONT = 'storefront';
 
     /**
-     * The receipt a buyer sends after a wallet transfer.
+     * The receipts a buyer sends after a wallet transfer.
      *
-     * Not `singleFile()`: a transfer sometimes takes two screenshots to
-     * evidence, and replacing the first one silently would lose the half the
-     * buyer sent first.
+     * Not `singleFile()`, and deliberately uncapped: a transfer sometimes takes
+     * several screenshots to evidence, a buyer may pay in instalments, and one
+     * sent today does not close the order to one sent tomorrow. Replacing the
+     * first silently would lose the half the buyer sent first.
+     *
+     * The collection is APPEND-ONLY. Nothing in the application deletes or
+     * replaces a receipt — not the buyer's page, not the admin's edit form.
+     * A receipt is evidence of what somebody claims they paid, and evidence
+     * that can be quietly withdrawn is worth much less than evidence that
+     * cannot. What an admin decides about it lives in `payment_status` and in
+     * `order_logs`, where the decision is attributed and dated.
      */
     public const RECEIPT_COLLECTION = 'receipt';
-
-    /** How many receipts one order will accept. A bound, not a target. */
-    public const MAX_RECEIPTS = 5;
 
     protected $fillable = [
         'order_code',
         'total_paid',
         'total_amount',
         'total_amount_before_discount',
+        'delivery_cost',
+        'delivery_price',
+        'delivery_profit',
         'customer_full_name',
         'customer_phone',
         'customer_address',
@@ -65,6 +73,9 @@ class Order extends Model implements HasMedia
             'total_paid' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'total_amount_before_discount' => 'decimal:2',
+            'delivery_cost' => 'decimal:2',
+            'delivery_price' => 'decimal:2',
+            'delivery_profit' => 'decimal:2',
             'payment_status' => PaymentStatusEnum::class,
             'delivery_status' => DeliveryStatusEnum::class,
             'payment_type' => PaymentTypeEnum::class,
@@ -110,16 +121,39 @@ class Order extends Model implements HasMedia
     }
 
     /**
-     * Whether this order still needs a receipt from the buyer.
+     * Whether this order still needs a FIRST receipt from the buyer.
      *
      * Cash on delivery never does; a wallet transfer does until one arrives.
-     * Asked here rather than in each of the three places that answer it — the
-     * storefront's order page, the confirmation, and the upload endpoint.
+     * This is the "chase the buyer" question — the badge in the admin list and
+     * the prompt on the storefront's order page — and it stops being true the
+     * moment anything arrives.
+     *
+     * It is NOT the question of whether more may be sent: see
+     * `acceptsReceipts()`. The two were one method for as long as an order
+     * took exactly one receipt, and collapsing them again would put the upload
+     * box away the moment the buyer used it once.
      */
     public function awaitingReceipt(): bool
     {
         return $this->payment_type === PaymentTypeEnum::TRANSFER_WALLET
             && $this->getMedia(self::RECEIPT_COLLECTION)->isEmpty();
+    }
+
+    /**
+     * Whether another receipt may be added to this order, ever.
+     *
+     * True for the whole life of a wallet-transfer order, however many it
+     * already holds: a buyer who pays the balance a week later has something
+     * new to send, and an order that stopped accepting evidence the moment it
+     * held one piece would send them to the phone instead.
+     *
+     * Cash on delivery is the one no: money handed to a courier leaves no
+     * receipt to send, and filing one against such an order would have an
+     * admin looking for a transfer that never happened.
+     */
+    public function acceptsReceipts(): bool
+    {
+        return $this->payment_type === PaymentTypeEnum::TRANSFER_WALLET;
     }
 
     /**

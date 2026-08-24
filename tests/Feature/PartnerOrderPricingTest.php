@@ -300,4 +300,114 @@ class PartnerOrderPricingTest extends TestCase
 
         $this->assertSame('1500.00', Order::query()->sole()->total_amount);
     }
+
+    /**
+     * Delivery is charged on top of the lines and archived on the order: what
+     * it cost us, what the buyer paid, and the difference.
+     *
+     * @test
+     */
+    public function delivery_is_added_to_the_total_and_archived_on_the_order(): void
+    {
+        $this->markedDownProduct();
+
+        $this->placeOrder([
+            'delivery_cost' => 35,
+            'delivery_price' => 50,
+        ])->assertCreated();
+
+        $order = Order::query()->sole();
+
+        /* 2 x 1,000 at the full price, plus the 50 delivery. */
+        $this->assertSame('2050.00', $order->total_amount);
+        $this->assertSame('2050.00', $order->total_amount_before_discount);
+        $this->assertSame('35.00', $order->delivery_cost);
+        $this->assertSame('50.00', $order->delivery_price);
+        $this->assertSame('15.00', $order->delivery_profit);
+    }
+
+    /**
+     * The profit is arithmetic, not a claim: a caller sending a figure of its
+     * own gets `price - cost` stored anyway.
+     *
+     * @test
+     */
+    public function the_delivery_profit_is_recomputed_rather_than_believed(): void
+    {
+        $this->markedDownProduct();
+
+        $this->placeOrder([
+            'delivery_cost' => 35,
+            'delivery_price' => 50,
+            'delivery_profit' => 9999,
+        ])->assertCreated();
+
+        $this->assertSame('15.00', Order::query()->sole()->delivery_profit);
+    }
+
+    /**
+     * Delivery goes on both totals, so the gap between them stays exactly the
+     * discount the card earned rather than absorbing the delivery charge.
+     *
+     * @test
+     */
+    public function delivery_does_not_change_what_the_membership_discount_reads_as(): void
+    {
+        $this->markedDownProduct();
+
+        $membership = Membership::factory()->active()->create(['is_visible' => true]);
+
+        $this->placeOrder([
+            'membership_number' => $membership->membership_number,
+            'delivery_price' => 50,
+        ])->assertCreated();
+
+        $order = Order::query()->sole();
+
+        $this->assertSame('1550.00', $order->total_amount);
+        $this->assertSame('2050.00', $order->total_amount_before_discount);
+        $this->assertSame(
+            500.0,
+            (float) $order->total_amount_before_discount - (float) $order->total_amount,
+        );
+    }
+
+    /**
+     * A storefront that has not been updated posts no delivery at all. That is
+     * free delivery, not a refused order.
+     *
+     * @test
+     */
+    public function an_order_placed_without_delivery_figures_is_charged_none(): void
+    {
+        $this->markedDownProduct();
+
+        $this->placeOrder()->assertCreated();
+
+        $order = Order::query()->sole();
+
+        $this->assertSame('2000.00', $order->total_amount);
+        $this->assertSame('0.00', $order->delivery_price);
+        $this->assertSame('0.00', $order->delivery_profit);
+    }
+
+    /**
+     * The buyer is told what they were charged for delivery, and no more: the
+     * cost and the profit are the shop's own figures.
+     *
+     * @test
+     */
+    public function the_partner_resource_carries_the_delivery_price_only(): void
+    {
+        $this->markedDownProduct();
+
+        $response = $this->placeOrder([
+            'delivery_cost' => 35,
+            'delivery_price' => 50,
+        ])->assertCreated();
+
+        $response->assertJsonPath('order.delivery_price', 50);
+        $response->assertJsonMissingPath('order.delivery_cost');
+        $response->assertJsonMissingPath('order.delivery_profit');
+    }
 }

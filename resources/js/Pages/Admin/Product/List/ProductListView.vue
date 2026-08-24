@@ -30,7 +30,11 @@
           </div>
 
           <div class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <ProductListFilterContent :initial-filters="filters" />
+            <ProductListFilterContent
+              :initial-filters="filters"
+              :creator-options="creatorOptions"
+              :can-filter-by-creator="canFilterByCreator"
+            />
           </div>
         </div>
       </div>
@@ -65,10 +69,19 @@ const props = defineProps({
   filters: {
     type: Object,
     default: () => ({
-      search: ''
+      search: '',
+      creator_id: null
     })
+  },
+  creatorOptions: {
+    type: Array,
+    default: () => []
+  },
+  canFilterByCreator: {
+    type: Boolean,
+    default: true
   }
 });
 
-const filters = ref(props.filters || { search: '' });
+const filters = ref(props.filters || { search: '', creator_id: null });
 </script>

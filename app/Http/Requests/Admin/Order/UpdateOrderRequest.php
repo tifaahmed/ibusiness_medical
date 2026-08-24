@@ -7,7 +7,6 @@ use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Http\Requests\Api\V1\Partner\StoreOrderReceiptRequest;
-use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -64,6 +63,14 @@ class UpdateOrderRequest extends FormRequest
             'total_paid' => ['required', 'numeric', 'min:0'],
             'total_amount' => ['required', 'numeric', 'min:0'],
             'total_amount_before_discount' => ['nullable', 'numeric', 'min:0'],
+
+            /*
+             * Delivery. The profit is not accepted from the form: it is always
+             * `price - cost`, worked out where the order is written, so the
+             * three columns cannot be saved contradicting each other.
+             */
+            'delivery_cost' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'delivery_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'source' => ['nullable', 'string', 'max:32'],
 
             /*
@@ -85,20 +92,24 @@ class UpdateOrderRequest extends FormRequest
             'products.*.profit_price' => ['nullable', 'numeric', 'min:0'],
 
             /*
-             * Receipts, edited alongside everything else on one save. Same
-             * file rules as the buyer's upload endpoint — this file is served
-             * back to admins from our own domain — and the same cap, checked
-             * against the whole collection in the action (existing + new −
-             * removed), which an array rule alone cannot see.
+             * Receipts, added alongside everything else on one save. Same file
+             * rules as the buyer's upload endpoint — these are served back to
+             * admins from our own domain — and no cap: an order takes as many
+             * as the evidence needs.
+             *
+             * There is deliberately no `remove_receipt_ids` counterpart. The
+             * collection is append-only for the admin exactly as it is for the
+             * buyer — see `Order::RECEIPT_COLLECTION`. An admin who disagrees
+             * with a receipt moves `payment_status`, which is attributed and
+             * dated in `order_logs`; deleting the evidence is not attributable
+             * at all.
              */
-            'receipts' => ['sometimes', 'array', 'max:'.Order::MAX_RECEIPTS],
+            'receipts' => ['sometimes', 'array'],
             'receipts.*' => [
                 'file',
-                'mimetypes:image/jpeg,image/png,image/webp,image/heic,application/pdf',
+                'mimetypes:'.StoreOrderReceiptRequest::ALLOWED_MIMETYPES,
                 'max:'.StoreOrderReceiptRequest::MAX_KILOBYTES,
             ],
-            'remove_receipt_ids' => ['sometimes', 'array'],
-            'remove_receipt_ids.*' => ['integer', 'distinct'],
         ];
     }
 
@@ -114,7 +125,6 @@ class UpdateOrderRequest extends FormRequest
             'products.*.quantity.min' => 'A line quantity must be at least 1.',
             'products.*.id.exists' => 'One of the lines is no longer part of this order.',
             'products.*.product_id.exists' => 'One of the selected products no longer exists.',
-            'receipts.max' => 'This order cannot hold more than :max receipts.',
             'receipts.*.mimetypes' => 'A receipt must be a photo (JPEG, PNG, WebP, HEIC) or a PDF.',
             'receipts.*.max' => 'A receipt must be under :max kilobytes.',
         ];

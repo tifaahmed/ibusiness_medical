@@ -11,11 +11,22 @@
           <input
             v-model="filters.search"
             @input="handleSearch"
-            class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm pl-9"
+            class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-all outline-none placeholder:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm pl-9"
             id="product-search"
             placeholder="Search products by name or slug..."
           />
         </div>
+      </div>
+
+      <div v-if="canFilterByCreator" class="w-full lg:w-56 xl:w-64 space-y-2">
+        <label class="text-sm leading-none font-medium" for="product-creator">Creator</label>
+        <Select
+          v-model="filters.creator_id"
+          :options="creatorSelectOptions"
+          placeholder="All creators"
+          id="product-creator"
+          @change="applyFilters()"
+        />
       </div>
     </div>
 
@@ -35,27 +46,48 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import Select from '@/Components/ui/Select.vue';
 
 const props = defineProps({
   initialFilters: {
     type: Object,
     default: () => ({
-      search: ''
+      search: '',
+      creator_id: null
     })
+  },
+  creatorOptions: {
+    type: Array,
+    default: () => []
+  },
+  canFilterByCreator: {
+    type: Boolean,
+    default: true
   }
 });
 
+const creatorSelectOptions = computed(() =>
+  props.creatorOptions.map(opt => ({
+    value: opt.value,
+    label: opt.label,
+    email: opt.email,
+  }))
+);
+
 const getInitialFilters = () => {
-  if (props.initialFilters && props.initialFilters.search) {
-    return { search: props.initialFilters.search || '' };
+  const base = { search: '', creator_id: null };
+  if (props.initialFilters) {
+    base.search = props.initialFilters.search || '';
+    base.creator_id = props.initialFilters.creator_id ?? null;
   }
   if (typeof window !== 'undefined') {
     const urlParams = new URLSearchParams(window.location.search);
-    return { search: urlParams.get('search') || '' };
+    if (urlParams.get('search')) base.search = urlParams.get('search');
+    if (urlParams.get('creator_id')) base.creator_id = urlParams.get('creator_id');
   }
-  return { search: '' };
+  return base;
 };
 
 const filters = ref(getInitialFilters());
@@ -74,7 +106,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '' };
+  filters.value = { search: '', creator_id: null };
   applyFilters();
 };
 
@@ -82,6 +114,7 @@ const applyFilters = (filterValues = null) => {
   const currentFilters = filterValues || filters.value;
   const params = {};
   if (currentFilters.search) params.search = currentFilters.search;
+  if (currentFilters.creator_id) params.creator_id = currentFilters.creator_id;
 
   router.get(route('admin.product.list'), params, {
     preserveState: true,

@@ -99,9 +99,25 @@ import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
 import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberPaymentsCard, MemberAddressesCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
-import { onMounted, computed, ref } from "vue";
+import { onMounted, computed, ref, watch } from "vue";
 
-const activeTab = ref('profile');
+// Tabs live in the URL (?tab=...) so a switch is linkable and
+// refresh/back keeps the tab the admin was working in.
+const TAB_KEYS = ['profile', 'password', 'payments', 'addresses'];
+
+const initialTab = new URLSearchParams(window.location.search).get('tab');
+const activeTab = ref(TAB_KEYS.includes(initialTab) ? initialTab : 'profile');
+
+watch(activeTab, (key) => {
+  const url = new URL(window.location.href);
+  // Default tab stays canonical: .../edit instead of .../edit?tab=profile
+  if (key === 'profile') {
+    url.searchParams.delete('tab');
+  } else {
+    url.searchParams.set('tab', key);
+  }
+  window.history.replaceState(window.history.state, '', url);
+});
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});

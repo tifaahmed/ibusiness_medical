@@ -344,6 +344,41 @@
           />
         </div>
 
+        <!--
+          Delivery: what the courier charged us and what the buyer paid. The
+          price is already part of the amount charged above — correcting it here
+          does not re-total the order, because what was actually taken from the
+          buyer is a fact, not a formula. The profit is read-only: the server
+          stores `price - cost` however this form is filled in.
+        -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormInput
+            v-model="form.delivery_cost"
+            :label="t.order?.delivery_cost || 'Delivery cost'"
+            type="number"
+            min="0"
+            step="0.01"
+            :error="errorFor('delivery_cost')"
+          />
+          <FormInput
+            v-model="form.delivery_price"
+            :label="t.order?.delivery_price || 'Delivery price'"
+            type="number"
+            min="0"
+            step="0.01"
+            :error="errorFor('delivery_price')"
+          />
+          <div class="space-y-1.5">
+            <label class="text-sm font-medium">{{ t.order?.delivery_profit || 'Delivery profit' }}</label>
+            <output
+              class="flex h-9 w-full items-center rounded-md border border-border bg-muted/40 px-3 text-sm font-semibold tabular-nums"
+              :class="orderStore.deliveryProfit < 0 ? 'text-red-500' : 'text-emerald-500'"
+            >
+              {{ formatPrice(orderStore.deliveryProfit) }}
+            </output>
+          </div>
+        </div>
+
         <!-- The total is stored, not derived: a membership discount lives in
              the gap between the lines and what was charged. So the lines total
              is offered, never applied silently. -->
@@ -373,8 +408,11 @@
       </div>
     </div>
 
-    <!-- Receipts: shown so the admin can actually see what the buyer sent,
-         editable because a mis-filed screenshot should not need a second tool -->
+    <!-- Receipts: shown so the admin can actually see what the buyer sent, and
+         add to — a transfer confirmed over the phone leaves evidence somebody
+         has to file. Add-only, uncapped: nothing here deletes a receipt, on
+         purpose. An admin who does not believe one moves the payment status,
+         which order_logs attributes and dates; a deleted file records nothing. -->
     <div class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
       <div class="grid auto-rows-min gap-1.5 py-2 px-6">
         <div class="leading-none font-semibold title-golden flex items-center gap-2">
@@ -383,8 +421,8 @@
             <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 17.5v-11"></path>
           </svg>
           {{ t.order?.receipts || 'Transfer Receipts' }}
-          <span class="text-xs font-normal text-muted-foreground">
-            {{ visibleReceiptCount }} / {{ maxReceipts }}
+          <span v-if="visibleReceiptCount" class="text-xs font-normal text-muted-foreground">
+            {{ visibleReceiptCount }}
           </span>
         </div>
         <p class="text-xs text-muted-foreground">
@@ -397,25 +435,19 @@
           {{ errorFor('receipts') }}
         </p>
 
-        <p v-if="receiptSlotsLeft <= 0 && !removedReceiptIds.length" class="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-500">
-          {{ t.order?.receipt_cap_reached || 'This order cannot hold more receipts.' }}
-        </p>
-
         <div v-if="visibleReceipts.length || orderStore.newReceipts.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <!-- Already on the order -->
           <figure
             v-for="receipt in visibleReceipts"
             :key="receipt.id"
             class="space-y-1"
-            :class="{ 'opacity-50': removedReceiptIds.includes(receipt.id) }"
           >
             <div class="relative group">
               <img
                 v-if="!isPdf(receipt)"
                 :src="receipt.url"
                 :alt="receipt.name"
-                class="w-full h-28 rounded-lg border border-border object-cover transition hover:opacity-90"
-                :class="removedReceiptIds.includes(receipt.id) ? '' : 'cursor-zoom-in'"
+                class="w-full h-28 rounded-lg border border-border object-cover transition hover:opacity-90 cursor-zoom-in"
                 @click="openReceipt(receipt)"
               />
               <button
@@ -431,33 +463,10 @@
                 <span class="text-[10px]">PDF</span>
               </button>
 
-              <span
-                v-if="removedReceiptIds.includes(receipt.id)"
-                class="absolute inset-x-1 top-1 rounded-md border border-destructive/40 bg-destructive/80 px-1.5 py-0.5 text-center text-[10px] font-medium text-white"
-              >
-                {{ t.order?.receipt_removed_badge || 'Removed on save' }}
-              </span>
             </div>
             <figcaption class="flex items-center gap-1">
               <span class="text-[11px] text-muted-foreground truncate flex-1" :title="receipt.name">{{ receipt.name }}</span>
-              <button
-                v-if="removedReceiptIds.includes(receipt.id)"
-                type="button"
-                class="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer shrink-0"
-                @click="orderStore.undoRemoveReceipt(receipt.id)"
-              >
-                {{ t.common?.undo || 'Undo' }}
-              </button>
-              <button
-                v-else
-                type="button"
-                class="inline-flex items-center gap-0.5 rounded-md border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0"
-                @click="removeExistingReceipt(receipt)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
-                </svg>
-              </button>
+              <span v-if="receipt.uploaded_at" class="text-[10px] text-muted-foreground shrink-0">{{ receiptDate(receipt.uploaded_at) }}</span>
             </figcaption>
           </figure>
 
@@ -489,11 +498,10 @@
           {{ t.order?.no_receipts || 'No receipts have been sent against this order.' }}
         </div>
 
-        <!-- The picker sits below the grid so adding reads as one action,
-             even when the order already has every receipt it can hold. -->
+        <!-- The picker sits below the grid so adding reads as one action, and
+             is never hidden: an order takes as much evidence as it takes. -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-3">
           <label
-            v-if="receiptSlotsLeft > 0"
             class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -510,6 +518,7 @@
           </label>
           <p class="text-xs text-muted-foreground">
             {{ t.order?.receipt_accept_hint || 'Photos (JPEG, PNG, WebP, HEIC) or PDF, up to 5 MB each.' }}
+            {{ t.order?.receipt_append_only || 'Receipts are added, never removed — an order keeps every piece of evidence it was sent.' }}
           </p>
         </div>
       </div>
@@ -564,7 +573,6 @@ const props = defineProps({
   deliveryStatuses: { type: Array, default: () => [] },
   paymentTypes: { type: Array, default: () => [] },
   products: { type: Array, default: () => [] },
-  maxReceipts: { type: Number, default: 5 },
 });
 
 const page = usePage();
@@ -573,8 +581,6 @@ const t = computed(() => page.props.translations?.admin || {});
 
 const orderStore = useOrderStore();
 const { form } = storeToRefs(orderStore);
-
-const removedReceiptIds = computed(() => orderStore.removedReceiptIds);
 
 /* Server-side rules come back keyed by path (`products.2.quantity`), and the
    form's own errors live on the Inertia form — either can be the reason a
@@ -622,14 +628,18 @@ const lineTotal = (line) => {
 const totalDiffersFromLines = computed(() => {
   const charged = Number(form.value.total_amount);
   if (!Number.isFinite(charged)) return false;
-  return Math.abs(charged - orderStore.linesTotal) > 0.009;
+  /* Delivery is charged on top of the lines, so the figure to compare against
+     is lines + delivery. Without it every storefront order that pays for
+     delivery would report a mismatch it does not have. */
+  return Math.abs(charged - (orderStore.linesTotal + (Number(form.value.delivery_price) || 0))) > 0.009;
 });
 
 const paymentTypeChanged = computed(() => form.value.payment_type !== props.order.payment_type);
 
-/* Receipts: the same claim-not-confirmation rules the buyer's upload lives
-   under, mirrored client-side so an over-full picker fails here rather than
-   after a round trip. */
+/* Receipts: the same file types the buyer's upload endpoint accepts, mirrored
+   client-side so the picker refuses a video before it is uploaded rather than
+   after a round trip. There is no count to mirror — the collection is
+   uncapped, and append-only in both places. */
 const ACCEPTED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -638,19 +648,28 @@ const ACCEPTED_MIME_TYPES = [
   'application/pdf',
 ];
 
-/* Removed receipts stay in the grid, dimmed under their badge: a removal the
-   admin cannot see or undo until they save is a removal that surprises. */
+/* Everything on the order, oldest first — the order they arrived in is the
+   order they were sent in, which is how an admin reads a part-paid transfer. */
 const visibleReceipts = computed(() => orderStore.orderReceipts || []);
 
 const visibleReceiptCount = computed(() =>
-  orderStore.orderReceipts.length
-    - removedReceiptIds.value.length
-    + orderStore.newReceipts.length
+  orderStore.orderReceipts.length + orderStore.newReceipts.length
 );
 
-const receiptSlotsLeft = computed(() => props.maxReceipts - visibleReceiptCount.value);
-
 const isPdf = (receipt) => /\.pdf$/i.test(receipt?.name || '');
+
+/* When it arrived, so a receipt sent a week after the order reads as the
+   second payment it is rather than as a duplicate of the first. */
+const receiptDate = (value) => {
+  try {
+    return new Date(value).toLocaleDateString(locale.value === 'ar' ? 'ar-EG' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return '';
+  }
+};
 
 const formatBytes = (bytes) => {
   if (!Number.isFinite(bytes)) return '';
@@ -660,15 +679,7 @@ const formatBytes = (bytes) => {
 
 const onReceiptsPicked = (event) => {
   try {
-    const result = orderStore.queueReceipts(event.target.files, props.maxReceipts);
-    if (result === -1) {
-      useNotification().error(t.value.order?.receipt_cap_reached || 'This order cannot hold more receipts.');
-    } else if (result < 0) {
-      useNotification().warning(
-        (t.value.order?.receipt_partial_added || 'Some files were left out — this order can hold :max receipts at most.')
-          .replace(':max', String(props.maxReceipts)),
-      );
-    }
+    orderStore.queueReceipts(event.target.files);
   } catch (error) {
     // AGENTS.md: front-end failures are reported, not swallowed.
     reportClientError('Receipt file pick failed', { message: error?.message }, props.order.order_code);
@@ -678,18 +689,11 @@ const onReceiptsPicked = (event) => {
   }
 };
 
-const removeExistingReceipt = (receipt) => {
-  const name = receipt.name || t.value.order?.unnamed_receipt || 'this receipt';
-  if (confirm((t.value.order?.confirm_remove_receipt || 'Remove :name from this order? It is deleted when you save.').replace(':name', name))) {
-    orderStore.markReceiptRemoved(receipt.id);
-  }
-};
-
 // Receipts get their own viewer: paging through them is exactly how an admin
 // checks one against the wallet.
 const lightboxImages = computed(() =>
   (orderStore.orderReceipts || [])
-    .filter(receipt => !isPdf(receipt) && !removedReceiptIds.value.includes(receipt.id))
+    .filter(receipt => !isPdf(receipt))
     .map(receipt => ({ url: receipt.url, alt: receipt.name })),
 );
 

@@ -14,9 +14,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * was placed — never back through the catalogue. A price that moved since, or
  * a product since deleted, must not change what a placed order says.
  *
- * Deliberately absent: `cost_price` and `profit_price`. They are archived on
- * the line for the shop's own reporting, and this resource is read by a
- * storefront that shows it to the buyer.
+ * Deliberately absent: `cost_price` and `profit_price`, and the delivery cost
+ * and profit beside them. They are archived for the shop's own reporting, and
+ * this resource is read by a storefront that shows it to the buyer — who is
+ * owed what they were charged for delivery, not what it cost us.
  *
  * @mixin Order
  */
@@ -51,6 +52,9 @@ class OrderResource extends JsonResource
                 ? null
                 : (float) $this->total_amount_before_discount,
             'total_paid' => (float) $this->total_paid,
+            /* What delivery was charged at on this order, already included in
+               `total_amount`. The buyer's half of the three columns. */
+            'delivery_price' => (float) $this->delivery_price,
 
             'payment_type' => [
                 'value' => $this->payment_type->value,
@@ -73,6 +77,13 @@ class OrderResource extends JsonResource
              * separately is two chances to ask for a receipt twice.
              */
             'awaiting_receipt' => $this->awaitingReceipt(),
+            /*
+             * Whether MORE may be sent, which stays true for the life of a
+             * wallet-transfer order however many it already holds. The
+             * storefront keeps its upload box open on this, not on the line
+             * above — that one goes false the moment the first file lands.
+             */
+            'accepts_receipts' => $this->acceptsReceipts(),
             'receipts' => $this->receiptFiles(),
 
             'items' => $this->products->map(fn (OrderProduct $line) => [

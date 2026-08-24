@@ -34,6 +34,12 @@ class AdminOrderEditResource extends JsonResource
                 ? null
                 : (float) $this->total_amount_before_discount,
 
+            /* Correctable: a courier's charge is renegotiated, and an order
+               taken over the phone is sometimes delivered on other terms. */
+            'delivery_cost' => (float) $this->delivery_cost,
+            'delivery_price' => (float) $this->delivery_price,
+            'delivery_profit' => (float) $this->delivery_profit,
+
             'customer_full_name' => $this->customer_full_name,
             'customer_phone' => $this->customer_phone,
             'customer_address' => $this->customer_address,

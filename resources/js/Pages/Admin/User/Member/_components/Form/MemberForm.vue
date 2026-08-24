@@ -192,8 +192,10 @@
               :required="requiresPaidMonthlyFields"
             />
           </div>
-          <!-- Address — saved to the member's primary address row; only the
-               governorate is required, everything else helps the courier. -->
+          <!-- Address — only governorate + city are shown here. The rest of the
+               primary address (street, building, ...) is managed from the
+               Addresses tab; its stored values are preserved on save because
+               the form still carries them invisibly. -->
           <div class="rounded-lg border border-border p-4 mb-4 space-y-4">
             <div class="flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-golden-yellow">
@@ -204,81 +206,22 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormSelect
-                v-model="memberStore.form.address_type"
-                :label="t.member?.address_type || 'Address Type'"
-                :options="addressTypeOptions"
-                :error="memberStore.validationErrors?.address_type"
+                v-model="memberStore.form.governorate_id"
+                :label="t.member?.governorate || 'Governorate'"
+                :options="governorateSelectOptions"
+                :error="memberStore.validationErrors?.governorate_id"
+                :placeholder="t.member?.governorate_select || 'Select a governorate'"
+                required
+                @update:modelValue="onGovernorateChange"
               />
-              <FormInput
-                v-model="memberStore.form.street"
-                :label="t.member?.street || 'Street'"
-                :error="memberStore.validationErrors?.street"
-                :placeholder="t.member?.street_placeholder || 'Enter street'"
-              />
-              <div class="md:col-span-2">
-                <FormTextarea
-                  v-model="memberStore.form.address"
-                  :label="t.member?.address_label || 'Address'"
-                  :error="memberStore.validationErrors?.address"
-                  rows="2"
-                  :placeholder="t.member?.address_placeholder || 'Area / address description'"
-                />
-              </div>
-              <div class="flex items-end gap-4">
-                <div class="flex-1">
-                  <FormSelect
-                    v-model="memberStore.form.governorate_id"
-                    :label="t.member?.governorate || 'Governorate'"
-                    :options="governorateSelectOptions"
-                    :error="memberStore.validationErrors?.governorate_id"
-                    :placeholder="t.member?.governorate_select || 'Select a governorate'"
-                    required
-                    @update:modelValue="onGovernorateChange"
-                  />
-                </div>
-                <span
-                  v-if="memberStore.form.address_type"
-                  class="inline-flex items-center px-2 py-1 mb-1 rounded text-xs font-medium border whitespace-nowrap"
-                  :class="{
-                    'bg-sky-500/25 text-sky-200 border-sky-500/40': memberStore.form.address_type === 'home',
-                    'bg-violet-500/25 text-violet-200 border-violet-500/40': memberStore.form.address_type === 'work',
-                    'bg-amber-500/25 text-amber-200 border-amber-500/40': memberStore.form.address_type === 'other',
-                  }"
-                >
-                  {{ getTypeLabel(memberStore.form.address_type) }}
-                </span>
-              </div>
               <FormSelect
                 v-model="memberStore.form.city_id"
                 :label="t.member?.city || 'City'"
                 :options="[{ value: null, label: t.member?.none_option || '— None —' }, ...citySelectOptions]"
                 :error="memberStore.validationErrors?.city_id"
-                :placeholder="memberStore.form.governorate_id ? (t.member?.city_placeholder || 'Select a city (optional)') : (t.member?.city_select_governorate_first || 'Select a governorate first')"
+                :placeholder="memberStore.form.governorate_id ? (t.member?.city_placeholder_required || 'Select a city') : (t.member?.city_select_governorate_first || 'Select a governorate first')"
                 :disabled="!memberStore.form.governorate_id"
-              />
-              <FormInput
-                v-model="memberStore.form.building_number"
-                :label="t.member?.building_number || 'Building Number'"
-                :error="memberStore.validationErrors?.building_number"
-                :placeholder="t.member?.building_number_placeholder || 'Enter building number'"
-              />
-              <FormInput
-                v-model="memberStore.form.apartment_number"
-                :label="t.member?.apartment_number || 'Apartment Number'"
-                :error="memberStore.validationErrors?.apartment_number"
-                :placeholder="t.member?.apartment_number_placeholder || 'Enter apartment number'"
-              />
-              <FormInput
-                v-model="memberStore.form.floor_number"
-                :label="t.member?.floor_number || 'Floor Number'"
-                :error="memberStore.validationErrors?.floor_number"
-                :placeholder="t.member?.floor_number_placeholder || 'Enter floor number'"
-              />
-              <FormInput
-                v-model="memberStore.form.special_mark"
-                :label="t.member?.special_mark || 'Special Mark in the Building'"
-                :error="memberStore.validationErrors?.special_mark"
-                :placeholder="t.member?.special_mark_placeholder || 'e.g. next to the pharmacy, green gate'"
+                required
               />
             </div>
           </div>
@@ -448,7 +391,7 @@
 </template>
 
 <script setup>
-import { FormInput, FormDateInput, FormCheckbox, FormSelect, FormTextarea, FormTranslatableInput } from "@/Components/form";
+import { FormInput, FormDateInput, FormCheckbox, FormSelect, FormTranslatableInput } from "@/Components/form";
 import Modal from "@/Components/Modal.vue";
 import { useMemberStore } from "../../Stores/MemberStore";
 import { usePage } from "@inertiajs/vue3";
@@ -516,18 +459,6 @@ const paymentTypeOptions = computed(() => [
   { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
   { value: 'monthly', label: t.value.member?.payment_type_monthly || 'Monthly' },
 ]);
-
-const addressTypeOptions = computed(() =>
-  (page.props.addressTypeOptions || []).map(option => ({
-    value: option.value,
-    label: t.value.member?.[`address_type_${option.value}`] || option.label,
-  }))
-);
-
-const getTypeLabel = (value) => {
-  const option = addressTypeOptions.value.find(opt => opt.value === value);
-  return option ? option.label : value;
-};
 
 // Default payment_type to monthly when partner is selected
 watch(() => memberStore.form.partner_id, (partnerId) => {

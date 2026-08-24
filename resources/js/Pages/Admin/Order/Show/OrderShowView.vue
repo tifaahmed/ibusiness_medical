@@ -181,6 +181,27 @@
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.membership_discount || 'Membership discount' }}</label>
                 <p class="text-sm font-medium mt-0.5 text-emerald-500">−{{ formatPrice(saved) }}</p>
               </div>
+              <!--
+                Delivery as it was archived on THIS order: what the courier
+                charged us, what the buyer paid, and the difference. The buyer's
+                own page shows the price alone — the other two are ours.
+              -->
+              <div class="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.delivery_price || 'Delivery price' }}</label>
+                  <p class="text-sm font-medium">{{ formatPrice(order.delivery_price) }}</p>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.delivery_cost || 'Delivery cost' }}</label>
+                  <p class="text-sm value-muted">{{ formatPrice(order.delivery_cost) }}</p>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.delivery_profit || 'Delivery profit' }}</label>
+                  <p class="text-sm font-medium" :class="Number(order.delivery_profit) < 0 ? 'text-red-500' : 'text-emerald-500'">
+                    {{ formatPrice(order.delivery_profit) }}
+                  </p>
+                </div>
+              </div>
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.total_paid || 'Total Paid' }}</label>
                 <p class="text-sm font-medium mt-0.5" :class="paidInFull ? 'text-emerald-500' : 'text-amber-500'">
@@ -283,19 +304,42 @@
               <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 17.5v-11"></path>
             </svg>
             <h2 class="text-lg font-semibold">{{ t.order?.receipts || 'Transfer Receipts' }}</h2>
+            <span class="text-xs font-medium text-muted-foreground">{{ order.receipts.length }}</span>
             <!-- A receipt is a claim, never a confirmation: the payment status
                  is moved by an admin who checked it against the wallet. -->
             <span class="text-xs text-muted-foreground">{{ t.order?.receipt_hint || 'A receipt is a claim — confirm it against the wallet.' }}</span>
           </div>
           <div class="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             <figure v-for="receipt in order.receipts" :key="receipt.id" class="space-y-1">
+              <!-- A PDF has no thumbnail to draw. It used to go through the
+                   <img> below and render as a broken picture; now it opens in
+                   a tab, which is the only thing that can read one anyway. -->
               <img
+                v-if="!isPdf(receipt)"
                 :src="receipt.url"
                 :alt="receipt.name"
                 class="w-full h-32 rounded-lg border border-border object-cover cursor-zoom-in transition hover:opacity-90"
                 @click="openLightbox(receipt.url)"
               />
-              <figcaption class="text-[11px] text-muted-foreground truncate" :title="receipt.name">{{ receipt.name }}</figcaption>
+              <a
+                v-else
+                :href="receipt.url"
+                target="_blank"
+                rel="noopener"
+                class="w-full h-32 rounded-lg border border-border bg-muted/40 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:bg-muted/60 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                  <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                </svg>
+                <span class="text-[10px]">PDF</span>
+              </a>
+              <figcaption class="space-y-0.5">
+                <span class="block text-[11px] text-muted-foreground truncate" :title="receipt.name">{{ receipt.name }}</span>
+                <!-- When it arrived: receipts land days apart on a transfer
+                     paid in parts, and the dates are how that reads. -->
+                <span v-if="receipt.uploaded_at" class="block text-[10px] text-muted-foreground">{{ receiptDate(receipt.uploaded_at) }}</span>
+              </figcaption>
             </figure>
           </div>
         </div>
@@ -420,8 +464,24 @@ const lightboxImages = computed(() => [
   ...(props.order.products || [])
     .filter(line => line.image)
     .map(line => ({ url: line.image, alt: translatedName(line.name, locale.value) })),
-  ...(props.order.receipts || []).map(receipt => ({ url: receipt.url, alt: receipt.name })),
+  ...(props.order.receipts || [])
+    .filter(receipt => !isPdf(receipt))
+    .map(receipt => ({ url: receipt.url, alt: receipt.name })),
 ]);
+
+const isPdf = (receipt) => /\.pdf$/i.test(receipt?.name || '');
+
+const receiptDate = (value) => {
+  try {
+    return new Date(value).toLocaleDateString(locale.value === 'ar' ? 'ar-EG' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+};
 
 const lightboxIndex = ref(null);
 

@@ -7,10 +7,10 @@ use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderProduct;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class UpdateOrderAction
 {
@@ -29,6 +29,11 @@ class UpdateOrderAction
     {
         return DB::transaction(function () use ($order, $validated, $request) {
             $before = $this->snapshot($order);
+
+            /* A form that posts neither figure leaves the arrangement as it
+               was, rather than resetting a charged order to free delivery. */
+            $deliveryCost = round((float) ($validated['delivery_cost'] ?? $order->delivery_cost), 2);
+            $deliveryPrice = round((float) ($validated['delivery_price'] ?? $order->delivery_price), 2);
 
             $order->update([
                 'customer_full_name' => $validated['customer_full_name'],
@@ -56,6 +61,14 @@ class UpdateOrderAction
                 'total_paid' => $validated['total_paid'],
                 'total_amount' => $validated['total_amount'],
                 'total_amount_before_discount' => $validated['total_amount_before_discount'] ?? null,
+                /*
+                 * Delivery, with the profit derived rather than posted — the
+                 * same rule the storefront's own endpoint follows, so the three
+                 * columns say one thing however an order was edited.
+                 */
+                'delivery_cost' => $deliveryCost,
+                'delivery_price' => $deliveryPrice,
+                'delivery_profit' => round($deliveryPrice - $deliveryCost, 2),
                 'source' => $validated['source'] ?? null,
                 /* `order_code`, `ip_address` and `user_agent` are deliberately
                    not here: the code is the buyer's credential and the other
@@ -67,17 +80,12 @@ class UpdateOrderAction
                 : null;
 
             /*
-             * Receipts go last: adding and removing them moves files on disk,
-             * which no transaction can roll back — so every validation that
-             * could refuse the edit has already passed by the time one does.
+             * Receipts go last: storing them writes files to disk, which no
+             * transaction can roll back — so every validation that could
+             * refuse the edit has already passed by the time one does.
              */
-            $receiptChanges = array_key_exists('receipts', $validated) || array_key_exists('remove_receipt_ids', $validated)
-                ? $this->syncReceipts(
-                    $order,
-                    $validated['receipts'] ?? [],
-                    $validated['remove_receipt_ids'] ?? [],
-                    $request,
-                )
+            $receiptChanges = array_key_exists('receipts', $validated)
+                ? $this->addReceipts($order, $validated['receipts'] ?? [], $request)
                 : null;
 
             $order->refresh()->load(['products', 'media']);
@@ -182,54 +190,26 @@ class UpdateOrderAction
     }
 
     /**
-     * Bring the receipt collection in line with what the form posted.
+     * Add whatever receipts the form posted. Nothing is ever taken away.
      *
-     * A posted id only counts if it is one of THIS order's receipts — the same
-     * guard the line sync applies, because a form field can be edited to point
-     * anywhere. The cap is checked before anything is touched: deleting a file
-     * off disk cannot be undone by rolling the transaction back.
+     * The collection is append-only — see `Order::RECEIPT_COLLECTION`. There is
+     * no removal path here and no cap to check against: an admin who does not
+     * believe a receipt moves `payment_status`, which `order_logs` attributes
+     * and dates, rather than deleting the evidence, which it cannot.
      *
-     * @param  array<int, \Illuminate\Http\UploadedFile>  $newFiles
-     * @param  array<int, int>  $removeIds
-     * @return array{before: list<string>, after: list<string>, added: int, removed: int, removed_names: list<string>}
+     * @param  array<int, UploadedFile>  $newFiles
+     * @return array{before: list<string>, after: list<string>, added: int}
      *
-     * @throws ValidationException|Throwable
+     * @throws \Throwable
      */
-    private function syncReceipts(Order $order, array $newFiles, array $removeIds, Request $request): array
+    private function addReceipts(Order $order, array $newFiles, Request $request): array
     {
-        $existing = $order->getMedia(Order::RECEIPT_COLLECTION);
         /** @var list<string> $before */
-        $before = $existing->sortBy('id')->map(fn ($media) => $media->file_name)->values()->all();
-
-        /* Only media that belongs to this order's receipt collection may go. */
-        $toRemove = $existing->whereIn('id', collect($removeIds)->map(fn ($id) => (int) $id));
-
-        $remainingSlots = Order::MAX_RECEIPTS
-            - ($existing->count() - $toRemove->count())
-            - count($newFiles);
-
-        if ($remainingSlots < 0) {
-            throw ValidationException::withMessages([
-                'receipts' => __('This order cannot hold more than :max receipts.', ['max' => Order::MAX_RECEIPTS]),
-            ]);
-        }
-
-        foreach ($toRemove as $media) {
-            try {
-                $media->delete();
-            } catch (\Throwable $exception) {
-                Log::error('Order receipt could not be deleted during order update.', [
-                    'route' => $request->path(),
-                    'order_code' => $order->order_code,
-                    'media_id' => $media->id,
-                    'admin_id' => Auth::id(),
-                    'message' => $exception->getMessage(),
-                    'trace' => $exception->getTraceAsString(),
-                ]);
-
-                throw $exception;
-            }
-        }
+        $before = $order->getMedia(Order::RECEIPT_COLLECTION)
+            ->sortBy('id')
+            ->map(fn ($media) => $media->file_name)
+            ->values()
+            ->all();
 
         foreach ($newFiles as $file) {
             try {
@@ -239,7 +219,7 @@ class UpdateOrderAction
                 Log::error('Order receipt could not be stored during order update.', [
                     'route' => $request->path(),
                     'order_code' => $order->order_code,
-                    'file_name' => $file instanceof \Illuminate\Http\UploadedFile ? $file->getClientOriginalName() : null,
+                    'file_name' => $file instanceof UploadedFile ? $file->getClientOriginalName() : null,
                     'admin_id' => Auth::id(),
                     'message' => $exception->getMessage(),
                     'trace' => $exception->getTraceAsString(),
@@ -264,8 +244,6 @@ class UpdateOrderAction
             'before' => $before,
             'after' => $after,
             'added' => count($newFiles),
-            'removed' => $toRemove->count(),
-            'removed_names' => $toRemove->map(fn ($media) => $media->file_name)->values()->all(),
         ];
     }
 
@@ -275,7 +253,7 @@ class UpdateOrderAction
      * sort of thing someone goes looking for by name later. Nothing changed,
      * nothing logged.
      *
-     * @param  array{before: list<string>, after: list<string>, added: int, removed: int, removed_names: list<string>}|null  $receiptChanges
+     * @param  array{before: list<string>, after: list<string>, added: int}|null  $receiptChanges
      */
     private function writeReceiptLog(Order $order, ?array $receiptChanges, Request $request): void
     {
@@ -291,18 +269,15 @@ class UpdateOrderAction
             [
                 'receipts' => $receiptChanges['after'],
                 'added' => $receiptChanges['added'],
-                'removed' => $receiptChanges['removed'],
-                'removed_names' => $receiptChanges['removed_names'],
             ],
             $request,
         );
 
-        Log::info('Order receipts updated by admin.', [
+        Log::info('Order receipts added by admin.', [
             'order_id' => $order->id,
             'order_code' => $order->order_code,
             'admin_id' => Auth::id(),
             'receipts_added' => $receiptChanges['added'],
-            'receipts_removed' => $receiptChanges['removed'],
         ]);
     }
 
@@ -338,6 +313,9 @@ class UpdateOrderAction
             'total_amount_before_discount' => $order->total_amount_before_discount === null
                 ? null
                 : (float) $order->total_amount_before_discount,
+            'delivery_cost' => (float) $order->delivery_cost,
+            'delivery_price' => (float) $order->delivery_price,
+            'delivery_profit' => (float) $order->delivery_profit,
             'source' => $order->source,
             'products' => $order->products->map(fn (OrderProduct $line) => [
                 'id' => $line->id,

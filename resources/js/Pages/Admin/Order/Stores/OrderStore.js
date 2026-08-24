@@ -37,6 +37,10 @@ const emptyForm = () => ({
     total_paid: 0,
     total_amount: 0,
     total_amount_before_discount: '',
+    /* Delivery as it was archived on this order. The profit is not here: it is
+       `price - cost`, shown as it is typed and worked out again server-side. */
+    delivery_cost: 0,
+    delivery_price: 0,
     source: '',
     products: [],
 });
@@ -82,10 +86,10 @@ export const useOrderStore = defineStore('order', {
         isLoading: false,
         orderCode: null,
         /* Receipts ride along with the save rather than going to their own
-           endpoint: files the admin picked but not yet saved, and receipts
-           already on the order that the next save should delete. */
+           endpoint: the files the admin has picked but not yet saved, and the
+           ones already on the order. There is no removal list — the collection
+           is append-only on this side exactly as it is on the buyer's. */
         newReceipts: [],
-        removedReceiptIds: [],
         orderReceipts: [],
     }),
 
@@ -105,6 +109,17 @@ export const useOrderStore = defineStore('order', {
             const price = num(line.new_price) ?? 0;
             return sum + Math.round(price * quantity * 100) / 100;
         }, 0),
+
+        /**
+         * What this order makes on the delivery, as the two inputs stand.
+         *
+         * Shown, never posted: the server stores `price - cost` whatever a form
+         * sends, so the figure here is the same arithmetic done early enough
+         * for an admin to see what they are about to save.
+         */
+        deliveryProfit: (state) => Math.round(
+            ((num(state.form.delivery_price) ?? 0) - (num(state.form.delivery_cost) ?? 0)) * 100,
+        ) / 100,
     },
 
     actions: {
@@ -131,48 +146,38 @@ export const useOrderStore = defineStore('order', {
                 total_paid: order.total_paid ?? 0,
                 total_amount: order.total_amount ?? 0,
                 total_amount_before_discount: order.total_amount_before_discount ?? '',
+                delivery_cost: order.delivery_cost ?? 0,
+                delivery_price: order.delivery_price ?? 0,
                 source: order.source ?? '',
                 products: (order.products || []).map(lineFromOrder),
             });
             this.validationErrors = null;
             this.newReceipts = [];
-            this.removedReceiptIds = [];
             this.orderReceipts = order.receipts || [];
         },
 
         /**
-         * Queue files picked for upload. The cap is the order's, not the
-         * picker's: existing receipts minus the ones marked for removal still
-         * take up room.
+         * Queue files picked for upload.
+         *
+         * Uncapped: an order takes as much evidence as the transfer needed.
+         * The picker stays open however many the order already holds.
          */
-        queueReceipts(fileList, maxReceipts) {
+        queueReceipts(fileList) {
             const incoming = Array.from(fileList || []);
             if (!incoming.length) return 0;
 
-            const slots = maxReceipts
-                - (this.existingReceiptCount - this.removedReceiptIds.length)
-                - this.newReceipts.length;
-
-            if (slots <= 0) return -1;
-
-            const accepted = incoming.slice(0, slots);
-            this.newReceipts.push(...accepted);
-            return accepted.length === incoming.length ? accepted.length : -accepted.length;
+            this.newReceipts.push(...incoming);
+            return incoming.length;
         },
 
+        /**
+         * Drop a file from the queue before it is saved.
+         *
+         * This is not a removal: nothing has been stored yet. Once a receipt
+         * IS on the order it stays — see `Order::RECEIPT_COLLECTION`.
+         */
         unqueueReceipt(index) {
             this.newReceipts.splice(index, 1);
-        },
-
-        /** Mark a receipt already on the order for deletion on save. */
-        markReceiptRemoved(mediaId) {
-            if (!this.removedReceiptIds.includes(mediaId)) {
-                this.removedReceiptIds.push(mediaId);
-            }
-        },
-
-        undoRemoveReceipt(mediaId) {
-            this.removedReceiptIds = this.removedReceiptIds.filter(id => id !== mediaId);
         },
 
         /**
@@ -217,9 +222,16 @@ export const useOrderStore = defineStore('order', {
             this.form.products.splice(index, 1);
         },
 
-        /** Copy what the lines add up to into the amount charged. */
+        /**
+         * Copy what the lines add up to into the amount charged.
+         *
+         * Delivery goes in with them: it is charged on top of the lines, so a
+         * "use lines total" that left it out would quietly refund it.
+         */
         applyLinesTotal() {
-            this.form.total_amount = Math.round(this.linesTotal * 100) / 100;
+            const delivery = num(this.form.delivery_price) ?? 0;
+
+            this.form.total_amount = Math.round((this.linesTotal + delivery) * 100) / 100;
         },
 
         updateOrder() {
@@ -234,6 +246,8 @@ export const useOrderStore = defineStore('order', {
                     total_paid: num(data.total_paid) ?? 0,
                     total_amount: num(data.total_amount) ?? 0,
                     total_amount_before_discount: num(data.total_amount_before_discount),
+                    delivery_cost: num(data.delivery_cost) ?? 0,
+                    delivery_price: num(data.delivery_price) ?? 0,
                     products: data.products.map((line) => ({
                         ...line,
                         quantity: num(line.quantity) ?? 1,
@@ -246,14 +260,12 @@ export const useOrderStore = defineStore('order', {
                        the receipts cannot be read by the server as "receipts
                        changed" — the same sometimes-array contract as lines. */
                     ...(this.newReceipts.length ? { receipts: this.newReceipts } : {}),
-                    ...(this.removedReceiptIds.length ? { remove_receipt_ids: [...this.removedReceiptIds] } : {}),
                 }))
                 .put(route('admin.order.update', this.orderCode), {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Order updated successfully');
                         this.newReceipts = [];
-                        this.removedReceiptIds = [];
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...errors };

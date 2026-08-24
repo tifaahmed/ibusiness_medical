@@ -29,6 +29,16 @@ class AdminOrderShowResource extends JsonResource
                 ? null
                 : (float) $this->total_amount_before_discount,
 
+            /*
+             * Delivery: what it cost us, what the buyer was charged, and the
+             * difference — archived on the order as it stood when it was
+             * placed. The cost and the profit are shop-internal and stop here;
+             * the partner resource carries the price alone.
+             */
+            'delivery_cost' => (float) $this->delivery_cost,
+            'delivery_price' => (float) $this->delivery_price,
+            'delivery_profit' => (float) $this->delivery_profit,
+
             'customer_full_name' => $this->customer_full_name,
             'customer_phone' => $this->customer_phone,
             'customer_address' => $this->customer_address,

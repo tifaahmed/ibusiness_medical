@@ -109,10 +109,20 @@ class OrderController extends Controller
 
                 $paymentType = PaymentTypeEnum::from((string) $request->input('payment_type'));
 
+                /*
+                 * Delivery, as the storefront charges it — see
+                 * `StoreOrderRequest::delivery()`. It is added to BOTH totals
+                 * so the difference between them stays exactly the discount the
+                 * card earned: adding it to one only would report delivery as a
+                 * saving, or as a loss.
+                 */
+                $delivery = $request->delivery();
+
                 $order = Order::query()->create([
                     'order_code' => Order::generateCode(),
-                    'total_amount' => round($total, 2),
-                    'total_amount_before_discount' => round($totalBeforeDiscount, 2),
+                    'total_amount' => round($total + $delivery['delivery_price'], 2),
+                    'total_amount_before_discount' => round($totalBeforeDiscount + $delivery['delivery_price'], 2),
+                    ...$delivery,
                     /*
                      * Nothing has been paid yet whichever way it will be: cash
                      * on delivery is paid to the courier, and a transfer is
@@ -176,6 +186,10 @@ class OrderController extends Controller
             [
                 'order_code' => $order->order_code,
                 'total_amount' => (float) $order->total_amount,
+                /* What the delivery was charged at, so a total that reads high
+                   against the lines is explained by the log rather than
+                   investigated. */
+                'delivery_price' => (float) $order->delivery_price,
                 'payment_type' => $order->payment_type->value,
                 'source' => $order->source,
                 /* Whether the card in the box was honoured. Without it a
@@ -236,9 +250,14 @@ class OrderController extends Controller
     }
 
     /**
-     * Attach the proof of a wallet transfer to an order already placed.
+     * Attach proof of a wallet transfer to an order already placed.
      *
-     * Only for orders that are actually waiting on one: a receipt against a
+     * Any number of files, in one submission or spread over as many days as
+     * the buyer needs: an order that already holds a receipt still takes
+     * another, because a balance paid a week later has its own screenshot and
+     * a buyer with something to show should never be told the order is full.
+     *
+     * The one refusal is the wrong kind of order: a receipt against a
      * cash-on-delivery order is a buyer who has misread the page, and filing it
      * silently would leave an admin looking for a transfer that never happened.
      */
@@ -252,31 +271,31 @@ class OrderController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
-        if ($order->payment_type !== PaymentTypeEnum::TRANSFER_WALLET) {
+        if (! $order->acceptsReceipts()) {
             return response()->json([
                 'message' => 'This order is paid on delivery and needs no receipt.',
                 'errors' => ['receipt' => ['This order is paid on delivery.']],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        /*
-         * A cap rather than a single file: a transfer sometimes takes two
-         * screenshots to evidence, but an order is not a file store.
-         */
-        if ($order->getMedia(Order::RECEIPT_COLLECTION)->count() >= Order::MAX_RECEIPTS) {
-            return response()->json([
-                'message' => 'This order already has all the receipts it can hold.',
-                'errors' => ['receipt' => ['Too many receipts on this order.']],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        $files = $request->receipts();
 
         try {
-            $order->addMediaFromRequest('receipt')
-                ->toMediaCollection(Order::RECEIPT_COLLECTION);
+            foreach ($files as $file) {
+                /*
+                 * From the file rather than from the request: `receipts` is an
+                 * array of them and `addMediaFromRequest()` reads a single
+                 * key. Passing the upload itself keeps the name the buyer's
+                 * phone gave it, which is what an admin reads in the grid.
+                 */
+                $order->addMedia($file)
+                    ->toMediaCollection(Order::RECEIPT_COLLECTION);
+            }
         } catch (Throwable $exception) {
             Log::error('Order receipt could not be stored.', [
                 'route' => $request->path(),
                 'order_code' => $order->order_code,
+                'receipts' => count($files),
                 'message' => $exception->getMessage(),
                 'trace' => $exception->getTraceAsString(),
             ]);
@@ -297,6 +316,7 @@ class OrderController extends Controller
             null,
             [
                 'receipt_uploaded' => true,
+                'receipts_added' => count($files),
                 'reference' => $request->input('reference'),
                 'visitor_ip' => $request->input('ip_address'),
             ],

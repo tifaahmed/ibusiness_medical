@@ -21,6 +21,9 @@
                 <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
                   Tags
                 </th>
+                <th class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap">
+                  Creator
+                </th>
                 <th class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap w-24 text-center">
                   Banner
                 </th>
@@ -110,6 +113,17 @@
                       {{ tag.icon }} {{ tag.name }}
                     </span>
                     <span v-if="product.tags.length > 3" class="text-[10px] text-muted-foreground">+{{ product.tags.length - 3 }}</span>
+                  </div>
+                  <span v-else class="text-xs text-muted-foreground">—</span>
+                </td>
+                <td class="p-2 align-middle whitespace-nowrap">
+                  <div v-if="product.creator" class="flex flex-col leading-tight">
+                    <span class="text-foreground text-xs sm:text-sm font-medium truncate max-w-[160px]" :title="product.creator.name">
+                      {{ product.creator.name }}
+                    </span>
+                    <span v-if="product.creator.email" class="text-muted-foreground text-[10px] sm:text-xs truncate max-w-[160px]" :title="product.creator.email">
+                      {{ product.creator.email }}
+                    </span>
                   </div>
                   <span v-else class="text-xs text-muted-foreground">—</span>
                 </td>

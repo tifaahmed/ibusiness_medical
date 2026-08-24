@@ -10,9 +10,16 @@ use Illuminate\Validation\Rule;
 /**
  * A basket arriving from a storefront, on its way to becoming an order.
  *
- * Notably absent: any price. What the lines cost is read out of the catalogue
- * when the order is written — a total posted by a caller is a total that can be
- * argued with.
+ * Notably absent: any product price. What the lines cost is read out of the
+ * catalogue when the order is written — a total posted by a caller is a total
+ * that can be argued with.
+ *
+ * Delivery is the one price that does arrive with the basket, and only because
+ * it is not a fact about the catalogue: what a courier charges is the
+ * storefront's own arrangement, which this application has no copy of. The
+ * endpoint is key-gated, so a caller that can post at all is one already
+ * trusted to speak for its shop; the figures are still bounded here, and the
+ * profit is recomputed from the other two rather than believed.
  */
 class StoreOrderRequest extends FormRequest
 {
@@ -46,6 +53,19 @@ class StoreOrderRequest extends FormRequest
             'customer_floor_number' => ['nullable', 'string', 'max:50'],
             'customer_special_mark' => ['nullable', 'string', 'max:500'],
 
+            /*
+             * Delivery, as the storefront charges it. Optional so a storefront
+             * that has not been updated keeps placing orders — a missing figure
+             * is zero, which is what "we do not charge for delivery" has always
+             * meant here. The ceiling is nowhere near a real delivery charge:
+             * it is there to catch a typo before it reaches a total.
+             */
+            'delivery_cost' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'delivery_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            /* Accepted and then ignored: the profit stored on the order is
+               always `price - cost`, worked out here. */
+            'delivery_profit' => ['nullable', 'numeric'],
+
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values())],
@@ -63,6 +83,28 @@ class StoreOrderRequest extends FormRequest
             'ip_address' => ['nullable', 'string', 'max:45'],
             'user_agent' => ['nullable', 'string', 'max:1000'],
             'source' => ['nullable', 'string', 'max:32'],
+        ];
+    }
+
+    /**
+     * The delivery arrangement this order was placed under.
+     *
+     * The profit is derived rather than read: two of the three figures are the
+     * arrangement, and the third is arithmetic. Believing a caller's third
+     * figure would let an order archive a profit its own two columns
+     * contradict.
+     *
+     * @return array{delivery_cost: float, delivery_price: float, delivery_profit: float}
+     */
+    public function delivery(): array
+    {
+        $cost = round((float) $this->input('delivery_cost', 0), 2);
+        $price = round((float) $this->input('delivery_price', 0), 2);
+
+        return [
+            'delivery_cost' => $cost,
+            'delivery_price' => $price,
+            'delivery_profit' => round($price - $cost, 2),
         ];
     }
 

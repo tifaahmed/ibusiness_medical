@@ -175,9 +175,93 @@ class OrdersApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('order.awaiting_receipt', false)
             ->assertJsonCount(1, 'order.receipts')
+            /* Waiting is over; taking more is not. */
+            ->assertJsonPath('order.accepts_receipts', true)
             /* A receipt is a claim, not a confirmation — an admin still has to
                check it against the wallet. */
             ->assertJsonPath('order.payment_status.value', PaymentStatusEnum::PENDING->value);
+    }
+
+    /**
+     * A transfer is not always evidenced in one file, or on one day: a buyer
+     * pays half now and the rest on Friday, or their bank's app screenshots
+     * the reference and the amount separately. The order takes all of it.
+     */
+    public function test_an_order_takes_more_receipts_after_the_first_and_on_another_day(): void
+    {
+        Storage::fake('public');
+
+        $product = $this->product('Wheelchair', ['new_price' => 4000]);
+
+        $order = $this->place([
+            'customer_full_name' => 'Hoda Adel',
+            'customer_phone' => '01000000009',
+            'customer_address' => 'Alexandria',
+            'payment_type' => PaymentTypeEnum::TRANSFER_WALLET->value,
+            'items' => [['slug' => $product->slug, 'quantity' => 1]],
+        ])->assertCreated()->json('order');
+
+        $url = '/api/v1/partner/orders/'.$order['order_code'].'/receipt';
+
+        /* Several picked at once. */
+        $this->withHeader('X-Api-Key', self::KEY)
+            ->post($url, [
+                'receipts' => [
+                    UploadedFile::fake()->image('first.jpg'),
+                    UploadedFile::fake()->image('second.png'),
+                    UploadedFile::fake()->create('third.pdf', 40, 'application/pdf'),
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonCount(3, 'order.receipts');
+
+        /* And one more the next day, on an order that already holds three —
+           there is no cap and no closing the collection. */
+        $receipts = $this->withHeader('X-Api-Key', self::KEY)
+            ->post($url, ['receipt' => UploadedFile::fake()->image('the-balance.jpg')])
+            ->assertCreated()
+            ->assertJsonCount(4, 'order.receipts')
+            ->json('order.receipts');
+
+        /* Oldest first, under the names the buyer's phone gave them: an admin
+           reading a part-paid transfer needs the order they arrived in. */
+        $this->assertSame(
+            ['first.jpg', 'second.png', 'third.pdf', 'the-balance.jpg'],
+            array_column($receipts, 'name'),
+        );
+
+        /* Nine more, because "any number" is the actual requirement. */
+        for ($i = 0; $i < 9; $i++) {
+            $this->withHeader('X-Api-Key', self::KEY)
+                ->post($url, ['receipt' => UploadedFile::fake()->image("extra-{$i}.jpg")])
+                ->assertCreated();
+        }
+
+        $this->withHeader('X-Api-Key', self::KEY)
+            ->getJson('/api/v1/partner/orders/'.$order['order_code'])
+            ->assertOk()
+            ->assertJsonCount(13, 'order.receipts');
+    }
+
+    /** Nothing is sent, so there is nothing to file. */
+    public function test_a_receipt_upload_carrying_no_file_is_refused(): void
+    {
+        Storage::fake('public');
+
+        $product = $this->product('Oximeter', ['new_price' => 700]);
+
+        $order = $this->place([
+            'customer_full_name' => 'Mona Saeed',
+            'customer_phone' => '01000000010',
+            'customer_address' => 'Aswan',
+            'payment_type' => PaymentTypeEnum::TRANSFER_WALLET->value,
+            'items' => [['slug' => $product->slug, 'quantity' => 1]],
+        ])->assertCreated()->json('order');
+
+        $this->withHeader('X-Api-Key', self::KEY)
+            ->postJson('/api/v1/partner/orders/'.$order['order_code'].'/receipt', [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('receipt');
     }
 
     public function test_a_cash_on_delivery_order_refuses_a_receipt(): void

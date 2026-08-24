@@ -37,7 +37,6 @@ class AdminOrderEditController extends BaseController
             'paymentTypes' => array_values(PaymentTypeEnum::getOptions()),
             'addressTypeOptions' => array_values(\App\Enums\Address\AddressTypeEnum::getOptions()),
             'products' => $this->productPicker(),
-            'maxReceipts' => Order::MAX_RECEIPTS,
         ]);
     }
 

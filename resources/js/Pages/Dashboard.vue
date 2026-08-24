@@ -26,6 +26,22 @@ defineProps({
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.dashboard || {});
 
+// Permission helpers — mirror AppLayout so each dashboard section only renders
+// when the signed-in admin may actually open the matching admin area.
+const userPermissions = computed(() => page.props.auth?.user?.permissions || []);
+const userRoles = computed(() => page.props.auth?.user?.roles || []);
+const isSuperAdmin = computed(() => userRoles.value.includes('super_admin'));
+const can = (permission) => isSuperAdmin.value || userPermissions.value.includes(permission);
+const canAny = (...permissions) => permissions.some((p) => can(p));
+
+const canViewMembers = canAny(
+    'view memberships',
+    'manage memberships',
+    'manage own memberships',
+    'manage partner memberships',
+);
+const canViewSales = canAny('view sales', 'manage sales', 'manage own sales');
+
 const getStatusColor = (status) => {
     const colors = {
         active: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -56,7 +72,7 @@ const statusLabel = (status) => {
                 />
 
                 <!-- Statistics Grid -->
-                <div class="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <div v-if="statistics.length" class="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         v-for="(stat, index) in statistics"
                         :key="index"
@@ -65,7 +81,7 @@ const statusLabel = (status) => {
                 </div>
 
                 <!-- Recent Members Card -->
-                <div class="card-modern overflow-hidden">
+                <div v-if="canViewMembers" class="card-modern overflow-hidden">
                     <div class="flex flex-row items-center justify-between py-2 sm:py-3 md:py-4 px-3 sm:px-4 md:px-6 border-b border-border">
                         <h2 class="title-golden">
                             <svg class="title-icon w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +187,7 @@ const statusLabel = (status) => {
                 </div>
 
                 <!-- Recent Sales Card -->
-                <div class="card-modern overflow-hidden">
+                <div v-if="canViewSales" class="card-modern overflow-hidden">
                     <div class="flex flex-row items-center justify-between py-2 sm:py-3 md:py-4 px-3 sm:px-4 md:px-6 border-b border-border">
                         <h2 class="title-golden">
                             <svg class="title-icon w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,6 +287,11 @@ const statusLabel = (status) => {
                             <p class="text-sm sm:text-base text-muted-foreground">{{ t.no_recent_sales || 'No recent sales entries found.' }}</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- No access state -->
+                <div v-if="!canViewMembers && !canViewSales" class="card-modern p-8 sm:p-12 text-center">
+                    <p class="text-sm sm:text-base text-muted-foreground">{{ t.no_access || 'You do not have permission to view any dashboard content.' }}</p>
                 </div>
             </div>
         </div>

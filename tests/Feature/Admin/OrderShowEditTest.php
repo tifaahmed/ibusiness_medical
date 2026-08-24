@@ -11,6 +11,8 @@ use App\Models\OrderLog;
 use App\Models\OrderProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -307,6 +309,118 @@ class OrderShowEditTest extends TestCase
      *
      * @return array<string, mixed>
      */
+    /**
+     * An admin can correct what delivery cost and what it was charged at. The
+     * profit is never posted — it is `price - cost`, worked out as the order is
+     * written, so the three columns cannot be saved contradicting each other.
+     */
+    public function test_delivery_figures_are_editable_and_the_profit_is_derived(): void
+    {
+        $order = $this->seedOrder();
+
+        $this->actingAs($this->adminWith('manage orders'))
+            ->put(route('admin.order.update', $order->order_code), array_merge($this->basePayload($order), [
+                'delivery_cost' => 40,
+                'delivery_price' => 65,
+                /* Ignored on purpose: a posted profit must not win. */
+                'delivery_profit' => 9999,
+            ]))
+            ->assertRedirect(route('admin.order.show', $order->order_code));
+
+        $order->refresh();
+
+        $this->assertSame('40.00', $order->delivery_cost);
+        $this->assertSame('65.00', $order->delivery_price);
+        $this->assertSame('25.00', $order->delivery_profit);
+    }
+
+    /** An edit that never touched delivery leaves the arrangement alone. */
+    public function test_an_edit_without_delivery_figures_keeps_the_ones_on_the_order(): void
+    {
+        $order = $this->seedOrder();
+        $order->update(['delivery_cost' => 30, 'delivery_price' => 45, 'delivery_profit' => 15]);
+
+        $this->actingAs($this->adminWith('manage orders'))
+            ->put(route('admin.order.update', $order->order_code), $this->basePayload($order))
+            ->assertRedirect(route('admin.order.show', $order->order_code));
+
+        $order->refresh();
+
+        $this->assertSame('30.00', $order->delivery_cost);
+        $this->assertSame('45.00', $order->delivery_price);
+        $this->assertSame('15.00', $order->delivery_profit);
+    }
+
+    /** All three figures reach the show screen — they are the shop's own. */
+    public function test_the_show_screen_carries_all_three_delivery_figures(): void
+    {
+        $order = $this->seedOrder();
+        $order->update(['delivery_cost' => 30, 'delivery_price' => 45, 'delivery_profit' => 15]);
+
+        $response = $this->actingAs($this->adminWith('view orders'))
+            ->get(route('admin.order.show', $order->order_code));
+
+        $props = $response->viewData('page')['props']['order'];
+
+        $this->assertSame(30.0, $props['delivery_cost']);
+        $this->assertSame(45.0, $props['delivery_price']);
+        $this->assertSame(15.0, $props['delivery_profit']);
+    }
+
+    /**
+     * The admin form adds receipts and never takes one away, however many the
+     * order already holds. An admin who does not believe a receipt moves the
+     * payment status — which `order_logs` attributes and dates — rather than
+     * deleting evidence, which records nothing.
+     */
+    public function test_the_admin_adds_receipts_and_cannot_remove_one(): void
+    {
+        Storage::fake('public');
+
+        $order = $this->seedOrder();
+        $admin = $this->adminWith('manage orders');
+
+        $order->addMedia(UploadedFile::fake()->image('from-the-buyer.jpg'))
+            ->toMediaCollection(Order::RECEIPT_COLLECTION);
+
+        $existing = $order->refresh()->getMedia(Order::RECEIPT_COLLECTION)->first();
+
+        /* Six more in one save, past the cap this collection used to carry. */
+        $this->actingAs($admin)
+            ->put(route('admin.order.update', $order->order_code), $this->basePayload($order) + [
+                'receipts' => [
+                    UploadedFile::fake()->image('a.jpg'),
+                    UploadedFile::fake()->image('b.jpg'),
+                    UploadedFile::fake()->image('c.jpg'),
+                    UploadedFile::fake()->image('d.jpg'),
+                    UploadedFile::fake()->image('e.jpg'),
+                    UploadedFile::fake()->create('f.pdf', 20, 'application/pdf'),
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertCount(7, $order->refresh()->getMedia(Order::RECEIPT_COLLECTION));
+
+        /*
+         * A removal list is not merely ignored by the action — the request no
+         * longer has a rule for it, so it cannot reach the action at all. The
+         * buyer's first receipt is still there afterwards.
+         */
+        $this->actingAs($admin)
+            ->put(route('admin.order.update', $order->order_code), $this->basePayload($order) + [
+                'remove_receipt_ids' => [$existing->id],
+            ])
+            ->assertRedirect();
+
+        $order->refresh();
+
+        $this->assertCount(7, $order->getMedia(Order::RECEIPT_COLLECTION));
+        $this->assertNotNull(
+            $order->getMedia(Order::RECEIPT_COLLECTION)->firstWhere('id', $existing->id),
+            'A receipt already on the order must survive an edit that asks for its removal.',
+        );
+    }
+
     private function basePayload(Order $order): array
     {
         return [

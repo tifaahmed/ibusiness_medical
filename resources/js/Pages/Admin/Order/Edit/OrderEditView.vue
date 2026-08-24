@@ -18,7 +18,6 @@
             :delivery-statuses="deliveryStatuses"
             :payment-types="paymentTypes"
             :products="products"
-            :max-receipts="maxReceipts"
           />
 
           <div class="sticky bottom-0 z-10 bg-card border border-border rounded-lg shadow-sm">
@@ -72,7 +71,6 @@ const props = defineProps({
   deliveryStatuses: { type: Array, default: () => [] },
   paymentTypes: { type: Array, default: () => [] },
   products: { type: Array, default: () => [] },
-  maxReceipts: { type: Number, default: 5 },
 });
 
 const page = usePage();

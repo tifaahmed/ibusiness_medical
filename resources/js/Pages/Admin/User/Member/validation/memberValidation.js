@@ -68,7 +68,8 @@ export const memberSchema = z.object({
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
-    // Primary address detail — only the governorate above is required.
+    city_id: z.union([z.string(), z.number()]).nullable().optional(),
+    // Primary address detail — governorate and city are required.
     address_type: z.string().nullable().optional(),
     address: z.string().max(1000).nullable().optional(),
     street: z.string().max(255).nullable().optional(),
@@ -103,10 +104,13 @@ export const memberSchema = z.object({
     message: 'Expiration date must be after registration date',
     path: ['expiration_date'],
 }).superRefine((data, ctx) => {
-    // The member's governorate is always required — it anchors the primary
+    // Governorate and city are always required — they anchor the primary
     // address written on save.
     if (!data.governorate_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
+    }
+    if (!data.city_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
     }
 }).superRefine((data, ctx) => {
     // Company and Sales are required when the
@@ -204,7 +208,8 @@ export const memberUpdateSchema = z.object({
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
-    // Primary address detail — only the governorate above is required.
+    city_id: z.union([z.string(), z.number()]).nullable().optional(),
+    // Primary address detail — governorate and city are required.
     address_type: z.string().nullable().optional(),
     address: z.string().max(1000).nullable().optional(),
     street: z.string().max(255).nullable().optional(),
@@ -241,10 +246,13 @@ export const memberUpdateSchema = z.object({
     message: 'Expiration date must be after registration date',
     path: ['expiration_date'],
 }).superRefine((data, ctx) => {
-    // The member's governorate is always required — it anchors the primary
+    // Governorate and city are always required — they anchor the primary
     // address written on save.
     if (!data.governorate_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
+    }
+    if (!data.city_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
     }
 }).superRefine((data, ctx) => {
     // Company and Sales are required when the
@@ -302,6 +310,7 @@ export const validateMemberForm = (memberData, isUpdate = false) => {
             company_id: memberData.company_id ?? null,
             sales_id: memberData.sales_id ?? null,
             governorate_id: memberData.governorate_id ?? null,
+            city_id: memberData.city_id ?? null,
             membership_completed_at: memberData.membership_completed_at ?? null,
             has_member_payments: Boolean(memberData.has_member_payments),
             initial_payment_amount: memberData.initial_payment_amount ?? '',

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorCont
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
 use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
 use App\Http\Controllers\Api\V1\Guest\HomeController as V1HomeController;
+use App\Http\Controllers\Api\V1\Guest\LocationController as V1LocationController;
 use App\Http\Controllers\Api\V1\Guest\MembershipCardController as V1MembershipCardController;
 use App\Http\Controllers\Api\V1\Guest\MembershipController as V1MembershipController;
 use App\Http\Controllers\Api\V1\Guest\MembershipUsageController as V1MembershipUsageController;
@@ -52,6 +53,13 @@ Route::prefix('v1')
         Route::get('/news-tickers', V1NewsTickerController::class)->name('news-tickers');
         Route::get('/about', V1AboutController::class)->name('about');
         Route::get('/contact', V1ContactController::class)->name('contact.show');
+
+        /*
+         * Governorates and the cities inside them, for an address picker on a
+         * partner storefront. Public and key-less: place names identify
+         * nobody, and the whole list is a few kilobytes shipped in one call.
+         */
+        Route::get('/locations', V1LocationController::class)->name('locations.index');
 
         Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
         Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');

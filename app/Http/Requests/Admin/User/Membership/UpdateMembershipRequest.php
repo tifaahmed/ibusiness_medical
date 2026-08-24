@@ -180,8 +180,8 @@ class UpdateMembershipRequest extends FormRequest
             ],
             'sales_id' => ['nullable', 'integer', 'exists:sales,id', Rule::requiredIf($this->requiresPaidMonthlyFields())],
             'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
-            'city_id' => ['nullable', 'integer', 'exists:cities,id'],
-            // The member's primary address. Only the governorate is required;
+            'city_id' => ['required', 'integer', 'exists:cities,id'],
+            // The member's primary address. Governorate and city are required;
             // everything else is optional detail for the courier.
             'address_type' => ['nullable', 'string', Rule::in(AddressTypeEnum::values())],
             'address' => ['nullable', 'string', 'max:1000'],
@@ -222,6 +222,7 @@ class UpdateMembershipRequest extends FormRequest
             'company_id.required' => 'Company is required for a paid monthly membership.',
             'sales_id.required' => 'Sales is required for a paid monthly membership.',
             'governorate_id.required' => 'The governorate field is required.',
+            'city_id.required' => 'The city field is required.',
             'initial_payment_amount.required' => 'Payment amount is required for the first payment.',
             'initial_payment_months_paid.required' => 'Months paid is required for the first payment.',
             'initial_payment_from_date.required' => 'Payment from date is required for the first payment.',
