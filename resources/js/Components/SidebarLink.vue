@@ -27,6 +27,18 @@ const props = defineProps({
         type: String,
         default: 'animate-icon-breathe',
     },
+    // Inertia v2 prefetch: 'hover' warms the page in the background while the
+    // pointer rests on the link, so the click either lands on a cached page or
+    // waits on the request that is already in flight. Pass false to opt out.
+    prefetch: {
+        type: [Boolean, String, Array],
+        default: 'hover',
+    },
+    // How long a prefetched page stays fresh before Inertia refetches it.
+    cacheFor: {
+        type: [String, Number, Array],
+        default: '30s',
+    },
 });
 
 const classes = computed(() => {
@@ -53,7 +65,7 @@ const badgeClasses = computed(() => {
 </script>
 
 <template>
-    <Link :href="href" :class="classes" preserve-scroll>
+    <Link :href="href" :class="classes" :prefetch="prefetch" :cache-for="cacheFor" preserve-scroll>
         <slot name="icon">
             <div :class="['shrink-0', iconAnimation, 'sidebar-icon-hover']">
                 <slot />

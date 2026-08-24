@@ -143,7 +143,7 @@ const getUserInitials = (name) => {
             >
                 <!-- Logo Slot -->
                 <template #logo>
-                    <Link :href="route('admin.dashboard')" class="flex items-center gap-2" :class="sidebarCollapsed ? 'justify-center' : ''" preserve-scroll>
+                    <Link :href="route('admin.dashboard')" class="flex items-center gap-2" :class="sidebarCollapsed ? 'justify-center' : ''" prefetch="hover" cache-for="30s" preserve-scroll>
                         <img :src="$page.props.appLogo" :alt="appName" class="transition-all duration-300 rounded" :class="sidebarCollapsed ? 'h-8 w-8' : 'h-10 w-auto'" />
                         <span v-if="!sidebarCollapsed" class="font-bold text-base tracking-wider animate-text-fizzy-sidebar">{{ appName }}</span>
                     </Link>

@@ -11,6 +11,15 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    // See SidebarLink: hover starts the visit early, the click reuses it.
+    prefetch: {
+        type: [Boolean, String, Array],
+        default: 'hover',
+    },
+    cacheFor: {
+        type: [String, Number, Array],
+        default: '30s',
+    },
 });
 
 const classes = computed(() => {
@@ -25,7 +34,7 @@ const classes = computed(() => {
 </script>
 
 <template>
-    <Link :href="href" :class="classes" preserve-scroll>
+    <Link :href="href" :class="classes" :prefetch="prefetch" :cache-for="cacheFor" preserve-scroll>
         <slot />
     </Link>
 </template>

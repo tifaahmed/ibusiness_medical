@@ -59,4 +59,11 @@ createInertiaApp({
     progress: {
         color: '#4B5563',
     },
+    defaults: {
+        prefetch: {
+            // Wait a beat before a hover counts as intent, so sweeping the
+            // mouse down the sidebar doesn't fire a request per item.
+            hoverDelay: 120,
+        },
+    },
 });
