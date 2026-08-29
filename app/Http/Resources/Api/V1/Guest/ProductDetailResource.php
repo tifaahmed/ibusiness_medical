@@ -25,6 +25,17 @@ class ProductDetailResource extends JsonResource
             'name' => $this->name,
             'short_subject' => $this->short_subject,
             'description' => $this->description,
+            /*
+             * SEO metadata for the storefront's <head>. Each is a locale map;
+             * an empty one means "fall back to the product name / description".
+             * `og_image` already falls back to the product photo (see the
+             * model accessor), so the share card never lands on the site logo.
+             */
+            'meta_title' => $this->meta_title,
+            'meta_description' => $this->meta_description,
+            'meta_keywords' => $this->meta_keywords,
+            'canonical_url' => $this->canonical_url,
+            'og_image' => $this->og_image,
             'old_price' => $this->old_price,
             'new_price' => $this->new_price,
             'price' => ProductResource::sellingPrice($this->resource),

@@ -194,6 +194,24 @@ class Product extends Model implements HasMedia
     }
 
     /**
+     * Open Graph share image, in its own collection so it can be swapped (or
+     * seeded from the large image) without touching the catalogue photos.
+     */
+    public function getOgImageAttribute(): string
+    {
+        $media = $this->getFirstMedia('og_image');
+
+        if ($media) {
+            return $media->getUrl();
+        }
+
+        // "Empty share image" falls back to the product's own picture, so the
+        // storefront never has to reach for the site logo.
+        return $this->getFirstMediaUrl('large_image')
+            ?: $this->getFirstMediaUrl('small_image');
+    }
+
+    /**
      * Register the media collections for the product.
      */
     public function registerMediaCollections(): void
@@ -202,6 +220,9 @@ class Product extends Model implements HasMedia
             ->singleFile();
 
         $this->addMediaCollection('small_image')
+            ->singleFile();
+
+        $this->addMediaCollection('og_image')
             ->singleFile();
     }
 }

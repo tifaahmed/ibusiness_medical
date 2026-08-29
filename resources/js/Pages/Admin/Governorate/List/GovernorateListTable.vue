@@ -54,21 +54,8 @@
                   </div>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
-                  <div class="flex items-center gap-1 text-sm justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building w-4 h-4 text-blue-500">
-                      <rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect>
-                      <path d="M9 22v-4h6v4"></path>
-                      <path d="M8 6h.01"></path>
-                      <path d="M16 6h.01"></path>
-                      <path d="M12 6h.01"></path>
-                      <path d="M12 10h.01"></path>
-                      <path d="M12 14h.01"></path>
-                      <path d="M16 10h.01"></path>
-                      <path d="M16 14h.01"></path>
-                      <path d="M8 10h.01"></path>
-                      <path d="M8 14h.01"></path>
-                    </svg>
-                    <span>{{ governorate.facilities_count || 0 }}</span>
+                  <div class="flex justify-center">
+                    <GovernorateFacilitiesDialog :governorate="governorate" />
                   </div>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
@@ -178,6 +165,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import GovernorateFacilitiesDialog from "./GovernorateFacilitiesDialog.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { usePermissions } from '@/composables/usePermissions';

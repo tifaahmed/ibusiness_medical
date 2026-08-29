@@ -35,6 +35,9 @@
                 <span class="hidden sm:inline">Export</span>
               </a>
 
+              <FacilityEnglishBulkDialog v-if="canWrite" />
+              <FacilitySeoBulkDialog v-if="canWrite" />
+
               <Link
                 v-if="canWrite"
                 :href="route('admin.facility.migration.page')"
@@ -80,6 +83,8 @@
 import FacilityLayout from "../FacilityLayout.vue";
 import FacilityListFilterContent from "./FacilityListFilterContent.vue";
 import FacilityListTable from "./FacilityListTable.vue";
+import FacilityEnglishBulkDialog from "./FacilityEnglishBulkDialog.vue";
+import FacilitySeoBulkDialog from "./FacilitySeoBulkDialog.vue";
 import { useFacilityStore } from "../Stores/FacilityStore";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";

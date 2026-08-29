@@ -31,6 +31,8 @@ export const useProductStore = defineStore('product', {
             sync_tags: true,
             large_image: null,
             small_image: null,
+            og_image: null,
+            og_image_delete: false,
             remove_large_image: false,
             remove_small_image: false,
             gallery: [],

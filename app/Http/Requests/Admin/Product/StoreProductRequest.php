@@ -58,6 +58,8 @@ class StoreProductRequest extends FormRequest
             'sync_tags' => 'nullable|boolean',
             'large_image' => 'nullable|image|max:10240',
             'small_image' => 'nullable|image|max:10240',
+            'og_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'og_image_delete' => 'nullable|boolean',
             'gallery' => 'nullable|array',
             'gallery.*' => 'image|max:10240',
             // Paths returned by the description-editor upload endpoint; they

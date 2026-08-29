@@ -6,16 +6,14 @@ use App\Services\Ai\GeminiClient;
 use RuntimeException;
 
 /**
- * Writes bilingual (ar/en) SEO copy for a facility with Gemini.
+ * Writes bilingual (ar/en) SEO copy for a shop product with Gemini.
  *
- * Backs the "Generate SEO with AI" button on the admin facility form and the
- * "Fill SEO with AI" sweep on the facility list. The caller passes the facility
- * details the admin has already filled in and gets back meta
+ * The product counterpart of {@see FacilitySeoGenerator}: the caller passes the
+ * product details the admin has already entered and gets back meta
  * title/description/keywords for both locales, clamped to the lengths search
- * engines actually render. Shares the transport (and the free-tier rate-limit
- * handling) with {@see ProductSeoGenerator}.
+ * engines actually render.
  */
-class FacilitySeoGenerator
+class ProductSeoGenerator
 {
     public const TITLE_MAX = 60;
 
@@ -34,11 +32,10 @@ class FacilitySeoGenerator
     }
 
     /**
-     * @param  array{name?: array, description?: array, facility_type?: string|null, discount_percent?: mixed, governorates?: array, cities?: array}  $context
+     * @param  array{name?: array, short_subject?: array, description?: array, product_type?: string|null, old_price?: mixed, new_price?: mixed, tags?: array}  $context
      * @return array{meta_title: array{ar: string, en: string}, meta_description: array{ar: string, en: string}, meta_keywords: array{ar: string, en: string}}
      *
      * @throws RuntimeException when the key is missing or the API call fails.
-     * @throws \App\Services\Ai\RateLimitException when the provider is rate-limited.
      */
     public function generate(array $context): array
     {
@@ -51,12 +48,12 @@ class FacilitySeoGenerator
     {
         return <<<'PROMPT'
         You are an SEO copywriter for ASH Health Care, an Egyptian medical discount-card
-        network. You write metadata for the public page of a single partner medical
-        facility (clinic, hospital, lab, pharmacy, scan centre, etc.).
+        network that also runs an online shop of medical and health products.
 
-        Write for real Egyptian patients searching in Arabic and English. Be concrete and
-        specific to the facility given — never generic filler, never invented facts such
-        as awards, doctor names, ratings, opening hours, or prices that were not provided.
+        You write metadata for the public page of a single product. Write for real
+        Egyptian shoppers searching in Arabic and English. Be concrete and specific to
+        the product given — never generic filler, never invented facts such as brand
+        names, certifications, specifications, ratings or prices that were not provided.
 
         Respond with ONLY a JSON object in exactly this shape:
         {
@@ -66,9 +63,9 @@ class FacilitySeoGenerator
         }
 
         Rules:
-        - meta_title: at most 60 characters, lead with the facility name, no site-name suffix.
-        - meta_description: 140-160 characters, one or two sentences, end with a natural
-          call to action. Mention the discount only if a discount percentage was provided.
+        - meta_title: at most 60 characters, lead with the product name, no site-name suffix.
+        - meta_description: 120-160 characters, one or two sentences, end with a natural
+          call to action. Mention a discount only if old and new prices were both provided.
         - meta_keywords: 6-10 comma-separated terms, no hashtags, no repetition.
         - The Arabic must be natural Modern Standard Arabic as used in Egypt, not a
           word-for-word translation of the English.
@@ -80,20 +77,27 @@ class FacilitySeoGenerator
     {
         $lines = [];
 
-        $lines[] = 'Facility name (AR): '.($this->text($context, 'name.ar') ?: '—');
-        $lines[] = 'Facility name (EN): '.($this->text($context, 'name.en') ?: '—');
+        $lines[] = 'Product name (AR): '.($this->text($context, 'name.ar') ?: '—');
+        $lines[] = 'Product name (EN): '.($this->text($context, 'name.en') ?: '—');
 
-        $type = $this->text($context, 'facility_type');
-        $lines[] = 'Facility type: '.($type ?: '—');
+        $lines[] = 'Short subject (AR): '.($this->text($context, 'short_subject.ar') ?: '—');
+        $lines[] = 'Short subject (EN): '.($this->text($context, 'short_subject.en') ?: '—');
 
-        $discount = data_get($context, 'discount_percent');
-        $lines[] = 'Discount for card holders: '.(filled($discount) ? $discount.'%' : 'not specified');
+        $type = $this->text($context, 'product_type');
+        $lines[] = 'Product category: '.($type ?: '—');
 
-        $govs = array_filter((array) data_get($context, 'governorates', []));
-        $lines[] = 'Governorates covered: '.($govs ? implode(', ', $govs) : 'not specified');
+        $old = data_get($context, 'old_price');
+        $new = data_get($context, 'new_price');
+        if (filled($old) && filled($new) && (float) $old > (float) $new) {
+            $lines[] = "Price: was {$old}, now {$new} EGP (on sale)";
+        } elseif (filled($new)) {
+            $lines[] = "Price: {$new} EGP";
+        } else {
+            $lines[] = 'Price: not specified';
+        }
 
-        $cities = array_filter((array) data_get($context, 'cities', []));
-        $lines[] = 'Cities covered: '.($cities ? implode(', ', $cities) : 'not specified');
+        $tags = array_filter((array) data_get($context, 'tags', []));
+        $lines[] = 'Tags: '.($tags ? implode(', ', $tags) : 'not specified');
 
         $descAr = $this->text($context, 'description.ar');
         $descEn = $this->text($context, 'description.en');
@@ -119,8 +123,8 @@ class FacilitySeoGenerator
     }
 
     /**
-     * Force the model's answer into the exact shape/limits the form expects,
-     * so a sloppy response can never write oversized values into the DB.
+     * Force the model's answer into the exact shape/limits the form expects, so
+     * a sloppy response can never write oversized values into the DB.
      *
      * @return array{meta_title: array{ar: string, en: string}, meta_description: array{ar: string, en: string}, meta_keywords: array{ar: string, en: string}}
      */

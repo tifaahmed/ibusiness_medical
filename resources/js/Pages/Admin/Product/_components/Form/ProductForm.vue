@@ -589,10 +589,27 @@
     </template>
 
     <template v-else-if="activeTab === 'seo'">
-      <ProductSeoCard :slug="slug" />
+      <ProductSeoCard
+        :slug="slug"
+        :ai-enabled="aiEnabled"
+        :existing-og-image="existingOgImage"
+        :product-types="productTypes"
+        :tags="tags"
+      />
     </template>
 
     <ImageLightbox :images="formImages" v-model:index="lightboxIndex" />
+
+    <ImageCropDialog
+      :open="crop.open"
+      :src="crop.src"
+      :aspect-ratio="crop.ratio"
+      :output-width="crop.outputWidth"
+      :mime-type="crop.mime"
+      :file-name="crop.name"
+      @confirm="onCropConfirm"
+      @cancel="crop.open = false"
+    />
 
     <ValidationErrorsDialog
       v-model:open="showValidationDialog"
@@ -606,6 +623,7 @@
 <script setup>
 import { FormTranslatableInput, FormTranslatableQuillEditor } from "@/Components/form";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
+import ImageCropDialog from "@/Components/ui/ImageCropDialog.vue";
 import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ProductSeoCard from "./ProductSeoCard.vue";
@@ -620,8 +638,10 @@ const props = defineProps({
   tags: { type: Array, default: () => [] },
   existingLargeImage: { type: String, default: null },
   existingSmallImage: { type: String, default: null },
+  existingOgImage: { type: String, default: null },
   existingGallery: { type: Array, default: () => [] },
   slug: { type: String, default: '' },
+  aiEnabled: { type: Boolean, default: false },
 });
 
 const productStore = useProductStore();
@@ -656,7 +676,7 @@ const activeTab = ref('general');
 const TAB_FIELDS = {
   general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'is_visible', 'is_accessible', 'is_purchasable', 'admin_note', 'tag_ids'],
   media: ['large_image', 'small_image', 'gallery', 'banner_config', 'editor_gallery_paths'],
-  seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url'],
+  seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'],
 };
 
 // `name.ar` belongs to the `name` field.
@@ -691,6 +711,7 @@ const errorLabels = {
   tag_ids: 'Tags',
   large_image: 'Large image',
   small_image: 'Small image',
+  og_image: 'Share image',
   gallery: 'Gallery',
   editor_gallery_paths: 'Description images',
   banner_config: 'Banner',
@@ -988,11 +1009,41 @@ const setPreview = (target, file) => {
   target.value = file ? URL.createObjectURL(file) : null;
 };
 
+// Crop/preview dialog — the admin frames the image before it is accepted so
+// they can see how it will be cut on the storefront.
+const crop = ref({ open: false, src: '', name: 'image', mime: 'image/jpeg', ratio: null, outputWidth: 2000, apply: null });
+
+const openCrop = (file, { ratio, outputWidth }, apply) => {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    crop.value = {
+      open: true,
+      src: ev.target.result,
+      name: file.name || 'image',
+      mime: file.type || 'image/jpeg',
+      ratio: ratio ?? null,
+      outputWidth: outputWidth ?? 2000,
+      apply,
+    };
+  };
+  reader.readAsDataURL(file);
+};
+
+const onCropConfirm = (file) => {
+  const apply = crop.value.apply;
+  crop.value.open = false;
+  if (apply) apply(file);
+};
+
 const handleLargeImage = (e) => {
   const file = e.target.files?.[0] || null;
-  setPreview(largePreview, file);
-  productStore.form.large_image = file;
-  if (file) productStore.form.remove_large_image = false;
+  if (largeInput.value) largeInput.value.value = '';
+  if (!file) return;
+  openCrop(file, { ratio: 1, outputWidth: 1200 }, (cropped) => {
+    setPreview(largePreview, cropped);
+    productStore.form.large_image = cropped;
+    productStore.form.remove_large_image = false;
+  });
 };
 
 const clearLargeSelection = () => {
@@ -1012,9 +1063,13 @@ const undoRemoveLarge = () => {
 
 const handleSmallImage = (e) => {
   const file = e.target.files?.[0] || null;
-  setPreview(smallPreview, file);
-  productStore.form.small_image = file;
-  if (file) productStore.form.remove_small_image = false;
+  if (smallInput.value) smallInput.value.value = '';
+  if (!file) return;
+  openCrop(file, { ratio: 1, outputWidth: 600 }, (cropped) => {
+    setPreview(smallPreview, cropped);
+    productStore.form.small_image = cropped;
+    productStore.form.remove_small_image = false;
+  });
 };
 
 const clearSmallSelection = () => {

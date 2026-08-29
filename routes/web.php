@@ -55,6 +55,9 @@ use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationExportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationImportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationPageController;
+use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishBulkController;
+use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishFixController;
+use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoBulkController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
 use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
 use App\Http\Controllers\Admin\Facility\Store\AdminFacilityStoreController;
@@ -88,6 +91,7 @@ use App\Http\Controllers\Admin\Faq\Update\AdminFaqUpdateController;
 use App\Http\Controllers\Admin\Governorate\Create\AdminGovernorateCreateController;
 use App\Http\Controllers\Admin\Governorate\Delete\AdminGovernorateDeleteController;
 use App\Http\Controllers\Admin\Governorate\Edit\AdminGovernorateEditController;
+use App\Http\Controllers\Admin\Governorate\Facilities\AdminGovernorateFacilitiesController;
 use App\Http\Controllers\Admin\Governorate\List\AdminGovernorateListController;
 use App\Http\Controllers\Admin\Governorate\Show\AdminGovernorateShowController;
 use App\Http\Controllers\Admin\Governorate\Store\AdminGovernorateStoreController;
@@ -126,6 +130,8 @@ use App\Http\Controllers\Admin\NewsTicker\Update\AdminNewsTickerUpdateController
 use App\Http\Controllers\Admin\Offer\Create\AdminOfferCreateController;
 use App\Http\Controllers\Admin\Offer\Delete\AdminOfferDeleteController;
 use App\Http\Controllers\Admin\Offer\Edit\AdminOfferEditController;
+use App\Http\Controllers\Admin\Offer\English\AdminOfferEnglishBulkController;
+use App\Http\Controllers\Admin\Offer\English\AdminOfferEnglishFixController;
 use App\Http\Controllers\Admin\Offer\List\AdminOfferListController;
 use App\Http\Controllers\Admin\Offer\Show\AdminOfferShowController;
 use App\Http\Controllers\Admin\Offer\Store\AdminOfferStoreController;
@@ -163,8 +169,12 @@ use App\Http\Controllers\Admin\PartnerOfferRequest\Show\AdminPartnerOfferRequest
 use App\Http\Controllers\Admin\Product\Create\AdminProductCreateController;
 use App\Http\Controllers\Admin\Product\Delete\AdminProductDeleteController;
 use App\Http\Controllers\Admin\Product\Edit\AdminProductEditController;
+use App\Http\Controllers\Admin\Product\English\AdminProductEnglishBulkController;
+use App\Http\Controllers\Admin\Product\English\AdminProductEnglishFixController;
 use App\Http\Controllers\Admin\Product\Gallery\AdminProductEditorImageUploadController;
 use App\Http\Controllers\Admin\Product\List\AdminProductListController;
+use App\Http\Controllers\Admin\Product\Seo\AdminProductSeoBulkController;
+use App\Http\Controllers\Admin\Product\Seo\AdminProductSeoGenerateController;
 use App\Http\Controllers\Admin\Product\Show\AdminProductShowController;
 use App\Http\Controllers\Admin\Product\Store\AdminProductStoreController;
 use App\Http\Controllers\Admin\Product\Update\AdminProductUpdateController;
@@ -500,6 +510,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/lookup', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationLookupController::class)->name('admin.facility.migration.lookup.store');
         // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
         Route::post('/admin/facility/seo/generate', AdminFacilitySeoGenerateController::class)->name('admin.facility.seo.generate');
+        // "Fill SEO with AI" sweep on the list — browser-stepped begin/step.
+        Route::post('/admin/facility/seo/bulk/begin', [AdminFacilitySeoBulkController::class, 'begin'])->name('admin.facility.seo.bulk.begin');
+        Route::post('/admin/facility/seo/bulk/step', [AdminFacilitySeoBulkController::class, 'step'])->name('admin.facility.seo.bulk.step');
+        // "Fix English with AI" — one facility (button on the form) and the
+        // browser-stepped sweep on the list.
+        Route::post('/admin/facility/english/bulk/begin', [AdminFacilityEnglishBulkController::class, 'begin'])->name('admin.facility.english.bulk.begin');
+        Route::post('/admin/facility/english/bulk/step', [AdminFacilityEnglishBulkController::class, 'step'])->name('admin.facility.english.bulk.step');
+        Route::post('/admin/facility/{facility}/english/fix', AdminFacilityEnglishFixController::class)->name('admin.facility.english.fix');
         Route::get('/admin/facility/{facility}/edit', AdminFacilityEditController::class)->name('admin.facility.edit');
         Route::put('/admin/facility/{facility}', AdminFacilityUpdateController::class)->name('admin.facility.update');
         Route::delete('/admin/facility/{facility}', AdminFacilityDeleteController::class)->name('admin.facility.destroy');
@@ -542,6 +560,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     });
     Route::middleware('permission:manage governorates|manage own governorates|view governorates')->group(function () {
         Route::get('/admin/governorate', AdminGovernorateListController::class)->name('admin.governorate.list');
+        // Facilities-in-this-governorate popup on the list (axios, answers JSON).
+        Route::get('/admin/governorate/{governorate}/facilities', AdminGovernorateFacilitiesController::class)->name('admin.governorate.facilities');
         Route::get('/admin/governorate/{governorate}', AdminGovernorateShowController::class)->name('admin.governorate.show');
     });
 
@@ -577,6 +597,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/product', AdminProductStoreController::class)->name('admin.product.store');
         // Images uploaded from inside the description editor (create and edit alike).
         Route::post('/admin/product/editor-image', AdminProductEditorImageUploadController::class)->name('admin.product.editor-image');
+        // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
+        Route::post('/admin/product/seo/generate', AdminProductSeoGenerateController::class)->name('admin.product.seo.generate');
+        // "Fill SEO with AI" sweep on the list — browser-stepped begin/step.
+        Route::post('/admin/product/seo/bulk/begin', [AdminProductSeoBulkController::class, 'begin'])->name('admin.product.seo.bulk.begin');
+        Route::post('/admin/product/seo/bulk/step', [AdminProductSeoBulkController::class, 'step'])->name('admin.product.seo.bulk.step');
+        // "Fix English with AI" — one product (button on the form) and the
+        // list-wide sweep (browser-stepped begin/step).
+        Route::post('/admin/product/english/bulk/begin', [AdminProductEnglishBulkController::class, 'begin'])->name('admin.product.english.bulk.begin');
+        Route::post('/admin/product/english/bulk/step', [AdminProductEnglishBulkController::class, 'step'])->name('admin.product.english.bulk.step');
+        Route::post('/admin/product/{product}/english/fix', AdminProductEnglishFixController::class)->name('admin.product.english.fix');
         Route::get('/admin/product/{product}/edit', AdminProductEditController::class)->name('admin.product.edit');
         Route::put('/admin/product/{product}', AdminProductUpdateController::class)->name('admin.product.update');
         Route::delete('/admin/product/{product}', AdminProductDeleteController::class)->name('admin.product.destroy');
@@ -628,6 +658,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage offers|manage own offers')->group(function () {
         Route::get('/admin/offer/create', AdminOfferCreateController::class)->name('admin.offer.create');
         Route::post('/admin/offer', AdminOfferStoreController::class)->name('admin.offer.store');
+        // "Fix English with AI" — one offer (button on the form) and the
+        // browser-stepped sweep on the list.
+        Route::post('/admin/offer/english/bulk/begin', [AdminOfferEnglishBulkController::class, 'begin'])->name('admin.offer.english.bulk.begin');
+        Route::post('/admin/offer/english/bulk/step', [AdminOfferEnglishBulkController::class, 'step'])->name('admin.offer.english.bulk.step');
+        Route::post('/admin/offer/{offer}/english/fix', AdminOfferEnglishFixController::class)->name('admin.offer.english.fix');
         Route::get('/admin/offer/{offer}/edit', AdminOfferEditController::class)->name('admin.offer.edit');
         Route::put('/admin/offer/{offer}', AdminOfferUpdateController::class)->name('admin.offer.update');
         Route::delete('/admin/offer/{offer}', AdminOfferDeleteController::class)->name('admin.offer.destroy');

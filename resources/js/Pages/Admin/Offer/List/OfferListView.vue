@@ -15,19 +15,21 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.offer?.management || 'Offers Management' }}</span>
               </div>
             </div>
-            <Link
-              v-if="canWrite"
-              :href="route('admin.offer.create')"
-              data-slot="button"
-              class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus h-3.5 w-3.5 sm:h-4 sm:w-4">
-                <path d="M5 12h14"></path>
-                <path d="M12 5v14"></path>
-              </svg>
-              <span class="hidden sm:inline">{{ t.offer?.add_new || 'Add New Offer' }}</span>
-              <span class="sm:hidden">{{ t.common?.add || 'Add' }}</span>
-            </Link>
+            <div v-if="canWrite" class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <OfferEnglishBulkDialog />
+              <Link
+                :href="route('admin.offer.create')"
+                data-slot="button"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus h-3.5 w-3.5 sm:h-4 sm:w-4">
+                  <path d="M5 12h14"></path>
+                  <path d="M12 5v14"></path>
+                </svg>
+                <span class="hidden sm:inline">{{ t.offer?.add_new || 'Add New Offer' }}</span>
+                <span class="sm:hidden">{{ t.common?.add || 'Add' }}</span>
+              </Link>
+            </div>
           </div>
 
           <!-- Filter Content -->
@@ -53,6 +55,7 @@
 import OfferLayout from "../OfferLayout.vue";
 import OfferListFilterContent from "./OfferListFilterContent.vue";
 import OfferListTable from "./OfferListTable.vue";
+import OfferEnglishBulkDialog from "./OfferEnglishBulkDialog.vue";
 import { useOfferStore } from "../Stores/OfferStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";

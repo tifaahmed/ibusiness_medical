@@ -15,18 +15,21 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">Products Management</span>
               </div>
             </div>
-            <Link
-              v-if="canWrite"
-              :href="route('admin.product.create')"
-              class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
-                <path d="M5 12h14"></path>
-                <path d="M12 5v14"></path>
-              </svg>
-              <span class="hidden sm:inline">Add New Product</span>
-              <span class="sm:hidden">Add</span>
-            </Link>
+            <div v-if="canWrite" class="flex items-center gap-2 flex-shrink-0">
+              <ProductEnglishBulkDialog />
+              <ProductBulkSeoDialog />
+              <Link
+                :href="route('admin.product.create')"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0 btn-golden"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                  <path d="M5 12h14"></path>
+                  <path d="M12 5v14"></path>
+                </svg>
+                <span class="hidden sm:inline">Add New Product</span>
+                <span class="sm:hidden">Add</span>
+              </Link>
+            </div>
           </div>
 
           <div class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
@@ -50,6 +53,8 @@
 import ProductLayout from "../ProductLayout.vue";
 import ProductListFilterContent from "./ProductListFilterContent.vue";
 import ProductListTable from "./ProductListTable.vue";
+import ProductBulkSeoDialog from "./ProductBulkSeoDialog.vue";
+import ProductEnglishBulkDialog from "./ProductEnglishBulkDialog.vue";
 import { Link } from "@inertiajs/vue3";
 import { ref } from "vue";
 import { usePermissions } from '@/composables/usePermissions';

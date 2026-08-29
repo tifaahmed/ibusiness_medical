@@ -6,6 +6,7 @@ use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Governorate\List\AdminGovernorateListCollection;
+use App\Models\Facility;
 use App\Models\Governorate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -27,7 +28,19 @@ class AdminGovernorateListController extends BaseController
 
         $governorates = Governorate::query()
             ->with('creator:id,name,email')
-            ->withCount(['facilities', 'cities'])
+            ->withCount('cities')
+            // A facility "belongs to" a governorate when its own governorate is
+            // this one OR it has at least one branch located here — the popup
+            // lists both, so the count has to match.
+            ->addSelect(['facilities_count' => Facility::query()
+                ->selectRaw('count(distinct facilities.id)')
+                ->where(function ($q) {
+                    $q->whereColumn('facilities.governorate_id', 'governorates.id')
+                        ->orWhereExists(fn ($sub) => $sub->from('facility_branches')
+                            ->whereColumn('facility_branches.facility_id', 'facilities.id')
+                            ->whereColumn('facility_branches.governorate_id', 'governorates.id'));
+                }),
+            ])
             ->tap(fn($q) => $this->applyCreatorScope($q))
             ->when(!empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {

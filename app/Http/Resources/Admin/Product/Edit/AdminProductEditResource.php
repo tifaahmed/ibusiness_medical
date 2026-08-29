@@ -37,6 +37,9 @@ class AdminProductEditResource extends JsonResource
             'profit_price' => $this->profit_price,
             'large_image' => $this->getFirstMediaUrl('large_image'),
             'small_image' => $this->getFirstMediaUrl('small_image'),
+            // The real uploaded share image only — not the large-image fallback,
+            // so the form's clear button has something to actually clear.
+            'og_image' => $this->getFirstMediaUrl('og_image'),
             'gallery' => $this->gallery,
             'product_type_id' => $this->product_type_id,
             'is_visible' => (bool) $this->is_visible,

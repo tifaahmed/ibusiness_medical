@@ -13,6 +13,7 @@
               <ProductForm
                 :product-types="productTypes"
                 :tags="tags"
+                :ai-enabled="seoAiEnabled"
               />
             </div>
           </div>
@@ -59,6 +60,7 @@ import { onMounted, computed } from "vue";
 const props = defineProps({
   productTypes: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
+  seoAiEnabled: { type: Boolean, default: false },
 });
 
 const productStore = useProductStore();

@@ -68,9 +68,20 @@
         <img
           :src="previewImage"
           :alt="t.common?.preview || 'Preview'"
-          class="w-full h-64 object-cover rounded-lg shadow-sm transition-opacity duration-200"
+          class="w-full object-cover rounded-lg shadow-sm transition-opacity duration-200"
+          :class="cropAspectRatio ? '' : 'h-64'"
+          :style="cropAspectRatio ? { aspectRatio: String(cropAspectRatio) } : {}"
         />
-        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center gap-2">
+          <button
+            v-if="cropEnabled && cropSource"
+            type="button"
+            class="p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-blue-50 transition-all duration-200"
+            @click="reopenCropper"
+            :title="t.image?.crop_edit || 'Adjust crop'"
+          >
+            <i class="uil uil-crop-alt text-xl text-blue-600"></i>
+          </button>
           <button
             type="button"
             class="p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-red-50 transition-all duration-200"
@@ -91,12 +102,25 @@
       @change="handleFileSelect"
       ref="fileInput"
     />
+
+    <ImageCropDialog
+      v-if="cropEnabled"
+      :open="cropOpen"
+      :src="cropSource"
+      :aspect-ratio="cropAspectRatio"
+      :output-width="cropOutputWidth"
+      :mime-type="cropMime"
+      :file-name="cropFileName"
+      @confirm="handleCropConfirm"
+      @cancel="handleCropCancel"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import ImageCropDialog from '@/Components/ui/ImageCropDialog.vue';
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -117,10 +141,30 @@ const props = defineProps({
   multiple: {
     type: Boolean,
     default: false
+  },
+  // Single-image mode: open a crop/preview dialog before accepting the upload
+  // so the admin sees and controls how the image will be cut on the site.
+  crop: {
+    type: Boolean,
+    default: true
+  },
+  // Lock the crop to this ratio (width / height, e.g. 3 for a 3:1 cover).
+  // Null lets the admin draw any shape.
+  cropAspectRatio: {
+    type: Number,
+    default: null
+  },
+  // Longest edge of the cropped export, in pixels (never upscales).
+  cropOutputWidth: {
+    type: Number,
+    default: 2000
   }
 });
 
 const emit = defineEmits(['file-selected', 'files-selected', 'error']);
+
+// The crop/preview dialog only makes sense for a single image.
+const cropEnabled = computed(() => props.crop && !props.multiple);
 const fileInput = ref(null);
 const previewImage = ref(null);
 const selectedFiles = ref([]);
@@ -128,6 +172,12 @@ const dragOver = ref(false);
 const error = ref('');
 const isUploading = ref(false);
 const uploadProgress = ref(0);
+
+// Crop dialog state (only used when cropAspectRatio is set).
+const cropOpen = ref(false);
+const cropSource = ref('');
+const cropFileName = ref('image');
+const cropMime = ref('image/jpeg');
 
 watch(error, (newError) => {
   emit('error', newError);
@@ -227,7 +277,48 @@ const removeFileAtIndex = (idx) => {
   emit('file-selected', selectedFiles.value.map(p => p.file));
 };
 
+const openCropper = (file) => {
+  cropFileName.value = file.name || 'image';
+  cropMime.value = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    cropSource.value = e.target.result;
+    cropOpen.value = true;
+  };
+  reader.onerror = () => {
+    error.value = t.value.image?.read_error || 'Error reading file';
+    emit('error', error.value);
+  };
+  reader.readAsDataURL(file);
+};
+
+const reopenCropper = () => {
+  if (cropSource.value) cropOpen.value = true;
+};
+
+const handleCropConfirm = (file) => {
+  cropOpen.value = false;
+  error.value = '';
+  const reader = new FileReader();
+  reader.onload = (e) => { previewImage.value = e.target.result; };
+  reader.readAsDataURL(file);
+  emit('file-selected', file);
+  if (fileInput.value) fileInput.value.value = '';
+};
+
+const handleCropCancel = () => {
+  cropOpen.value = false;
+  // Keep any image that was already accepted; just clear the native input so
+  // re-picking the same file fires a change event again.
+  if (fileInput.value) fileInput.value.value = '';
+};
+
 const processFile = (file) => {
+  if (cropEnabled.value) {
+    openCropper(file);
+    return;
+  }
+
   isUploading.value = true;
   uploadProgress.value = 0;
 
@@ -260,6 +351,8 @@ const processFile = (file) => {
 const removeImage = () => {
   previewImage.value = null;
   error.value = '';
+  cropSource.value = '';
+  cropOpen.value = false;
   emit('file-selected', null);
   if (fileInput.value) {
     fileInput.value.value = '';

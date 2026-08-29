@@ -133,6 +133,8 @@
           :max-size="5"
           :accepted-types="['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'image/avif']"
           :initial-preview="props.facility?.og_image || ''"
+          :crop-aspect-ratio="1200 / 630"
+          :crop-output-width="1200"
           @file-selected="onOgImageSelected"
           @error="(err) => ogImageError = err"
         />
@@ -258,7 +260,7 @@ const hasName = computed(() => {
 const canGenerate = computed(() => props.aiEnabled && hasName.value);
 
 const generateHint = computed(() => {
-  if (!props.aiEnabled) return t.value.facility?.seo_ai_disabled || 'Set OPENAI_API_KEY in your .env file to enable AI generation.';
+  if (!props.aiEnabled) return t.value.facility?.seo_ai_disabled || 'Set GEMINI_API_KEY in your .env file to enable AI generation.';
   if (!hasName.value) return t.value.facility?.seo_needs_name || 'Enter the facility name first.';
   return '';
 });

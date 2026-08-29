@@ -9,7 +9,27 @@
         ]"
       />
 
-      <div class="max-w-7xl mx-auto">
+      <div class="max-w-7xl mx-auto space-y-2 sm:space-y-3 md:space-y-4">
+        <!-- One-click English cleanup for this product's name / short description / description. -->
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <p v-if="englishFixMessage" class="mr-auto text-xs text-muted-foreground">{{ englishFixMessage }}</p>
+          <button
+            type="button"
+            :disabled="!englishFixEnabled || englishFixRunning"
+            :title="englishFixEnabled ? 'Translate / fix empty or Arabic English fields' : 'Set GEMINI_API_KEY in your .env file to enable this'"
+            class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
+            @click="fixEnglish"
+          >
+            <svg v-if="englishFixRunning" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
+            </svg>
+            {{ englishFixRunning ? 'Fixing English…' : 'Fix English fields with AI' }}
+          </button>
+        </div>
+
         <form @submit.prevent="handleSubmit('return')" class="space-y-2 sm:space-y-3 md:space-y-4">
           <div class="grid grid-cols-1 gap-2 sm:gap-3 md:gap-4">
             <div class="space-y-2 sm:space-y-3 md:space-y-4">
@@ -17,8 +37,10 @@
                 :product-types="productTypes"
                 :tags="tags"
                 :slug="product.slug"
+                :ai-enabled="seoAiEnabled"
                 :existing-large-image="product.large_image"
                 :existing-small-image="product.small_image"
+                :existing-og-image="product.og_image"
                 :existing-gallery="product.gallery"
               />
             </div>
@@ -80,20 +102,52 @@
 </template>
 
 <script setup>
-import { Link, usePage } from "@inertiajs/vue3";
-import { watch, computed } from "vue";
+import { Link, router, usePage } from "@inertiajs/vue3";
+import { watch, computed, ref } from "vue";
 import ProductLayout from "../ProductLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useProductStore } from "../Stores/ProductStore";
 import { ProductForm } from "../_components/Form";
+import { useNotification } from "@/composables/useNotification";
 
 const props = defineProps({
   product: { type: Object, required: true },
   productTypes: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
+  seoAiEnabled: { type: Boolean, default: false },
+  englishFixEnabled: { type: Boolean, default: false },
 });
 
 const productStore = useProductStore();
+
+const englishFixRunning = ref(false);
+const englishFixMessage = ref('');
+
+const fixEnglish = async () => {
+  if (!props.englishFixEnabled || englishFixRunning.value) return;
+
+  englishFixRunning.value = true;
+  englishFixMessage.value = '';
+  try {
+    const { data } = await axios.post(route('admin.product.english.fix', props.product.slug));
+    const applied = data?.applied?.length || 0;
+
+    if (applied === 0) {
+      useNotification().info('No English fields needed fixing.');
+    } else {
+      useNotification().success(`Fixed ${applied} English field(s). Reloading…`);
+      router.reload({ only: ['product'] });
+    }
+
+    if (data?.errors?.length) {
+      englishFixMessage.value = data.errors.join(' ');
+    }
+  } catch (error) {
+    useNotification().error(error?.response?.data?.message || 'Could not fix the English fields. Please try again.');
+  } finally {
+    englishFixRunning.value = false;
+  }
+};
 
 watch(() => props.product, (newProduct) => {
   if (newProduct && newProduct.id) {

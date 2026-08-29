@@ -57,6 +57,11 @@ class StoreProductAction
                     ->toMediaCollection('small_image');
             }
 
+            if (isset($validated['og_image'])) {
+                $product->addMedia($validated['og_image'])
+                    ->toMediaCollection('og_image');
+            }
+
             if (isset($validated['gallery']) && is_array($validated['gallery'])) {
                 foreach ($validated['gallery'] as $index => $image) {
                     $path = $image->store("products/gallery/{$product->id}", 'public');

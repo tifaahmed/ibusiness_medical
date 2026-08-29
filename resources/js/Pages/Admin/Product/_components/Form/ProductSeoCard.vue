@@ -1,18 +1,42 @@
 <template>
   <div class="space-y-3">
     <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm">
-      <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-3 sm:px-4 md:px-6 [.border-b]:pb-6">
-        <div data-slot="card-title" class="leading-none font-semibold title-golden">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          SEO Metadata
+      <div data-slot="card-header" class="@container/card-header flex flex-wrap items-start justify-between gap-3 py-2 px-3 sm:px-4 md:px-6 [.border-b]:pb-6">
+        <div class="min-w-0 space-y-1.5">
+          <div data-slot="card-title" class="leading-none font-semibold title-golden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            SEO Metadata
+          </div>
+          <p class="text-xs text-muted-foreground max-w-2xl">
+            Controls how this product appears in Google results and when its page is shared.
+            Leave a field empty to fall back to the product name / description automatically.
+          </p>
         </div>
-        <p class="text-xs text-muted-foreground max-w-2xl">
-          Controls how this product appears in Google results and when its page is shared.
-          Leave a field empty to fall back to the product name / description automatically.
-        </p>
+
+        <!-- AI fill -->
+        <div class="flex flex-col items-end gap-1 shrink-0">
+          <button
+            type="button"
+            :disabled="!canGenerate || generating"
+            @click="generate"
+            class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 btn-golden"
+            :title="generateHint"
+          >
+            <svg v-if="generating" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"></path>
+            </svg>
+            {{ generating ? 'Generating…' : 'Generate with AI' }}
+          </button>
+          <p v-if="generateHint" class="text-[11px] text-muted-foreground max-w-[280px] text-right">
+            {{ generateHint }}
+          </p>
+        </div>
       </div>
 
       <div data-slot="card-content" class="px-3 sm:px-4 md:px-6 space-y-5">
@@ -139,25 +163,96 @@
         </div>
       </div>
     </div>
+
+    <!-- Share Image (Open Graph) -->
+    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm">
+      <div data-slot="card-header" class="@container/card-header grid auto-rows-min gap-1.5 py-2 px-3 sm:px-4 md:px-6">
+        <div data-slot="card-title" class="leading-none font-semibold title-golden">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
+            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+            <circle cx="9" cy="9" r="2" />
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+          </svg>
+          Share Image (Open Graph)
+        </div>
+      </div>
+      <div data-slot="card-content" class="px-3 sm:px-4 md:px-6">
+        <label class="block text-sm font-medium mb-2">
+          Share Image (Open Graph)
+          <span class="text-xs text-muted-foreground ml-2">(Optional — 1200×630 recommended, max 5MB)</span>
+        </label>
+        <ImageFileInput
+          :max-size="5"
+          :accepted-types="['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'image/avif']"
+          :initial-preview="props.existingOgImage || ''"
+          :crop-aspect-ratio="1200 / 630"
+          :crop-output-width="1200"
+          @file-selected="onOgImageSelected"
+          @error="(err) => ogImageError = err"
+        />
+        <p v-if="productStore.validationErrors?.og_image || ogImageError" class="mt-1 text-sm text-destructive">
+          {{ productStore.validationErrors?.og_image || ogImageError }}
+        </p>
+        <p class="mt-2 text-[11px] text-muted-foreground">
+          Shown when the product page is shared on WhatsApp, Facebook or X. Falls back to the product's large image when empty.
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { FormInput, FormTranslatableInput } from "@/Components/form";
+import ImageFileInput from "@/Components/form/ImageFileInput.vue";
 import { useProductStore } from "../../Stores/ProductStore";
+import { useNotification } from "@/composables/useNotification";
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { usePage } from "@inertiajs/vue3";
 
-// Kept in sync with the max rules in Store/UpdateProductRequest.
+// Kept in sync with ProductSeoGenerator::TITLE_MAX / DESCRIPTION_MAX and the
+// max rules in Store/UpdateProductRequest.
 const TITLE_MAX = 60;
 const DESCRIPTION_MAX = 160;
 
 const props = defineProps({
   slug: { type: String, default: '' },
+  aiEnabled: { type: Boolean, default: false },
+  existingOgImage: { type: String, default: '' },
+  productTypes: { type: Array, default: () => [] },
+  tags: { type: Array, default: () => [] },
 });
 
 const productStore = useProductStore();
 const { form } = storeToRefs(productStore);
+const page = usePage();
+const locale = computed(() => page.props.locale || 'ar');
+
+const translatedName = (name) => {
+  if (typeof name === 'string') return name;
+  if (name && typeof name === 'object') {
+    return name[locale.value] || name.ar || name.en || Object.values(name)[0] || '';
+  }
+  return '';
+};
+
+const productTypeLabel = computed(() => {
+  const id = form.value.product_type_id;
+  if (!id) return '';
+  const match = props.productTypes.find((type) => String(type.id) === String(id));
+  return match ? translatedName(match.name) : '';
+});
+
+const tagLabels = computed(() => {
+  const ids = (form.value.tag_ids || []).map(String);
+  return props.tags
+    .filter((tag) => ids.includes(String(tag.id)))
+    .map((tag) => translatedName(tag.name))
+    .filter(Boolean);
+});
+
+const generating = ref(false);
+const ogImageError = ref('');
 
 const asObject = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 
@@ -186,6 +281,71 @@ const counterClass = (value, max) => {
   if (length === 0) return 'text-muted-foreground';
   // Over the limit reads amber; inside it reads green.
   return length >= max ? 'text-amber-400' : 'text-emerald-400';
+};
+
+// --- Share image -------------------------------------------------------------
+
+// ImageFileInput emits null when the admin clears the preview. On edit that
+// has to become an explicit delete, otherwise the stored image survives.
+const onOgImageSelected = (file) => {
+  productStore.form.og_image = file || null;
+  productStore.form.og_image_delete = !file && Boolean(props.existingOgImage);
+  ogImageError.value = '';
+};
+
+// --- AI fill ----------------------------------------------------------------
+
+const hasName = computed(() => {
+  const name = asObject(form.value.name);
+  return Boolean((name.ar || '').trim() || (name.en || '').trim());
+});
+
+const canGenerate = computed(() => props.aiEnabled && hasName.value);
+
+const generateHint = computed(() => {
+  if (!props.aiEnabled) return 'Set GEMINI_API_KEY in your .env file to enable AI generation.';
+  if (!hasName.value) return 'Enter the product name first.';
+  return '';
+});
+
+const generate = async () => {
+  if (!canGenerate.value || generating.value) return;
+
+  generating.value = true;
+  try {
+    const { data } = await axios.post(route('admin.product.seo.generate'), {
+      name: asObject(form.value.name),
+      short_subject: asObject(form.value.short_subject),
+      description: asObject(form.value.description),
+      product_type: productTypeLabel.value || null,
+      old_price: form.value.old_price || null,
+      new_price: form.value.new_price || null,
+      tags: tagLabels.value,
+    });
+
+    const seo = data?.seo;
+    if (!seo) throw new Error('empty');
+
+    metaTitle.value = { ...metaTitle.value, ...seo.meta_title };
+    metaDescription.value = { ...metaDescription.value, ...seo.meta_description };
+    metaKeywords.value = { ...metaKeywords.value, ...seo.meta_keywords };
+
+    ['meta_title', 'meta_description', 'meta_keywords'].forEach((field) => {
+      if (!productStore.validationErrors) return;
+      delete productStore.validationErrors[field];
+      delete productStore.validationErrors[`${field}.ar`];
+      delete productStore.validationErrors[`${field}.en`];
+    });
+
+    useNotification().success('SEO fields filled in. Review them before saving.');
+  } catch (error) {
+    const message = error?.response?.data?.message
+      || error?.response?.data?.errors?.name?.[0]
+      || 'Could not generate the SEO fields. Please try again.';
+    useNotification().error(message);
+  } finally {
+    generating.value = false;
+  }
 };
 
 // --- Preview -------------------------------------------------------------

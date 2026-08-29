@@ -9,6 +9,7 @@ use App\Http\Resources\Admin\Offer\Edit\AdminOfferEditResource;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\Offer;
+use App\Services\OfferEnglishBackfiller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -75,6 +76,7 @@ class AdminOfferEditController extends BaseController
             'offer' => (new AdminOfferEditResource($offer))->toArray($request),
             'facilities' => $facilities,
             'facilityBranches' => $facilityBranches,
+            'englishFixEnabled' => OfferEnglishBackfiller::isConfigured(),
         ];
 
         return Inertia::render('Admin/Offer/Form/OfferFormView', $result);

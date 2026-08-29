@@ -47,15 +47,16 @@ return [
     ],
 
     /*
-     * OpenAI, used by the admin "Generate SEO with AI" button on the facility
-     * form. Leaving the key unset disables the button server-side rather than
-     * failing mid-request — nothing else in the app depends on it.
+     * Google Gemini, used by every admin AI helper: "Generate SEO with AI" on
+     * the facility and product forms, the list-wide "Fill SEO with AI" sweeps,
+     * and the "Fix English with AI" tools. Leaving the key unset disables those
+     * server-side rather than failing mid-request — nothing else depends on it.
      */
-    'openai' => [
-        'key' => env('OPENAI_API_KEY'),
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
-        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-        'timeout' => (int) env('OPENAI_TIMEOUT', 45),
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 45),
     ],
 
     'slack' => [

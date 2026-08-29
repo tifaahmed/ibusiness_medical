@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Product\Create;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\ProductType;
 use App\Models\Tag;
+use App\Services\ProductSeoGenerator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,6 +23,7 @@ class AdminProductCreateController extends BaseController
         return Inertia::render('Admin/Product/Create/ProductCreateView', [
             'productTypes' => $productTypes,
             'tags' => $tags,
+            'seoAiEnabled' => ProductSeoGenerator::isConfigured(),
         ]);
     }
 }

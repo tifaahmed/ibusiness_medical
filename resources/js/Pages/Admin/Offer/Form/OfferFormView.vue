@@ -8,6 +8,26 @@
       </div>
       <div class="space-y-4">
         <div class="space-y-3">
+          <!-- One-click English cleanup for this offer's title / short + full description. -->
+          <div v-if="isEditMode" class="flex flex-wrap items-center justify-end gap-2">
+            <p v-if="englishFixMessage" class="mr-auto text-xs text-muted-foreground">{{ englishFixMessage }}</p>
+            <button
+              type="button"
+              :disabled="!englishFixEnabled || englishFixRunning"
+              :title="englishFixEnabled ? 'Translate / fix empty or Arabic English fields' : 'Set GEMINI_API_KEY in your .env file to enable this'"
+              class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
+              @click="fixEnglish"
+            >
+              <svg v-if="englishFixRunning" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
+              </svg>
+              {{ englishFixRunning ? 'Fixing English…' : 'Fix English fields with AI' }}
+            </button>
+          </div>
+
           <form class="space-y-3" @submit.prevent="handleSubmit">
             <div class="space-y-3">
               <OfferForm :offer="offer" :facilities="facilities" :facility-branches="facilityBranches" />
@@ -50,11 +70,12 @@
 </template>
 
 <script setup>
-import { Link, usePage } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import OfferLayout from "../OfferLayout.vue";
 import { useOfferStore } from "../Stores/OfferStore";
 import OfferForm from "./OfferForm.vue";
-import { onMounted, computed, watch } from "vue";
+import { onMounted, computed, watch, ref } from "vue";
+import { useNotification } from "@/composables/useNotification";
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -71,6 +92,10 @@ const props = defineProps({
   facilityBranches: {
     type: Array,
     default: () => []
+  },
+  englishFixEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -78,6 +103,35 @@ const offerStore = useOfferStore();
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.offer?.id);
+
+const englishFixRunning = ref(false);
+const englishFixMessage = ref('');
+
+const fixEnglish = async () => {
+  if (!props.englishFixEnabled || englishFixRunning.value || !props.offer?.slug) return;
+
+  englishFixRunning.value = true;
+  englishFixMessage.value = '';
+  try {
+    const { data } = await axios.post(route('admin.offer.english.fix', props.offer.slug));
+    const applied = data?.applied?.length || 0;
+
+    if (applied === 0) {
+      useNotification().info('No English fields needed fixing.');
+    } else {
+      useNotification().success(`Fixed ${applied} English field(s). Reloading…`);
+      router.reload({ only: ['offer'] });
+    }
+
+    if (data?.errors?.length) {
+      englishFixMessage.value = data.errors.join(' ');
+    }
+  } catch (error) {
+    useNotification().error(error?.response?.data?.message || 'Could not fix the English fields. Please try again.');
+  } finally {
+    englishFixRunning.value = false;
+  }
+};
 
 // Initialize form based on mode
 onMounted(() => {

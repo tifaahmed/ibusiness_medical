@@ -9,6 +9,8 @@ use App\Http\Resources\Admin\Product\Edit\AdminProductEditResource;
 use App\Models\Product;
 use App\Models\ProductType;
 use App\Models\Tag;
+use App\Services\ProductEnglishBackfiller;
+use App\Services\ProductSeoGenerator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +50,8 @@ class AdminProductEditController extends BaseController
             'product' => (new AdminProductEditResource($product))->toArray($request),
             'productTypes' => $productTypes,
             'tags' => $tags,
+            'seoAiEnabled' => ProductSeoGenerator::isConfigured(),
+            'englishFixEnabled' => ProductEnglishBackfiller::isConfigured(),
         ];
 
         return Inertia::render('Admin/Product/Edit/ProductEditView', $result);

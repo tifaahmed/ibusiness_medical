@@ -62,6 +62,14 @@ class UpdateProductAction
                 $product->clearMediaCollection('small_image');
             }
 
+            if (isset($validated['og_image'])) {
+                $product->clearMediaCollection('og_image');
+                $product->addMedia($validated['og_image'])
+                    ->toMediaCollection('og_image');
+            } elseif (filter_var($validated['og_image_delete'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $product->clearMediaCollection('og_image');
+            }
+
             // Drop only the gallery images the admin explicitly removed.
             $removedIds = array_filter(array_map('intval', $validated['removed_gallery_ids'] ?? []));
 

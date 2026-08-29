@@ -428,6 +428,8 @@
                 :max-size="5"
                 :accepted-types="['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'image/avif']"
                 :initial-preview="props.facility?.image || ''"
+                :crop-aspect-ratio="3"
+                :crop-output-width="1920"
                 @file-selected="(f) => { facilityStore.form.image = f; imageError = ''; }"
                 @error="(err) => imageError = err"
               />
@@ -445,6 +447,8 @@
                 :max-size="5"
                 :accepted-types="['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'image/avif']"
                 :initial-preview="props.facility?.mobile_image || ''"
+                :crop-aspect-ratio="16 / 9"
+                :crop-output-width="1200"
                 @file-selected="(f) => { facilityStore.form.mobile_image = f; mobileImageError = ''; }"
                 @error="(err) => mobileImageError = err"
               />

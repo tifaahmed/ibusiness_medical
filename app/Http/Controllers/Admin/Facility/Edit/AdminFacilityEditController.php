@@ -12,6 +12,7 @@ use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
 use App\Models\Tag;
+use App\Services\FacilityEnglishBackfiller;
 use App\Services\FacilitySeoGenerator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -95,6 +96,7 @@ class AdminFacilityEditController extends BaseController
             'tags' => $tags,
             'salesOptions' => $salesOptions,
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
+            'englishFixEnabled' => FacilityEnglishBackfiller::isConfigured(),
         ];
 
         return Inertia::render('Admin/Facility/Edit/FacilityEditView', $result);
