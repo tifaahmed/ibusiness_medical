@@ -71,6 +71,19 @@ class FacilityMigrationImporter
      */
     private ?array $facilityIndex = null;
 
+    /**
+     * The branches this facility's payload has already landed on, during this
+     * one facility. A spreadsheet routinely repeats the facility's own name in
+     * every branch row, and matching by name alone would hand all of those rows
+     * the same branch: the first creates it and the rest overwrite it in turn,
+     * leaving one branch holding the last row's address. A branch is claimed the
+     * moment a row lands on it and is invisible to the rows that follow, so the
+     * 28 rows of one such sheet become 28 branches rather than 1.
+     *
+     * @var array<int, true>
+     */
+    private array $claimedBranchIds = [];
+
     /** @var array<string, array<string, mixed>> cities lookup block, keyed by slug */
     private array $cityLookup = [];
 
@@ -639,6 +652,10 @@ class FacilityMigrationImporter
         $this->restoreMedia($facility, $data['media'] ?? [], $addedMediaPaths);
         $this->restoreOffers($facility, $data['offers'] ?? [], $addedMediaPaths);
 
+        // Claims are scoped to one facility's branch list, which is the only
+        // place rows of the same package can collide.
+        $this->claimedBranchIds = [];
+
         $keptBranches = [];
         foreach ($data['branches'] ?? [] as $branchData) {
             $id = $this->importBranch($facility, $this->arrayOrEmpty($branchData), $mode, $addedMediaPaths);
@@ -831,6 +848,9 @@ class FacilityMigrationImporter
 
         $this->stampRow($branch, $slug, $data['created_at'] ?? null, $data['updated_at'] ?? null, $nulls);
         $this->bump($existing ? 'branches_updated' : 'branches_created');
+
+        // Taken: no later row of this package lands here too.
+        $this->claimedBranchIds[$branch->id] = true;
 
         $this->restoreOffers($branch, $data['offers'] ?? [], $addedMediaPaths);
 
@@ -1845,8 +1865,17 @@ class FacilityMigrationImporter
             return null;
         }
 
+        // Claimed rows are out of the running, and the rest are considered in a
+        // fixed order — so re-importing a sheet whose rows share a name pairs
+        // them off against the same branches every time instead of shuffling.
         $match = $this->matchBySlugOrName(
-            FacilityBranch::query()->where('facility_id', $facility->id),
+            FacilityBranch::query()
+                ->where('facility_id', $facility->id)
+                ->when(
+                    $this->claimedBranchIds !== [],
+                    fn ($q) => $q->whereNotIn('id', array_keys($this->claimedBranchIds))
+                )
+                ->orderBy('id'),
             [
                 'slug' => $data['slug'] ?? null,
                 'name' => $this->arrayOrEmpty($data['name'] ?? []),
@@ -1928,13 +1957,22 @@ class FacilityMigrationImporter
         $matchedBranchIds = [];
         $matchedManagerIds = [];
 
+        // Walked with the same claims the run keeps, or the screen would mark
+        // every row of a sheet that repeats one branch name as landing on the
+        // same branch — or, on a new facility, as all being new when only the
+        // first of them is.
+        $this->claimedBranchIds = [];
+
         foreach (array_values($this->arrayOrEmpty($data['branches'] ?? [])) as $i => $branchData) {
             $match = $this->findExistingBranch($facility, $this->arrayOrEmpty($branchData));
             $branches[$i] = $match ? $this->branchSnapshot($match) : null;
             if ($match) {
                 $matchedBranchIds[] = $match->id;
+                $this->claimedBranchIds[$match->id] = true;
             }
         }
+
+        $this->claimedBranchIds = [];
 
         foreach (array_values($this->arrayOrEmpty($data['managers'] ?? [])) as $i => $managerData) {
             $match = $this->findExistingManager($facility, $this->arrayOrEmpty($managerData));

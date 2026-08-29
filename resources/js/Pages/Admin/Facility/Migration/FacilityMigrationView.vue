@@ -609,7 +609,9 @@
                   <!-- Branches sub-table -->
                   <tr v-if="facility._showBranches && ((facility.branches || []).length || missingBranches(facility).length)" class="border-b border-border">
                     <td colspan="12" class="p-3">
-                      <div class="bg-card border border-violet-500 rounded-md overflow-hidden">
+                      <!-- Scrolls rather than clips: the address column is wide on
+                           purpose, and hidden overflow would cut it off. -->
+                      <div class="bg-card border border-violet-500 rounded-md overflow-x-auto">
                         <div class="bg-violet-600 text-white px-3 py-2 text-xs font-semibold flex flex-wrap items-center gap-2">
                           <span>
                             Branches for {{ facility.name?.en || 'facility' }} ({{ (facility.branches || []).length }})
@@ -617,9 +619,22 @@
                               + {{ missingBranches(facility).length }} here but not in the package
                             </template>
                           </span>
+                          <!-- The same fix as the per-row button, applied to every branch
+                               that needs it. Only shown when there is something to fix. -->
+                          <button
+                            v-if="facilityRepeatedBranches(facility).length"
+                            type="button"
+                            @click="fixRepeatedBranchNames(facility)"
+                            class="ml-auto rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-600"
+                          >
+                            {{ facilityRepeatedBranches(facility).length }} branches share a name — add cities to all
+                          </button>
                           <span
-                            class="ml-auto px-1.5 py-0.5 rounded text-[10px]"
-                            :class="facilityBranchIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700'"
+                            class="px-1.5 py-0.5 rounded text-[10px]"
+                            :class="[
+                              facilityRepeatedBranches(facility).length ? '' : 'ml-auto',
+                              facilityBranchIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700',
+                            ]"
                           >
                             {{ facilityBranchIssues(facility).length
                               ? facilityBranchIssues(facility).length + ' to check'
@@ -631,13 +646,17 @@
                             <tr>
                               <th class="px-3 py-1.5 text-left font-semibold">Branch name</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Name (AR)</th>
-                              <th class="px-3 py-1.5 text-left font-semibold">Address</th>
-                              <th class="px-3 py-1.5 text-left font-semibold">Phones <span class="font-normal opacity-70">(one per line)</span></th>
-                              <th class="px-3 py-1.5 text-left font-semibold">Governorate</th>
                               <th class="px-3 py-1.5 text-left font-semibold">City</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Governorate</th>
+                              <th class="px-3 py-1.5 text-left font-semibold">Phones <span class="font-normal opacity-70">(one per line)</span></th>
                               <th class="px-3 py-1.5 text-left font-semibold">Lat</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Lng</th>
                               <th class="px-3 py-1.5 text-left font-semibold">Google URL</th>
+                              <!-- Last, and the widest column on the row: an address is a
+                                   sentence, and a 12rem cell shows the first three words of
+                                   it. Nothing follows it but the remove button, so it can
+                                   take the leftover width without squeezing anything. -->
+                              <th class="px-3 py-1.5 text-left font-semibold w-[28rem]">Address</th>
                               <th class="px-3 py-1.5 w-12"></th>
                             </tr>
                           </thead>
@@ -658,69 +677,65 @@
                                 </p>
                                 <input
                                   v-model="br.name.en"
-                                  :class="branchIssues(br).length
-                                    ? [previewInputCls, 'border-red-500']
-                                    : previewFieldCls(br._existing, 'name.en', br.name.en)"
+                                  :class="[
+                                    branchIssues(br).length
+                                      ? [previewInputCls, 'border-red-500']
+                                      : previewFieldCls(br._existing, 'name.en', br.name.en),
+                                    'min-w-[18rem]',
+                                  ]"
                                 />
                                 <p v-if="branchIssues(br).length" class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
                                   {{ branchIssues(br).join(' · ') }}
                                 </p>
                                 <ExistingValueHint :existing="br._existing" path="name.en" :current="br.name.en" />
-                              </td>
-                              <td class="px-3 py-1">
-                                <input v-model="br.name.ar" :class="previewFieldCls(br._existing, 'name.ar', br.name.ar)" />
-                                <ExistingValueHint :existing="br._existing" path="name.ar" :current="br.name.ar" />
-                              </td>
-                              <td class="px-3 py-1">
-                                <input v-model="br.address.en" :class="previewFieldCls(br._existing, 'address.en', br.address.en)" />
-                                <ExistingValueHint :existing="br._existing" path="address.en" :current="br.address.en" />
-                              </td>
-                              <td class="px-3 py-1">
-                                <textarea
-                                  :value="br._phoneText"
-                                  @input="setBranchPhones(br, $event.target.value)"
-                                  rows="3"
-                                  placeholder="One phone per line"
-                                  :class="[
-                                    previewFieldCls(br._existing, 'phone', br.phone),
-                                    'min-w-[12rem] resize-y font-mono leading-tight',
-                                  ]"
-                                ></textarea>
-                                <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
-                                  {{ br.phone.length }} numbers
-                                </p>
-                                <ExistingValueHint :existing="br._existing" path="phone" :current="br.phone" />
-                              </td>
-                              <td class="px-3 py-1">
-                                <SearchableSelect
-                                  class="min-w-[10rem]"
-                                  :model-value="br._governorateChoice"
-                                  :options="governorateOptions(br)"
-                                  :search-keys="LOOKUP_SEARCH_KEYS"
-                                  :error="lookupError(br._governorateChoice)"
-                                  placeholder="— none —"
-                                  @change="setBranchGovernorate(br, $event)"
-                                />
+
+                                <!-- Re-answered as you type, in either name box. It names the
+                                     spelling that is still tied, because editing only the
+                                     English name of a sheet that repeats both leaves the row
+                                     genuinely ambiguous — and a flag that just stayed on
+                                     would look like a check that had missed the edit. -->
                                 <p
-                                  v-if="br._governorateChoice === NEW_LOOKUP"
+                                  v-if="branchNameRepeated(facility, br)"
                                   class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
                                 >
-                                  "{{ br._governorateLabel }}" — not on this site yet.
-                                  <button
-                                    type="button"
-                                    class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
-                                    :disabled="quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}`"
-                                    @click="quickCreateLookup(br, 'governorate')"
-                                  >
-                                    {{ quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
-                                  </button>
+                                  {{ repeatedLocaleLabel(facility, br) }} name is shared by
+                                  {{ repeatedBranchCount(facility, br) }} branches here.
                                 </p>
-                                <ExistingValueHint
-                                  :existing="br._existing"
-                                  path="governorate"
-                                  :current="br._governorateChoice"
-                                  choice
+                                <p v-else class="mt-0.5 text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
+                                  Name is unique here.
+                                </p>
+
+                                <!-- Always here, so the city can be pasted onto any name;
+                                     amber when another branch of this facility carries the
+                                     same name and it therefore has to be used. -->
+                                <button
+                                  type="button"
+                                  :disabled="!branchHasCity(br)"
+                                  :title="!branchHasCity(br)
+                                    ? 'Pick a city first — there is nothing to add yet'
+                                    : (branchNameRepeated(facility, br)
+                                      ? `The ${repeatedLocaleLabel(facility, br)} name is shared by ${repeatedBranchCount(facility, br)} branches here — add the city to tell them apart`
+                                      : 'Optional: add the city to this branch name')"
+                                  @click="appendCityToBranchName(br)"
+                                  :class="[
+                                    'mt-1 w-full rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition',
+                                    'disabled:cursor-not-allowed disabled:opacity-40',
+                                    branchNameRepeated(facility, br)
+                                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                      : 'border border-border text-muted-foreground hover:bg-muted',
+                                  ]"
+                                >
+                                  {{ branchNameRepeated(facility, br)
+                                    ? `repeated ${repeatedLocaleLabel(facility, br)} — add city${branchHasCity(br) ? ' “' + branchCityNames(br).ar + '”' : ''}`
+                                    : '+ add city to name (optional)' }}
+                                </button>
+                              </td>
+                              <td class="px-3 py-1">
+                                <input
+                                  v-model="br.name.ar"
+                                  :class="[previewFieldCls(br._existing, 'name.ar', br.name.ar), 'min-w-[18rem]']"
                                 />
+                                <ExistingValueHint :existing="br._existing" path="name.ar" :current="br.name.ar" />
                               </td>
                               <td class="px-3 py-1">
                                 <SearchableSelect
@@ -754,6 +769,53 @@
                                 />
                               </td>
                               <td class="px-3 py-1">
+                                <SearchableSelect
+                                  class="min-w-[10rem]"
+                                  :model-value="br._governorateChoice"
+                                  :options="governorateOptions(br)"
+                                  :search-keys="LOOKUP_SEARCH_KEYS"
+                                  :error="lookupError(br._governorateChoice)"
+                                  placeholder="— none —"
+                                  @change="setBranchGovernorate(br, $event)"
+                                />
+                                <p
+                                  v-if="br._governorateChoice === NEW_LOOKUP"
+                                  class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                                >
+                                  "{{ br._governorateLabel }}" — not on this site yet.
+                                  <button
+                                    type="button"
+                                    class="underline font-medium hover:text-amber-800 dark:hover:text-amber-200 ml-0.5"
+                                    :disabled="quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}`"
+                                    @click="quickCreateLookup(br, 'governorate')"
+                                  >
+                                    {{ quickCreateLoading === `governorate-${br.name?.en || br.name?.ar}` ? 'Creating…' : 'Create it' }}
+                                  </button>
+                                </p>
+                                <ExistingValueHint
+                                  :existing="br._existing"
+                                  path="governorate"
+                                  :current="br._governorateChoice"
+                                  choice
+                                />
+                              </td>
+                              <td class="px-3 py-1">
+                                <textarea
+                                  :value="br._phoneText"
+                                  @input="setBranchPhones(br, $event.target.value)"
+                                  rows="3"
+                                  placeholder="One phone per line"
+                                  :class="[
+                                    previewFieldCls(br._existing, 'phone', br.phone),
+                                    'min-w-[12rem] resize-y font-mono leading-tight',
+                                  ]"
+                                ></textarea>
+                                <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
+                                  {{ br.phone.length }} numbers
+                                </p>
+                                <ExistingValueHint :existing="br._existing" path="phone" :current="br.phone" />
+                              </td>
+                              <td class="px-3 py-1">
                                 <input
                                   type="number"
                                   step="any"
@@ -783,6 +845,17 @@
                                   :current="br.google_location_url"
                                 />
                               </td>
+                              <td class="px-3 py-1">
+                                <textarea
+                                  v-model="br.address.en"
+                                  rows="3"
+                                  :class="[
+                                    previewFieldCls(br._existing, 'address.en', br.address.en),
+                                    'min-w-[26rem] resize-y leading-snug',
+                                  ]"
+                                ></textarea>
+                                <ExistingValueHint :existing="br._existing" path="address.en" :current="br.address.en" />
+                              </td>
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
                               </td>
@@ -802,13 +875,13 @@
                                 <p class="text-[11px]">{{ ex.name?.en || ex.name?.ar || '—' }}</p>
                               </td>
                               <td class="px-3 py-1.5 text-[11px]">{{ ex.name?.ar || '—' }}</td>
-                              <td class="px-3 py-1.5 text-[11px]">{{ ex.address?.en || ex.address?.ar || '—' }}</td>
-                              <td class="px-3 py-1.5 text-[11px] font-mono whitespace-pre-line">{{ (ex.phone || []).join('\n') || '—' }}</td>
-                              <td class="px-3 py-1.5 text-[11px]">{{ ex.governorate?.label || '—' }}</td>
                               <td class="px-3 py-1.5 text-[11px]">{{ ex.city?.label || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.governorate?.label || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px] font-mono whitespace-pre-line">{{ (ex.phone || []).join('\n') || '—' }}</td>
                               <td class="px-3 py-1.5 text-[11px]">{{ ex.latitude ?? '—' }}</td>
                               <td class="px-3 py-1.5 text-[11px]">{{ ex.longitude ?? '—' }}</td>
                               <td class="px-3 py-1.5 text-[11px] break-all">{{ ex.google_location_url || '—' }}</td>
+                              <td class="px-3 py-1.5 text-[11px]">{{ ex.address?.en || ex.address?.ar || '—' }}</td>
                               <td class="px-3 py-1.5"></td>
                             </tr>
                           </tbody>
@@ -990,24 +1063,48 @@
 
         <!-- Step 3: done -->
         <div v-if="importStep === 'done'" class="space-y-4">
-          <h3 class="text-lg font-semibold">
-            {{ result?.dry_run ? 'Dry run complete — nothing was written' : 'Import complete' }}
-          </h3>
-          <div class="flex flex-wrap gap-2 text-sm">
-            <span v-for="(v, k) in result?.stats || {}" :key="k" class="px-2 py-1 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-medium">
-              {{ String(k).replace(/_/g, ' ') }}: {{ v }}
-            </span>
+          <!-- The counts a whole import is judged by, so they sit on a surface of
+               their own. A tinted panel would let the page's purple gradient
+               through and leave dark ink on a light-on-dark blend — the same trap
+               previewInputBase warns about — so the card paints an opaque
+               background and names its own ink, and the chips are solid rather
+               than a 15% wash. -->
+          <div class="bg-card text-card-foreground border border-border rounded-xl p-4 space-y-3">
+            <h3 class="text-lg font-semibold text-card-foreground">
+              {{ result?.dry_run ? 'Dry run complete — nothing was written' : 'Import complete' }}
+            </h3>
+            <div class="flex flex-wrap gap-2 text-sm">
+              <span
+                v-for="(v, k) in result?.stats || {}"
+                :key="k"
+                :class="[
+                  'inline-flex items-baseline gap-1.5 rounded-md px-2.5 py-1 font-medium shadow-sm',
+                  result?.dry_run ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white',
+                ]"
+              >
+                <span class="opacity-90">{{ String(k).replace(/_/g, ' ') }}</span>
+                <span class="text-base font-bold tabular-nums">{{ v }}</span>
+              </span>
+              <span
+                v-if="!Object.keys(result?.stats || {}).length"
+                class="rounded-md bg-muted px-2.5 py-1 font-medium text-foreground"
+              >
+                nothing changed
+              </span>
+            </div>
+
+            <details v-if="result?.warnings?.length" class="rounded-lg border border-amber-500/60 bg-amber-500/10 p-3 text-xs">
+              <summary class="cursor-pointer font-semibold text-amber-700 dark:text-amber-300">
+                {{ result.warnings.length }} warning(s)
+              </summary>
+              <p v-for="(w, i) in result.warnings" :key="i" class="mt-1 text-card-foreground">{{ w }}</p>
+            </details>
+
+            <details v-if="result?.errors?.length" class="rounded-lg border border-destructive/60 bg-destructive/10 p-3 text-xs">
+              <summary class="cursor-pointer font-semibold text-destructive">{{ result.errors.length }} failure(s)</summary>
+              <p v-for="(e, i) in result.errors" :key="i" class="mt-1 text-card-foreground">{{ e.facility }}: {{ e.message }}</p>
+            </details>
           </div>
-
-          <details v-if="result?.warnings?.length" class="rounded-lg border border-border p-3 text-xs">
-            <summary class="cursor-pointer font-medium">{{ result.warnings.length }} warning(s)</summary>
-            <p v-for="(w, i) in result.warnings" :key="i" class="mt-1 text-muted-foreground">{{ w }}</p>
-          </details>
-
-          <details v-if="result?.errors?.length" class="rounded-lg border border-destructive/40 p-3 text-xs">
-            <summary class="cursor-pointer font-medium text-destructive">{{ result.errors.length }} failure(s)</summary>
-            <p v-for="(e, i) in result.errors" :key="i" class="mt-1">{{ e.facility }}: {{ e.message }}</p>
-          </details>
 
           <div class="flex gap-2">
             <Link :href="route('admin.facility.list')" :class="btnPrimary">Go to facilities</Link>
@@ -1026,7 +1123,7 @@ import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 import ExistingValueHint from './ExistingValueHint.vue';
 import { oldValue } from './existingValue.js';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
   summary: { type: Object, default: () => ({}) },
@@ -1040,7 +1137,50 @@ const tabs = [
   { key: 'export', label: 'Export' },
   { key: 'import', label: 'Import' },
 ];
-const activeTab = ref('export');
+
+/* ------------------------------ tab in the url ----------------------------- */
+
+/* The open tab is written into ?tab=, so a reload, a bookmark or a link shared
+   with somebody comes back to the pane it was sent from — reaching the import
+   side otherwise took a click every time.
+ *
+ * Rewritten in place rather than pushed: a tab is a view of one page, not a step
+ * worth walking back through, and pushing one entry per click would turn Back
+ * into an undo of tab switches. Inertia owns this history stack, so its own
+ * state object travels along with the rewrite and its restore still works. */
+const TAB_PARAM = 'tab';
+
+const tabFromUrl = () => {
+  if (typeof window === 'undefined') return tabs[0].key;
+
+  const key = new URLSearchParams(window.location.search).get(TAB_PARAM);
+
+  return tabs.some(t => t.key === key) ? key : tabs[0].key;
+};
+
+const activeTab = ref(tabFromUrl());
+
+const syncTabToUrl = (key) => {
+  if (typeof window === 'undefined') return;
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get(TAB_PARAM) === key) return; // already says so
+
+  url.searchParams.set(TAB_PARAM, key);
+  window.history.replaceState(window.history.state, '', url);
+};
+
+// Covers the buttons and the programmatic switches alike — goToPackages() sets
+// the tab straight, and the url has to follow it there too.
+watch(activeTab, syncTabToUrl);
+
+// Back and forward, or anything else that rewrites the query underneath us.
+const readTabFromUrl = () => { activeTab.value = tabFromUrl(); };
+onMounted(() => {
+  syncTabToUrl(activeTab.value); // stamp the default on a bare url
+  window.addEventListener('popstate', readTabFromUrl);
+});
+onUnmounted(() => window.removeEventListener('popstate', readTabFromUrl));
 
 const inputCls = 'w-full px-2 py-1.5 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary';
 const btnPrimary = 'inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-9 px-4 disabled:opacity-50 btn-golden cursor-pointer';
@@ -1604,6 +1744,129 @@ const branchIssues = (branch) => {
   }
 
   return issues;
+};
+
+/* ------------------------- repeated branch names --------------------------- */
+
+/* A spreadsheet almost always writes the facility's own name into every branch
+   row, so a lab with 28 addresses arrives as 28 branches all called "معامل
+   ميترا". The import matches a branch by name within its facility, so names
+   that repeat are names that cannot tell two branches apart — the city is the
+   one column that already distinguishes them, which is what the button pastes
+   in. */
+
+// Both spellings a branch answers to, folded — the import matches on either.
+const branchNameValues = (branch) =>
+  [...new Set(['en', 'ar'].map(l => foldName(branch?.name?.[l])).filter(Boolean))];
+
+// The names more than one branch of this facility carries.
+const repeatedBranchNames = (facility) => {
+  const counts = new Map();
+  (facility.branches || []).forEach((br) => {
+    branchNameValues(br).forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
+  });
+
+  return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([v]) => v));
+};
+
+/* Which of a branch's two spellings another branch here also carries, and how
+   many rows carry it.
+
+   Both are reported because the import matches on either spelling, so editing
+   only the English name leaves the row genuinely still ambiguous — and a flag
+   that stayed on without saying why would read as a check that had not noticed
+   the edit. Recomputed on every keystroke: the template calls this while it
+   renders, so typing in either name box re-answers it. */
+const repeatedBranchNameLocales = (facility, branch) => {
+  const counts = new Map();
+  (facility.branches || []).forEach((br) => {
+    branchNameValues(br).forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
+  });
+
+  return ['en', 'ar']
+    .map((locale) => ({ locale, value: foldName(branch?.name?.[locale]), }))
+    .filter(({ value }) => value && (counts.get(value) || 0) > 1)
+    .map(({ locale, value }) => ({ locale, count: counts.get(value) }));
+};
+
+const branchNameRepeated = (facility, branch) =>
+  repeatedBranchNameLocales(facility, branch).length > 0;
+
+// "EN and AR", "AR" — the spellings a row is still tied on, for the label.
+const repeatedLocaleLabel = (facility, branch) =>
+  repeatedBranchNameLocales(facility, branch)
+    .map(({ locale }) => locale.toUpperCase())
+    .join(' + ');
+
+// The most rows any one of this branch's spellings is shared by.
+const repeatedBranchCount = (facility, branch) =>
+  Math.max(0, ...repeatedBranchNameLocales(facility, branch).map(({ count }) => count));
+
+const facilityRepeatedBranches = (facility) =>
+  (facility.branches || []).filter(br => branchNameRepeated(facility, br));
+
+/* The city a branch is set to, in both spellings. Reads the picked row rather
+   than the label so a city chosen by hand in the preview is used, not the one
+   the sheet happened to name. */
+const branchCityNames = (branch) => {
+  const name = branch?.city?.name || {};
+  const en = String(name.en || '').trim();
+  const ar = String(name.ar || '').trim();
+  const label = String(branch?._cityLabel || '').trim();
+
+  return { en: en || ar || label, ar: ar || en || label };
+};
+
+const branchHasCity = (branch) => {
+  const city = branchCityNames(branch);
+
+  return !!(city.en || city.ar);
+};
+
+/* Paste the city onto the name, in each spelling the branch has. A name that
+   already carries the city is left alone, so pressing the button twice is not
+   two suffixes. */
+const appendCityToBranchName = (branch) => {
+  const city = branchCityNames(branch);
+  if (!branch.name) branch.name = { en: '', ar: '' };
+
+  ['en', 'ar'].forEach((locale) => {
+    const suffix = city[locale];
+    if (!suffix) return;
+
+    const current = String(branch.name[locale] || '').trim();
+    if (!current) {
+      branch.name[locale] = suffix;
+
+      return;
+    }
+    if (foldName(current).includes(foldName(suffix))) return;
+
+    branch.name[locale] = `${current} - ${suffix}`;
+  });
+};
+
+/* Fix every repeated name at once. The city settles most of them; branches that
+   share a city too — two in حي الزهور, say — are still tied afterwards, so a
+   second pass numbers those, or the button would report a fix it did not make. */
+const fixRepeatedBranchNames = (facility) => {
+  facilityRepeatedBranches(facility).forEach(appendCityToBranchName);
+
+  const stillRepeated = repeatedBranchNames(facility);
+  const used = new Map();
+  (facility.branches || []).forEach((br) => {
+    if (!branchNameValues(br).some(v => stillRepeated.has(v))) return;
+
+    const key = branchNameValues(br).join('|');
+    const n = (used.get(key) || 0) + 1;
+    used.set(key, n);
+    if (n === 1) return; // the first keeps the plain name
+
+    ['en', 'ar'].forEach((locale) => {
+      const current = String(br.name?.[locale] || '').trim();
+      if (current) br.name[locale] = `${current} ${n}`;
+    });
+  });
 };
 
 const facilityBranchIssues = (facility) =>

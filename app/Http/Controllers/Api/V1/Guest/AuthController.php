@@ -153,6 +153,11 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
+
+        // The collection is not registered as singleFile and get_image_url reads
+        // getMedia('avatar')->first(), so without clearing it the old avatar
+        // would keep being served after an upload.
+        $user->clearMediaCollection('avatar');
         $user->addMediaFromRequest('avatar')
             ->toMediaCollection('avatar');
 

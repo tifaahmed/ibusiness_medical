@@ -35,6 +35,7 @@ class MembershipResource extends JsonResource
                     'id' => $this->user->id,
                     'name' => $this->user->name,
                     'email' => $this->user->email,
+                    'phone' => $this->user->phone,
                     'avatar_url' => get_image_url($this->user, 'avatar'),
                 ];
             }),

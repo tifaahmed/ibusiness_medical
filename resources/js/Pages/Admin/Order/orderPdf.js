@@ -368,13 +368,21 @@ const withPrintableFrame = async (html, { rtl }, render) => {
     }
 };
 
-const buildPdf = async (html, { filename, rtl }) => {
+
+/**
+ * Rasterise the printable node and paginate it into a jsPDF document.
+ *
+ * It stops at the document rather than saving it: the same pages are what the
+ * preview shows and what the download writes, so neither can drift from the
+ * other — the preview IS the file, not a second rendering of it.
+ */
+const buildPdf = async (html, { rtl }) => {
     const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
         import('jspdf'),
         import('html2canvas'),
     ]);
 
-    await withPrintableFrame(html, { rtl }, async (host) => {
+    return withPrintableFrame(html, { rtl }, async (host) => {
         const scale = 2;
         const source = await html2canvas(host, {
             scale,
@@ -416,22 +424,58 @@ const buildPdf = async (html, { filename, rtl }) => {
             );
         }
 
-        doc.save(filename);
+        return doc;
     });
 };
 
 const safeCode = (order) => String(order?.order_code || 'order').replace(/[^A-Za-z0-9_-]+/g, '_');
 
-/** The internal copy: everything the shop knows about the order. */
-export const exportAdminOrderPdf = ({ order, t = {}, locale = 'ar', appName = '', logoUrl = null, currency = 'EGP' }) =>
-    buildPdf(adminDocument(order, t, locale, currency, { appName, logoUrl }), {
-        filename: `order-${safeCode(order)}-full.pdf`,
+/**
+ * The two documents, named by the variant the page asks for.
+ *
+ * `admin` is the internal copy: everything the shop knows about the order.
+ * `receipt` is the customer's: no cost, no margin, no provenance, no audit
+ * trail. They stay two entries here rather than one entry with a flag, for
+ * the reason at the top of this file.
+ */
+const DOCUMENTS = {
+    admin: {
+        build: adminDocument,
+        filename: order => `order-${safeCode(order)}-full.pdf`,
+    },
+    receipt: {
+        build: receiptDocument,
+        filename: order => `receipt-${safeCode(order)}.pdf`,
+    },
+};
+
+const render = async (variant, { order, t = {}, locale = 'ar', appName = '', logoUrl = null, currency = 'EGP' }) => {
+    const spec = DOCUMENTS[variant];
+    if (!spec) throw new Error(`Unknown order document "${variant}".`);
+
+    const doc = await buildPdf(spec.build(order, t, locale, currency, { appName, logoUrl }), {
         rtl: locale === 'ar',
     });
 
-/** The customer's copy: no cost, no margin, no provenance, no audit trail. */
-export const exportCustomerReceiptPdf = ({ order, t = {}, locale = 'ar', appName = '', logoUrl = null, currency = 'EGP' }) =>
-    buildPdf(receiptDocument(order, t, locale, currency, { appName, logoUrl }), {
-        filename: `receipt-${safeCode(order)}.pdf`,
-        rtl: locale === 'ar',
-    });
+    return { doc, filename: spec.filename(order) };
+};
+
+/** Build the document and hand it straight to the browser's downloader. */
+export const exportOrderPdf = async (variant, options) => {
+    const { doc, filename } = await render(variant, options);
+    doc.save(filename);
+};
+
+/**
+ * Build the document and hand back a blob URL for it, for showing in the
+ * browser's own PDF viewer before anything is written to disk.
+ *
+ * The URL owns memory until it is revoked, which is the caller's job — hence
+ * `revoke()` alongside it rather than a bare string.
+ */
+export const previewOrderPdf = async (variant, options) => {
+    const { doc, filename } = await render(variant, options);
+    const url = URL.createObjectURL(doc.output('blob'));
+
+    return { url, filename, revoke: () => URL.revokeObjectURL(url) };
+};
