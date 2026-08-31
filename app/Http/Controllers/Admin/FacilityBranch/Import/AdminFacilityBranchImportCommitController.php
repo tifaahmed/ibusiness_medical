@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\FacilityBranch\Import;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\FacilityBranch;
+use App\Support\PhoneNumbers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,8 +66,8 @@ class AdminFacilityBranchImportCommitController extends BaseController
                         $existing = FacilityBranch::where('facility_id', $row['facility_id'])
                             ->where(function ($q) use ($nameEn, $nameAr, $needle) {
                                 $q->where('name->en', $nameEn)
-                                  ->orWhere('name->ar', $nameAr)
-                                  ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))) = ?', [$needle]);
+                                    ->orWhere('name->ar', $nameAr)
+                                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))) = ?', [$needle]);
                             })
                             ->first();
                     }
@@ -100,8 +101,9 @@ class AdminFacilityBranchImportCommitController extends BaseController
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'message' => 'Some rows failed; nothing was saved.',
                     'errors' => $errors,
@@ -112,7 +114,8 @@ class AdminFacilityBranchImportCommitController extends BaseController
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Facility branch import commit failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([
@@ -124,16 +127,24 @@ class AdminFacilityBranchImportCommitController extends BaseController
         ]);
     }
 
+    /**
+     * Split a raw phone cell into individual numbers and reject anything that
+     * is still too long, so a malformed cell fails its row instead of saving a
+     * value the admin form can never edit.
+     */
     private function normalizePhone($raw): ?array
     {
-        if (is_array($raw)) {
-            $values = array_values(array_filter(array_map('trim', $raw), fn($p) => $p !== ''));
-            return $values ?: null;
+        $numbers = PhoneNumbers::split($raw);
+
+        foreach ($numbers as $number) {
+            if (mb_strlen($number) > PhoneNumbers::MAX_LENGTH) {
+                throw new \RuntimeException(
+                    "Phone number \"{$number}\" is longer than ".PhoneNumbers::MAX_LENGTH
+                    .' characters. Separate the numbers with " / " or a comma.'
+                );
+            }
         }
-        if (is_string($raw) && trim($raw) !== '') {
-            $parts = array_values(array_filter(array_map('trim', preg_split('/[,;|]/', $raw)), fn($p) => $p !== ''));
-            return $parts ?: null;
-        }
-        return null;
+
+        return $numbers ?: null;
     }
 }

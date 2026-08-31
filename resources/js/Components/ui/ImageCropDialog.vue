@@ -394,6 +394,7 @@ const apply = async () => {
 
 const cancel = () => emit('cancel');
 const onKey = (e) => { if (e.key === 'Escape') cancel(); };
+const onResize = () => { measure(); clampCrop(); };
 
 watch(
   () => props.open,
@@ -413,8 +414,6 @@ watch(
   },
   { immediate: true }
 );
-
-const onResize = () => { measure(); clampCrop(); };
 
 onBeforeUnmount(() => {
   document.body.style.overflow = '';

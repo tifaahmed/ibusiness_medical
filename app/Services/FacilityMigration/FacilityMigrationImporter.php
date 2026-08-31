@@ -12,6 +12,7 @@ use App\Models\Offer;
 use App\Models\Sales;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\PhoneNumbers;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -1724,22 +1725,18 @@ class FacilityMigrationImporter
      */
     private function normalizePhone($raw): ?array
     {
+        // Splits packed cells / textarea lines into one number each, folds
+        // Arabic digits and strips grouping spaces. Shared with the facility
+        // form and the spreadsheet importer so every path stores phones alike.
         if (is_array($raw)) {
-            // Each entry can itself hold several numbers when it came from a
-            // spreadsheet cell or a textarea line.
-            $raw = implode("\n", array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw));
+            $raw = array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw);
+        } elseif (is_scalar($raw)) {
+            $raw = (string) $raw;
+        } else {
+            $raw = null;
         }
 
-        if (! is_string($raw) || trim($raw) === '') {
-            return null;
-        }
-
-        $parts = array_values(array_filter(
-            array_map('trim', preg_split('/[\r\n,;|]+/', $raw)),
-            fn ($p) => $p !== ''
-        ));
-
-        return $parts ?: null;
+        return PhoneNumbers::split($raw) ?: null;
     }
 
     /**

@@ -183,13 +183,6 @@ watch(error, (newError) => {
   emit('error', newError);
 });
 
-watch(() => props.initialPreview, (newValue) => {
-  console.log('[ImageFileInput] initialPreview:', { newValue, type: typeof newValue, length: newValue?.length });
-  if (newValue) {
-    previewImage.value = newValue;
-  }
-}, { immediate: true });
-
 const validateFile = (file) => {
   if (!props.acceptedTypes.includes(file.type)) {
     error.value = t.value.image?.invalid_format || 'Please upload a valid image file (PNG, JPG, JPEG, AVIF)';
@@ -360,7 +353,6 @@ const removeImage = () => {
 };
 
 watch(() => props.initialPreview, (newValue) => {
-  console.log('[ImageFileInput] initialPreview watcher 2:', { newValue, type: typeof newValue, length: newValue?.length, previewImageBeforeReset: previewImage.value });
   previewImage.value = newValue || null;
 }, { immediate: true });
 </script>

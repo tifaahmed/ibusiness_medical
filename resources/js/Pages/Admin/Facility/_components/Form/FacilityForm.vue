@@ -629,13 +629,6 @@ const imageError = ref('');
 const mobileImageError = ref('');
 const contractError = ref('');
 
-console.log('[FacilityForm] props.facility:', {
-  mobile_logo: props.facility?.mobile_logo,
-  mobile_image: props.facility?.mobile_image,
-  logo: props.facility?.logo,
-  image: props.facility?.image,
-});
-
 // Gallery
 const galleryInput = ref(null);
 const galleryNewPreviews = ref([]);

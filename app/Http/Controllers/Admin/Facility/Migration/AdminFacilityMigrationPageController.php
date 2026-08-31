@@ -10,6 +10,7 @@ use App\Models\FacilityBranch;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
+use App\Services\FacilityMigration\MigrationTextTranslator;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,6 +39,8 @@ class AdminFacilityMigrationPageController extends BaseController
                 'governorate_id' => $c->governorate_id,
             ])->values(),
             'salesOptions' => Sales::orderBy('id')->get()->map(fn ($s) => $this->salesOption($s))->values(),
+            // Gates the "translate to Arabic" buttons on the import preview.
+            'aiConfigured' => MigrationTextTranslator::isConfigured(),
         ]);
     }
 }

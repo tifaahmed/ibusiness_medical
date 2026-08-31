@@ -212,21 +212,6 @@ const managers = ref([]);
 // Use watch with immediate to ensure it runs on mount and when props change
 watch(() => props.facility, (newFacility) => {
   if (newFacility && newFacility.id) {
-    console.log('[FacilityEditView] === DEBUG START ===');
-    console.log('[FacilityEditView] All keys:', Object.keys(newFacility));
-    console.log('[FacilityEditView] "mobile_logo" in keys:', Object.keys(newFacility).includes('mobile_logo'));
-    console.log('[FacilityEditView] facility prop values:', {
-      mobile_logo: newFacility.mobile_logo,
-      mobile_image: newFacility.mobile_image,
-      logo: newFacility.logo,
-      image: newFacility.image,
-      _debug_mobile_logo: newFacility._debug_mobile_logo,
-      _debug_mobile_image: newFacility._debug_mobile_image,
-      _debug_media_count: newFacility._debug_media_count,
-    });
-    console.log('[FacilityEditView] page.props.facility mobile_logo:', page.props.facility?.mobile_logo);
-    console.log('[FacilityEditView] JSON facility:', JSON.stringify(newFacility).substring(0, 1000));
-    console.log('[FacilityEditView] === DEBUG END ===');
     facilityStore.setFacility(newFacility);
     branches.value = newFacility.branches || [];
     managers.value = newFacility.managers || [];

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Facility\Import;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Support\PhoneNumbers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -70,10 +71,10 @@ class AdminFacilityImportCommitController extends BaseController
 
                     $existing = null;
                     if ($mode === 'upsert') {
-                        if (!empty($row['slug'])) {
+                        if (! empty($row['slug'])) {
                             $existing = Facility::where('slug', $row['slug'])->first();
                         }
-                        if (!$existing) {
+                        if (! $existing) {
                             $existing = Facility::where('name->en', $nameEn)
                                 ->orWhere('name->ar', $nameAr)
                                 ->first();
@@ -110,8 +111,9 @@ class AdminFacilityImportCommitController extends BaseController
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'message' => 'Some rows failed; nothing was saved.',
                     'errors' => $errors,
@@ -122,7 +124,8 @@ class AdminFacilityImportCommitController extends BaseController
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Facility import commit failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([
@@ -145,7 +148,7 @@ class AdminFacilityImportCommitController extends BaseController
             return 0;
         }
         $existing = $facility->branches()->get()->keyBy(
-            fn($b) => mb_strtolower(trim((string) ($b->getTranslation('name', 'en') ?: '')))
+            fn ($b) => mb_strtolower(trim((string) ($b->getTranslation('name', 'en') ?: '')))
         );
 
         $count = 0;
@@ -160,7 +163,7 @@ class AdminFacilityImportCommitController extends BaseController
 
             $payload = [
                 'name' => $nameEn !== '' ? ['en' => $nameEn, 'ar' => $nameAr] : null,
-                'address' => !empty($b['address']) ? ['en' => $b['address'], 'ar' => $b['address_ar'] ?? $b['address']] : null,
+                'address' => ! empty($b['address']) ? ['en' => $b['address'], 'ar' => $b['address_ar'] ?? $b['address']] : null,
                 'phone' => $phone,
                 'governorate_id' => $b['governorate_id'] ?? null,
                 'city_id' => $b['city_id'] ?? null,
@@ -178,19 +181,28 @@ class AdminFacilityImportCommitController extends BaseController
             }
             $count++;
         }
+
         return $count;
     }
 
+    /**
+     * Split a raw phone cell into individual numbers and reject anything that
+     * is still too long, so a malformed cell fails its row instead of saving a
+     * value the admin form can never edit.
+     */
     private function normalizePhone($raw): ?array
     {
-        if (is_array($raw)) {
-            $values = array_values(array_filter(array_map('trim', $raw), fn($p) => $p !== ''));
-            return $values ?: null;
+        $numbers = PhoneNumbers::split($raw);
+
+        foreach ($numbers as $number) {
+            if (mb_strlen($number) > PhoneNumbers::MAX_LENGTH) {
+                throw new \RuntimeException(
+                    "Phone number \"{$number}\" is longer than ".PhoneNumbers::MAX_LENGTH
+                    .' characters. Separate the numbers with " / " or a comma.'
+                );
+            }
         }
-        if (is_string($raw) && trim($raw) !== '') {
-            $parts = array_values(array_filter(array_map('trim', preg_split('/[,;|]/', $raw)), fn($p) => $p !== ''));
-            return $parts ?: null;
-        }
-        return null;
+
+        return $numbers ?: null;
     }
 }

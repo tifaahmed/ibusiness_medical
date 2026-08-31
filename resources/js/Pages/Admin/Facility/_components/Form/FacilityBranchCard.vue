@@ -10,8 +10,7 @@
           {{ t.facility_branch?.title || 'Facility Branches' }}
         </div>
         <button
-          v-if="!showAddForm"
-          @click="showAddForm = true; editingIndex = null"
+          @click="openAddForm"
           type="button"
           class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
@@ -25,118 +24,31 @@
     </div>
 
     <div class="px-6">
-      <!-- Add/Edit Form -->
-      <div v-if="showAddForm || editingIndex !== null" class="mb-6 p-4 bg-accent/50 rounded-lg border border-border">
-        <h3 class="text-sm font-semibold mb-4 text-white">
-          {{ editingIndex !== null ? (t.facility_branch?.edit_branch || 'Edit Branch') : (t.facility_branch?.add_new_branch || 'Add New Branch') }}
-        </h3>
-        <!-- .stop: this form is nested inside the page form; without it the submit
-             event bubbles up and triggers a full facility save. -->
-        <form @submit.prevent.stop="handleSubmit" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FormTranslatableInput
-                v-model="form.name"
-                :label="t.facility_branch?.branch_name || 'Branch Name'"
-                :error="errors.name"
-                :placeholder="t.facility_branch?.branch_name_placeholder || 'Enter branch name'"
-                :locales="['ar', 'en']"
-              />
-            </div>
-            <div>
-              <FormTranslatableInput
-                v-model="form.address"
-                :label="t.common?.address || 'Address'"
-                :error="errors.address"
-                :placeholder="t.facility_branch?.address_placeholder || 'Enter branch address'"
-                :locales="['ar', 'en']"
-              />
-            </div>
-            <div>
-              <FormSelect
-                v-model="form.governorate_id"
-                :label="t.governorate?.label || 'Governorate'"
-                :options="governorateOptions"
-                :error="errors.governorate_id"
-                :placeholder="t.governorate?.select || 'Select a governorate'"
-              />
-            </div>
-            <div>
-              <FormSelect
-                v-model="form.city_id"
-                :label="t.city?.label || 'City'"
-                :options="cityOptions"
-                :error="errors.city_id"
-                :placeholder="t.city?.select || 'Select a city'"
-              />
-            </div>
-            <div>
-              <FormInput
-                v-model="form.latitude"
-                :label="t.facility?.latitude || 'Latitude'"
-                type="number"
-                step="any"
-                :placeholder="t.facility?.latitude_placeholder || 'e.g. 30.0444'"
-                :error="errors.latitude"
-              />
-            </div>
-            <div>
-              <FormInput
-                v-model="form.longitude"
-                :label="t.facility?.longitude || 'Longitude'"
-                type="number"
-                step="any"
-                :placeholder="t.facility?.longitude_placeholder || 'e.g. 31.2357'"
-                :error="errors.longitude"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-white mb-2">
-                {{ t.facility_branch?.phone_numbers || 'Phone Numbers' }}
-                <span class="text-xs text-white/70 ml-1">{{ t.facility_branch?.phone_help || '(one per line)' }}</span>
-              </label>
-              <textarea
-                v-model="phoneText"
-                :class="[
-                  'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md min-h-[80px] focus:ring-[3px] focus:ring-ring/50',
-                  errors.phone ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40' : ''
-                ]"
-                :placeholder="t.facility_branch?.phone_placeholder || 'Enter phone numbers, one per line\nExample:\n+20 123 456 7890\n+20 987 654 3210'"
-              ></textarea>
-              <p v-if="errors.phone" class="mt-1 text-sm text-destructive">{{ errors.phone }}</p>
-            </div>
-          </div>
-          <div class="flex gap-3 justify-end">
-            <button
-              type="button"
-              @click="cancelForm"
-              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
-            >
-              {{ t.common?.cancel || 'Cancel' }}
-            </button>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
-            >
-              {{ editingIndex !== null ? (t.common?.update || 'Update') : (t.common?.add || 'Add') }} {{ t.facility_branch?.label || 'Branch' }}
-            </button>
-          </div>
-        </form>
-      </div>
-
       <!-- Branches List -->
       <div v-if="modelValue && modelValue.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
           v-for="(branch, index) in modelValue"
           :key="branch.id || index"
-          class="p-4 bg-accent/30 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+          class="p-4 bg-accent/30 rounded-lg border-2 transition-colors hover:bg-accent/50"
+          :class="statusBorderClass(branchStatus(branch))"
         >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1 min-w-0">
               <div class="mb-2">
-                <h4 class="font-semibold text-white mb-1">
-                  {{ getTranslatedName(branch.name) || (t.facility_branch?.unnamed_branch || 'Unnamed Branch') }}
-                </h4>
+                <div class="flex items-center gap-2 mb-1">
+                  <h4 class="font-semibold text-white">
+                    {{ getTranslatedName(branch.name) || (t.facility_branch?.unnamed_branch || 'Unnamed Branch') }}
+                  </h4>
+                  <span
+                    v-if="branchStatus(branch) !== 'unchanged'"
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                    :class="statusBadgeClass(branchStatus(branch))"
+                  >
+                    {{ branchStatus(branch) === 'added'
+                      ? (t.common?.new || 'New')
+                      : (t.common?.edited || 'Edited') }}
+                  </span>
+                </div>
                 <p v-if="getTranslatedName(branch.address)" class="text-sm text-white/80 mb-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline mr-1 text-white/50">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -205,7 +117,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="!showAddForm" class="text-center py-8 text-white">
+      <div v-else class="text-center py-8 text-white">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 opacity-50 text-white/70">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -214,11 +126,135 @@
         <p class="text-sm mt-1 text-white/80">{{ t.facility_branch?.add_branch_help || 'Click "Add Branch" to get started.' }}</p>
       </div>
     </div>
+
+    <!-- Add / Edit Branch modal -->
+    <Teleport to="body">
+      <div
+        v-if="isFormOpen"
+        class="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        @click.self="cancelForm"
+      >
+        <div class="my-8 w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+          <div class="flex items-start gap-3 border-b border-border p-4">
+            <h3 class="text-sm font-semibold text-white">
+              {{ editingIndex !== null ? (t.facility_branch?.edit_branch || 'Edit Branch') : (t.facility_branch?.add_new_branch || 'Add New Branch') }}
+            </h3>
+            <button
+              type="button"
+              class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              :title="t.common?.close || 'Close (Esc)'"
+              @click="cancelForm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- .stop: this form is nested inside the page form; without it the submit
+               event bubbles up and triggers a full facility save. -->
+          <form @submit.prevent.stop="handleSubmit">
+            <div class="max-h-[70vh] overflow-y-auto p-4 space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormTranslatableInput
+                    v-model="form.name"
+                    :label="t.facility_branch?.branch_name || 'Branch Name'"
+                    :error="errors.name"
+                    :placeholder="t.facility_branch?.branch_name_placeholder || 'Enter branch name'"
+                    :locales="['ar', 'en']"
+                  />
+                </div>
+                <div>
+                  <FormTranslatableInput
+                    v-model="form.address"
+                    :label="t.common?.address || 'Address'"
+                    :error="errors.address"
+                    :placeholder="t.facility_branch?.address_placeholder || 'Enter branch address'"
+                    :locales="['ar', 'en']"
+                  />
+                </div>
+                <div>
+                  <FormSelect
+                    v-model="form.governorate_id"
+                    :label="t.governorate?.label || 'Governorate'"
+                    :options="governorateOptions"
+                    :error="errors.governorate_id"
+                    :placeholder="t.governorate?.select || 'Select a governorate'"
+                  />
+                </div>
+                <div>
+                  <FormSelect
+                    v-model="form.city_id"
+                    :label="t.city?.label || 'City'"
+                    :options="cityOptions"
+                    :error="errors.city_id"
+                    :placeholder="t.city?.select || 'Select a city'"
+                  />
+                </div>
+                <div>
+                  <FormInput
+                    v-model="form.latitude"
+                    :label="t.facility?.latitude || 'Latitude'"
+                    type="number"
+                    step="any"
+                    :placeholder="t.facility?.latitude_placeholder || 'e.g. 30.0444'"
+                    :error="errors.latitude"
+                  />
+                </div>
+                <div>
+                  <FormInput
+                    v-model="form.longitude"
+                    :label="t.facility?.longitude || 'Longitude'"
+                    type="number"
+                    step="any"
+                    :placeholder="t.facility?.longitude_placeholder || 'e.g. 31.2357'"
+                    :error="errors.longitude"
+                  />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-white mb-2">
+                    {{ t.facility_branch?.phone_numbers || 'Phone Numbers' }}
+                    <span class="text-xs text-white/70 ml-1">{{ t.facility_branch?.phone_help || '(one per line)' }}</span>
+                  </label>
+                  <textarea
+                    v-model="phoneText"
+                    :class="[
+                      'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md min-h-[80px] focus:ring-[3px] focus:ring-ring/50',
+                      errors.phone ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40' : ''
+                    ]"
+                    :placeholder="t.facility_branch?.phone_placeholder || 'Enter phone numbers, one per line\nExample:\n+20 123 456 7890\n+20 987 654 3210'"
+                  ></textarea>
+                  <p v-if="errors.phone" class="mt-1 text-sm text-destructive">{{ errors.phone }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-3 justify-end border-t border-border p-3">
+              <button
+                type="button"
+                @click="cancelForm"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
+              >
+                {{ t.common?.cancel || 'Cancel' }}
+              </button>
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
+              >
+                {{ editingIndex !== null ? (t.common?.update || 'Update') : (t.common?.add || 'Add') }} {{ t.facility_branch?.label || 'Branch' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { FormTranslatableInput, FormSelect, FormInput } from '@/Components/form';
 import { usePage } from '@inertiajs/vue3';
 
@@ -247,6 +283,8 @@ const showAddForm = ref(false);
 const editingIndex = ref(null);
 const errors = ref({});
 
+const isFormOpen = computed(() => showAddForm.value || editingIndex.value !== null);
+
 const form = ref({
   name: {},
   address: {},
@@ -256,6 +294,65 @@ const form = ref({
   latitude: '',
   longitude: ''
 });
+
+/* ---- change tracking -------------------------------------------------------
+   Snapshot the branches as the server last sent them so the list can outline
+   which ones the admin has touched. The baseline is keyed by branch id and is
+   re-taken whenever a fresh facility payload arrives (e.g. after "Save & stay").
+--------------------------------------------------------------------------- */
+const baseline = ref(new Map());
+
+const sortedObject = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value ?? null;
+  return Object.keys(value).sort().reduce((acc, key) => {
+    acc[key] = value[key];
+    return acc;
+  }, {});
+};
+
+const numeric = (value) => (value === '' || value === null || value === undefined ? null : Number(value));
+
+const branchFingerprint = (branch) => JSON.stringify({
+  name: sortedObject(branch.name),
+  address: sortedObject(branch.address),
+  phone: Array.isArray(branch.phone) ? branch.phone : (branch.phone ? [branch.phone] : []),
+  governorate_id: numeric(branch.governorate_id),
+  city_id: numeric(branch.city_id),
+  latitude: numeric(branch.latitude),
+  longitude: numeric(branch.longitude)
+});
+
+const captureBaseline = () => {
+  const map = new Map();
+  (props.modelValue || []).forEach((branch) => {
+    if (branch.id != null) {
+      map.set(branch.id, branchFingerprint(branch));
+    }
+  });
+  baseline.value = map;
+};
+
+const branchStatus = (branch) => {
+  if (branch.id == null || !baseline.value.has(branch.id)) return 'added';
+  return baseline.value.get(branch.id) === branchFingerprint(branch) ? 'unchanged' : 'changed';
+};
+
+const statusBorderClass = (status) => ({
+  added: 'border-emerald-500',
+  changed: 'border-amber-500',
+  unchanged: 'border-border'
+}[status]);
+
+const statusBadgeClass = (status) => ({
+  added: 'bg-emerald-500/15 text-emerald-400',
+  changed: 'bg-amber-500/15 text-amber-400'
+}[status]);
+
+// A new facility payload from the server (fresh object identity) resets the
+// baseline; edits made in the browser keep the current baseline so they stay
+// highlighted until the next save. nextTick lets the parent push the fresh
+// branches down as our modelValue first.
+watch(() => page.props.facility, () => nextTick(captureBaseline));
 
 const optionLabel = (name) => {
   if (typeof name === 'object' && name !== null) {
@@ -306,7 +403,7 @@ const phoneText = computed({
       return;
     }
     form.value.phone = value
-      .split('\n')
+      .split(/[\n/\\،,;|]| [-–—] /)
       .map(p => p.trim())
       .filter(p => p.length > 0);
   }
@@ -325,11 +422,36 @@ const resetForm = () => {
   errors.value = {};
 };
 
+const openAddForm = () => {
+  resetForm();
+  editingIndex.value = null;
+  showAddForm.value = true;
+};
+
 const cancelForm = () => {
   showAddForm.value = false;
   editingIndex.value = null;
   resetForm();
 };
+
+const onKeydown = (event) => {
+  if (event.key === 'Escape' && isFormOpen.value) {
+    cancelForm();
+  }
+};
+
+watch(isFormOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : '';
+});
+
+onMounted(() => {
+  captureBaseline();
+  window.addEventListener('keydown', onKeydown);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
+  document.body.style.overflow = '';
+});
 
 const getTranslatedName = (name) => {
   if (!name) return '';
@@ -368,7 +490,7 @@ const editBranch = (index) => {
   editingIndex.value = index;
   showAddForm.value = true;
   const branch = props.modelValue[index];
-  
+
   // Ensure name and address are objects
   let nameValue = branch.name || {};
   if (typeof nameValue === 'string') {

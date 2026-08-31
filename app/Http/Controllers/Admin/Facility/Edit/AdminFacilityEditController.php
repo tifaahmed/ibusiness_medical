@@ -63,17 +63,6 @@ class AdminFacilityEditController extends BaseController
         });
 
         $resourceArray = (new AdminFacilityEditResource($facility))->toArray($request);
-        \Illuminate\Support\Facades\Log::error('AdminFacilityEditResource response', [
-            'keys' => array_keys($resourceArray),
-            'logo' => $resourceArray['logo'] ?? 'MISSING',
-            'mobile_logo' => $resourceArray['mobile_logo'] ?? 'MISSING',
-            'image' => $resourceArray['image'] ?? 'MISSING',
-            'mobile_image' => $resourceArray['mobile_image'] ?? 'MISSING',
-            '_debug_mobile_logo' => $resourceArray['_debug_mobile_logo'] ?? 'MISSING',
-            '_debug_mobile_image' => $resourceArray['_debug_mobile_image'] ?? 'MISSING',
-            'slug' => $facility->slug,
-            'media_count' => $facility->media->count(),
-        ]);
 
         $salesOptions = Sales::query()
             ->orderBy('id')

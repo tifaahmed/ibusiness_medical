@@ -506,6 +506,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
         Route::post('/admin/facility/migration/preview', [AdminFacilityMigrationImportController::class, 'preview'])->name('admin.facility.migration.preview');
         Route::post('/admin/facility/migration/edit', [AdminFacilityMigrationImportController::class, 'edit'])->name('admin.facility.migration.edit');
+        // Recompute the new/already-here match for a facility edited in the preview.
+        Route::post('/admin/facility/migration/rematch', [AdminFacilityMigrationImportController::class, 'rematch'])->name('admin.facility.migration.rematch');
+        // AI: translate the English inputs on the preview to Arabic (one field or a sweep).
+        Route::post('/admin/facility/migration/translate', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTranslateController::class)->name('admin.facility.migration.translate');
         Route::post('/admin/facility/migration/options', [AdminFacilityMigrationImportController::class, 'options'])->name('admin.facility.migration.options');
         Route::post('/admin/facility/migration/begin', [AdminFacilityMigrationImportController::class, 'begin'])->name('admin.facility.migration.begin');
         Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
