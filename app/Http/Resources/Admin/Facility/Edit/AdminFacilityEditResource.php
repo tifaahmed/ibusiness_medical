@@ -63,9 +63,6 @@ class AdminFacilityEditResource extends JsonResource
             'mobile_image' => $this->mobile_image,
             'gallery' => $this->gallery,
             'contract' => $this->contract,
-            '_debug_mobile_logo' => $this->getFirstMedia('mobile_logo') ? $this->getFirstMedia('mobile_logo')->getUrl() : 'EMPTY',
-            '_debug_mobile_image' => $this->getFirstMedia('mobile_image') ? $this->getFirstMedia('mobile_image')->getUrl() : 'EMPTY',
-            '_debug_media_count' => $this->media->count(),
             'tags' => $this->whenLoaded('tags', function () {
                 return $this->tags->map(function ($tag) {
                     return [

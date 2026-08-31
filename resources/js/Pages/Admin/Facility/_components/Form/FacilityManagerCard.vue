@@ -205,7 +205,7 @@ const phonesText = computed({
       return;
     }
     form.value.phones = value
-      .split('\n')
+      .split(/[\n/\\،,;|]| [-–—] /)
       .map(p => p.trim())
       .filter(p => p.length > 0);
   }

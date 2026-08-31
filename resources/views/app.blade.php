@@ -111,8 +111,6 @@
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
         
         <!-- Preload Critical Images -->
-        <link rel="preload" as="image" href="{{ asset('images/slider/1.webp') }}" type="image/webp" fetchpriority="high">
-        <link rel="preload" as="image" href="{{ asset('images/slider/1.png') }}" type="image/png" fetchpriority="high">
         <link rel="preload" as="image" href="{{ asset(config('app.logo')) }}" type="image/png">
         
         <!-- Default Title (will be overridden by Inertia) -->

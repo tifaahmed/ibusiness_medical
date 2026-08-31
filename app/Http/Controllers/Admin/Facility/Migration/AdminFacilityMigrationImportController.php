@@ -90,6 +90,43 @@ class AdminFacilityMigrationImportController extends BaseController
     }
 
     /**
+     * Re-run the "does this site already have it?" match for one facility the
+     * operator has edited on the preview screen.
+     *
+     * The new/already-here badges the preview first paints come from the names
+     * the package carried. Rename a branch to match a row this site keeps and
+     * the import would then update that row rather than insert a new one — but
+     * the badge, a snapshot, would still say "new". This recomputes it against
+     * the edited payload so the screen keeps telling the truth. Writes nothing.
+     */
+    public function rematch(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'data' => ['required', 'array'],
+        ]);
+
+        try {
+            $marked = $this->withExistingRows($validated['data']);
+
+            return response()->json([
+                'facility' => $marked['_existing'] ?? null,
+                'missing_branches' => $marked['_missing_branches'] ?? [],
+                'missing_managers' => $marked['_missing_managers'] ?? [],
+                'branches' => array_map(
+                    fn ($row) => is_array($row) ? ($row['_existing'] ?? null) : null,
+                    array_values($marked['branches'] ?? [])
+                ),
+                'managers' => array_map(
+                    fn ($row) => is_array($row) ? ($row['_existing'] ?? null) : null,
+                    array_values($marked['managers'] ?? [])
+                ),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * Save an edited facility back to the session before importing.
      */
     public function edit(Request $request): JsonResponse

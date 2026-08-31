@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Facility;
 
 use App\Models\FacilityType;
 use App\Models\Sales;
+use App\Support\PhoneNumbers;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateFacilityRequest extends FormRequest
@@ -14,6 +15,34 @@ class UpdateFacilityRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Split any combined phone strings ("011.../022...") into one number per
+     * entry before validation, so a pasted or imported multi-number value is
+     * separated instead of failing the 20-character limit.
+     */
+    protected function prepareForValidation(): void
+    {
+        $branches = $this->input('branches');
+        if (is_array($branches)) {
+            foreach ($branches as $i => $branch) {
+                if (array_key_exists('phone', $branch)) {
+                    $branches[$i]['phone'] = PhoneNumbers::split($branch['phone']);
+                }
+            }
+            $this->merge(['branches' => $branches]);
+        }
+
+        $managers = $this->input('managers');
+        if (is_array($managers)) {
+            foreach ($managers as $i => $manager) {
+                if (array_key_exists('phones', $manager)) {
+                    $managers[$i]['phones'] = PhoneNumbers::split($manager['phones']);
+                }
+            }
+            $this->merge(['managers' => $managers]);
+        }
     }
 
     /**
@@ -102,6 +131,8 @@ class UpdateFacilityRequest extends FormRequest
             'meta_description.*.max' => 'The meta description should stay under 160 characters.',
             'canonical_url.url' => 'The canonical URL must be a full URL, e.g. https://example.com/facility.',
             'sales_id.exists' => 'The selected sales representative is invalid.',
+            'branches.*.phone.*.max' => 'Each branch phone number must be 20 characters or fewer — put one number per line.',
+            'managers.*.phones.*.max' => 'Each manager phone number must be 20 characters or fewer — put one number per line.',
         ];
     }
 }

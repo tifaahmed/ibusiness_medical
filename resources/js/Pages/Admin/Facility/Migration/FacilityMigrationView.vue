@@ -339,13 +339,15 @@
           <div v-if="importError" class="text-sm text-destructive">{{ importError }}</div>
 
           <div class="flex flex-wrap gap-2">
-            <button type="button" @click="inspectPackage" :disabled="!hasPackage || busy" :class="btnSecondary">
-              {{ busy ? 'Reading…' : 'Inspect package' }}
-            </button>
-            <button type="button" @click="startImport" :disabled="!canStart || busy" :class="btnPrimary">
-              Start import
+            <button type="button" @click="inspectPackage" :disabled="!hasPackage || busy" :class="btnPrimary">
+              {{ busy ? 'Reading…' : 'Review branches & import' }}
             </button>
           </div>
+          <p class="text-xs text-muted-foreground">
+            Every package is opened for review first. The import cannot start while any branch still
+            has a name shared by other branches, a missing city or governorate, or a phone number
+            with a space or over {{ PHONE_MAX }} characters.
+          </p>
 
           <div v-if="inspection" class="rounded-lg border border-border p-4 text-sm space-y-2">
             <p class="font-medium">Package contents</p>
@@ -408,6 +410,55 @@
                 <input type="radio" value="fresh" v-model="importMode" /> Fresh
               </label>
             </div>
+          </div>
+
+          <!-- AI: fill the Arabic name / address from the English one. -->
+          <div v-if="aiConfigured" class="rounded-lg border border-border p-3 space-y-2">
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <span class="font-semibold uppercase tracking-wide text-muted-foreground">Translate</span>
+              <span class="text-muted-foreground">
+                Fill every empty Arabic facility name, branch name and branch address from its English value.
+              </span>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" v-model="bulkTranslateOverwrite" />
+                also overwrite Arabic that is already filled
+              </label>
+              <button
+                type="button"
+                @click="runBulkTranslate"
+                :disabled="bulkTranslate.phase === 'running'"
+                class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted disabled:opacity-50"
+              >
+                {{ bulkTranslate.phase === 'running' ? 'Translating…' : 'Fill Arabic from English' }}
+              </button>
+              <button
+                v-if="bulkTranslate.phase === 'running'"
+                type="button"
+                @click="cancelBulkTranslate"
+                class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted"
+              >
+                Stop
+              </button>
+            </div>
+            <div v-if="bulkTranslate.phase !== 'idle'" class="space-y-1">
+              <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  class="h-full rounded-full bg-primary transition-all"
+                  :style="{ width: (bulkTranslate.total ? Math.round(bulkTranslate.processed / bulkTranslate.total * 100) : 100) + '%' }"
+                ></div>
+              </div>
+              <p class="text-[11px] text-muted-foreground">
+                {{ bulkTranslate.processed }} / {{ bulkTranslate.total }} fields
+                <span v-if="bulkTranslate.wait" class="text-amber-600 dark:text-amber-400"> · {{ bulkTranslate.wait }}</span>
+                <span v-else-if="bulkTranslate.phase === 'done'"> · done</span>
+              </p>
+            </div>
+            <p v-if="translateNote" class="text-[11px] text-emerald-600 dark:text-emerald-400">Set: {{ translateNote }}</p>
+            <p v-if="translateError" class="text-[11px] text-destructive break-all">{{ translateError }}</p>
+            <pre
+              v-if="translateDebug"
+              class="max-h-40 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight text-foreground"
+            >{{ JSON.stringify(translateDebug, null, 2) }}</pre>
           </div>
 
           <!-- What the colours in the table mean. -->
@@ -511,6 +562,7 @@
                     <td class="px-2 py-1 align-top">
                       <input
                         v-model="facility.name.en"
+                        @input="rematchFacility(facility)"
                         :class="previewFieldCls(facility._existing, 'name.en', facility.name.en)"
                       />
                       <ExistingValueHint :existing="facility._existing" path="name.en" :current="facility.name.en" />
@@ -518,9 +570,23 @@
                     <td class="px-2 py-1 align-top">
                       <input
                         v-model="facility.name.ar"
+                        @input="rematchFacility(facility)"
                         :class="previewFieldCls(facility._existing, 'name.ar', facility.name.ar)"
                       />
                       <ExistingValueHint :existing="facility._existing" path="name.ar" :current="facility.name.ar" />
+                      <button
+                        v-if="canTranslate(facility, 'name')"
+                        type="button"
+                        @click="translateField(facility, 'name', 'name', `f${facility._index}-name`)"
+                        :disabled="!!translating[`f${facility._index}-name`]"
+                        class="mt-1 w-full rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                      >
+                        {{ translateBtnLabel(`f${facility._index}-name`) }}
+                      </button>
+                      <p
+                        v-if="translateError && lastTranslateKey === `f${facility._index}-name`"
+                        class="mt-0.5 text-[10px] leading-tight text-destructive"
+                      >{{ translateError }}</p>
                     </td>
                     <td class="px-2 py-1 align-top">
                       <SearchableSelect
@@ -677,6 +743,7 @@
                                 </p>
                                 <input
                                   v-model="br.name.en"
+                                  @input="rematchFacility(facility)"
                                   :class="[
                                     branchIssues(br).length
                                       ? [previewInputCls, 'border-red-500']
@@ -733,9 +800,23 @@
                               <td class="px-3 py-1">
                                 <input
                                   v-model="br.name.ar"
+                                  @input="rematchFacility(facility)"
                                   :class="[previewFieldCls(br._existing, 'name.ar', br.name.ar), 'min-w-[18rem]']"
                                 />
                                 <ExistingValueHint :existing="br._existing" path="name.ar" :current="br.name.ar" />
+                                <button
+                                  v-if="canTranslate(br, 'name')"
+                                  type="button"
+                                  @click="translateField(br, 'name', 'name', `f${facility._index}-b${bi}-name`)"
+                                  :disabled="!!translating[`f${facility._index}-b${bi}-name`]"
+                                  class="mt-1 w-full rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                                >
+                                  {{ translateBtnLabel(`f${facility._index}-b${bi}-name`) }}
+                                </button>
+                                <p
+                                  v-if="translateError && lastTranslateKey === `f${facility._index}-b${bi}-name`"
+                                  class="mt-0.5 text-[10px] leading-tight text-destructive"
+                                >{{ translateError }}</p>
                               </td>
                               <td class="px-3 py-1">
                                 <SearchableSelect
@@ -806,11 +887,20 @@
                                   rows="3"
                                   placeholder="One phone per line"
                                   :class="[
-                                    previewFieldCls(br._existing, 'phone', br.phone),
+                                    phoneIssues(br.phone).length
+                                      ? [previewInputCls, 'border-red-500']
+                                      : previewFieldCls(br._existing, 'phone', br.phone),
                                     'min-w-[12rem] resize-y font-mono leading-tight',
                                   ]"
                                 ></textarea>
-                                <p v-if="(br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
+                                <p
+                                  v-for="(issue, ii) in phoneIssues(br.phone)"
+                                  :key="ii"
+                                  class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400"
+                                >
+                                  {{ issue }}
+                                </p>
+                                <p v-if="!phoneIssues(br.phone).length && (br.phone || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
                                   {{ br.phone.length }} numbers
                                 </p>
                                 <ExistingValueHint :existing="br._existing" path="phone" :current="br.phone" />
@@ -849,12 +939,37 @@
                                 <textarea
                                   v-model="br.address.en"
                                   rows="3"
+                                  placeholder="Address (EN)"
                                   :class="[
                                     previewFieldCls(br._existing, 'address.en', br.address.en),
                                     'min-w-[26rem] resize-y leading-snug',
                                   ]"
                                 ></textarea>
                                 <ExistingValueHint :existing="br._existing" path="address.en" :current="br.address.en" />
+                                <button
+                                  v-if="canTranslate(br, 'address')"
+                                  type="button"
+                                  @click="translateField(br, 'address', 'address', `f${facility._index}-b${bi}-address`)"
+                                  :disabled="!!translating[`f${facility._index}-b${bi}-address`]"
+                                  class="mt-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                                >
+                                  {{ translateBtnLabel(`f${facility._index}-b${bi}-address`) }}
+                                </button>
+                                <p
+                                  v-if="translateError && lastTranslateKey === `f${facility._index}-b${bi}-address`"
+                                  class="mt-0.5 text-[10px] leading-tight text-destructive"
+                                >{{ translateError }}</p>
+                                <textarea
+                                  v-model="br.address.ar"
+                                  rows="2"
+                                  dir="rtl"
+                                  placeholder="Address (AR)"
+                                  :class="[
+                                    previewFieldCls(br._existing, 'address.ar', br.address.ar),
+                                    'mt-1 min-w-[26rem] resize-y leading-snug',
+                                  ]"
+                                ></textarea>
+                                <ExistingValueHint :existing="br._existing" path="address.ar" :current="br.address.ar" />
                               </td>
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
@@ -961,11 +1076,20 @@
                                   rows="3"
                                   placeholder="One phone per line"
                                   :class="[
-                                    previewFieldCls(mg._existing, 'phones', mg.phones),
+                                    phoneIssues(mg.phones).length
+                                      ? [previewInputCls, 'border-red-500']
+                                      : previewFieldCls(mg._existing, 'phones', mg.phones),
                                     'min-w-[12rem] resize-y font-mono leading-tight',
                                   ]"
                                 ></textarea>
-                                <p v-if="(mg.phones || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
+                                <p
+                                  v-for="(issue, ii) in phoneIssues(mg.phones)"
+                                  :key="ii"
+                                  class="mt-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400"
+                                >
+                                  {{ issue }}
+                                </p>
+                                <p v-if="!phoneIssues(mg.phones).length && (mg.phones || []).length > 1" class="mt-0.5 text-[10px] text-muted-foreground">
                                   {{ mg.phones.length }} numbers
                                 </p>
                                 <ExistingValueHint :existing="mg._existing" path="phones" :current="mg.phones" />
@@ -1013,13 +1137,28 @@
             </button>
           </div>
 
+          <div
+            v-if="hasBlockingIssues"
+            class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-1"
+          >
+            <p class="font-semibold text-destructive">
+              Fix {{ blockingIssues.length }} branch problem{{ blockingIssues.length === 1 ? '' : 's' }} before importing:
+            </p>
+            <ul class="list-disc pl-4 space-y-0.5 max-h-32 overflow-y-auto">
+              <li v-for="(issue, i) in blockingIssues.slice(0, 20)" :key="i">{{ issue }}</li>
+            </ul>
+            <p v-if="blockingIssues.length > 20" class="text-muted-foreground">
+              …and {{ blockingIssues.length - 20 }} more.
+            </p>
+          </div>
+
           <div class="sticky bottom-0 z-10 bg-card border border-border rounded-lg p-3 flex flex-wrap items-center gap-3">
             <button type="button" @click="cancelPreview" :class="btnSecondary">Back</button>
             <div v-if="importError" class="text-xs text-destructive">{{ importError }}</div>
             <button
               type="button"
               @click="startImportFromPreview"
-              :disabled="busy || previewData.facilities.length === 0 || hasLookupIssues || (importMode === 'fresh' && !dryRun && !confirmWipe)"
+              :disabled="busy || previewData.facilities.length === 0 || hasLookupIssues || hasBlockingIssues || (importMode === 'fresh' && !dryRun && !confirmWipe)"
               class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-9 px-4 disabled:opacity-50 btn-golden cursor-pointer"
             >
               {{ busy ? 'Saving edits…' : 'Start import' }}
@@ -1131,6 +1270,7 @@ const props = defineProps({
   governorates: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
   salesOptions: { type: Array, default: () => [] },
+  aiConfigured: { type: Boolean, default: false },
 });
 
 const tabs = [
@@ -1290,9 +1430,6 @@ const progress = ref({ processed: 0, total: 0, percent: 0, stats: {}, errors: []
 const result = ref(null);
 
 const hasPackage = computed(() => !!packageFile.value || serverPath.value.trim() !== '');
-const canStart = computed(
-  () => hasPackage.value && (importMode.value !== 'fresh' || dryRun.value || confirmWipe.value)
-);
 
 /* ------------------------- packages on this server ------------------------ */
 
@@ -1408,12 +1545,20 @@ const asRef = (value) => {
 /* A branch holds a list of phones. A package can spell it as that list, or as
    one string with several numbers in it (spreadsheet imports) — the textarea
    below shows one number per line either way, and the lines are the list. */
+const PHONE_MAX = 20;
+
 const asPhoneList = (raw) => {
   const flat = Array.isArray(raw)
     ? raw.map(p => (p === null || p === undefined ? '' : String(p))).join('\n')
     : String(raw ?? '');
 
-  return flat.split(/[\r\n,;|]+/).map(p => p.trim()).filter(p => p !== '');
+  // One number per entry: split on newline / comma / semicolon / pipe / slash
+  // and on a spaced hyphen, then drop the grouping spaces some numbers were
+  // typed with ("066 3400006" -> "0663400006").
+  return flat
+    .split(/[\r\n,;|/\\]+|\s+[-–—]\s+/)
+    .map(p => p.replace(/\s+/g, ''))
+    .filter(p => p !== '');
 };
 
 /* The typed text is kept as typed — blank lines and all — so the caret never
@@ -1427,6 +1572,242 @@ const setBranchPhones = (branch, text) => {
 const setManagerPhones = (manager, text) => {
   manager._phonesText = text;
   manager.phones = text.split(/\r?\n/).map(p => p.trim()).filter(p => p !== '');
+};
+
+/* --------------------- AI: translate English → Arabic --------------------- */
+
+/* A spreadsheet often fills only the English column. These buttons send the
+   English value the operator is looking at to Gemini and write the Arabic it
+   returns straight back into the Arabic input — one field at a time, or every
+   empty one at once. Nothing is saved until the import runs. */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Gemini's free tier is ~15 requests/minute — on a 429 the sweep waits out a
+// short visible countdown and retries the same slice, like the other AI sweeps.
+const RATE_LIMIT_WAIT_SECONDS = 10;
+
+// String keys of the single fields currently being translated, so each button
+// can show its own spinner without a per-row ref.
+const translating = ref({});
+const translateError = ref('');
+// Last raw payload the translate endpoint returned — shown in the panel so a
+// shape mismatch is visible without opening the console.
+const translateDebug = ref(null);
+const translateNote = ref('');
+// The key of the field whose button was last pressed, so its own error can be
+// shown next to it and not only up in the panel.
+const lastTranslateKey = ref('');
+
+// Google hands back "Please retry in 12.3s" — use its number when it gives one.
+const retrySecondsFrom = (message, fallback) => {
+  const m = /retry in ([\d.]+)s/i.exec(String(message || ''));
+
+  return m ? Math.min(90, Math.ceil(parseFloat(m[1])) + 1) : fallback;
+};
+
+/**
+ * One round trip. Returns { translations: string[] } aligned to `items`, or
+ * { rateLimited: true } when the quota for this minute is spent.
+ */
+const translateBatch = async (items) => {
+  try {
+    const { data } = await axios.post(route('admin.facility.migration.translate'), { items });
+    translateDebug.value = data;
+    // eslint-disable-next-line no-console
+    console.log('Migration translate — raw response:', data);
+    if (data && data.rate_limited) return { rateLimited: true, message: data.message };
+
+    return { translations: (data && data.translations) || [], debug: data ? data.debug : undefined, raw: data };
+  } catch (e) {
+    if (e.response?.status === 429) {
+      return { rateLimited: true, message: e.response?.data?.message };
+    }
+    throw new Error(e.response?.data?.message || 'The translation request failed.');
+  }
+};
+
+// Read/write the en/ar sides of a name or address, whichever the button sits on.
+const localePair = (owner, path) => {
+  if (!owner[path] || typeof owner[path] !== 'object') owner[path] = { en: '', ar: '' };
+
+  return owner[path];
+};
+
+// Read-only — never touch state from here, it runs during render.
+const canTranslate = (owner, path) =>
+  props.aiConfigured && String(owner?.[path]?.en || '').trim() !== '';
+
+const translateBtnLabel = (key) => {
+  const state = translating.value[key];
+  if (typeof state === 'string') return state;
+
+  return state ? 'translating…' : 'AR ← translate EN';
+};
+
+const translateField = async (owner, path, kind, key) => {
+  if (translating.value[key] || !canTranslate(owner, path)) return;
+
+  const source = String(localePair(owner, path).en || '').trim();
+  if (source === '') return;
+
+  translating.value[key] = true;
+  translateError.value = '';
+  translateNote.value = '';
+  lastTranslateKey.value = key;
+  try {
+    // Gemini's free tier is ~15 requests/minute; on a 429 wait out the window
+    // Google names and try again, rather than making the operator re-click.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const res = await translateBatch([{ text: source, kind }]);
+
+      if (res.rateLimited) {
+        const wait = retrySecondsFrom(res.message, RATE_LIMIT_WAIT_SECONDS);
+        for (let s = wait; s > 0; s -= 1) {
+          translateError.value = `AI rate limit reached — retrying in ${s}s…`;
+          translating.value[key] = `wait ${s}s`;
+          await sleep(1000);
+        }
+        translating.value[key] = true;
+        continue;
+      }
+
+      const value = String(res.translations[0] ?? '').trim();
+      if (value) {
+        localePair(owner, path).ar = value;
+        translateNote.value = `“${source}” → “${value}”`;
+        translateError.value = '';
+      } else {
+        translateError.value = `No Arabic in the reply. Raw response: ${JSON.stringify(res.raw).slice(0, 400)}`;
+      }
+
+      return;
+    }
+    translateError.value = 'AI is still rate limited after several tries — wait a minute and retry.';
+  } catch (e) {
+    translateError.value = e.message;
+  } finally {
+    delete translating.value[key];
+  }
+};
+
+/* ------------------------------ bulk sweep ------------------------------ */
+
+const bulkTranslate = ref({ phase: 'idle', processed: 0, total: 0, wait: '' });
+const bulkTranslateOverwrite = ref(false);
+let bulkTranslateCancel = false;
+
+// Every en → ar job the sweep would run, each carrying the setter for its own
+// Arabic field so the answers land back on the right row.
+const collectTranslateJobs = () => {
+  const jobs = [];
+  const consider = (owner, path, kind) => {
+    const pair = owner[path];
+    const en = String(pair?.en || '').trim();
+    const ar = String(pair?.ar || '').trim();
+    if (en === '' || (ar !== '' && !bulkTranslateOverwrite.value)) return;
+    jobs.push({ text: en, kind, apply: (value) => { localePair(owner, path).ar = value; } });
+  };
+
+  previewData.value.facilities.forEach((facility) => {
+    consider(facility, 'name', 'name');
+    (facility.branches || []).forEach((branch) => {
+      consider(branch, 'name', 'name');
+      consider(branch, 'address', 'address');
+    });
+  });
+
+  return jobs;
+};
+
+const runBulkTranslate = async () => {
+  if (bulkTranslate.value.phase === 'running') return;
+
+  const jobs = collectTranslateJobs();
+  bulkTranslateCancel = false;
+  translateError.value = '';
+  bulkTranslate.value = { phase: 'running', processed: 0, total: jobs.length, wait: '' };
+
+  if (jobs.length === 0) {
+    bulkTranslate.value.phase = 'done';
+
+    return;
+  }
+
+  // Fewer, fatter calls: 25 strings per request keeps a whole part well under
+  // Gemini's free-tier 15 requests/minute even without the auto-retry below.
+  const CHUNK = 25;
+  let i = 0;
+  let filled = 0;
+  try {
+    while (i < jobs.length) {
+      if (bulkTranslateCancel) { bulkTranslate.value.phase = 'idle'; return; }
+
+      const slice = jobs.slice(i, i + CHUNK);
+      const res = await translateBatch(slice.map(j => ({ text: j.text, kind: j.kind })));
+
+      if (res.rateLimited) {
+        const wait = retrySecondsFrom(res.message, RATE_LIMIT_WAIT_SECONDS);
+        for (let s = wait; s > 0 && !bulkTranslateCancel; s -= 1) {
+          bulkTranslate.value.wait = `AI rate limit reached — retrying in ${s}s`;
+          await sleep(1000);
+        }
+        bulkTranslate.value.wait = '';
+        continue; // same slice
+      }
+
+      slice.forEach((job, k) => {
+        const ar = String(res.translations[k] ?? '').trim();
+        if (ar) { job.apply(ar); filled += 1; }
+        bulkTranslate.value.processed += 1;
+      });
+      i += CHUNK;
+      if (i < jobs.length) await sleep(4500);
+    }
+
+    if (filled === 0) {
+      translateError.value = 'The AI returned nothing usable — check the site logs, or try again.';
+    }
+
+    // A fresh Arabic name can change which existing row a facility matches —
+    // refresh the new/already-here badges so they still tell the truth.
+    for (const facility of previewData.value.facilities) {
+      if (bulkTranslateCancel) break;
+      await rematchNow(facility);
+    }
+
+    bulkTranslate.value.phase = bulkTranslateCancel ? 'idle' : 'done';
+  } catch (e) {
+    translateError.value = e.message;
+    bulkTranslate.value.phase = 'idle';
+  }
+};
+
+const cancelBulkTranslate = () => { bulkTranslateCancel = true; };
+
+/* ------------------- new / already-here, kept in step ------------------- */
+
+/* The badge the preview first paints comes from the name the package carried;
+   renaming a row here to match one this site keeps would leave it saying "new"
+   while the import quietly updates the existing row. This re-asks the server —
+   with the same matching the import uses — a moment after an edit settles. */
+const rematchNow = async (facility) => {
+  try {
+    const { data } = await axios.post(route('admin.facility.migration.rematch'), {
+      data: withoutBookkeeping(facility),
+    });
+    facility._existing = data.facility || null;
+    facility._missing_branches = data.missing_branches || [];
+    facility._missing_managers = data.missing_managers || [];
+    (facility.branches || []).forEach((b, i) => { b._existing = data.branches?.[i] || null; });
+    (facility.managers || []).forEach((m, i) => { m._existing = data.managers?.[i] || null; });
+  } catch (e) {
+    // A stale badge is not worth interrupting the edit over.
+  }
+};
+
+const rematchFacility = (facility) => {
+  clearTimeout(facility._rematchTimer);
+  facility._rematchTimer = setTimeout(() => rematchNow(facility), 700);
 };
 
 /* ------------------------------ lookup pickers ----------------------------- */
@@ -1743,6 +2124,31 @@ const branchIssues = (branch) => {
     issues.push(`City “${branch._cityLabel}” does not exist yet`);
   }
 
+  issues.push(...phoneIssues(branch.phone));
+
+  return issues;
+};
+
+/* Every entry in a phone list has to be ONE dialable number: no spaces, no
+   "/" or "," joining two numbers, and short enough for the column (20 chars).
+   Several numbers go on their own lines, never packed into one — the branch
+   phone column rejects anything longer and the value cannot be saved. */
+const PHONE_SEPARATORS = /[/\\,;|]/;
+
+const phoneIssues = (list) => {
+  const issues = [];
+  (list || []).forEach((raw) => {
+    const phone = String(raw ?? '').trim();
+    if (phone === '') return;
+    if (PHONE_SEPARATORS.test(phone)) {
+      issues.push(`Phone “${phone}” holds more than one number — put each number on its own line`);
+    } else if (/\s/.test(phone)) {
+      issues.push(`Phone “${phone}” has a space — a single number has no spaces; put each number on its own line`);
+    } else if (phone.length > PHONE_MAX) {
+      issues.push(`Phone “${phone}” is ${phone.length} characters — a single number is at most ${PHONE_MAX}; put each number on its own line`);
+    }
+  });
+
   return issues;
 };
 
@@ -1881,10 +2287,18 @@ const branchBadgeCls = (facility) =>
       ? 'bg-red-600 text-white'
       : 'bg-emerald-600 text-white');
 
-/* A manager needs a name and nothing else — the import skips a nameless row
-   rather than writing a contact nobody can be reached on. */
-const managerIssues = (manager) =>
-  (String(manager.name || '').trim() ? [] : ['Manager has no name — this row is skipped']);
+/* A manager needs a name — the import skips a nameless row rather than writing
+   a contact nobody can be reached on — and its phones face the same one-number-
+   per-line rule the branch phones do. */
+const managerIssues = (manager) => {
+  const issues = [];
+  if (!String(manager.name || '').trim()) {
+    issues.push('Manager has no name — this row is skipped');
+  }
+  issues.push(...phoneIssues(manager.phones));
+
+  return issues;
+};
 
 const facilityManagerIssues = (facility) =>
   (facility.managers || []).flatMap((manager, index) =>
@@ -1905,6 +2319,33 @@ const hasLookupIssues = computed(() =>
     )
   )
 );
+
+/* Everything the import must not run over: a branch with a red issue (no name,
+   no governorate/city, a bad phone) or a name still shared by other branches of
+   the same facility, and any manager phone that packs several numbers into one
+   entry. Listed with a count so the operator knows what to fix. A nameless
+   manager is not here — the import quietly skips that row rather than failing. */
+const blockingIssues = computed(() => {
+  const out = [];
+  previewData.value.facilities.forEach((facility) => {
+    const facilityName = facility.name?.en || facility.name?.ar || 'facility';
+    (facility.branches || []).forEach((branch, index) => {
+      const label = `${facilityName} · branch ${index + 1}`;
+      branchIssues(branch).forEach(issue => out.push(`${label}: ${issue}`));
+      if (branchNameRepeated(facility, branch)) {
+        out.push(`${label}: ${repeatedLocaleLabel(facility, branch)} name is shared by ${repeatedBranchCount(facility, branch)} branches — add the city to tell them apart`);
+      }
+    });
+    (facility.managers || []).forEach((manager, index) => {
+      const label = `${facilityName} · manager ${index + 1}`;
+      phoneIssues(manager.phones).forEach(issue => out.push(`${label}: ${issue}`));
+    });
+  });
+
+  return out;
+});
+
+const hasBlockingIssues = computed(() => blockingIssues.value.length > 0);
 
 const inspectPackage = async () => {
   busy.value = true;
@@ -2035,32 +2476,6 @@ const startImportFromPreview = async () => {
     runLoop();
   } catch (e) {
     importError.value = e.response?.data?.message || 'Could not start the import.';
-  } finally {
-    busy.value = false;
-  }
-};
-
-const startImport = async () => {
-  busy.value = true;
-  importError.value = '';
-  try {
-    const { data } = await axios.post(
-      route('admin.facility.migration.begin'),
-      packageForm({
-        mode: importMode.value,
-        dry_run: dryRun.value ? 1 : 0,
-        skip_media: skipMedia.value ? 1 : 0,
-        prune_missing: pruneMissing.value ? 1 : 0,
-        confirm_wipe: confirmWipe.value ? 1 : 0,
-      })
-    );
-    token.value = data.token;
-    progress.value = { processed: 0, total: data.total, percent: 0, stats: {}, errors: [] };
-    importStep.value = 'running';
-    paused.value = false;
-    runLoop();
-  } catch (e) {
-    importError.value = e.response?.data?.message || 'Could not open the import session.';
   } finally {
     busy.value = false;
   }

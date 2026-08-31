@@ -2,6 +2,7 @@
 
 namespace App\Services\FacilityMigration;
 
+use App\Support\PhoneNumbers;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
 
@@ -221,18 +222,14 @@ class XlsxToMigrationZip
 
     /**
      * A branch holds a list of phones; one cell can carry several, separated by
-     * a newline, comma, semicolon or pipe.
+     * a newline, comma, semicolon, pipe or slash. Grouping spaces inside a
+     * number are stripped so every entry is one dialable number.
      *
      * @return array<int, string>|null
      */
     private function phoneList(?string $value): ?array
     {
-        $parts = array_values(array_filter(
-            array_map('trim', preg_split('/[\r\n,;|]+/', (string) $value)),
-            fn ($p) => $p !== ''
-        ));
-
-        return $parts ?: null;
+        return PhoneNumbers::split((string) $value) ?: null;
     }
 
     /**
