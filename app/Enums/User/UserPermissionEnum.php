@@ -224,6 +224,14 @@ enum UserPermissionEnum
             self::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::MANAGE_CARD_TEMPLATES,
+            /*
+             * Standalone rather than paired: a contact enquiry arrives from a
+             * public form and has no creator (`created_by` is null on every
+             * one), so a "manage own contact messages" permission could never
+             * grant anybody anything. It was offered on the role screen and
+             * enforced nowhere; only super_admin ever held it.
+             */
+            self::MANAGE_CONTACT_MESSAGES,
             self::MANAGE_PROFILE,
             self::VIEW_MEMBER_ACTIVE_HISTORIES,
         ];
@@ -252,7 +260,6 @@ enum UserPermissionEnum
             [self::MANAGE_PRODUCTS, self::MANAGE_OWN_PRODUCTS],
             [self::MANAGE_ORDERS, self::MANAGE_OWN_ORDERS],
             [self::MANAGE_GOVERNORATES, self::MANAGE_OWN_GOVERNORATES],
-            [self::MANAGE_CONTACT_MESSAGES, self::MANAGE_OWN_CONTACT_MESSAGES],
             [self::MANAGE_FAQS, self::MANAGE_OWN_FAQS],
             [self::MANAGE_PARTNERS, self::MANAGE_OWN_PARTNERS],
             [self::MANAGE_PARTNER_OFFERS, self::MANAGE_OWN_PARTNER_OFFERS],

@@ -338,13 +338,20 @@
 
           <div v-if="importError" class="text-sm text-destructive">{{ importError }}</div>
 
-          <div class="flex flex-wrap gap-2">
-            <button type="button" @click="inspectPackage" :disabled="!hasPackage || busy" :class="btnSecondary">
+          <!-- The only way forward. Starting straight from here used to be
+               possible and skipped the preview entirely — which meant writing a
+               package nobody had read, and every check this screen performs
+               (lookups that do not exist yet, names that collide with branches
+               already here) was skippable by pressing the other button. Start
+               now lives on the preview, after the package has been seen. -->
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="button" @click="inspectPackage" :disabled="!hasPackage || busy" :class="btnPrimary">
               {{ busy ? 'Reading…' : 'Inspect package' }}
             </button>
-            <button type="button" @click="startImport" :disabled="!canStart || busy" :class="btnPrimary">
-              Start import
-            </button>
+            <p class="text-xs text-muted-foreground">
+              Nothing is written yet — the package is read, and the next screen shows what it
+              would change. The import starts from there.
+            </p>
           </div>
 
           <div v-if="inspection" class="rounded-lg border border-border p-4 text-sm space-y-2">
@@ -668,9 +675,9 @@
                               :class="branchIssues(br).length ? 'bg-red-500/5' : ''"
                             >
                               <td class="px-3 py-1">
-                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', rowStateCls(br)]">
-                                  {{ rowStateLabel(br) }}
-                                  <template v-if="br._existing">#{{ br._existing.id }}</template>
+                                <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', branchStateCls(facility, br)]">
+                                  {{ branchStateLabel(facility, br) }}
+                                  <template v-if="branchTarget(facility, br)">#{{ branchTarget(facility, br).id }}</template>
                                 </span>
                                 <p v-if="movedFrom(facility, br)" class="mb-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400">
                                   Sits under facility #{{ movedFrom(facility, br) }} today — importing moves it here.
@@ -699,10 +706,24 @@
                                   class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
                                 >
                                   {{ repeatedLocaleLabel(facility, br) }} name is shared by
-                                  {{ repeatedBranchCount(facility, br) }} branches here.
+                                  {{ repeatedBranchCount(facility, br) }} rows in this package.
                                 </p>
-                                <p v-else class="mt-0.5 text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
-                                  Name is unique here.
+                                <!-- The other half: a name no other row uses can still be one a
+                                     branch already here answers to, and that row updates it
+                                     rather than creating anything. -->
+                                <p
+                                  v-if="siteBranchClash(facility, br)"
+                                  class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                                >
+                                  Branch #{{ siteBranchClash(facility, br).id }} here is already called
+                                  “{{ siteBranchClash(facility, br).name?.ar || siteBranchClash(facility, br).name?.en }}”
+                                  — importing updates it instead of creating a new branch.
+                                </p>
+                                <p
+                                  v-if="!branchNameAmbiguous(facility, br)"
+                                  class="mt-0.5 text-[10px] leading-tight text-emerald-600 dark:text-emerald-400"
+                                >
+                                  Name is unique — here and among the branches already on this site.
                                 </p>
 
                                 <!-- Always here, so the city can be pasted onto any name;
@@ -713,20 +734,20 @@
                                   :disabled="!branchHasCity(br)"
                                   :title="!branchHasCity(br)
                                     ? 'Pick a city first — there is nothing to add yet'
-                                    : (branchNameRepeated(facility, br)
-                                      ? `The ${repeatedLocaleLabel(facility, br)} name is shared by ${repeatedBranchCount(facility, br)} branches here — add the city to tell them apart`
+                                    : (branchNameAmbiguous(facility, br)
+                                      ? 'This name is not unique — add the city to tell it apart from the branch it would otherwise land on'
                                       : 'Optional: add the city to this branch name')"
                                   @click="appendCityToBranchName(br)"
                                   :class="[
                                     'mt-1 w-full rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition',
                                     'disabled:cursor-not-allowed disabled:opacity-40',
-                                    branchNameRepeated(facility, br)
+                                    branchNameAmbiguous(facility, br)
                                       ? 'bg-amber-500 text-white hover:bg-amber-600'
                                       : 'border border-border text-muted-foreground hover:bg-muted',
                                   ]"
                                 >
-                                  {{ branchNameRepeated(facility, br)
-                                    ? `repeated ${repeatedLocaleLabel(facility, br)} — add city${branchHasCity(br) ? ' “' + branchCityNames(br).ar + '”' : ''}`
+                                  {{ branchNameAmbiguous(facility, br)
+                                    ? `name not unique — add city${branchHasCity(br) ? ' “' + branchCityNames(br).ar + '”' : ''}`
                                     : '+ add city to name (optional)' }}
                                 </button>
                               </td>
@@ -1290,9 +1311,6 @@ const progress = ref({ processed: 0, total: 0, percent: 0, stats: {}, errors: []
 const result = ref(null);
 
 const hasPackage = computed(() => !!packageFile.value || serverPath.value.trim() !== '');
-const canStart = computed(
-  () => hasPackage.value && (importMode.value !== 'fresh' || dryRun.value || confirmWipe.value)
-);
 
 /* ------------------------- packages on this server ------------------------ */
 
@@ -1802,8 +1820,64 @@ const repeatedLocaleLabel = (facility, branch) =>
 const repeatedBranchCount = (facility, branch) =>
   Math.max(0, ...repeatedBranchNameLocales(facility, branch).map(({ count }) => count));
 
+/* Every branch this facility already holds on the site: the ones the package
+   matched, plus the ones it never named. describeTarget() builds both halves
+   from the same query, so together they are the whole list.
+
+   The package is only half the picture. A name can be unique among the rows on
+   screen and still be one an existing branch already answers to — and because
+   the import matches by name within the facility, that row updates the branch it
+   collided with instead of creating anything. Judging a name only against its
+   neighbours in the sheet would call that "unique" and promise a create the run
+   would never make. */
+const siteBranches = (facility) => {
+  const byId = new Map();
+  (facility._missing_branches || []).forEach(b => byId.set(b.id, b));
+  (facility.branches || []).forEach((br) => {
+    if (br._existing) byId.set(br._existing.id, br._existing);
+  });
+
+  return [...byId.values()];
+};
+
+/* The branch already here that this row's name would land on — excluding the one
+   the row is already meant to update, since landing there is the point. */
+const siteBranchClash = (facility, branch) => {
+  const want = new Set(branchNameValues(branch));
+  if (!want.size) return null;
+
+  const ownId = branch._existing?.id;
+
+  return siteBranches(facility)
+    .find(b => b.id !== ownId && branchNameValues(b).some(v => want.has(v))) || null;
+};
+
+// Either kind of collision: a neighbour in the sheet, or a branch already here.
+const branchNameAmbiguous = (facility, branch) =>
+  branchNameRepeated(facility, branch) || !!siteBranchClash(facility, branch);
+
+/* The branch a row will actually land on.
+
+   _existing is the server's answer from preview time, and a name typed since can
+   point the row somewhere else entirely — the import matches by name within the
+   facility, so it follows the name in the box, not the snapshot taken before the
+   box was touched. A row that reads "new" while it is about to overwrite branch
+   #89 is the preview promising one thing and the run doing another. */
+const branchTarget = (facility, branch) =>
+  branch._existing || siteBranchClash(facility, branch);
+
+const branchStateLabel = (facility, branch) => {
+  if (branch._existing) return 'already here';
+
+  return siteBranchClash(facility, branch) ? 'edit' : 'new';
+};
+
+// Amber for anything that lands on an existing row, whichever way it got there.
+const branchStateCls = (facility, branch) =>
+  (branchTarget(facility, branch) ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white');
+
 const facilityRepeatedBranches = (facility) =>
-  (facility.branches || []).filter(br => branchNameRepeated(facility, br));
+  (facility.branches || []).filter(br => branchNameAmbiguous(facility, br));
 
 /* The city a branch is set to, in both spellings. Reads the picked row rather
    than the label so a city chosen by hand in the preview is used, not the one
@@ -1846,26 +1920,38 @@ const appendCityToBranchName = (branch) => {
   });
 };
 
-/* Fix every repeated name at once. The city settles most of them; branches that
-   share a city too — two in حي الزهور, say — are still tied afterwards, so a
-   second pass numbers those, or the button would report a fix it did not make. */
+/* Fix every colliding name at once.
+
+   The city settles most of them. What survives is a genuine tie — two branches in
+   one city, or a name a branch already on this site answers to — and those get a
+   number instead, walking the rows in order so the first claimant keeps the plain
+   name. Without the second pass the button would report a fix it had not made. */
 const fixRepeatedBranchNames = (facility) => {
   facilityRepeatedBranches(facility).forEach(appendCityToBranchName);
 
-  const stillRepeated = repeatedBranchNames(facility);
-  const used = new Map();
+  const claimed = new Set();
+
   (facility.branches || []).forEach((br) => {
-    if (!branchNameValues(br).some(v => stillRepeated.has(v))) return;
+    // Taken by a row above, or by a branch already here that this row is not
+    // itself meant to update.
+    const stillTaken = () =>
+      branchNameValues(br).some(v => claimed.has(v)) || !!siteBranchClash(facility, br);
 
-    const key = branchNameValues(br).join('|');
-    const n = (used.get(key) || 0) + 1;
-    used.set(key, n);
-    if (n === 1) return; // the first keeps the plain name
+    if (stillTaken()) {
+      const base = {
+        en: String(br.name?.en || '').trim(),
+        ar: String(br.name?.ar || '').trim(),
+      };
 
-    ['en', 'ar'].forEach((locale) => {
-      const current = String(br.name?.[locale] || '').trim();
-      if (current) br.name[locale] = `${current} ${n}`;
-    });
+      // Bounded, so a sheet that somehow cannot be settled stops rather than spins.
+      for (let n = 2; n <= 99 && stillTaken(); n += 1) {
+        ['en', 'ar'].forEach((locale) => {
+          if (base[locale]) br.name[locale] = `${base[locale]} ${n}`;
+        });
+      }
+    }
+
+    branchNameValues(br).forEach(v => claimed.add(v));
   });
 };
 
@@ -2035,32 +2121,6 @@ const startImportFromPreview = async () => {
     runLoop();
   } catch (e) {
     importError.value = e.response?.data?.message || 'Could not start the import.';
-  } finally {
-    busy.value = false;
-  }
-};
-
-const startImport = async () => {
-  busy.value = true;
-  importError.value = '';
-  try {
-    const { data } = await axios.post(
-      route('admin.facility.migration.begin'),
-      packageForm({
-        mode: importMode.value,
-        dry_run: dryRun.value ? 1 : 0,
-        skip_media: skipMedia.value ? 1 : 0,
-        prune_missing: pruneMissing.value ? 1 : 0,
-        confirm_wipe: confirmWipe.value ? 1 : 0,
-      })
-    );
-    token.value = data.token;
-    progress.value = { processed: 0, total: data.total, percent: 0, stats: {}, errors: [] };
-    importStep.value = 'running';
-    paused.value = false;
-    runLoop();
-  } catch (e) {
-    importError.value = e.response?.data?.message || 'Could not open the import session.';
   } finally {
     busy.value = false;
   }

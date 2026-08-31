@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Contact\RecordContactMessageAction;
+use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContactMessageResource;
 use App\Models\ContactMessage;
@@ -35,16 +37,22 @@ class ContactMessageController extends Controller
         }
 
         try {
-            $contactMessage = ContactMessage::create([
+            /*
+             * Through the same action the partner endpoint uses, so this
+             * site's own form and the storefront's write identical rows — with
+             * an opening log entry, and the inbox told.
+             *
+             * `$request->ip()` IS the visitor here: unlike the partner
+             * endpoint, this form is submitted by the browser itself.
+             */
+            $contactMessage = app(RecordContactMessageAction::class)->handle([
                 'phone' => $request->phone,
                 'message' => $request->message,
-                'status' => ContactMessage::STATUS_NEW,
+                'source' => ContactSourceEnum::CONTACT_FORM->value,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'locale' => app()->getLocale(),
             ]);
-
-            // Optional: Send email notification to admin
-            // Mail::to(config('mail.admin_email'))->send(new ContactMessageReceived($contactMessage));
 
             return response()->json([
                 'success' => true,

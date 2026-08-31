@@ -293,12 +293,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // Trash/restore/force-delete, contact messages, export, and import operate
     // across the whole dataset, so they require the broader permission.
     Route::middleware('permission:manage memberships')->group(function () {
-        // Contact Messages: writes only. The index/show pair is registered
-        // below in its own group so `view contact messages` reaches it.
-        Route::put('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'update'])->name('admin.contact-messages.update');
-        Route::delete('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('admin.contact-messages.destroy');
-        Route::post('/admin/contact-messages/bulk-update', [AdminContactMessageController::class, 'bulkUpdate'])->name('admin.contact-messages.bulk-update');
-
         Route::get('/admin/user/membership/import', AdminUserMembershipImportPageController::class)->name('admin.user.membership.import.page');
         Route::post('/admin/user/membership/import/preview', AdminUserMembershipImportPreviewController::class)->name('admin.user.membership.import.preview');
         Route::post('/admin/user/membership/import/commit', AdminUserMembershipImportCommitController::class)->name('admin.user.membership.import.commit');
@@ -306,8 +300,20 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/user/membership/import/export', AdminUserMembershipImportExportController::class)->name('admin.user.membership.import.export');
     });
 
-    // Contact messages, read side.
-    Route::middleware('permission:manage memberships|view contact messages')->group(function () {
+    // ---- Contact messages (the enquiry inbox: this site's contact form and
+    // the Deilar storefront's contact, card-popup and join forms) ----
+    // Writes need the dedicated `manage contact messages`. `manage memberships`
+    // is kept alongside it so the admins who could already work the inbox
+    // before it had a permission of its own do not lose it.
+    Route::middleware('permission:manage contact messages|manage memberships')->group(function () {
+        Route::put('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'update'])->name('admin.contact-messages.update');
+        Route::delete('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('admin.contact-messages.destroy');
+        Route::post('/admin/contact-messages/bulk-update', [AdminContactMessageController::class, 'bulkUpdate'])->name('admin.contact-messages.bulk-update');
+    });
+
+    // Read side: whoever can manage them can obviously read them, plus the
+    // read-only `view contact messages` the viewer role carries.
+    Route::middleware('permission:manage contact messages|manage memberships|view contact messages')->group(function () {
         Route::get('/admin/contact-messages', [AdminContactMessageController::class, 'index'])->name('admin.contact-messages.index');
         Route::get('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('admin.contact-messages.show');
     });

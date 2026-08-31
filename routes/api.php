@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1Partner
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
 use App\Http\Controllers\Api\V1\Partner\OrderController as V1PartnerOrderController;
 use Illuminate\Http\Request;
@@ -105,6 +106,21 @@ Route::prefix('v1')
             ->group(function () {
                 Route::get('/memberships/{membershipNumber}', [V1PartnerMembershipController::class, 'show'])
                     ->name('memberships.show');
+
+                /*
+                 * Enquiries from a partner storefront's public forms. Key-gated
+                 * for the same reason orders are: they WRITE, and the caller
+                 * speaks for its visitor — the visitor's own IP and user agent
+                 * come in the body, since `$request->ip()` here is the
+                 * storefront's server.
+                 *
+                 * Throttled generously rather than tightly: the storefront
+                 * queues and retries these, so a burst is a backlog draining
+                 * after an outage, not an attack.
+                 */
+                Route::post('/contact-messages', [V1PartnerContactMessageController::class, 'store'])
+                    ->middleware('throttle:60,1')
+                    ->name('contact-messages.store');
 
                 /*
                  * The card artwork itself, as a PNG: the admin's generated

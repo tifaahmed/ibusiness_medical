@@ -39,7 +39,7 @@
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.3-4.3"></path>
                   </svg>
-                  <input v-model="filters.search" @input="handleSearch" type="text" :placeholder="t.search_placeholder || 'Search by name, email, subject...'"
+                  <input v-model="filters.search" @input="handleSearch" type="text" :placeholder="t.search_placeholder || 'Search by name, phone, register…'"
                     class="placeholder:text-white dark:bg-input/30 border border-border text-foreground flex h-7 sm:h-8 md:h-9 w-full min-w-0 max-w-full rounded-md bg-transparent px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm md:text-base shadow-xs transition-all outline-none [color-scheme:dark] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] box-border pl-7 sm:pl-8 md:pl-9" />
                 </div>
               </div>
@@ -50,6 +50,16 @@
                   :options="statusOptions"
                   :placeholder="t.all_statuses || 'All Statuses'"
                   @update:modelValue="val => { filters.status = val; applyFilters(); }"
+                  @change="applyFilters"
+                />
+              </div>
+              <div class="min-w-0">
+                <label class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full mb-1">{{ t.source || 'Came through' }}</label>
+                <Select
+                  :modelValue="filters.source"
+                  :options="sourceOptions"
+                  :placeholder="t.all_sources || 'All Sources'"
+                  @update:modelValue="val => { filters.source = val; applyFilters(); }"
                   @change="applyFilters"
                 />
               </div>
@@ -76,8 +86,8 @@
                 <thead class="[&_tr]:border-b [&_tr]:border-border">
                   <tr class="border-b border-border transition-colors">
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.name || 'Name' }}</th>
-                    <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.email || 'Email' }}</th>
-                    <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.subject || 'Subject' }}</th>
+                    <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.phone || 'Phone' }}</th>
+                    <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.source || 'Came through' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.status || 'Status' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.date || 'Date' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.actions || 'Actions' }}</th>
@@ -86,13 +96,16 @@
                 <tbody class="[&_tr:last-child]:border-0">
                   <tr v-for="msg in messages.data" :key="msg.id" class="border-b border-border transition-colors hover:bg-muted/50">
                     <td class="p-2 sm:p-3 align-middle">
-                      <span class="font-medium text-foreground">{{ msg.name }}</span>
+                      <span class="font-medium text-foreground">{{ msg.name || '—' }}</span>
+                      <span v-if="msg.commercial_register" class="block text-[11px] text-muted-foreground">
+                        {{ t.commercial_register || 'CR' }}: {{ msg.commercial_register }}
+                      </span>
                     </td>
                     <td class="p-2 sm:p-3 align-middle">
-                      <span class="text-foreground text-xs">{{ msg.email }}</span>
+                      <span class="text-foreground text-xs" dir="ltr">{{ msg.phone }}</span>
                     </td>
-                    <td class="p-2 sm:p-3 align-middle max-w-[200px]">
-                      <span class="text-foreground text-xs truncate block">{{ msg.subject }}</span>
+                    <td class="p-2 sm:p-3 align-middle text-center">
+                      <span :class="sourceBadgeClass(msg.source)">{{ msg.source_label }}</span>
                     </td>
                     <td class="p-2 sm:p-3 align-middle text-center">
                       <span :class="statusBadgeClass(msg.status)">{{ msg.status_label }}</span>
@@ -157,42 +170,72 @@ const t = computed(() => page.props.translations?.admin?.contact_messages || {})
 const props = defineProps({
   messages: { type: Object, required: true },
   stats: { type: Object, required: true },
-  filters: { type: Object, default: () => ({ status: 'all', search: '' }) },
+  // The pipeline and the forms come from the server so this page cannot drift
+  // out of step with the enums behind them.
+  statuses: { type: Array, default: () => [] },
+  sources: { type: Array, default: () => [] },
+  filters: { type: Object, default: () => ({ status: 'all', source: 'all', search: '' }) },
+  canManage: { type: Boolean, default: false },
 });
 
 const filters = ref({
   search: props.filters?.search || '',
   status: props.filters?.status || 'all',
+  source: props.filters?.source || 'all',
 });
 
 const hasActiveFilters = computed(() =>
-  filters.value.search || filters.value.status !== 'all'
+  filters.value.search || filters.value.status !== 'all' || filters.value.source !== 'all'
 );
 
-const statusOptions = [
+const statusOptions = computed(() => [
   { value: 'all', label: t.value.all_statuses || 'All Statuses' },
-  { value: 'new', label: t.value.new || 'New' },
-  { value: 'read', label: t.value.read || 'Read' },
-  { value: 'replied', label: t.value.replied || 'Replied' },
-  { value: 'archived', label: t.value.archived || 'Archived' },
-];
+  ...props.statuses.map(s => ({ value: s.value, label: t.value[s.value] || s.label })),
+]);
+
+const sourceOptions = computed(() => [
+  { value: 'all', label: t.value.all_sources || 'All Sources' },
+  ...props.sources.map(s => ({ value: s.value, label: t.value[s.value] || s.label })),
+]);
+
+const STATUS_COLORS = {
+  new: 'text-blue-400',
+  in_progress: 'text-amber-400',
+  resolved: 'text-emerald-400',
+  closed: 'text-muted-foreground',
+};
 
 const statCards = computed(() => [
   { key: 'total', label: t.value.total || 'Total', count: props.stats.total, color: 'text-foreground' },
-  { key: 'new', label: t.value.new || 'New', count: props.stats.new, color: 'text-blue-400' },
-  { key: 'read', label: t.value.read || 'Read', count: props.stats.read, color: 'text-emerald-400' },
-  { key: 'replied', label: t.value.replied || 'Replied', count: props.stats.replied, color: 'text-purple-400' },
-  { key: 'archived', label: t.value.archived || 'Archived', count: props.stats.archived, color: 'text-amber-400' },
+  ...props.statuses.map(s => ({
+    key: s.value,
+    label: t.value[s.value] || s.label,
+    count: props.stats[s.value] ?? 0,
+    color: STATUS_COLORS[s.value] || 'text-foreground',
+  })),
 ]);
 
 const statusBadgeClass = (status) => {
+  const base = 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1';
   const map = {
-    new: 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/30',
-    read: 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30',
-    replied: 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30',
-    archived: 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30',
+    new: `${base} bg-blue-500/20 text-blue-300 ring-blue-500/30`,
+    in_progress: `${base} bg-amber-500/20 text-amber-300 ring-amber-500/30`,
+    resolved: `${base} bg-emerald-500/20 text-emerald-300 ring-emerald-500/30`,
+    closed: `${base} bg-muted text-muted-foreground ring-border`,
   };
   return map[status] || map.new;
+};
+
+/* A join request is the one that needs verifying, so it is the one that has to
+   be picked out of a list at a glance. */
+const sourceBadgeClass = (source) => {
+  const base = 'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1';
+  const map = {
+    contact_form: `${base} bg-slate-500/20 text-slate-300 ring-slate-500/30`,
+    card_popup: `${base} bg-indigo-500/20 text-indigo-300 ring-indigo-500/30`,
+    join_request: `${base} bg-purple-500/20 text-purple-300 ring-purple-500/30`,
+  };
+  return map[source] || map.contact_form;
 };
 
 const formatShowingResults = (meta) => {
@@ -221,6 +264,7 @@ const applyFilters = () => {
   const params = {};
   if (filters.value.search?.trim()) params.search = filters.value.search.trim();
   if (filters.value.status && filters.value.status !== 'all') params.status = filters.value.status;
+  if (filters.value.source && filters.value.source !== 'all') params.source = filters.value.source;
   router.get(route('admin.contact-messages.index'), params, {
     preserveState: true,
     preserveScroll: true,
@@ -229,7 +273,7 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-  filters.value = { search: '', status: 'all' };
+  filters.value = { search: '', status: 'all', source: 'all' };
   router.get(route('admin.contact-messages.index'), {}, {
     preserveState: true,
     preserveScroll: true,

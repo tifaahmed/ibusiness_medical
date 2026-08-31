@@ -32,3 +32,38 @@ window.axios.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/* Laravel takes the CSRF token from the XSRF-TOKEN cookie, which axios copies
+   into the X-XSRF-TOKEN header — and this app ships no <meta name="csrf-token">,
+   so that cookie is the only copy there is. It can fall out of step with the
+   session it belongs to: a login in another tab rotates the token, and a stale
+   duplicate left over from an earlier run on the same host (a different port, or
+   localhost beside 127.0.0.1) is read first by document.cookie and wins. Every
+   POST then answers 419 "CSRF token mismatch" until the cookie is cleared by
+   hand, which is not something the page can explain to whoever hits it.
+
+   Sanctum's endpoint reissues the cookie for the current session, so one silent
+   retry turns a dead end into a hiccup. A request is retried once and only once:
+   if the session itself is gone, the second answer is the redirect to the login
+   screen, which is the honest one. */
+window.axios.interceptors.response.use(null, async (error) => {
+    const { config, response } = error;
+
+    if (response?.status !== 419 || !config || config._csrfRetried) {
+        return Promise.reject(error);
+    }
+
+    config._csrfRetried = true;
+
+    try {
+        await window.axios.get('/sanctum/csrf-cookie', { _csrfRetried: true });
+    } catch {
+        return Promise.reject(error); // could not refresh — let the 419 stand
+    }
+
+    // Drop the stale header so the retry is stamped with the cookie just issued.
+    if (config.headers?.delete) config.headers.delete('X-XSRF-TOKEN');
+    else if (config.headers) delete config.headers['X-XSRF-TOKEN'];
+
+    return window.axios(config);
+});

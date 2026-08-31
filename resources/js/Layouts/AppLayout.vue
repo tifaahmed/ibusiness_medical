@@ -286,6 +286,27 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.client_error_logs || 'App Error Logs' }}</template>
                 </SidebarLink>
 
+                <!--
+                    Enquiries from every public form: this site's contact page
+                    and the Deilar storefront's contact form, card popup and
+                    "join the network" applications.
+                -->
+                <SidebarLink
+                    v-if="canAny('view contact messages', 'manage contact messages', 'manage memberships')"
+                    :href="route('admin.contact-messages.index')"
+                    :active="route().current('admin.contact-messages.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.contact_messages || 'Contact Messages' }}</template>
+                </SidebarLink>
+
                 <!-- Management Section -->
                 <SidebarSection
                     :title="t.sidebar?.management || 'Management'"
