@@ -10,6 +10,7 @@ use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Offer;
+use App\Support\DirectorySearch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -62,25 +63,16 @@ class PartnersController extends Controller
         }
 
         $facilities = Facility::with($with)
+            /*
+             * Folded through `DirectorySearch` — the same helper the suggestion
+             * endpoint matches with. The two have to agree letter for letter:
+             * a visitor who picks "see all results" off a suggestion list has
+             * to land on a grid holding the row they were looking at.
+             */
             ->when(! empty($filters['search']), function ($q) use ($filters) {
-                $locale = app()->getLocale();
-                $normalized = $this->normalizeSearch($filters['search']);
+                $nameExpr = DirectorySearch::translated('name', app()->getLocale());
 
-                $words = collect(preg_split('/\s+/', $normalized))
-                    ->map(fn ($w) => trim($w))
-                    ->filter(fn ($w) => mb_strlen($w) > 1)
-                    ->values();
-
-                if ($words->isEmpty()) {
-                    $words = collect([$normalized]);
-                }
-
-                $path = '$.'.$locale;
-                $nameExpr = 'replace(replace(replace(replace('.
-                    "json_unquote(json_extract(`name`, '{$path}')), ".
-                    "'أ', 'ا'), 'إ', 'ا'), 'آ', 'ا'), 'ى', 'ي')";
-
-                foreach ($words as $word) {
+                foreach (DirectorySearch::words($filters['search']) as $word) {
                     $q->where(function ($query) use ($word, $nameExpr) {
                         $query->whereRaw("{$nameExpr} like ?", ['%'.$word.'%'])
                             ->orWhere('slug', 'like', '%'.$word.'%');
@@ -185,15 +177,5 @@ class PartnersController extends Controller
             'facility_names' => $facilityNames,
             'offers' => $offers,
         ]);
-    }
-
-    protected function normalizeSearch(string $term): string
-    {
-        $term = mb_strtolower(trim($term));
-        $term = str_replace(['أ', 'إ', 'آ', 'ٱ'], 'ا', $term);
-        $term = str_replace('ى', 'ي', $term);
-        $term = preg_replace('/[\x{064B}-\x{065F}\x{0670}]/u', '', $term);
-
-        return $term;
     }
 }

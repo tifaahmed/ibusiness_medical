@@ -88,8 +88,13 @@ final class PhoneNumbers
         return array_reverse($chunks);
     }
 
-    /** Fold Arabic-Indic (٠-٩) and Persian (۰-۹) digits to ASCII. */
-    private static function foldDigits(string $value): string
+    /**
+     * Fold Arabic-Indic (٠-٩) and Persian (۰-۹) digits to ASCII.
+     *
+     * Public because searching for a phone number has to fold the typed term
+     * the same way the stored one was folded — see `DirectorySearch::digits()`.
+     */
+    public static function foldDigits(string $value): string
     {
         static $map = null;
         if ($map === null) {

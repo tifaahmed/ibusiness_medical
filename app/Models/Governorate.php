@@ -60,6 +60,18 @@ class Governorate extends Model
     }
 
     /**
+     * Branches located in this governorate.
+     *
+     * A facility belongs to a place twice over — its own record sits somewhere
+     * and so does every branch — so "is there anything here" cannot be answered
+     * from `facilities()` alone. Mirrors `City::branches()`.
+     */
+    public function branches(): HasMany
+    {
+        return $this->hasMany(FacilityBranch::class);
+    }
+
+    /**
      * Get the cities for the governorate.
      */
     public function cities(): HasMany
@@ -67,4 +79,3 @@ class Governorate extends Model
         return $this->hasMany(City::class);
     }
 }
-

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
 use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
 use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
+use App\Http\Controllers\Api\V1\Guest\FacilitySearchController as V1FacilitySearchController;
 use App\Http\Controllers\Api\V1\Guest\HomeController as V1HomeController;
 use App\Http\Controllers\Api\V1\Guest\LocationController as V1LocationController;
 use App\Http\Controllers\Api\V1\Guest\MembershipCardController as V1MembershipCardController;
@@ -63,6 +64,18 @@ Route::prefix('v1')
         Route::get('/locations', V1LocationController::class)->name('locations.index');
 
         Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
+
+        /*
+         * The suggestion box behind a storefront's search input: one phrase
+         * matched across facilities, branches, phone numbers, addresses,
+         * cities, governorates and facility types, grouped by kind.
+         *
+         * Registered BEFORE `/facilities/{facility:slug}`, which would
+         * otherwise swallow it — routes match in declaration order, and
+         * "search" is a perfectly good slug.
+         */
+        Route::get('/facilities/search', V1FacilitySearchController::class)->name('facilities.search');
+
         Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');
 
         /*
