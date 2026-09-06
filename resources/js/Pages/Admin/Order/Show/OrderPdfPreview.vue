@@ -31,6 +31,10 @@
             <svg v-bind="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
             <span class="hidden text-xs sm:inline">{{ t.order?.export_download || 'Download' }}</span>
           </a>
+          <button type="button" :class="toolBtn" :title="t.order?.export_print || 'Print'" @click="print">
+            <svg v-bind="icon"><path d="M6 9V2h12v7" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" rx="1" /></svg>
+            <span class="hidden text-xs sm:inline">{{ t.order?.export_print || 'Print' }}</span>
+          </button>
           <a :href="url" target="_blank" rel="noopener" :class="toolBtn" :title="t.common?.open_in_new_tab || 'Open in a new tab'">
             <svg v-bind="icon"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M21 14v7H3V3h7" /></svg>
           </a>
@@ -44,6 +48,7 @@
            RTL admin page would otherwise flip its scrollbar onto the document. -->
       <div class="flex-1 overflow-hidden p-3 pt-0" dir="ltr" @click.stop>
         <iframe
+          ref="frame"
           :src="url"
           :title="title"
           class="h-full w-full rounded-lg border-0 bg-white shadow-2xl"
@@ -54,7 +59,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 
@@ -68,6 +73,27 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const t = computed(() => usePage().props.translations?.admin || {});
+
+const frame = ref(null);
+
+/**
+ * Print what is on screen.
+ *
+ * The blob is same-origin, so the frame's own window can be told to print —
+ * which prints the document, not the dialog around it. Not every browser lets
+ * a script drive its built-in PDF viewer, so a refusal falls back to opening
+ * the file in a tab, where the browser's own print command always works.
+ */
+const print = () => {
+  try {
+    const win = frame.value?.contentWindow;
+    if (!win) throw new Error('The preview frame is not ready.');
+    win.focus();
+    win.print();
+  } catch {
+    window.open(props.url, '_blank', 'noopener');
+  }
+};
 
 const toolBtn = 'inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-white/90 transition hover:bg-white/15 hover:text-white cursor-pointer';
 const icon = {

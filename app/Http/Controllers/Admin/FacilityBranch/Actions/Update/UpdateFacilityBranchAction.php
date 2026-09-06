@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\FacilityBranch\Actions\Update;
 
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
+use App\Support\PhoneNumbers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,9 +14,6 @@ class UpdateFacilityBranchAction
     /**
      * Execute the action to update a facility branch.
      *
-     * @param FacilityBranch $facilityBranch
-     * @param array $validated
-     * @return FacilityBranch
      * @throws \Exception
      */
     public function execute(FacilityBranch $facilityBranch, array $validated): FacilityBranch
@@ -25,17 +23,9 @@ class UpdateFacilityBranchAction
         try {
             $oldSnapshot = $this->snapshot($facilityBranch);
 
-            // Normalize phone to array if it's a string or null
-            $phone = $validated['phone'] ?? null;
-            if (is_string($phone) && !empty($phone)) {
-                $phone = [$phone];
-            } elseif (!is_array($phone) || empty($phone)) {
-                $phone = null;
-            } else {
-                // Filter out empty values
-                $phone = array_filter(array_map('trim', $phone), fn($p) => !empty($p));
-                $phone = !empty($phone) ? array_values($phone) : null;
-            }
+            // One entry per number, each carrying its type. Accepts the flat
+            // strings older callers still send as well as the form's entries.
+            $phone = PhoneNumbers::entries($validated['phone'] ?? null);
 
             // Update the facility branch
             $facilityBranch->update([
@@ -106,10 +96,11 @@ class UpdateFacilityBranchAction
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 }

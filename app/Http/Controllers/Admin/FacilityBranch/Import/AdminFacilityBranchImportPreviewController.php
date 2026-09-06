@@ -32,7 +32,7 @@ class AdminFacilityBranchImportPreviewController extends BaseController
         );
 
         $facilities = $this->indexByTranslatedName(Facility::all());
-        $facilitiesBySlug = Facility::all()->keyBy(fn($f) => mb_strtolower(trim((string) $f->slug)));
+        $facilitiesBySlug = Facility::all()->keyBy(fn ($f) => mb_strtolower(trim((string) $f->slug)));
         $governorates = $this->indexByTranslatedName(Governorate::all());
         $cities = $this->indexByTranslatedName(City::all());
 
@@ -42,23 +42,23 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             $errors = $this->validateRow($parsed);
 
             $match = null;
-            if ($parsed['facility_id'] !== null && !empty($parsed['name'])) {
+            if ($parsed['facility_id'] !== null && ! empty($parsed['name'])) {
                 $needle = mb_strtolower(trim($parsed['name']));
                 $match = FacilityBranch::with(['facility', 'governorate', 'city'])
                     ->where('facility_id', $parsed['facility_id'])
                     ->where(function ($q) use ($parsed, $needle) {
                         $q->where('name->en', $parsed['name'])
-                          ->orWhere('name->ar', $parsed['name'])
-                          ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))) = ?', [$needle])
-                          ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.ar"))) = ?', [$needle]);
+                            ->orWhere('name->ar', $parsed['name'])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))) = ?', [$needle])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, "$.ar"))) = ?', [$needle]);
                     })
                     ->first();
             }
 
             $diff = $match ? $this->buildDiff($match, $parsed) : [];
-            $hasChanges = collect($diff)->contains(fn($d) => $d['changed']);
+            $hasChanges = collect($diff)->contains(fn ($d) => $d['changed']);
 
-            $status = !empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
+            $status = ! empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
 
             $preview[] = [
                 'index' => $i,
@@ -78,15 +78,15 @@ class AdminFacilityBranchImportPreviewController extends BaseController
 
         return response()->json([
             'rows' => $preview,
-            'facilityOptions' => Facility::orderBy('id')->get()->map(fn($f) => [
+            'facilityOptions' => Facility::orderBy('id')->get()->map(fn ($f) => [
                 'value' => $f->id,
                 'label' => $f->getTranslation('name', app()->getLocale()) ?: $f->getTranslation('name', 'en'),
             ])->values(),
-            'governorateOptions' => Governorate::orderBy('id')->get()->map(fn($g) => [
+            'governorateOptions' => Governorate::orderBy('id')->get()->map(fn ($g) => [
                 'value' => $g->id,
                 'label' => $g->getTranslation('name', app()->getLocale()) ?: $g->getTranslation('name', 'en'),
             ])->values(),
-            'cityOptions' => City::orderBy('id')->get()->map(fn($c) => [
+            'cityOptions' => City::orderBy('id')->get()->map(fn ($c) => [
                 'value' => $c->id,
                 'governorate_id' => $c->governorate_id,
                 'label' => $c->getTranslation('name', app()->getLocale()) ?: $c->getTranslation('name', 'en'),
@@ -98,7 +98,7 @@ class AdminFacilityBranchImportPreviewController extends BaseController
     {
         $extension = strtolower($extension);
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
             $reader->setDelimiter(',');
         } else {
@@ -127,6 +127,7 @@ class AdminFacilityBranchImportPreviewController extends BaseController
         );
 
         $spreadsheet->disconnectWorksheets();
+
         return $rows;
     }
 
@@ -178,11 +179,12 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             foreach ($columnAliases as $key => $candidates) {
                 $row[$key] = $this->cell($sheet, $headerMap, $candidates, $r);
             }
-            if (collect($row)->filter(fn($v) => $v !== '')->isEmpty()) {
+            if (collect($row)->filter(fn ($v) => $v !== '')->isEmpty()) {
                 continue;
             }
             $rows[] = $row;
         }
+
         return $rows;
     }
 
@@ -192,9 +194,11 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             $key = mb_strtolower($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
@@ -202,10 +206,10 @@ class AdminFacilityBranchImportPreviewController extends BaseController
     {
         $facilityId = null;
         $facilityInput = $raw['facility_name'] ?? '';
-        if (!empty($raw['facility_slug'])) {
+        if (! empty($raw['facility_slug'])) {
             $slugKey = mb_strtolower(trim($raw['facility_slug']));
             $facilityId = $facilitiesBySlug->get($slugKey)?->id;
-            if (!$facilityInput && $facilityId) {
+            if (! $facilityInput && $facilityId) {
                 $f = $facilitiesBySlug->get($slugKey);
                 $facilityInput = $f?->getTranslation('name', 'en') ?: '';
             }
@@ -240,14 +244,15 @@ class AdminFacilityBranchImportPreviewController extends BaseController
         if ($key === '') {
             return null;
         }
+
         return $index->get($key)?->id;
     }
 
     private function indexByTranslatedName($collection)
     {
         return $collection
-            ->keyBy(fn($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'en'))))
-            ->merge($collection->keyBy(fn($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'ar')))));
+            ->keyBy(fn ($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'en'))))
+            ->merge($collection->keyBy(fn ($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'ar')))));
     }
 
     private function validateRow(array $parsed): array
@@ -257,14 +262,14 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             $errors['name'] = 'Branch name is required.';
         }
         if ($parsed['facility_id'] === null) {
-            $errors['facility'] = !empty($parsed['facility_input'])
+            $errors['facility'] = ! empty($parsed['facility_input'])
                 ? "Facility \"{$parsed['facility_input']}\" not found."
                 : 'Facility is required.';
         }
-        if (!empty($parsed['governorate_input']) && $parsed['governorate_id'] === null) {
+        if (! empty($parsed['governorate_input']) && $parsed['governorate_id'] === null) {
             $errors['governorate'] = "Governorate \"{$parsed['governorate_input']}\" not found.";
         }
-        if (!empty($parsed['city_input']) && $parsed['city_id'] === null) {
+        if (! empty($parsed['city_input']) && $parsed['city_id'] === null) {
             $errors['city'] = "City \"{$parsed['city_input']}\" not found.";
         }
         if ($parsed['latitude'] !== null && ($parsed['latitude'] < -90 || $parsed['latitude'] > 90)) {
@@ -273,6 +278,7 @@ class AdminFacilityBranchImportPreviewController extends BaseController
         if ($parsed['longitude'] !== null && ($parsed['longitude'] < -180 || $parsed['longitude'] > 180)) {
             $errors['longitude'] = 'Longitude must be between -180 and 180.';
         }
+
         return $errors;
     }
 
@@ -286,7 +292,11 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             ?: ($branch->getTranslation('name', 'en') ?: '');
         $oldAddress = $branch->getTranslation('address', app()->getLocale())
             ?: ($branch->getTranslation('address', 'en') ?: '');
-        $oldPhone = is_array($branch->phone) ? implode(', ', $branch->phone) : (string) ($branch->phone ?? '');
+        // Shown side by side with the sheet's cell, so it reads the same way
+        // the export writes it.
+        $oldPhone = collect($branch->phone ?? [])
+            ->map(fn (array $entry) => $entry['number'].' ('.$entry['type'].')')
+            ->implode(', ');
 
         $fields = [
             ['field' => 'name', 'label' => 'Name', 'old' => $oldName, 'new' => $parsed['name']],
@@ -297,10 +307,12 @@ class AdminFacilityBranchImportPreviewController extends BaseController
             ['field' => 'latitude', 'label' => 'Latitude', 'old' => $branch->latitude, 'new' => $parsed['latitude']],
             ['field' => 'longitude', 'label' => 'Longitude', 'old' => $branch->longitude, 'new' => $parsed['longitude']],
         ];
+
         return array_map(function ($f) {
             $oldNorm = (string) ($f['old'] ?? '');
             $newNorm = (string) ($f['new'] ?? '');
             $f['changed'] = $oldNorm !== $newNorm;
+
             return $f;
         }, $fields);
     }

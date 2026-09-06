@@ -212,6 +212,16 @@ enum UserPermissionEnum
     public const VIEW_NEWS_TICKERS = 'view news tickers';
 
     /**
+     * Standalone permission: the site details in the `settings` table (name,
+     * phone, address, logo, the URLs printed on cards). Global rows rather
+     * than per-admin records — the table has no `created_by` — so there is no
+     * creator-scoped "own" counterpart, only the read-only VIEW_SETTINGS.
+     */
+    public const MANAGE_SETTINGS = 'manage settings';
+
+    public const VIEW_SETTINGS = 'view settings';
+
+    /**
      * Permissions that do not have a paired full/own counterpart. Kept
      * separate from pairs() so they don't get listed twice or rejected by
      * the pair-conflict validator.
@@ -232,6 +242,7 @@ enum UserPermissionEnum
              * enforced nowhere; only super_admin ever held it.
              */
             self::MANAGE_CONTACT_MESSAGES,
+            self::MANAGE_SETTINGS,
             self::MANAGE_PROFILE,
             self::VIEW_MEMBER_ACTIVE_HISTORIES,
         ];
@@ -301,6 +312,7 @@ enum UserPermissionEnum
             self::VIEW_PARTNER_OFFERS,
             self::VIEW_SALES,
             self::VIEW_NEWS_TICKERS,
+            self::VIEW_SETTINGS,
         ];
     }
 

@@ -18,8 +18,15 @@ class AdminFacilityBranchEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITY_BRANCHES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITY_BRANCHES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES;
+    }
 
     /**
      * Show the form for editing the specified facility branch.
@@ -69,4 +76,3 @@ class AdminFacilityBranchEditController extends BaseController
         return Inertia::render('Admin/FacilityBranch/Form/FacilityBranchFormView', $result);
     }
 }
-

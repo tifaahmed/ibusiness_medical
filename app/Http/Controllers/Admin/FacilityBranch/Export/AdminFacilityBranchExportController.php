@@ -18,6 +18,7 @@ use ZipArchive;
 class AdminFacilityBranchExportController extends BaseController
 {
     private const MIN_CHUNK_SIZE = 1;
+
     private const MAX_CHUNK_SIZE = 10000;
 
     public function __invoke(Request $request): StreamedResponse
@@ -34,17 +35,17 @@ class AdminFacilityBranchExportController extends BaseController
 
         $branches = FacilityBranch::query()
             ->with(['facility', 'governorate', 'city', 'creator:id,name,email'])
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
-                $needle = '%' . $filters['search'] . '%';
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
+                $needle = '%'.$filters['search'].'%';
                 $q->where(function ($w) use ($needle) {
                     $w->where('name->en', 'like', $needle)
-                      ->orWhere('name->ar', 'like', $needle)
-                      ->orWhere('slug', 'like', $needle);
+                        ->orWhere('name->ar', 'like', $needle)
+                        ->orWhere('slug', 'like', $needle);
                 });
             })
-            ->when($filters['facility_id'] !== null, fn($q) => $q->where('facility_id', $filters['facility_id']))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
+            ->when($filters['facility_id'] !== null, fn ($q) => $q->where('facility_id', $filters['facility_id']))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest()
             ->get();
 
@@ -56,13 +57,14 @@ class AdminFacilityBranchExportController extends BaseController
 
         if ($chunkSize === 0 || $branches->count() <= $chunkSize) {
             $spreadsheet = $this->buildSpreadsheet($branches, $facilityName, $filters);
-            $filename = 'facility_branches_export_' . $timestamp . '.xlsx';
+            $filename = 'facility_branches_export_'.$timestamp.'.xlsx';
+
             return $this->streamXlsx($spreadsheet, $filename);
         }
 
         $chunks = $branches->chunk($chunkSize)->values();
         $totalParts = $chunks->count();
-        $tmpDir = sys_get_temp_dir() . '/branches_export_' . uniqid('', true);
+        $tmpDir = sys_get_temp_dir().'/branches_export_'.uniqid('', true);
         mkdir($tmpDir, 0700, true);
 
         $partFiles = [];
@@ -71,7 +73,7 @@ class AdminFacilityBranchExportController extends BaseController
             $partLabel = "Part {$partNumber} of {$totalParts}";
             $partSpreadsheet = $this->buildSpreadsheet($chunk, $facilityName, $filters, $partLabel);
             $partFilename = sprintf('branches_part_%02d_of_%02d.xlsx', $partNumber, $totalParts);
-            $partPath = $tmpDir . '/' . $partFilename;
+            $partPath = $tmpDir.'/'.$partFilename;
             (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
             $partSpreadsheet->disconnectWorksheets();
             unset($partSpreadsheet);
@@ -79,8 +81,8 @@ class AdminFacilityBranchExportController extends BaseController
         }
 
         $zipName = sprintf('facility_branches_export_%s_split_%d.zip', $timestamp, $chunkSize);
-        $zipPath = $tmpDir . '/' . $zipName;
-        $zip = new ZipArchive();
+        $zipPath = $tmpDir.'/'.$zipName;
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($partFiles as $part) {
             $zip->addFile($part['path'], $part['name']);
@@ -89,7 +91,7 @@ class AdminFacilityBranchExportController extends BaseController
 
         return response()->stream(function () use ($zipPath, $tmpDir) {
             readfile($zipPath);
-            foreach (glob($tmpDir . '/*') as $f) {
+            foreach (glob($tmpDir.'/*') as $f) {
                 @unlink($f);
             }
             @rmdir($tmpDir);
@@ -120,7 +122,7 @@ class AdminFacilityBranchExportController extends BaseController
         array $filters,
         ?string $partLabel = null
     ): Spreadsheet {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Branches');
 
@@ -205,13 +207,14 @@ class AdminFacilityBranchExportController extends BaseController
         $rowIndex = 0;
         foreach ($branches as $branch) {
             $rowIndex++;
-            $phone = $branch->phone;
-            if (is_array($phone)) {
-                $phone = implode(', ', $phone);
-            }
+            // Entries carry a type; a spreadsheet cell carries text, so each
+            // number is written with its kind in brackets.
+            $phone = collect($branch->phone ?? [])
+                ->map(fn (array $entry) => $entry['number'].' ('.$entry['type'].')')
+                ->implode(', ');
             $creator = $branch->creator;
             $creatorCell = $creator
-                ? trim($creator->name . ($creator->email ? " <{$creator->email}>" : ''))
+                ? trim($creator->name.($creator->email ? " <{$creator->email}>" : ''))
                 : '';
 
             $sheet->setCellValue("A{$dataRow}", $rowIndex);
@@ -251,7 +254,7 @@ class AdminFacilityBranchExportController extends BaseController
         }
 
         $footerRow = ($dataRow > $dataStart ? $dataRow : $dataStart) + 1;
-        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — ' . $branches->count() . ' branch(es) exported');
+        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$branches->count().' branch(es) exported');
         $sheet->mergeCells("A{$footerRow}:N{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],

@@ -16,8 +16,15 @@ class AdminFacilityBranchListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITY_BRANCHES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITY_BRANCHES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES;
+    }
 
     /**
      * Display a listing of facility branches.
@@ -27,18 +34,18 @@ class AdminFacilityBranchListController extends BaseController
         $filters = $this->getFilters($request);
 
         $facilityBranches = FacilityBranch::with(['facility.facilityType', 'governorate', 'city', 'creator:id,name,email'])
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('phone', 'like', '%' . $filters['search'] . '%')
-                          ->orWhereHas('facility', function ($q) use ($filters) {
-                              $q->where('name->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%');
-                          });
+                    $query->where('name->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('phone', 'like', '%'.$filters['search'].'%')
+                        ->orWhereHas('facility', function ($q) use ($filters) {
+                            $q->where('name->'.app()->getLocale(), 'like', '%'.$filters['search'].'%');
+                        });
                 });
             })
-            ->when(!empty($filters['facility_id']), function ($q) use ($filters) {
+            ->when(! empty($filters['facility_id']), function ($q) use ($filters) {
                 $q->where('facility_id', $filters['facility_id']);
             })
             ->latest()
@@ -69,4 +76,3 @@ class AdminFacilityBranchListController extends BaseController
         ];
     }
 }
-

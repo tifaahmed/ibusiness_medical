@@ -54,7 +54,7 @@ class XlsxToMigrationZip
                     'en' => $branch['address'] ?: null,
                     'ar' => $branch['address_ar'] ?: null,
                 ],
-                'phone' => $this->phoneList($branch['phone'] ?? null),
+                'phone' => $this->branchPhoneList($branch['phone'] ?? null),
                 'governorate' => $this->nameRef($branch['governorate'] ?? null),
                 'city' => $this->nameRef($branch['city'] ?? null),
                 'latitude' => $branch['latitude'] !== '' ? (float) $branch['latitude'] : null,
@@ -230,6 +230,41 @@ class XlsxToMigrationZip
     private function phoneList(?string $value): ?array
     {
         return PhoneNumbers::split((string) $value) ?: null;
+    }
+
+    /**
+     * The same, for a branch. The exporter writes each number with its kind in
+     * brackets — "0663400006 (landline)" — for whoever reads the sheet; the
+     * bracket is stripped here because the package itself carries plain
+     * numbers and the importer types them on the way in.
+     *
+     * @return list<string>|null
+     */
+    private function branchPhoneList(?string $value): ?array
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $entries = [];
+
+        // Split on the separators the exporter and hand-typed cells use, but
+        // not on anything inside the brackets.
+        foreach (preg_split('/\R+|[;,|]/u', $value) ?: [] as $part) {
+            $part = trim($part);
+
+            if ($part === '') {
+                continue;
+            }
+
+            // Drop the "(landline)" the export adds for readability.
+            $entries[] = preg_replace('/\s*\([a-z_]+\)$/i', '', $part) ?? $part;
+        }
+
+        // split() folds Arabic digits and pulls apart anything still packed.
+        return PhoneNumbers::split($entries) ?: null;
     }
 
     /**

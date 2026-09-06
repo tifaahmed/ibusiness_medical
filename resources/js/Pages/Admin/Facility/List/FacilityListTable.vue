@@ -351,12 +351,13 @@
               </svg>
               <span>{{ Number(branch.latitude) }}, {{ Number(branch.longitude) }}</span>
             </p>
-            <div v-if="branch.phone && branch.phone.length > 0" class="flex flex-wrap gap-2 text-xs text-white/70 mt-1">
-              <span v-for="(phone, phoneIndex) in branch.phone" :key="phoneIndex" class="inline-flex items-center gap-1">
+            <div v-if="branchPhones(branch).length > 0" class="flex flex-wrap gap-2 text-xs text-white/70 mt-1">
+              <span v-for="(phone, phoneIndex) in branchPhones(branch)" :key="phoneIndex" class="inline-flex items-center gap-1" :title="phoneLabel(phone.type)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/50">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                 </svg>
-                {{ phone }}
+                <span dir="ltr">{{ phone.number }}</span>
+                <span class="text-white/40">· {{ phoneLabel(phone.type) }}</span>
               </span>
             </div>
           </div>
@@ -375,6 +376,7 @@ import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
 
 const { canManage } = usePermissions();
 // Create/export/import are writes: hidden from read-only accounts,
@@ -493,4 +495,10 @@ const formatCountdown = (endDateStr) => {
 
   return parts.join(' ');
 };
+
+// Phones are { number, type } entries; rows written before types existed still
+// hold flat strings, so everything is read through the shared reader.
+const branchPhones = (branch) => normalizePhoneEntries(branch?.phone);
+
+const phoneLabel = (type) => t.value?.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
 </script>

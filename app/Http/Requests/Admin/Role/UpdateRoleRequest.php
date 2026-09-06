@@ -30,7 +30,7 @@ class UpdateRoleRequest extends FormRequest
                 Rule::unique('roles', 'name')->ignore($role?->id)->where('guard_name', 'web'),
                 Rule::notIn(UserRoleEnum::protectedRoles()),
             ],
-            'permissions' => ['nullable', 'array', new PermissionsNotMutuallyExclusive()],
+            'permissions' => ['nullable', 'array', new PermissionsNotMutuallyExclusive],
             'permissions.*' => ['string', Rule::in(UserPermissionEnum::all())],
         ];
     }

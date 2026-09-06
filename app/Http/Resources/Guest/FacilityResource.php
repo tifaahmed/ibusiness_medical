@@ -44,7 +44,11 @@ class FacilityResource extends JsonResource
                         'name' => $branch->name,
                         'slug' => $branch->slug,
                         'address' => $branch->address,
-                        'phone' => $branch->phone,
+                        // Flat numbers, unchanged: the marketing site reads this.
+                        'phone' => $branch->phoneNumbers(),
+                        // The same numbers with the kind of line each one is,
+                        // for consumers ready to show a WhatsApp button.
+                        'phones' => $branch->phone,
                         'governorate' => $branch->relationLoaded('governorate') && $branch->governorate ? [
                             'id' => $branch->governorate->id,
                             'name' => $branch->governorate->name,

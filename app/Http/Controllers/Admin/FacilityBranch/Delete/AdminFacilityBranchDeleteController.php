@@ -17,8 +17,15 @@ class AdminFacilityBranchDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITY_BRANCHES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITY_BRANCHES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES;
+    }
 
     /**
      * Remove the specified facility branch from storage.
@@ -119,13 +126,11 @@ class AdminFacilityBranchDeleteController extends BaseController
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 }
-
-
-

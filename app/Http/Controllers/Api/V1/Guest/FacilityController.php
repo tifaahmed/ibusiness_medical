@@ -22,16 +22,20 @@ class FacilityController extends Controller
             ->where('facility_id', $facility->id)
             ->when($branchSearch, function ($q) use ($branchSearch, $locale) {
                 $q->where(function ($query) use ($branchSearch, $locale) {
-                    $query->where('name->' . $locale, 'like', '%' . $branchSearch . '%')
-                        ->orWhere('address->' . $locale, 'like', '%' . $branchSearch . '%');
+                    $query->where('name->'.$locale, 'like', '%'.$branchSearch.'%')
+                        ->orWhere('address->'.$locale, 'like', '%'.$branchSearch.'%');
                 });
             })
             ->get()
-            ->map(fn($branch) => [
+            ->map(fn ($branch) => [
                 'id' => $branch->id,
                 'name' => $branch->name,
                 'address' => $branch->address,
-                'phone' => $branch->phone,
+                // Flat numbers, unchanged: this is what the marketing site
+                // reads. `phones` carries the same numbers with the kind of
+                // line each one is, for consumers ready to use it.
+                'phone' => $branch->phoneNumbers(),
+                'phones' => $branch->phone,
                 'governorate' => $branch->governorate ? ['name' => $branch->governorate->name] : null,
                 'city' => $branch->city ? ['name' => $branch->city->name] : null,
             ]);
@@ -39,14 +43,14 @@ class FacilityController extends Controller
         $facilityName = $facility->getTranslation('name', $locale);
 
         $sameNamePool = Facility::with(['facilityType'])
-            ->where('name->' . $locale, $facilityName)
+            ->where('name->'.$locale, $facilityName)
             ->where('id', '!=', $facility->id)
             ->get();
 
         if ($sameNamePool->isEmpty()) {
             $words = collect(explode(' ', $facilityName))
-                ->map(fn($w) => trim($w))
-                ->filter(fn($w) => mb_strlen($w) > 2)
+                ->map(fn ($w) => trim($w))
+                ->filter(fn ($w) => mb_strlen($w) > 2)
                 ->unique()->values();
 
             if ($words->isNotEmpty()) {
@@ -54,7 +58,7 @@ class FacilityController extends Controller
                     ->where('id', '!=', $facility->id)
                     ->where(function ($q) use ($words, $locale) {
                         foreach ($words as $word) {
-                            $q->orWhere('name->' . $locale, 'like', '%' . $word . '%');
+                            $q->orWhere('name->'.$locale, 'like', '%'.$word.'%');
                         }
                     })
                     ->get();
@@ -70,7 +74,7 @@ class FacilityController extends Controller
             $sameNamePool = $onePerGov->take(6);
         }
 
-        $sameName = $sameNamePool->map(fn($f) => [
+        $sameName = $sameNamePool->map(fn ($f) => [
             'id' => $f->id,
             'slug' => $f->slug,
             'name' => $f->name,
@@ -93,7 +97,7 @@ class FacilityController extends Controller
             $sameCatPool = $sameCatPool->concat($extras);
         }
 
-        $sameCategory = $sameCatPool->map(fn($f) => [
+        $sameCategory = $sameCatPool->map(fn ($f) => [
             'id' => $f->id,
             'slug' => $f->slug,
             'name' => $f->name,

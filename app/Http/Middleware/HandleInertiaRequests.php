@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\NewsTicker;
 use App\Support\PublicMembershipUrl;
+use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Session;
@@ -68,8 +69,11 @@ class HandleInertiaRequests extends Middleware
         return [
             ...$shared,
             'appName' => config('app.name'),
-            // Brand logo comes from APP_LOGO so rebranding never touches components.
-            'appLogo' => asset(config('app.logo')),
+            // The logo an administrator uploaded under Settings, falling back
+            // to APP_LOGO when that row is empty or was never created. Every
+            // component reads this one prop, so replacing the file in the admin
+            // is all a rebrand takes.
+            'appLogo' => SiteSettings::get('deilar_logo', asset(config('app.logo'))),
             'locale' => $locale,
             // Flashed one-liners from redirects ("… created.", "… updated.").
             // Pages read them as $page.props.flash.success.

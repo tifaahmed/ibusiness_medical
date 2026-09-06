@@ -96,7 +96,8 @@
                     <label class="text-xs font-medium text-muted-foreground">{{ t.common?.phone || 'Phone' }}</label>
                     <div v-if="getPhonesArray(branch.phone).length > 0" class="mt-0.5 space-y-1">
                       <p v-for="(phone, index) in getPhonesArray(branch.phone)" :key="index" class="text-sm font-medium text-white">
-                        {{ phone }}
+                        <span dir="ltr">{{ phone.number }}</span>
+                        <span class="text-xs text-white/60 ms-1">· {{ phoneLabel(phone.type) }}</span>
                       </p>
                     </div>
                     <p v-else class="text-sm font-medium mt-0.5 text-white">{{ t.common?.n_a || 'N/A' }}</p>
@@ -149,6 +150,7 @@ import { Link, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 import FacilityLayout from "./FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
+import { normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
 
 const props = defineProps({
   facility: {
@@ -169,16 +171,9 @@ const getTranslatedName = (name) => {
   return '';
 };
 
-const getPhonesArray = (phone) => {
-  if (!phone) return [];
-  if (typeof phone === 'string' && phone.trim() !== '') {
-    return [phone.trim()];
-  }
-  if (Array.isArray(phone)) {
-    return phone.filter(p => p && String(p).trim().length > 0).map(p => String(p).trim());
-  }
-  return [];
-};
+const getPhonesArray = (phone) => normalizePhoneEntries(phone);
+
+const phoneLabel = (type) => t.value?.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
 
 const tagChipStyle = (tagItem) => {
   const color = tagItem.color || '#6B7280';

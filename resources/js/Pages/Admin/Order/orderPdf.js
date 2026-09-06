@@ -26,6 +26,16 @@ const PAGE_W_PX = 794;
 const PAGE_H_PX = 1123;
 /** A4 in points, which is what jsPDF measures in. */
 const PAGE_W_PT = 595.28;
+const PAGE_H_PT = 841.89;
+
+/* The watermark: the shop's logo, centred on every page, faint enough that a
+   product name laid over it is still the thing the eye reads. It is stamped
+   into the PDF page rather than written into the HTML, because the HTML is
+   one long node sliced into pages — a mark placed in it would land wherever
+   the cuts happened to fall, on one page and not the others. */
+const WATERMARK_OPACITY = 0.07;
+/** Share of the page width the mark spans. */
+const WATERMARK_WIDTH_RATIO = 0.62;
 
 const INK = '#111827';
 const MUTED = '#6b7280';
@@ -71,9 +81,19 @@ const addressLine = (order) => [
  * boundary carries `data-atom` — see `cutPoints()`.
  * ------------------------------------------------------------------ */
 
+/*
+ * No `letter-spacing` on the heading, ever.
+ *
+ * html2canvas draws text word by word — except when letter-spacing is set,
+ * where it splits the string into single graphemes and paints each one on its
+ * own (`breakText` in html2canvas 1.4.1). An Arabic word drawn a letter at a
+ * time loses its joining: every letter falls back to its isolated form and the
+ * ones that only exist joined vanish, so «المنتجات» prints as «ل منتجات».
+ * Tracking on a heading is not worth a heading nobody can read.
+ */
 const section = (title, body) => `
   <div style="margin:0 0 18px">
-    <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${ACCENT};border-bottom:1px solid ${LINE};padding-bottom:5px;margin-bottom:9px">${esc(title)}</div>
+    <div style="font-size:12px;font-weight:700;color:${ACCENT};border-bottom:1px solid ${LINE};padding-bottom:5px;margin-bottom:9px">${esc(title)}</div>
     ${body}
   </div>`;
 
@@ -370,16 +390,83 @@ const withPrintableFrame = async (html, { rtl }, render) => {
 
 
 /**
+ * The logo, decoded and read back as a data URL so jsPDF can stamp it.
+ *
+ * Resolves to `null` on anything that goes wrong — no logo configured, a URL
+ * that 404s, a cross-origin host that serves it without CORS (which taints the
+ * canvas and makes `toDataURL` throw). A watermark is decoration; an order that
+ * cannot be printed because of it would be the worse failure.
+ */
+const loadWatermark = (logoUrl) => new Promise((resolve) => {
+    if (!logoUrl) return resolve(null);
+
+    const img = new Image();
+    /* Same-origin in practice — `asset()` serves it from this host — but a
+       logo moved to a CDN needs CORS before the canvas can be read back. */
+    img.crossOrigin = 'anonymous';
+    img.addEventListener('load', () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        if (!width || !height) return resolve(null);
+
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            /* PNG, not JPEG: the logo's transparent ground has to stay
+               transparent, or the mark arrives as a grey box. */
+            resolve({ dataUrl: canvas.toDataURL('image/png'), ratio: height / width });
+        } catch {
+            resolve(null);
+        }
+    }, { once: true });
+    img.addEventListener('error', () => resolve(null), { once: true });
+    img.src = logoUrl;
+});
+
+/**
+ * Stamp the mark across the middle of the current page.
+ *
+ * Drawn after the page's own image and not before it: the slice is an opaque
+ * JPEG, so anything underneath it is simply not there. Opacity comes from a
+ * graphics state rather than from a pre-faded bitmap, so the same decoded
+ * logo is reused on every page — `alias` keeps one copy of it in the file.
+ */
+const stampWatermark = (doc, watermark) => {
+    if (!watermark || typeof doc.GState !== 'function') return;
+
+    const width = PAGE_W_PT * WATERMARK_WIDTH_RATIO;
+    const height = width * watermark.ratio;
+
+    doc.setGState(new doc.GState({ opacity: WATERMARK_OPACITY }));
+    doc.addImage(
+        watermark.dataUrl,
+        'PNG',
+        (PAGE_W_PT - width) / 2,
+        (PAGE_H_PT - height) / 2,
+        width,
+        height,
+        'order-watermark',
+        'FAST',
+    );
+    /* Back to opaque, or the next page's slice is drawn as faintly as the
+       mark it was meant to sit behind. */
+    doc.setGState(new doc.GState({ opacity: 1 }));
+};
+
+/**
  * Rasterise the printable node and paginate it into a jsPDF document.
  *
  * It stops at the document rather than saving it: the same pages are what the
  * preview shows and what the download writes, so neither can drift from the
  * other — the preview IS the file, not a second rendering of it.
  */
-const buildPdf = async (html, { rtl }) => {
-    const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
+const buildPdf = async (html, { rtl, logoUrl }) => {
+    const [{ jsPDF }, { default: html2canvas }, watermark] = await Promise.all([
         import('jspdf'),
         import('html2canvas'),
+        loadWatermark(logoUrl),
     ]);
 
     return withPrintableFrame(html, { rtl }, async (host) => {
@@ -422,6 +509,7 @@ const buildPdf = async (html, { rtl }) => {
                 undefined,
                 'FAST',
             );
+            stampWatermark(doc, watermark);
         }
 
         return doc;
@@ -455,6 +543,7 @@ const render = async (variant, { order, t = {}, locale = 'ar', appName = '', log
 
     const doc = await buildPdf(spec.build(order, t, locale, currency, { appName, logoUrl }), {
         rtl: locale === 'ar',
+        logoUrl,
     });
 
     return { doc, filename: spec.filename(order) };

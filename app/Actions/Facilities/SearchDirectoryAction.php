@@ -144,7 +144,9 @@ class SearchDirectoryAction
             'id' => $branch->id,
             'name' => $branch->name,
             'address' => $branch->address,
-            'phone' => array_values($branch->phone ?? []),
+            // Flat numbers: this feeds the public search suggestions, whose
+            // shape predates the phone types and is consumed elsewhere.
+            'phone' => $branch->phoneNumbers(),
             'city' => $branch->city?->name,
             'governorate' => $branch->governorate?->name,
             'facility_id' => $branch->facility_id,

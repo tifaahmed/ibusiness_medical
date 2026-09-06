@@ -22,6 +22,10 @@ class DatabaseSeeder extends Seeder
             // seeder that stamps `created_by`.
             AdminRoleSeeder::class,
             PermissionSeeder::class,
+
+            // Site details (name, phone, address, logo). Safe to re-run: it
+            // creates the rows it is missing and leaves edited ones alone.
+            SettingSeeder::class,
             // AdminUserSeeder::class,
             // ViewerAdminSeeder::class,
 

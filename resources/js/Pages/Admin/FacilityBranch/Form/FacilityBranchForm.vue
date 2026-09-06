@@ -114,21 +114,12 @@
         <!-- Row 5: Phone Numbers -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <div data-slot="form-item" class="grid gap-1">
-            <label class="block text-sm font-medium text-white mb-2">
-              {{ t.facility_branch?.phone_numbers || 'Phone Numbers' }}
-              <span class="text-xs text-white/70 ml-1">{{ t.facility_branch?.phone_help || '(one per line)' }}</span>
-            </label>
-            <textarea
-              v-model="phoneText"
-              :class="[
-                'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md min-h-[80px] focus:ring-[3px] focus:ring-ring/50',
-                facilityBranchStore.validationErrors?.phone ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40' : ''
-              ]"
-              :placeholder="t.facility_branch?.phone_placeholder || 'Enter phone numbers, one per line\nExample:\n+20 123 456 7890\n+20 987 654 3210'"
-            ></textarea>
-            <p v-if="facilityBranchStore.validationErrors?.phone" class="mt-1 text-sm text-destructive">
-              {{ facilityBranchStore.validationErrors.phone }}
-            </p>
+            <BranchPhonesInput
+              v-model="form.phone"
+              :label="t.facility_branch?.phone_numbers || 'Phone Numbers'"
+              :hint="t.facility_branch?.phone_help || '(one number per row)'"
+              :errors="facilityBranchStore.validationErrors || {}"
+            />
           </div>
         </div>
       </div>
@@ -137,7 +128,7 @@
 </template>
 
 <script setup>
-import { FormTranslatableInput, FormSelect, FormInput } from "@/Components/form";
+import { FormTranslatableInput, FormSelect, FormInput, BranchPhonesInput } from "@/Components/form";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
 import { computed, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -271,25 +262,6 @@ const formAddress = computed({
   }
 });
 
-// Handle phone as textarea (one per line)
-const phoneText = computed({
-  get: () => {
-    if (!form.value.phone || !Array.isArray(form.value.phone)) {
-      return '';
-    }
-    return form.value.phone.filter(p => p && p.trim()).join('\n');
-  },
-  set: (value) => {
-    if (!value || !value.trim()) {
-      form.value.phone = [];
-      return;
-    }
-    form.value.phone = value
-      .split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-  }
-});
 </script>
 
 <style lang="scss" scoped></style>

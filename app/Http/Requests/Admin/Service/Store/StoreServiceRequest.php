@@ -5,7 +5,6 @@ namespace App\Http\Requests\Admin\Service\Store;
 use App\Enums\Service\ServiceTagEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Unique;
 
 class StoreServiceRequest extends FormRequest
 {

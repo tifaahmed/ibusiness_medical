@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizePhoneEntries } from '@/lib/branchPhones';
 
 // Schema for translatable name field (optional)
 const translatableNameSchema = z.object({
@@ -31,13 +32,11 @@ const translatableAddressSchema = z.object({
 export const facilityBranchSchema = z.object({
     name: translatableNameSchema,
     address: translatableAddressSchema,
-    phone: z.array(z.string().max(50, 'Each phone number must be less than 50 characters'))
+    // One entry per number, each carrying the kind of line it is. Flat strings
+    // from rows written before types are accepted and typed on the way through.
+    phone: z.any()
         .optional()
-        .or(z.literal(null))
-        .transform(val => {
-            if (!val || !Array.isArray(val)) return [];
-            return val.map(p => String(p).trim()).filter(p => p.length > 0);
-        }),
+        .transform(val => normalizePhoneEntries(val)),
     facility_id: z.string()
         .min(1, 'Facility is required')
         .transform(val => String(val)),
@@ -78,13 +77,11 @@ export const facilityBranchSchema = z.object({
 export const facilityBranchUpdateSchema = z.object({
     name: translatableNameSchema,
     address: translatableAddressSchema,
-    phone: z.array(z.string().max(50, 'Each phone number must be less than 50 characters'))
+    // One entry per number, each carrying the kind of line it is. Flat strings
+    // from rows written before types are accepted and typed on the way through.
+    phone: z.any()
         .optional()
-        .or(z.literal(null))
-        .transform(val => {
-            if (!val || !Array.isArray(val)) return [];
-            return val.map(p => String(p).trim()).filter(p => p.length > 0);
-        }),
+        .transform(val => normalizePhoneEntries(val)),
     facility_id: z.string()
         .min(1, 'Facility is required')
         .transform(val => String(val)),
@@ -145,15 +142,8 @@ export const validateFacilityBranchForm = (facilityBranchData, isUpdate = false)
             }
         }
 
-        // Handle phone - can be array, string, or null
-        let phoneValue = facilityBranchData.phone || [];
-        if (typeof phoneValue === 'string' && phoneValue.trim() !== '') {
-            phoneValue = [phoneValue.trim()];
-        } else if (!Array.isArray(phoneValue)) {
-            phoneValue = [];
-        } else {
-            phoneValue = phoneValue.map(p => String(p).trim()).filter(p => p.length > 0);
-        }
+        // Phones: { number, type } entries, whatever shape they arrived in.
+        const phoneValue = normalizePhoneEntries(facilityBranchData.phone);
 
         const formData = {
             name: {

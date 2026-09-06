@@ -163,7 +163,12 @@ class FacilityMigrationTest extends TestCase
 
         $branch = $facility->branches->first();
         $this->assertSame('الفرع الرئيسي', $branch->getTranslation('name', 'ar'));
-        $this->assertSame(['0100000000', '0111111111'], $branch->phone);
+        // Stored as typed entries. The package carries flat numbers, so the
+        // importer types them from their shape — both of these are landlines.
+        $this->assertSame([
+            ['number' => '0100000000', 'type' => 'landline'],
+            ['number' => '0111111111', 'type' => 'landline'],
+        ], $branch->phone);
         $this->assertSame('Nasr City', $branch->city->getTranslation('name', 'en'));
 
         // Images come back, in the right collections, with real bytes on disk.
@@ -346,7 +351,7 @@ class FacilityMigrationTest extends TestCase
         // Updated in place rather than stacked as a second copy.
         $this->assertSame(1, Facility::count());
         $this->assertSame(1, FacilityBranch::count());
-        $this->assertSame(['0100000000'], FacilityBranch::first()->phone);
+        $this->assertSame([['number' => '0100000000', 'type' => 'landline']], FacilityBranch::first()->phone);
     }
 
     public function test_dry_run_writes_nothing(): void

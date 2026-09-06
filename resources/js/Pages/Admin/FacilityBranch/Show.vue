@@ -29,7 +29,8 @@
                 <label class="text-xs font-medium text-muted-foreground">Phone</label>
                 <div v-if="getPhonesArray(facilityBranch.phone).length > 0" class="mt-0.5 space-y-1">
                   <p v-for="(phone, index) in getPhonesArray(facilityBranch.phone)" :key="index" class="text-sm font-medium text-white">
-                    {{ phone }}
+                    <span dir="ltr">{{ phone.number }}</span>
+                    <span class="text-xs text-white/60 ms-1">· {{ phoneLabel(phone.type) }}</span>
                   </p>
                 </div>
                 <p v-else class="text-sm font-medium mt-0.5 text-white">N/A</p>
@@ -111,6 +112,7 @@ import { Link } from "@inertiajs/vue3";
 import { usePage } from '@inertiajs/vue3';
 import FacilityBranchLayout from "./FacilityBranchLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
+import { normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
 
 const props = defineProps({
   facilityBranch: {
@@ -130,16 +132,11 @@ const getTranslatedName = (name) => {
   return '';
 };
 
-const getPhonesArray = (phone) => {
-  if (!phone) return [];
-  if (typeof phone === 'string' && phone.trim() !== '') {
-    return [phone.trim()];
-  }
-  if (Array.isArray(phone)) {
-    return phone.filter(p => p && String(p).trim().length > 0).map(p => String(p).trim());
-  }
-  return [];
-};
+const getPhonesArray = (phone) => normalizePhoneEntries(phone);
+
+const translations = page.props.translations?.admin || {};
+
+const phoneLabel = (type) => translations.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
 </script>
 
 <style lang="scss" scoped></style>

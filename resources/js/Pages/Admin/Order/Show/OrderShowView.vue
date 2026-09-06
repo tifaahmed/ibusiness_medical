@@ -77,37 +77,54 @@
                 Two printable copies, never one with a checkbox. The internal
                 one carries cost, margin, the buyer's IP and the audit trail;
                 the customer's carries none of it. See orderPdf.js.
+
+                Each is a pair of halves: the wide one opens the document in
+                the viewer so it can be read before it goes anywhere, the
+                narrow one writes the same file straight to disk. Same
+                document either way — the preview IS the file.
               -->
-              <button
-                type="button"
-                @click="downloadPdf('admin')"
-                :disabled="exporting !== null"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              <div
+                v-for="variant in pdfVariants"
+                :key="variant.key"
+                class="inline-flex items-stretch overflow-hidden rounded-md border bg-background shadow-xs dark:bg-input/30 dark:border-input"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <path d="M6 9V2h12v7"></path>
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                  <rect x="6" y="14" width="12" height="8" rx="1"></rect>
-                </svg>
-                {{ exporting === 'admin'
-                  ? (t.order?.export_generating || 'Generating…')
-                  : (t.order?.export_admin_pdf || 'Full details (PDF)') }}
-              </button>
-              <button
-                type="button"
-                @click="downloadPdf('receipt')"
-                :disabled="exporting !== null"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
-                  <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
-                  <path d="M12 17.5v-11"></path>
-                </svg>
-                {{ exporting === 'receipt'
-                  ? (t.order?.export_generating || 'Generating…')
-                  : (t.order?.export_receipt_pdf || 'Customer receipt (PDF)') }}
-              </button>
+                <button
+                  type="button"
+                  @click="openPreview(variant.key)"
+                  :disabled="exporting !== null"
+                  :title="t.order?.export_preview_hint || 'Check the copy before it is printed or sent.'"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all hover:bg-primary hover:text-primary-foreground dark:hover:bg-input/50 h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                >
+                  <svg v-if="variant.key === 'admin'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <path d="M6 9V2h12v7"></path>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8" rx="1"></rect>
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+                    <path d="M12 17.5v-11"></path>
+                  </svg>
+                  {{ exporting === variant.key
+                    ? (t.order?.export_generating || 'Generating…')
+                    : variant.label }}
+                </button>
+                <span class="w-px self-stretch bg-border" aria-hidden="true"></span>
+                <button
+                  type="button"
+                  @click="downloadPdf(variant.key)"
+                  :disabled="exporting !== null"
+                  :title="`${t.order?.export_download || 'Download'} — ${variant.label}`"
+                  :aria-label="`${t.order?.export_download || 'Download'} — ${variant.label}`"
+                  class="inline-flex items-center justify-center transition-all hover:bg-primary hover:text-primary-foreground dark:hover:bg-input/50 h-8 px-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <path d="M7 10l5 5 5-5"></path>
+                    <path d="M12 15V3"></path>
+                  </svg>
+                </button>
+              </div>
               <Link
                 :href="route('admin.order.list')"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 px-3 py-1.5"
@@ -449,14 +466,22 @@
     </div>
 
     <ImageLightbox :images="lightboxImages" v-model:index="lightboxIndex" />
+
+    <OrderPdfPreview
+      :url="preview?.url || null"
+      :filename="preview?.filename || ''"
+      :title="preview?.title || ''"
+      @close="closePreview"
+    />
   </OrderLayout>
 </template>
 
 <script setup>
 import { Link, usePage } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import OrderLayout from "../OrderLayout.vue";
 import OrderLogTimeline from "./OrderLogTimeline.vue";
+import OrderPdfPreview from "./OrderPdfPreview.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
 import { useNotification } from "@/composables/useNotification";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
@@ -504,22 +529,38 @@ const saved = computed(() => savedAmount(props.order));
    the same document body, and two at once would measure each other. */
 const exporting = ref(null);
 
-const downloadPdf = async (variant) => {
+/** The document on screen: `{ url, filename, title, revoke }`, or null. */
+const preview = ref(null);
+
+/* The two copies, in the order they are offered. Labelled here rather than in
+   the markup so the button pair is written once. */
+const pdfVariants = computed(() => [
+  { key: 'admin', label: t.value.order?.export_admin_pdf || 'Full details (PDF)' },
+  { key: 'receipt', label: t.value.order?.export_receipt_pdf || 'Customer receipt (PDF)' },
+]);
+
+const pdfOptions = () => ({
+  order: props.order,
+  t: t.value,
+  locale: locale.value,
+  appName: page.props.appName || '',
+  logoUrl: page.props.appLogo || null,
+  currency: t.value.order?.currency || 'EGP',
+});
+
+/**
+ * Build one of the two documents, reporting a failure rather than swallowing
+ * it. `run` is handed the module so the caller decides what to do with the
+ * result — save it, or hold on to a blob URL for the viewer.
+ */
+const withPdf = async (variant, run) => {
   if (exporting.value !== null) return;
   exporting.value = variant;
   try {
     // Dynamic import — jsPDF and html2canvas are chunked, and an admin who
     // never prints an order should never download them.
-    const { exportAdminOrderPdf, exportCustomerReceiptPdf } = await import('../orderPdf.js');
-    const options = {
-      order: props.order,
-      t: t.value,
-      locale: locale.value,
-      appName: page.props.appName || '',
-      logoUrl: page.props.appLogo || null,
-      currency: t.value.order?.currency || 'EGP',
-    };
-    await (variant === 'admin' ? exportAdminOrderPdf(options) : exportCustomerReceiptPdf(options));
+    const orderPdf = await import('../orderPdf.js');
+    await run(orderPdf);
   } catch (error) {
     // AGENTS.md: front-end failures are reported, not swallowed.
     useNotification().error(t.value.order?.export_failed || 'Could not generate the PDF.');
@@ -528,6 +569,30 @@ const downloadPdf = async (variant) => {
     exporting.value = null;
   }
 };
+
+const downloadPdf = (variant) => withPdf(variant, ({ exportOrderPdf }) => (
+  exportOrderPdf(variant, pdfOptions())
+));
+
+/* The viewer shows the very file the download writes — same jsPDF document,
+   handed over as a blob URL instead of saved. */
+const openPreview = (variant) => withPdf(variant, async ({ previewOrderPdf }) => {
+  const built = await previewOrderPdf(variant, pdfOptions());
+  closePreview();
+  preview.value = {
+    ...built,
+    title: pdfVariants.value.find(entry => entry.key === variant)?.label || '',
+  };
+});
+
+/* A blob URL holds its document in memory until it is revoked, so closing the
+   viewer — or leaving the page with it open — has to let go of it. */
+const closePreview = () => {
+  preview.value?.revoke?.();
+  preview.value = null;
+};
+
+onBeforeUnmount(closePreview);
 
 /**
  * Ship the failure to the client-error endpoint so a PDF nobody can generate

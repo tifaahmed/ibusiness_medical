@@ -42,12 +42,12 @@ class AdminFacilityImportPreviewController extends BaseController
             $errors = $this->validateRow($parsed);
 
             $match = null;
-            if (!empty($parsed['slug'])) {
+            if (! empty($parsed['slug'])) {
                 $match = Facility::with(['facilityType'])
                     ->where('slug', $parsed['slug'])
                     ->first();
             }
-            if (!$match && !empty($parsed['name'])) {
+            if (! $match && ! empty($parsed['name'])) {
                 $needle = mb_strtolower(trim($parsed['name']));
                 $match = Facility::with(['facilityType'])
                     ->where('name->en', $parsed['name'])
@@ -58,9 +58,9 @@ class AdminFacilityImportPreviewController extends BaseController
             }
 
             $diff = $match ? $this->buildDiff($match, $parsed) : [];
-            $hasChanges = collect($diff)->contains(fn($d) => $d['changed']);
+            $hasChanges = collect($diff)->contains(fn ($d) => $d['changed']);
 
-            $status = !empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
+            $status = ! empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
 
             // Look up branches keyed by facility name or slug — both work.
             $branchKey = mb_strtolower(trim($parsed['name']));
@@ -85,15 +85,15 @@ class AdminFacilityImportPreviewController extends BaseController
 
         return response()->json([
             'rows' => $preview,
-            'facilityTypeOptions' => FacilityType::orderBy('id')->get()->map(fn($t) => [
+            'facilityTypeOptions' => FacilityType::orderBy('id')->get()->map(fn ($t) => [
                 'value' => $t->id,
                 'label' => $t->getTranslation('name', app()->getLocale()) ?: $t->getTranslation('name', 'en'),
             ])->values(),
-            'governorateOptions' => Governorate::orderBy('id')->get()->map(fn($g) => [
+            'governorateOptions' => Governorate::orderBy('id')->get()->map(fn ($g) => [
                 'value' => $g->id,
                 'label' => $g->getTranslation('name', app()->getLocale()) ?: $g->getTranslation('name', 'en'),
             ])->values(),
-            'cityOptions' => City::orderBy('id')->get()->map(fn($c) => [
+            'cityOptions' => City::orderBy('id')->get()->map(fn ($c) => [
                 'value' => $c->id,
                 'governorate_id' => $c->governorate_id,
                 'label' => $c->getTranslation('name', app()->getLocale()) ?: $c->getTranslation('name', 'en'),
@@ -110,7 +110,7 @@ class AdminFacilityImportPreviewController extends BaseController
     {
         $extension = strtolower($extension);
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
             $reader->setDelimiter(',');
         } else {
@@ -177,6 +177,7 @@ class AdminFacilityImportPreviewController extends BaseController
         }
 
         $spreadsheet->disconnectWorksheets();
+
         return ['facilities' => $facilities, 'branches' => $branches];
     }
 
@@ -233,11 +234,12 @@ class AdminFacilityImportPreviewController extends BaseController
             foreach ($columnAliases as $key => $candidates) {
                 $row[$key] = $this->cell($sheet, $headerMap, $candidates, $r);
             }
-            if (collect($row)->filter(fn($v) => $v !== '')->isEmpty()) {
+            if (collect($row)->filter(fn ($v) => $v !== '')->isEmpty()) {
                 continue;
             }
             $rows[] = $row;
         }
+
         return $rows;
     }
 
@@ -247,9 +249,11 @@ class AdminFacilityImportPreviewController extends BaseController
             $key = mb_strtolower($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
@@ -284,14 +288,15 @@ class AdminFacilityImportPreviewController extends BaseController
         if ($key === '') {
             return null;
         }
+
         return $index->get($key)?->id;
     }
 
     private function indexByTranslatedName($collection)
     {
         return $collection
-            ->keyBy(fn($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'en'))))
-            ->merge($collection->keyBy(fn($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'ar')))));
+            ->keyBy(fn ($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'en'))))
+            ->merge($collection->keyBy(fn ($m) => mb_strtolower(trim((string) $m->getTranslation('name', 'ar')))));
     }
 
     /**
@@ -305,16 +310,16 @@ class AdminFacilityImportPreviewController extends BaseController
             $errors['name'] = 'Name is required.';
         }
         if ($parsed['facility_type_id'] === null) {
-            $errors['facility_type'] = !empty($parsed['facility_type_input'])
+            $errors['facility_type'] = ! empty($parsed['facility_type_input'])
                 ? "Facility type \"{$parsed['facility_type_input']}\" not found."
                 : 'Facility type is required.';
         }
         if ($parsed['governorate_id'] === null) {
-            $errors['governorate'] = !empty($parsed['governorate_input'])
+            $errors['governorate'] = ! empty($parsed['governorate_input'])
                 ? "Governorate \"{$parsed['governorate_input']}\" not found."
                 : 'Governorate is required.';
         }
-        if (!empty($parsed['city_input']) && $parsed['city_id'] === null) {
+        if (! empty($parsed['city_input']) && $parsed['city_id'] === null) {
             $errors['city'] = "City \"{$parsed['city_input']}\" not found.";
         }
         if ($parsed['latitude'] !== null && ($parsed['latitude'] < -90 || $parsed['latitude'] > 90)) {
@@ -323,6 +328,7 @@ class AdminFacilityImportPreviewController extends BaseController
         if ($parsed['longitude'] !== null && ($parsed['longitude'] < -180 || $parsed['longitude'] > 180)) {
             $errors['longitude'] = 'Longitude must be between -180 and 180.';
         }
+
         return $errors;
     }
 
@@ -342,10 +348,12 @@ class AdminFacilityImportPreviewController extends BaseController
             ['field' => 'latitude', 'label' => 'Latitude', 'old' => $facility->latitude, 'new' => $parsed['latitude']],
             ['field' => 'longitude', 'label' => 'Longitude', 'old' => $facility->longitude, 'new' => $parsed['longitude']],
         ];
+
         return array_map(function ($f) {
             $oldNorm = (string) ($f['old'] ?? '');
             $newNorm = (string) ($f['new'] ?? '');
             $f['changed'] = $oldNorm !== $newNorm;
+
             return $f;
         }, $fields);
     }

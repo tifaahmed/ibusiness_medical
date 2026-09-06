@@ -2,19 +2,35 @@
 
 namespace App\Http\Requests\Admin\FacilityBranch;
 
+use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\City;
 use App\Models\Facility;
 use App\Models\Governorate;
+use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreFacilityBranchRequest extends FormRequest
 {
+    use NormalisesBranchPhones;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Normalise the phone list before the rules see it: one number per entry,
+     * each with the kind of line it is.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone')) {
+            $this->merge(['phone' => $this->normalisedPhones($this->input('phone'))]);
+        }
     }
 
     /**
@@ -25,9 +41,9 @@ class StoreFacilityBranchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'facility_id' => ['required', 'exists:' . Facility::class . ',id'],
-            'governorate_id' => ['nullable', 'exists:' . Governorate::class . ',id'],
-            'city_id' => ['nullable', 'exists:' . City::class . ',id'],
+            'facility_id' => ['required', 'exists:'.Facility::class.',id'],
+            'governorate_id' => ['nullable', 'exists:'.Governorate::class.',id'],
+            'city_id' => ['nullable', 'exists:'.City::class.',id'],
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'google_location_url' => 'nullable|url|max:2048',
@@ -35,9 +51,32 @@ class StoreFacilityBranchRequest extends FormRequest
             'name.*' => 'nullable|string|max:255',
             'address' => 'nullable|array',
             'address.*' => 'nullable|string',
-            'phone' => 'nullable|array',
-            'phone.*' => 'nullable|string|max:50',
+            ...$this->phoneRules(),
         ];
+    }
+
+    /**
+     * A branch may not repeat the name or the address of another branch under the
+     * same facility. Only the branch being saved is in the payload here, so the
+     * facility's other branches are read back from the database.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            if ($v->errors()->has('facility_id')) {
+                return;
+            }
+
+            $duplicates = BranchUniqueness::duplicatesInFacility(
+                $this->only(BranchUniqueness::FIELDS),
+                $this->input('facility_id'),
+                null,
+            );
+
+            foreach ($duplicates as $error) {
+                $v->errors()->add($error['key'], $error['message']);
+            }
+        });
     }
 
     /**
@@ -61,11 +100,7 @@ class StoreFacilityBranchRequest extends FormRequest
             'name.array' => 'The name must be an array.',
             'name.*.string' => 'Each language name must be a string.',
             'address.array' => 'The address must be an array.',
-            'phone.array' => 'The phone must be an array.',
-            'phone.*.string' => 'Each phone number must be a string.',
-            'phone.*.max' => 'Each phone number may not be greater than 50 characters.',
+            ...$this->phoneMessages(),
         ];
     }
 }
-
-

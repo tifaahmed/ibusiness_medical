@@ -446,10 +446,11 @@ class AdminFacilityExportController extends BaseController
             }
             foreach ($facility->branches as $branch) {
                 $index++;
-                $phone = $branch->phone;
-                if (is_array($phone)) {
-                    $phone = implode(', ', $phone);
-                }
+                // Entries carry a type; a spreadsheet cell carries text, so
+                // each number is written with its kind in brackets.
+                $phone = collect($branch->phone ?? [])
+                    ->map(fn (array $entry) => $entry['number'].' ('.$entry['type'].')')
+                    ->implode(', ');
                 $sheet->setCellValue("A{$row}", $index);
                 $sheet->setCellValue("B{$row}", (string) ($facility->getTranslation('name', 'en') ?: ''));
                 $sheet->setCellValue("C{$row}", (string) $facility->slug);

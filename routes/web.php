@@ -46,17 +46,19 @@ use App\Http\Controllers\Admin\Dashboard\DashboardController;
 use App\Http\Controllers\Admin\Facility\Create\AdminFacilityCreateController;
 use App\Http\Controllers\Admin\Facility\Delete\AdminFacilityDeleteController;
 use App\Http\Controllers\Admin\Facility\Edit\AdminFacilityEditController;
+use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishBulkController;
+use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishFixController;
 use App\Http\Controllers\Admin\Facility\Export\AdminFacilityExportController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
 use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
+use App\Http\Controllers\Admin\Facility\Location\AdminFacilityBranchLocateController;
+use App\Http\Controllers\Admin\Facility\Location\AdminFacilityLocationBulkController;
 use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationExportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationImportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationPageController;
-use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishBulkController;
-use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishFixController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoBulkController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
 use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
@@ -211,6 +213,13 @@ use App\Http\Controllers\Admin\ServiceType\List\AdminServiceTypeListController;
 use App\Http\Controllers\Admin\ServiceType\Show\AdminServiceTypeShowController;
 use App\Http\Controllers\Admin\ServiceType\Store\AdminServiceTypeStoreController;
 use App\Http\Controllers\Admin\ServiceType\Update\AdminServiceTypeUpdateController;
+use App\Http\Controllers\Admin\Setting\Create\AdminSettingCreateController;
+use App\Http\Controllers\Admin\Setting\Delete\AdminSettingDeleteController;
+use App\Http\Controllers\Admin\Setting\Edit\AdminSettingEditController;
+use App\Http\Controllers\Admin\Setting\List\AdminSettingListController;
+use App\Http\Controllers\Admin\Setting\Show\AdminSettingShowController;
+use App\Http\Controllers\Admin\Setting\Store\AdminSettingStoreController;
+use App\Http\Controllers\Admin\Setting\Update\AdminSettingUpdateController;
 use App\Http\Controllers\Admin\Tag\Create\AdminTagCreateController;
 use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
 use App\Http\Controllers\Admin\Tag\Edit\AdminTagEditController;
@@ -523,11 +532,25 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Fill SEO with AI" sweep on the list — browser-stepped begin/step.
         Route::post('/admin/facility/seo/bulk/begin', [AdminFacilitySeoBulkController::class, 'begin'])->name('admin.facility.seo.bulk.begin');
         Route::post('/admin/facility/seo/bulk/step', [AdminFacilitySeoBulkController::class, 'step'])->name('admin.facility.seo.bulk.step');
+        // AI geocoder for the form's branch modal: address in, coordinates and
+        // a Google Maps link out (called via axios, answers JSON).
+        Route::post('/admin/facility/branch/locate', AdminFacilityBranchLocateController::class)->name('admin.facility.branch.locate');
+        // "Fill locations with AI" sweep on the list — browser-stepped begin/step.
+        Route::post('/admin/facility/location/bulk/begin', [AdminFacilityLocationBulkController::class, 'begin'])->name('admin.facility.location.bulk.begin');
+        Route::post('/admin/facility/location/bulk/step', [AdminFacilityLocationBulkController::class, 'step'])->name('admin.facility.location.bulk.step');
+        // Phone repair: the branch numbers that are not 11-digit mobiles or
+        // 8-digit landlines, listed with their correction for an admin to
+        // confirm one row at a time.
+        Route::get('/admin/facility/phones', \App\Http\Controllers\Admin\Facility\Phones\AdminFacilityPhoneFixPageController::class)->name('admin.facility.phones.page');
+        Route::post('/admin/facility/phones/fix', \App\Http\Controllers\Admin\Facility\Phones\AdminFacilityPhoneFixApplyController::class)->name('admin.facility.phones.fix');
         // "Fix English with AI" — one facility (button on the form) and the
         // browser-stepped sweep on the list.
         Route::post('/admin/facility/english/bulk/begin', [AdminFacilityEnglishBulkController::class, 'begin'])->name('admin.facility.english.bulk.begin');
         Route::post('/admin/facility/english/bulk/step', [AdminFacilityEnglishBulkController::class, 'step'])->name('admin.facility.english.bulk.step');
         Route::post('/admin/facility/{facility}/english/fix', AdminFacilityEnglishFixController::class)->name('admin.facility.english.fix');
+        // Branch add/edit from the facility form's modal — writes the one branch
+        // immediately and answers JSON (called via axios).
+        Route::post('/admin/facility/{facility}/branch', \App\Http\Controllers\Admin\Facility\Branch\AdminFacilityBranchSaveController::class)->name('admin.facility.branch.save');
         Route::get('/admin/facility/{facility}/edit', AdminFacilityEditController::class)->name('admin.facility.edit');
         Route::put('/admin/facility/{facility}', AdminFacilityUpdateController::class)->name('admin.facility.update');
         Route::delete('/admin/facility/{facility}', AdminFacilityDeleteController::class)->name('admin.facility.destroy');
@@ -782,6 +805,21 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage services|manage own services|view services')->group(function () {
         Route::get('/admin/service-type', AdminServiceTypeListController::class)->name('admin.service-type.list');
         Route::get('/admin/service-type/{serviceType}', AdminServiceTypeShowController::class)->name('admin.service-type.show');
+    });
+
+    // ---- Settings (site details: name, phone, address, logo, links) ----
+    // Global rows with no creator, so there is no "own" variant: `manage
+    // settings` writes, `view settings` reads.
+    Route::middleware('permission:manage settings')->group(function () {
+        Route::get('/admin/setting/create', AdminSettingCreateController::class)->name('admin.setting.create');
+        Route::post('/admin/setting', AdminSettingStoreController::class)->name('admin.setting.store');
+        Route::get('/admin/setting/{setting}/edit', AdminSettingEditController::class)->name('admin.setting.edit');
+        Route::put('/admin/setting/{setting}', AdminSettingUpdateController::class)->name('admin.setting.update');
+        Route::delete('/admin/setting/{setting}', AdminSettingDeleteController::class)->name('admin.setting.destroy');
+    });
+    Route::middleware('permission:manage settings|view settings')->group(function () {
+        Route::get('/admin/setting', AdminSettingListController::class)->name('admin.setting.list');
+        Route::get('/admin/setting/{setting}', AdminSettingShowController::class)->name('admin.setting.show');
     });
 
     // ---- Tag (manage services OR own) ----

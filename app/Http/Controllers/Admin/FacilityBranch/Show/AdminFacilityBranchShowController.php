@@ -15,8 +15,15 @@ class AdminFacilityBranchShowController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITY_BRANCHES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITY_BRANCHES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES;
+    }
 
     /**
      * Display the specified facility branch.
@@ -35,4 +42,3 @@ class AdminFacilityBranchShowController extends BaseController
         return Inertia::render('Admin/FacilityBranch/Show', $result);
     }
 }
-

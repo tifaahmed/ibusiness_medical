@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests\Admin\Facility;
 
+use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\FacilityType;
 use App\Models\Sales;
-use App\Support\PhoneNumbers;
+use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateFacilityRequest extends FormRequest
 {
+    use NormalisesBranchPhones;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -28,7 +32,7 @@ class UpdateFacilityRequest extends FormRequest
         if (is_array($branches)) {
             foreach ($branches as $i => $branch) {
                 if (array_key_exists('phone', $branch)) {
-                    $branches[$i]['phone'] = PhoneNumbers::split($branch['phone']);
+                    $branches[$i]['phone'] = $this->normalisedPhones($branch['phone']);
                 }
             }
             $this->merge(['branches' => $branches]);
@@ -98,8 +102,8 @@ class UpdateFacilityRequest extends FormRequest
             'branches.*.name.*' => 'nullable|string|max:255',
             'branches.*.address' => 'nullable|array',
             'branches.*.address.*' => 'nullable|string|max:500',
-            'branches.*.phone' => 'nullable|array',
-            'branches.*.phone.*' => 'nullable|string|max:20',
+            ...$this->phoneRules('branches.*.phone'),
+            'branches.*.google_location_url' => 'nullable|url|max:2048',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
             'mobile_logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
@@ -111,6 +115,26 @@ class UpdateFacilityRequest extends FormRequest
             'contract' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,avif,pdf|max:10240',
             'contract_delete' => 'nullable|boolean',
         ];
+    }
+
+    /**
+     * Branch names and addresses have to stay unique inside the facility, and the
+     * form posts the branches as one list, so the check runs across the payload
+     * rather than as a per-field rule.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            $branches = $this->input('branches');
+
+            if (! is_array($branches)) {
+                return;
+            }
+
+            foreach (BranchUniqueness::duplicatesInList($branches) as $error) {
+                $v->errors()->add($error['key'], $error['message']);
+            }
+        });
     }
 
     /**
@@ -131,7 +155,8 @@ class UpdateFacilityRequest extends FormRequest
             'meta_description.*.max' => 'The meta description should stay under 160 characters.',
             'canonical_url.url' => 'The canonical URL must be a full URL, e.g. https://example.com/facility.',
             'sales_id.exists' => 'The selected sales representative is invalid.',
-            'branches.*.phone.*.max' => 'Each branch phone number must be 20 characters or fewer — put one number per line.',
+            ...$this->phoneMessages('branches.*.phone'),
+            'branches.*.google_location_url.url' => 'The Google location URL must be a full URL, e.g. https://maps.app.goo.gl/xxxx.',
             'managers.*.phones.*.max' => 'Each manager phone number must be 20 characters or fewer — put one number per line.',
         ];
     }

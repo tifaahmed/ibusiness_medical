@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\FacilityBranch;
+
 /**
  * Turns a raw phone value into a clean list of individual numbers.
  *
@@ -86,6 +88,103 @@ final class PhoneNumbers
         }
 
         return array_reverse($chunks);
+    }
+
+    /**
+     * Normalise any stored or submitted phone value into the shape a branch
+     * keeps: one entry per number, each carrying the kind of line it is.
+     *
+     * Everything is accepted — a textarea string, a flat list of numbers from
+     * an old row or a spreadsheet import, or the {number, type} entries the
+     * admin form posts — because all three still arrive from somewhere. A
+     * number given without a usable type is typed by {@see guessType()} rather
+     * than guessed at by the caller.
+     *
+     * @param  string|array<int|string, mixed>|null  $raw
+     * @return list<array{number: string, type: string}>
+     */
+    public static function entries(string|array|null $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        $values = is_array($raw) ? $raw : [$raw];
+        $out = [];
+        $seen = [];
+
+        foreach ($values as $value) {
+            [$number, $type] = self::readEntry($value);
+
+            // One entry can still carry several numbers ("011.../022..."), and
+            // they all inherit the type the entry declared.
+            foreach (self::split($number) as $single) {
+                if (isset($seen[$single])) {
+                    continue;
+                }
+
+                $seen[$single] = true;
+                $out[] = [
+                    'number' => $single,
+                    'type' => $type ?? self::guessType($single),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Just the numbers, in order — what a search index, a spreadsheet cell or
+     * an API consumer that predates the types wants.
+     *
+     * @param  string|array<int|string, mixed>|null  $raw
+     * @return list<string>
+     */
+    public static function numbers(string|array|null $raw): array
+    {
+        return array_map(fn (array $entry) => $entry['number'], self::entries($raw));
+    }
+
+    /**
+     * What kind of line a number looks like, for values that arrive without a
+     * type: rows written before types existed, and every spreadsheet import.
+     *
+     * Egyptian mobiles are 11 digits starting 01 (or the same with a country
+     * code); anything else is taken for a landline. It is a starting point an
+     * admin can correct in the form, not a fact about the number.
+     */
+    public static function guessType(string $number): string
+    {
+        $digits = preg_replace('/\D+/', '', self::foldDigits($number)) ?? '';
+
+        // Drop a leading 20 / 0020 country code before measuring.
+        $digits = preg_replace('/^(?:00)?20/', '0', $digits) ?? $digits;
+
+        return strlen($digits) === 11 && str_starts_with($digits, '01')
+            ? FacilityBranch::PHONE_MOBILE
+            : FacilityBranch::PHONE_LANDLINE;
+    }
+
+    /**
+     * Read one submitted entry into a number and, when it declared a usable
+     * one, its type.
+     *
+     * @return array{0: string, 1: string|null}
+     */
+    private static function readEntry(mixed $value): array
+    {
+        if (is_array($value)) {
+            $number = $value['number'] ?? $value['phone'] ?? '';
+            $type = $value['type'] ?? null;
+
+            return [
+                is_scalar($number) ? (string) $number : '',
+                is_string($type) && in_array($type, FacilityBranch::PHONE_TYPES, true) ? $type : null,
+            ];
+        }
+
+        return [is_scalar($value) ? (string) $value : '', null];
     }
 
     /**

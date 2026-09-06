@@ -417,7 +417,11 @@ class FacilityMigrationExporter
             'slug' => $branch->slug,
             'name' => $this->translations($branch, 'name'),
             'address' => $this->translations($branch, 'address'),
-            'phone' => $branch->phone,
+            // Flat numbers. The package format, and the import preview built
+            // on it, predate the phone types; the importer re-types what it
+            // reads. A number explicitly marked WhatsApp does not survive a
+            // site-to-site move — see PhoneNumbers::guessType().
+            'phone' => $branch->phoneNumbers(),
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
             'google_location_url' => $branch->google_location_url,

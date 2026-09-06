@@ -64,6 +64,21 @@
                   </svg>
                   {{ branchLocation(branch) }}
                 </p>
+                <p v-if="branch.google_location_url" class="text-sm mb-2">
+                  <a
+                    :href="branch.google_location_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                    {{ t.facility_branch?.view_on_maps || 'Open in Google Maps' }}
+                  </a>
+                </p>
                 <p v-if="hasCoordinates(branch)" class="text-sm text-white/80 mb-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline mr-1 text-white/50">
                     <circle cx="12" cy="12" r="3"></circle>
@@ -75,16 +90,30 @@
                   {{ Number(branch.latitude) }}, {{ Number(branch.longitude) }}
                 </p>
               </div>
-              <div v-if="branch.phone && branch.phone.length > 0" class="flex flex-wrap gap-2 text-xs text-white/70">
+              <p v-if="branch.created_by_name" class="mb-2 text-xs text-white/60">
+                {{ t.common?.created_by || 'Created By' }}: {{ branch.created_by_name }}
+                <span v-if="branch.created_at">· {{ branch.created_at }}</span>
+              </p>
+              <ul v-if="serverErrors[index]" class="mb-2 space-y-1 text-sm text-destructive">
+                <li v-for="(message, messageIndex) in serverErrors[index]" :key="messageIndex">{{ message }}</li>
+              </ul>
+              <div v-if="branchPhones(branch).length > 0" class="flex flex-wrap gap-2 text-xs text-white/70">
                 <span
-                  v-for="(phone, phoneIndex) in branch.phone"
+                  v-for="(phone, phoneIndex) in branchPhones(branch)"
                   :key="phoneIndex"
                   class="inline-flex items-center gap-1"
+                  :title="phoneLabel(phone.type)"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/50">
+                  <!-- WhatsApp numbers get the WhatsApp mark so the two kinds
+                       of line are told apart at a glance. -->
+                  <svg v-if="isWhatsappPhone(phone.type)" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-emerald-400">
+                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.1c-.25.69-1.44 1.32-1.98 1.36-.53.05-1.02.24-3.44-.72-2.9-1.14-4.74-4.1-4.88-4.29-.14-.19-1.16-1.55-1.16-2.95 0-1.4.73-2.09.99-2.38.26-.29.57-.36.76-.36h.55c.18 0 .42-.07.65.5.25.6.83 2.07.9 2.22.07.14.12.31.02.5-.1.19-.15.31-.29.48-.14.17-.3.38-.43.51-.14.14-.29.29-.12.57.16.29.73 1.2 1.56 1.95 1.07.95 1.97 1.25 2.25 1.39.29.14.45.12.62-.07.17-.19.71-.83.9-1.12.19-.29.38-.24.64-.14.26.09 1.66.78 1.94.93.29.14.48.21.55.33.07.12.07.69-.18 1.38z"/>
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/50">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                   </svg>
-                  {{ phone }}
+                  <span dir="ltr">{{ phone.number }}</span>
+                  <span class="text-white/40">· {{ phoneLabel(phone.type) }}</span>
                 </span>
               </div>
             </div>
@@ -157,6 +186,10 @@
                event bubbles up and triggers a full facility save. -->
           <form @submit.prevent.stop="handleSubmit">
             <div class="max-h-[70vh] overflow-y-auto p-4 space-y-4">
+              <!-- Read-only: the branch's creator is recorded on save, never edited here. -->
+              <p v-if="editingCreator" class="text-xs text-muted-foreground">
+                {{ t.common?.created_by || 'Created By' }}: <span class="text-white/80">{{ editingCreator }}</span>
+              </p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <FormTranslatableInput
@@ -194,6 +227,23 @@
                     :placeholder="t.city?.select || 'Select a city'"
                   />
                 </div>
+                <div class="md:col-span-2 flex flex-wrap items-center justify-end gap-2">
+                  <p v-if="locateHint" class="text-[11px] text-white/70 order-2 sm:order-1">{{ locateHint }}</p>
+                  <button
+                    v-if="aiEnabled"
+                    type="button"
+                    :disabled="!canLocate || locating"
+                    class="order-1 sm:order-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                    :title="locateHint || (t.facility?.location_generate_hint || 'Read the address above and fill in the coordinates and the Google Maps link')"
+                    @click="locate"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    {{ locating ? (t.facility?.location_generating || 'Locating…') : (t.facility?.location_generate || 'Find on map with AI') }}
+                  </button>
+                </div>
                 <div>
                   <FormInput
                     v-model="form.latitude"
@@ -215,19 +265,21 @@
                   />
                 </div>
                 <div class="md:col-span-2">
-                  <label class="block text-sm font-medium text-white mb-2">
-                    {{ t.facility_branch?.phone_numbers || 'Phone Numbers' }}
-                    <span class="text-xs text-white/70 ml-1">{{ t.facility_branch?.phone_help || '(one per line)' }}</span>
-                  </label>
-                  <textarea
-                    v-model="phoneText"
-                    :class="[
-                      'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md min-h-[80px] focus:ring-[3px] focus:ring-ring/50',
-                      errors.phone ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40' : ''
-                    ]"
-                    :placeholder="t.facility_branch?.phone_placeholder || 'Enter phone numbers, one per line\nExample:\n+20 123 456 7890\n+20 987 654 3210'"
-                  ></textarea>
-                  <p v-if="errors.phone" class="mt-1 text-sm text-destructive">{{ errors.phone }}</p>
+                  <FormInput
+                    v-model="form.google_location_url"
+                    :label="t.facility_branch?.google_location_url || 'Google Location URL'"
+                    type="url"
+                    :placeholder="t.facility_branch?.google_location_url_placeholder || 'https://maps.app.goo.gl/...'"
+                    :error="errors.google_location_url"
+                  />
+                </div>
+                <div class="md:col-span-2">
+                  <BranchPhonesInput
+                    v-model="form.phone"
+                    :label="t.facility_branch?.phone_numbers || 'Phone Numbers'"
+                    :hint="t.facility_branch?.phone_help || '(one number per row)'"
+                    :errors="errors"
+                  />
                 </div>
               </div>
             </div>
@@ -241,8 +293,12 @@
               </button>
               <button
                 type="submit"
+                :disabled="saving"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
               >
+                <svg v-if="saving" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
                 {{ editingIndex !== null ? (t.common?.update || 'Update') : (t.common?.add || 'Add') }} {{ t.facility_branch?.label || 'Branch' }}
               </button>
             </div>
@@ -255,9 +311,13 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import { FormTranslatableInput, FormSelect, FormInput } from '@/Components/form';
+import { FormTranslatableInput, FormSelect, FormInput, BranchPhonesInput } from '@/Components/form';
 import { usePage } from '@inertiajs/vue3';
+import { useFacilityStore } from '../../Stores/FacilityStore';
+import { useNotification } from '@/composables/useNotification';
+import { normalizePhoneEntries, phoneTypeLabel, isWhatsapp } from '@/lib/branchPhones';
 
+const facilityStore = useFacilityStore();
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 const locale = computed(() => page.props.locale || 'ar');
@@ -274,6 +334,19 @@ const props = defineProps({
   cities: {
     type: Array,
     default: () => []
+  },
+  // Set on the edit page only: with a facility to attach it to, a branch is
+  // saved the moment the modal is submitted instead of waiting for the
+  // facility save. Blank on the create page, where there is no facility yet.
+  facilitySlug: {
+    type: String,
+    default: ''
+  },
+  // False when GEMINI_API_KEY is unset — the "Find on map with AI" button is
+  // hidden rather than offered and then refused by the route behind it.
+  aiEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -282,6 +355,7 @@ const emit = defineEmits(['update:modelValue']);
 const showAddForm = ref(false);
 const editingIndex = ref(null);
 const errors = ref({});
+const saving = ref(false);
 
 const isFormOpen = computed(() => showAddForm.value || editingIndex.value !== null);
 
@@ -292,7 +366,8 @@ const form = ref({
   governorate_id: '',
   city_id: '',
   latitude: '',
-  longitude: ''
+  longitude: '',
+  google_location_url: ''
 });
 
 /* ---- change tracking -------------------------------------------------------
@@ -319,7 +394,8 @@ const branchFingerprint = (branch) => JSON.stringify({
   governorate_id: numeric(branch.governorate_id),
   city_id: numeric(branch.city_id),
   latitude: numeric(branch.latitude),
-  longitude: numeric(branch.longitude)
+  longitude: numeric(branch.longitude),
+  google_location_url: branch.google_location_url || null
 });
 
 const captureBaseline = () => {
@@ -378,6 +454,88 @@ const cityOptions = computed(() => {
     }));
 });
 
+// Phones are stored as { number, type }; rows written before types existed
+// still hold flat strings, so everything is read through the shared reader.
+const branchPhones = (branch) => normalizePhoneEntries(branch?.phone);
+
+const phoneLabel = (type) => t.value.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
+
+const isWhatsappPhone = (type) => isWhatsapp(type);
+
+/* ---- AI location ----------------------------------------------------------
+   The address the admin has typed goes to the server, which asks the model to
+   geocode it and builds the Google Maps link from the coordinates it returns.
+   Nothing is saved here — the values land in the open form and are stored with
+   the branch, so the admin can check the pin and correct it first. This is the
+   same shape as "Generate SEO with AI" on the SEO tab.
+--------------------------------------------------------------------------- */
+const locating = ref(false);
+
+const filledText = (value) => {
+  if (typeof value === 'string') return value.trim() !== '';
+  if (value && typeof value === 'object') {
+    return Object.values(value).some(entry => typeof entry === 'string' && entry.trim() !== '');
+  }
+  return false;
+};
+
+// An address is what the model actually searches on; a governorate or city
+// alone would only ever produce a centre-of-town pin.
+const hasAddress = computed(() => filledText(form.value.address));
+
+const canLocate = computed(() => props.aiEnabled && hasAddress.value);
+
+const locateHint = computed(() => {
+  if (!props.aiEnabled) return '';
+  if (!hasAddress.value) return t.value.facility?.location_needs_address || 'Enter the branch address first.';
+  return '';
+});
+
+const optionLabelFor = (options, id) => {
+  if (!id) return '';
+  const match = options.find(option => String(option.value) === String(id));
+  return match ? match.label : '';
+};
+
+const locate = async () => {
+  if (!canLocate.value || locating.value) return;
+
+  locating.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.branch.locate'), {
+      address: form.value.address || {},
+      name: form.value.name || {},
+      facility_name: facilityStore.form?.name || {},
+      governorate: optionLabelFor(governorateOptions.value, form.value.governorate_id) || null,
+      city: optionLabelFor(cityOptions.value, form.value.city_id) || null,
+    });
+
+    const location = data?.location;
+    if (!location) throw new Error('empty');
+
+    form.value.latitude = location.latitude;
+    form.value.longitude = location.longitude;
+    form.value.google_location_url = location.google_location_url;
+
+    // The AI wrote into fields the server may have flagged before — clear those.
+    ['latitude', 'longitude', 'google_location_url'].forEach((field) => {
+      delete errors.value[field];
+    });
+
+    const place = location.matched_place ? ` (${location.matched_place})` : '';
+    useNotification().success(
+      (t.value.facility?.location_generated || 'Location filled in. Open the map link to check the pin before saving.') + place
+    );
+  } catch (error) {
+    const message = error?.response?.data?.message
+      || error?.response?.data?.errors?.address?.[0]
+      || (t.value.facility?.location_generate_failed || 'Could not find the location. Please try again.');
+    useNotification().error(message);
+  } finally {
+    locating.value = false;
+  }
+};
+
 // Clear the selected city when it no longer belongs to the chosen governorate
 watch(() => form.value.governorate_id, (newGov, oldGov) => {
   if (oldGov !== undefined && newGov !== oldGov) {
@@ -390,25 +548,6 @@ watch(() => form.value.governorate_id, (newGov, oldGov) => {
   }
 });
 
-const phoneText = computed({
-  get: () => {
-    if (!form.value.phone || !Array.isArray(form.value.phone)) {
-      return '';
-    }
-    return form.value.phone.filter(p => p && p.trim()).join('\n');
-  },
-  set: (value) => {
-    if (!value || !value.trim()) {
-      form.value.phone = [];
-      return;
-    }
-    form.value.phone = value
-      .split(/[\n/\\،,;|]| [-–—] /)
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-  }
-});
-
 const resetForm = () => {
   form.value = {
     name: {},
@@ -417,7 +556,8 @@ const resetForm = () => {
     governorate_id: '',
     city_id: '',
     latitude: '',
-    longitude: ''
+    longitude: '',
+    google_location_url: ''
   };
   errors.value = {};
 };
@@ -451,6 +591,28 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
   document.body.style.overflow = '';
+});
+
+// Creator of the branch open in the modal; new branches have none yet.
+const editingCreator = computed(() =>
+  (editingIndex.value !== null ? props.modelValue[editingIndex.value]?.created_by_name : null) || null
+);
+
+/* Server-side branch errors arrive flattened ("branches.2.name.ar"). The modal
+   is closed by then, so they are shown on the card they belong to. */
+const serverErrors = computed(() => {
+  const byIndex = {};
+
+  Object.entries(facilityStore.validationErrors || {}).forEach(([key, message]) => {
+    const match = key.match(/^branches\.(\d+)\./);
+    if (!match) return;
+
+    const index = Number(match[1]);
+    byIndex[index] = byIndex[index] || [];
+    byIndex[index].push(Array.isArray(message) ? message[0] : message);
+  });
+
+  return byIndex;
 });
 
 const getTranslatedName = (name) => {
@@ -523,12 +685,44 @@ const editBranch = (index) => {
     governorate_id: branch.governorate_id ?? '',
     city_id: branch.city_id ?? '',
     latitude: branch.latitude ?? '',
-    longitude: branch.longitude ?? ''
+    longitude: branch.longitude ?? '',
+    google_location_url: branch.google_location_url ?? ''
   };
   errors.value = {};
 };
 
-const handleSubmit = () => {
+/* ---- uniqueness inside the facility ---------------------------------------
+   A branch may not repeat the name or the address of another branch of the
+   same facility. The server enforces this as well; checking here means the
+   admin is told inside the modal instead of after posting the whole facility.
+   Values are compared per locale and loosely, so "Main Branch" and
+   "main  branch " count as the same entry.
+--------------------------------------------------------------------------- */
+const compareKey = (value) =>
+  (typeof value === 'string' ? value.trim().replace(/\s+/gu, ' ').toLowerCase() : '');
+
+// The locale whose value is already taken by another branch, or null.
+const duplicateLocale = (field) => {
+  const values = form.value[field] || {};
+
+  for (const [locale, value] of Object.entries(values)) {
+    const key = compareKey(value);
+    if (!key) continue;
+
+    const taken = (props.modelValue || []).some((branch, index) => {
+      if (index === editingIndex.value) return false;
+      return compareKey((branch[field] || {})[locale]) === key;
+    });
+
+    if (taken) return locale;
+  }
+
+  return null;
+};
+
+const localeLabel = (locale) => ({ ar: 'Arabic', en: 'English' }[locale] || locale);
+
+const handleSubmit = async () => {
   errors.value = {};
 
   // Basic validation
@@ -536,6 +730,27 @@ const handleSubmit = () => {
   const hasName = Object.keys(nameObj).some(key => nameObj[key] && nameObj[key].trim());
   if (!hasName) {
     errors.value.name = t.value?.facility_branch?.name_required || 'Branch name is required in at least one language';
+    return;
+  }
+
+  const duplicateName = duplicateLocale('name');
+  if (duplicateName) {
+    errors.value.name = (t.value?.facility_branch?.duplicate_name
+      || 'Another branch of this facility already uses this name.') + ` (${localeLabel(duplicateName)})`;
+    return;
+  }
+
+  const duplicateAddress = duplicateLocale('address');
+  if (duplicateAddress) {
+    errors.value.address = (t.value?.facility_branch?.duplicate_address
+      || 'Another branch of this facility already uses this address.') + ` (${localeLabel(duplicateAddress)})`;
+    return;
+  }
+
+  const locationUrl = (form.value.google_location_url || '').trim();
+  if (locationUrl && !/^https?:\/\//i.test(locationUrl)) {
+    errors.value.google_location_url = t.value?.facility_branch?.google_location_url_invalid
+      || 'The Google location URL must start with http:// or https://';
     return;
   }
 
@@ -549,21 +764,81 @@ const handleSubmit = () => {
     governorate_id: form.value.governorate_id || null,
     city_id: form.value.city_id || null,
     latitude: form.value.latitude !== '' && form.value.latitude !== null ? form.value.latitude : null,
-    longitude: form.value.longitude !== '' && form.value.longitude !== null ? form.value.longitude : null
+    longitude: form.value.longitude !== '' && form.value.longitude !== null ? form.value.longitude : null,
+    google_location_url: (form.value.google_location_url || '').trim() || null
   };
 
+  // Without a facility there is nothing to attach the branch to yet, so it
+  // waits in the list until the facility itself is created.
+  if (!props.facilitySlug) {
+    applyBranch(branchData);
+    cancelForm();
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.branch.save', props.facilitySlug), {
+      ...branchData,
+      phone: branchData.phone || []
+    });
+
+    applyBranch(data.branch);
+    markSaved(data.branch);
+    useNotification().success(
+      data.created
+        ? (t.value?.facility_branch?.created || 'Branch created successfully')
+        : (t.value?.facility_branch?.updated_success || 'Branch updated successfully')
+    );
+    cancelForm();
+  } catch (error) {
+    errors.value = modalErrors(error?.response?.data?.errors);
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value?.facility_branch?.save_failed || 'Failed to save the branch. Please try again.')
+    );
+  } finally {
+    saving.value = false;
+  }
+};
+
+// Put a branch — the one just saved, or the local copy on the create page —
+// into the list the form holds.
+const applyBranch = (branch) => {
   const currentBranches = [...props.modelValue];
 
   if (editingIndex.value !== null) {
-    // Update existing branch
-    currentBranches[editingIndex.value] = { ...currentBranches[editingIndex.value], ...branchData };
+    currentBranches[editingIndex.value] = { ...currentBranches[editingIndex.value], ...branch };
   } else {
-    // Add new branch
-    currentBranches.push(branchData);
+    currentBranches.push(branch);
   }
 
   emit('update:modelValue', currentBranches);
-  cancelForm();
+};
+
+// A branch that has just been written is the stored state now, so it should
+// stop showing the "New"/"Edited" badge.
+const markSaved = (branch) => {
+  if (!branch || branch.id == null) return;
+
+  const next = new Map(baseline.value);
+  next.set(branch.id, branchFingerprint(branch));
+  baseline.value = next;
+};
+
+/* Server-side errors for the branch modal. Laravel flattens them per locale
+   ("name.ar"), while the inputs take one message per field. */
+const modalErrors = (responseErrors) => {
+  const mapped = {};
+
+  Object.entries(responseErrors || {}).forEach(([key, messages]) => {
+    const field = key.split('.')[0];
+    const message = Array.isArray(messages) ? messages[0] : messages;
+
+    if (!mapped[field]) mapped[field] = message;
+  });
+
+  return mapped;
 };
 
 const deleteBranch = (index) => {

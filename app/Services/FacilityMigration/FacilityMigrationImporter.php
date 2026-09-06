@@ -786,7 +786,7 @@ class FacilityMigrationImporter
             'facility_id' => $facility->id,
             'name' => $name,
             'position' => $this->trimmedOrNull($data['position'] ?? null),
-            'phones' => $this->normalizePhone($data['phones'] ?? $data['phone'] ?? null),
+            'phones' => $this->normalizeManagerPhones($data['phones'] ?? $data['phone'] ?? null),
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
         ];
         if (! $existing && ! empty($data['id'])) {
@@ -832,7 +832,7 @@ class FacilityMigrationImporter
         ]);
         $fill = [
             'facility_id' => $facility->id,
-            'phone' => $this->normalizePhone($data['phone'] ?? null),
+            'phone' => $this->normalizeBranchPhone($data['phone'] ?? null),
             'governorate_id' => $this->resolveGovernorate($data['governorate'] ?? null),
             'city_id' => $this->resolveCity($data['city'] ?? null, $data['governorate'] ?? null),
             'latitude' => $data['latitude'] ?? null,
@@ -1721,13 +1721,34 @@ class FacilityMigrationImporter
     }
 
     /**
-     * @return array<int, string>|null
+     * @return list<array{number: string, type: string}>|null
      */
-    private function normalizePhone($raw): ?array
+    private function normalizeBranchPhone($raw): ?array
     {
         // Splits packed cells / textarea lines into one number each, folds
-        // Arabic digits and strips grouping spaces. Shared with the facility
-        // form and the spreadsheet importer so every path stores phones alike.
+        // Arabic digits, strips grouping spaces and gives every number its
+        // type. Shared with the facility form and the spreadsheet importer so
+        // every path stores phones alike; a package that carries types keeps
+        // them, and a spreadsheet that cannot has them inferred.
+        if (is_array($raw)) {
+            $raw = array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw);
+        } elseif (is_scalar($raw)) {
+            $raw = (string) $raw;
+        } else {
+            $raw = null;
+        }
+
+        return PhoneNumbers::entries($raw) ?: null;
+    }
+
+    /**
+     * A facility manager is a person to ring rather than a branch line, so
+     * their numbers stay a flat list with no type attached.
+     *
+     * @return list<string>|null
+     */
+    private function normalizeManagerPhones($raw): ?array
+    {
         if (is_array($raw)) {
             $raw = array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw);
         } elseif (is_scalar($raw)) {
@@ -2046,7 +2067,9 @@ class FacilityMigrationImporter
             'facility_id' => $branch->facility_id,
             'name' => $this->snapshotTranslations($branch, 'name'),
             'address' => $this->snapshotTranslations($branch, 'address'),
-            'phone' => array_values(array_map('strval', $this->arrayOrEmpty($branch->phone))),
+            // Flat numbers: this is the "what the site already has" column in
+            // the import preview, shown beside the package's own flat list.
+            'phone' => PhoneNumbers::numbers($this->arrayOrEmpty($branch->phone)),
             'governorate' => $branch->governorate
                 ? ['id' => $branch->governorate->getKey(), 'label' => $this->snapshotLabel($branch->governorate)]
                 : null,

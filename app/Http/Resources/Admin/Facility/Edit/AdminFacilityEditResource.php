@@ -32,21 +32,10 @@ class AdminFacilityEditResource extends JsonResource
             'sales_id' => $this->sales_id,
             'discount_percent' => $this->discount_percent,
             'banner_config' => $this->banner_config,
-            'branches' => $this->whenLoaded('branches', function () {
-                return $this->branches->map(function ($branch) {
-                    return [
-                        'id' => $branch->id,
-                        'name' => $branch->getTranslations('name'),
-                        'address' => $branch->getTranslations('address'),
-                        'phone' => $branch->phone,
-                        'governorate_id' => $branch->governorate_id,
-                        'city_id' => $branch->city_id,
-                        'latitude' => $branch->latitude,
-                        'longitude' => $branch->longitude,
-                        'slug' => $branch->slug,
-                    ];
-                });
-            }),
+            'branches' => $this->whenLoaded(
+                'branches',
+                fn () => AdminFacilityEditBranchResource::collection($this->branches)->resolve($request)
+            ),
             'managers' => $this->whenLoaded('managers', function () {
                 return $this->managers->map(function ($manager) {
                     return [

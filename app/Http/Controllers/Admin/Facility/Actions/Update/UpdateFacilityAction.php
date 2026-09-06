@@ -7,6 +7,7 @@ use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
 use App\Models\FacilityLog;
 use App\Models\FacilityManager;
+use App\Support\PhoneNumbers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -219,7 +220,7 @@ class UpdateFacilityAction
         $updated = [];
 
         foreach ($branchesData as $branchData) {
-            $phone = $this->normalizePhone($branchData['phone'] ?? null);
+            $phone = $this->normalizeBranchPhone($branchData['phone'] ?? null);
 
             if (isset($branchData['id']) && $branchData['id']) {
                 $branch = FacilityBranch::where('id', $branchData['id'])
@@ -236,6 +237,7 @@ class UpdateFacilityAction
                         'city_id' => $branchData['city_id'] ?? null,
                         'latitude' => $branchData['latitude'] ?? null,
                         'longitude' => $branchData['longitude'] ?? null,
+                        'google_location_url' => $branchData['google_location_url'] ?? null,
                     ]);
                     $new = $this->branchSnapshot($branch->fresh());
 
@@ -253,6 +255,8 @@ class UpdateFacilityAction
                     'city_id' => $branchData['city_id'] ?? null,
                     'latitude' => $branchData['latitude'] ?? null,
                     'longitude' => $branchData['longitude'] ?? null,
+                    'google_location_url' => $branchData['google_location_url'] ?? null,
+                    'created_by' => Auth::id(),
                 ]);
             }
         }
@@ -264,17 +268,28 @@ class UpdateFacilityAction
         ];
     }
 
+    /**
+     * Branch phones: one entry per number, each carrying its type. Accepts the
+     * flat strings older callers (and the spreadsheet importer) still send.
+     *
+     * @return list<array{number: string, type: string}>
+     */
+    private function normalizeBranchPhone(mixed $phone): array
+    {
+        return PhoneNumbers::entries(is_array($phone) || is_string($phone) ? $phone : null);
+    }
+
+    /**
+     * Manager phones: a flat list of numbers. A manager is a person to ring,
+     * not a branch line, so there is nothing to type here.
+     *
+     * @return list<string>|null
+     */
     private function normalizePhone(mixed $phone): ?array
     {
-        if (is_string($phone) && ! empty($phone)) {
-            return [$phone];
-        }
-        if (! is_array($phone) || empty($phone)) {
-            return null;
-        }
-        $phone = array_filter(array_map('trim', $phone), fn ($p) => ! empty($p));
+        $numbers = PhoneNumbers::numbers(is_array($phone) || is_string($phone) ? $phone : null);
 
-        return ! empty($phone) ? array_values($phone) : null;
+        return $numbers === [] ? null : $numbers;
     }
 
     /**
@@ -381,6 +396,7 @@ class UpdateFacilityAction
             'city_id' => $branch->city_id,
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
+            'google_location_url' => $branch->google_location_url,
         ];
     }
 

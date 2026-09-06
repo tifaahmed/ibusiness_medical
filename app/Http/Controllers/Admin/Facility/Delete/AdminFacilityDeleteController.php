@@ -19,8 +19,15 @@ class AdminFacilityDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Remove the specified facility from storage.
@@ -160,13 +167,11 @@ class AdminFacilityDeleteController extends BaseController
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 }
-
-
-

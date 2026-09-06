@@ -160,6 +160,7 @@ export const useFacilityStore = defineStore('facility', {
                         city_id: branch.city_id || null,
                         latitude: branch.latitude ?? null,
                         longitude: branch.longitude ?? null,
+                        google_location_url: branch.google_location_url || null,
                     })),
                     managers: managers.map(manager => ({
                         id: manager.id || null,
@@ -229,6 +230,7 @@ export const useFacilityStore = defineStore('facility', {
                         city_id: branch.city_id || null,
                         latitude: branch.latitude ?? null,
                         longitude: branch.longitude ?? null,
+                        google_location_url: branch.google_location_url || null,
                     })),
                     managers: managers.map(manager => ({
                         id: manager.id || null,
