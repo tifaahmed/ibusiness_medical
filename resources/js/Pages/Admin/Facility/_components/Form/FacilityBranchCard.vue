@@ -165,14 +165,50 @@
         aria-modal="true"
         @click.self="cancelForm"
       >
-        <div class="my-8 w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+        <div class="my-8 w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
           <div class="flex items-start gap-3 border-b border-border p-4">
             <h3 class="text-sm font-semibold text-white">
               {{ editingIndex !== null ? (t.facility_branch?.edit_branch || 'Edit Branch') : (t.facility_branch?.add_new_branch || 'Add New Branch') }}
             </h3>
+            <!-- Shown even when it cannot run: a button that quietly disappears
+                 reads as a missing feature, while a disabled one with its
+                 reason attached reads as something to go and switch on. -->
+            <button
+              v-if="translateHint"
+              type="button"
+              class="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              :title="translateHint"
+              :aria-label="translateHint"
+              @click="showTranslateHint = !showTranslateHint"
+            >
+              i
+            </button>
+            <span v-if="translateHint && showTranslateHint" class="max-w-[16rem] text-[11px] text-amber-300">
+              {{ translateHint }}
+            </span>
             <button
               type="button"
-              class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              :disabled="!canTranslate || translating"
+              :class="[
+                'inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none',
+                translateHint ? '' : 'ml-auto'
+              ]"
+              :title="translateHint || (t.facility?.english_fix_branch_hint || 'Translate the Arabic name and address into the English boxes')"
+              @click="fixEnglish"
+            >
+              <svg v-if="translating" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
+              </svg>
+              {{ translating
+                ? (t.facility?.english_fixing || 'Fixing English…')
+                : (t.facility?.english_fix_branch || 'Fix English with AI') }}
+            </button>
+            <button
+              type="button"
+              class="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               :title="t.common?.close || 'Close (Esc)'"
               @click="cancelForm"
             >
@@ -191,7 +227,7 @@
                 {{ t.common?.created_by || 'Created By' }}: <span class="text-white/80">{{ editingCreator }}</span>
               </p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div class="md:col-span-2">
                   <FormTranslatableInput
                     v-model="form.name"
                     :label="t.facility_branch?.branch_name || 'Branch Name'"
@@ -199,19 +235,44 @@
                     :placeholder="t.facility_branch?.branch_name_placeholder || 'Enter branch name'"
                     :locales="['ar', 'en']"
                   />
+                  <!-- Branch names are usually "<facility> - <city>", so the city
+                       is one click rather than retyped. One button per language,
+                       each appending that language's spelling of the city. -->
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      v-for="locale in ['ar', 'en']"
+                      :key="locale"
+                      type="button"
+                      :disabled="!canAddCity(locale)"
+                      class="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                      :title="addCityHint(locale)"
+                      @click="addCityToName(locale)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"></path><path d="M12 5v14"></path>
+                      </svg>
+                      {{ (t.facility_branch?.add_city_to_name || 'Add city to name') }} ({{ locale.toUpperCase() }})
+                    </button>
+                    <span v-if="addCityHint('ar') && addCityHint('ar') === addCityHint('en')" class="text-[11px] text-white/70">
+                      {{ addCityHint('ar') }}
+                    </span>
+                  </div>
                 </div>
-                <div>
+                <div class="md:col-span-2">
                   <FormTranslatableInput
                     v-model="form.address"
                     :label="t.common?.address || 'Address'"
                     :error="errors.address"
                     :placeholder="t.facility_branch?.address_placeholder || 'Enter branch address'"
                     :locales="['ar', 'en']"
+                    multiline
+                    :rows="3"
                   />
                 </div>
                 <div>
                   <FormSelect
                     v-model="form.governorate_id"
+                    required
                     :label="t.governorate?.label || 'Governorate'"
                     :options="governorateOptions"
                     :error="errors.governorate_id"
@@ -221,6 +282,7 @@
                 <div>
                   <FormSelect
                     v-model="form.city_id"
+                    required
                     :label="t.city?.label || 'City'"
                     :options="cityOptions"
                     :error="errors.city_id"
@@ -347,6 +409,11 @@ const props = defineProps({
   aiEnabled: {
     type: Boolean,
     default: false
+  },
+  // Same gate for the modal's "Fix English with AI" button.
+  englishFixEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -356,6 +423,8 @@ const showAddForm = ref(false);
 const editingIndex = ref(null);
 const errors = ref({});
 const saving = ref(false);
+const translating = ref(false);
+const showTranslateHint = ref(false);
 
 const isFormOpen = computed(() => showAddForm.value || editingIndex.value !== null);
 
@@ -534,6 +603,125 @@ const locate = async () => {
   } finally {
     locating.value = false;
   }
+};
+
+/* The Arabic side is the source the AI translates from, so there is nothing to
+   do until one of the two Arabic boxes has something in it. */
+const canTranslate = computed(() =>
+  props.englishFixEnabled
+  && (
+    String(form.value.name?.ar || '').trim() !== ''
+    || String(form.value.address?.ar || '').trim() !== ''
+  )
+);
+
+const translateHint = computed(() => {
+  if (!props.englishFixEnabled) {
+    return t.value.facility?.english_fix_disabled
+      || 'AI is not configured on this server: set GEMINI_API_KEY in the .env file, then restart, to enable this.';
+  }
+  if (translating.value) return '';
+  if (!canTranslate.value) {
+    return t.value.facility?.english_fix_needs_arabic
+      || 'Fill in the Arabic name or address first.';
+  }
+  return '';
+});
+
+// Fills the English name/address from the Arabic ones as they stand in the
+// form — the facility-wide button works on saved rows, this one does not need
+// the branch to exist yet.
+const fixEnglish = async () => {
+  if (!canTranslate.value || translating.value) return;
+
+  translating.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.branch.translate'), {
+      name: { ar: form.value.name?.ar || '' },
+      address: { ar: form.value.address?.ar || '' },
+      facility_name: optionLabel(facilityStore.form?.name || {}) || null,
+      governorate: optionLabelFor(governorateOptions.value, form.value.governorate_id) || null,
+      city: optionLabelFor(cityOptions.value, form.value.city_id) || null,
+    });
+
+    const values = data?.values || {};
+    const filled = [];
+
+    ['name', 'address'].forEach((field) => {
+      if (!values[field]) return;
+      form.value[field] = { ...(form.value[field] || {}), en: values[field] };
+      delete errors.value[field];
+      filled.push(field);
+    });
+
+    if (filled.length === 0) throw new Error('empty');
+
+    useNotification().success(
+      t.value.facility?.english_fix_branch_done
+      || 'English filled in. Check it before saving.'
+    );
+  } catch (error) {
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value.facility?.english_fix_failed || 'Could not fix the English fields. Please try again.')
+    );
+  } finally {
+    translating.value = false;
+  }
+};
+
+/* "Add city to name" — a branch is nearly always "<facility> - <city>", and
+   typing that out in both languages is the same edit every time. */
+const selectedCity = computed(() =>
+  props.cities.find(city => String(city.id) === String(form.value.city_id)) || null
+);
+
+const cityNameIn = (locale) => {
+  const name = selectedCity.value?.name;
+  if (!name) return '';
+  if (typeof name === 'object') return String(name[locale] || '').trim();
+
+  // A city stored as a plain string has one spelling; offer it for whichever
+  // side it reads as, rather than guessing it must be the Arabic one.
+  const plain = String(name).trim();
+  const isArabic = /[\u0600-\u06FF]/.test(plain);
+
+  return (locale === 'ar') === isArabic ? plain : '';
+};
+
+// A city already written into this language's name is not appended a second
+// time — the button for that language goes dead instead.
+const canAddCity = (locale) => {
+  const city = cityNameIn(locale);
+  if (city === '') return false;
+
+  return !String(form.value.name?.[locale] || '').toLowerCase().includes(city.toLowerCase());
+};
+
+const addCityHint = (locale) => {
+  if (!form.value.city_id) return t.value.city?.select || 'Select a city first';
+  if (cityNameIn(locale) === '') {
+    return t.value.facility_branch?.city_missing_locale
+      || `This city has no ${locale.toUpperCase()} name`;
+  }
+  if (!canAddCity(locale)) {
+    return t.value.facility_branch?.city_already_in_name || 'The city is already in the name';
+  }
+  return '';
+};
+
+const addCityToName = (locale) => {
+  if (!canAddCity(locale)) return;
+
+  const city = cityNameIn(locale);
+  const current = String(form.value.name?.[locale] || '').trim();
+
+  form.value.name = {
+    ...(form.value.name || {}),
+    [locale]: current === '' ? city : `${current} - ${city}`,
+  };
+
+  delete errors.value.name;
 };
 
 // Clear the selected city when it no longer belongs to the chosen governorate
@@ -730,6 +918,18 @@ const handleSubmit = async () => {
   const hasName = Object.keys(nameObj).some(key => nameObj[key] && nameObj[key].trim());
   if (!hasName) {
     errors.value.name = t.value?.facility_branch?.name_required || 'Branch name is required in at least one language';
+    return;
+  }
+
+  // A branch without a place on the map is what makes the directory unusable,
+  // so both are asked for here rather than left to be filled in later.
+  if (!form.value.governorate_id) {
+    errors.value.governorate_id = t.value?.governorate?.required || 'Governorate is required';
+  }
+  if (!form.value.city_id) {
+    errors.value.city_id = t.value?.city?.required || 'City is required';
+  }
+  if (errors.value.governorate_id || errors.value.city_id) {
     return;
   }
 

@@ -2,11 +2,15 @@
 
 namespace App\Services\FacilityMigration;
 
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityManager;
+use App\Models\FacilityType;
+use App\Models\Governorate;
 use App\Models\Offer;
 use App\Models\Sales;
+use App\Support\PhoneNumbers;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
@@ -113,12 +117,20 @@ class FacilityMigrationExporter
                 'laravel_version' => app()->version(),
                 'php_version' => PHP_VERSION,
             ],
+            // Who pressed the button. A package that turns up months later on
+            // another site is otherwise anonymous, and "which of us exported
+            // this, and what did they ask for?" is the first question asked.
+            'exported_by' => $this->exportedBy($options),
             'options' => [
                 'include_media_files' => (bool) $includeMediaFiles,
                 'include_offers' => (bool) $includeOffers,
                 'include_branches' => (bool) $includeBranches,
                 'include_managers' => (bool) $includeManagers,
                 'filters' => $filters,
+                // The same filters as sentences, with every id resolved to the
+                // name it had here — ids mean nothing on the other site, and
+                // nothing at all to a human reading the file next year.
+                'filters_described' => $this->describeFilters($filters),
                 'slice' => ($offset !== null || $limit !== null)
                     ? ['offset' => $offset ?? 0, 'limit' => $limit, 'total_matching' => $this->countMatching($filters)]
                     : null,
@@ -163,6 +175,8 @@ class FacilityMigrationExporter
      *                                         - include_offers: bool (default true)
      *                                         - include_branches: bool (default true) — leave the branch rows out
      *                                         - include_managers: bool (default true) — leave the contact people out
+     *                                         - exported_by: ['id','name','email'] of whoever asked for it; defaults
+     *                                         to the signed-in user
      *                                         - destination: absolute path for the .zip (defaults to a temp file)
      *                                         - offset / limit: export a slice, so a big site can be handed over in
      *                                         parts instead of one enormous download
@@ -194,6 +208,7 @@ class FacilityMigrationExporter
             'origin' => self::ORIGIN_SITE_EXPORT,
             'generated_at' => $payload['generated_at'],
             'source' => $payload['source'],
+            'exported_by' => $payload['exported_by'],
             'options' => $payload['options'],
             'counts' => $payload['counts'],
             'entries' => [
@@ -273,6 +288,139 @@ class FacilityMigrationExporter
     }
 
     /**
+     * Who is building this package.
+     *
+     * Explicit when the caller says so, otherwise the signed-in admin; a
+     * console run has neither and says so rather than naming nobody.
+     *
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
+    private function exportedBy(array $options): array
+    {
+        if (isset($options['exported_by']) && is_array($options['exported_by'])) {
+            return $options['exported_by'];
+        }
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return ['id' => null, 'name' => 'Console (artisan)', 'email' => null];
+        }
+
+        return [
+            'id' => $user->getKey(),
+            'name' => (string) ($user->name ?? ''),
+            'email' => (string) ($user->email ?? ''),
+        ];
+    }
+
+    /**
+     * The filters as label/value pairs a person can read, ids resolved to the
+     * names they carry on this site.
+     *
+     * Empty when nothing was narrowed — the caller is the one that decides how
+     * to say "everything", because the wording differs per shape of package.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    public function describeFilters(array $filters): array
+    {
+        $rows = [];
+        $add = function (string $key, string $label, ?string $value) use (&$rows) {
+            if ($value !== null && trim($value) !== '') {
+                $rows[] = ['key' => $key, 'label' => $label, 'value' => trim($value)];
+            }
+        };
+
+        $add('search', 'Search (name or slug)', $this->text($filters['search'] ?? null));
+        $add('slug', 'Facility slug', $this->text($filters['slug'] ?? null));
+
+        if (! empty($filters['facility_ids'])) {
+            $ids = (array) $filters['facility_ids'];
+            $add('facility_ids', 'Hand-picked facilities', count($ids).' selected (#'.implode(', #', $ids).')');
+        }
+
+        $add('facility_type_id', 'Facility type', $this->lookupName(
+            FacilityType::class, $filters['facility_type_id'] ?? null
+        ));
+
+        $add('sales_id', 'Sales rep', $this->salesName($filters['sales_id'] ?? null));
+
+        $add('sales_presence', 'Sales assignment', match ($filters['sales_presence'] ?? '') {
+            'with' => 'Only facilities that have a sales rep',
+            'without' => 'Only facilities with no sales rep',
+            default => null,
+        });
+
+        $add('governorate_id', 'Governorate (of a branch)', $this->lookupName(
+            Governorate::class, $filters['governorate_id'] ?? null
+        ));
+
+        $add('city_id', 'City (of a branch)', $this->lookupName(
+            City::class, $filters['city_id'] ?? null
+        ));
+
+        $add('branches_missing', 'Branches missing location', match ($filters['branches_missing'] ?? '') {
+            'governorate' => 'Has a branch with no governorate',
+            'city' => 'Has a branch with no city',
+            'either' => 'Has a branch missing a governorate or a city',
+            'both' => 'Has a branch missing both governorate and city',
+            default => null,
+        });
+
+        $add('created_from', 'Created from', $this->text($filters['created_from'] ?? null));
+        $add('created_to', 'Created to', $this->text($filters['created_to'] ?? null));
+
+        return $rows;
+    }
+
+    /**
+     * The name a translatable lookup row carries here, for the filter summary.
+     *
+     * @param  class-string<Model>  $model
+     */
+    private function lookupName(string $model, mixed $id): ?string
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $row = $model::find($id);
+
+        if (! $row) {
+            // The row was deleted between picking it and pressing export. The
+            // id still says what was asked for, which is the point of the sheet.
+            return "#{$id} (no longer on this site)";
+        }
+
+        $name = $this->text($row->getTranslation('name', 'en'))
+            ?? $this->text($row->getTranslation('name', 'ar'))
+            ?? "#{$id}";
+
+        return "{$name} (#{$id})";
+    }
+
+    private function salesName(mixed $id): ?string
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $sales = Sales::find($id);
+
+        return $sales ? $sales->displayName()." (#{$id})" : "#{$id} (no longer on this site)";
+    }
+
+    private function text(mixed $value): ?string
+    {
+        $value = is_scalar($value) ? trim((string) $value) : '';
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      * @return EloquentCollection<int, Facility>
      */
@@ -320,10 +468,18 @@ class FacilityMigrationExporter
      * The filter clauses, shared by the export query and the planning count so
      * the two can never drift apart.
      *
+     * These are the facility list screen's filters, clause for clause: an
+     * operator who narrows the list and then exports has to get the very rows
+     * that were on screen, so place is asked of the branches here too rather
+     * than of the facility's own column.
+     *
      * @param  array<string, mixed>  $filters
      */
     private function baseQuery(array $filters)
     {
+        $salesPresence = $filters['sales_presence'] ?? '';
+        $branchesMissing = $filters['branches_missing'] ?? '';
+
         return Facility::query()
             ->when(! empty($filters['facility_ids']), fn ($q) => $q->whereIn('id', (array) $filters['facility_ids']))
             ->when(! empty($filters['slug']), fn ($q) => $q->where('slug', $filters['slug']))
@@ -337,7 +493,33 @@ class FacilityMigrationExporter
             })
             ->when(! empty($filters['facility_type_id']), fn ($q) => $q->where('facility_type_id', $filters['facility_type_id']))
             ->when(! empty($filters['sales_id']), fn ($q) => $q->where('sales_id', $filters['sales_id']))
-            ->when(! empty($filters['governorate_id']), fn ($q) => $q->where('governorate_id', $filters['governorate_id']))
+            // Who is selling and who is nobody's — the question the rep filter
+            // above cannot answer, because it can only name a rep that exists.
+            ->when($salesPresence === 'with', fn ($q) => $q->whereNotNull('sales_id'))
+            ->when($salesPresence === 'without', fn ($q) => $q->whereNull('sales_id'))
+            // Asked of the branches, as the list screen asks it: a facility is
+            // in a governorate because one of its branches stands there.
+            ->when(! empty($filters['governorate_id']), fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->where('governorate_id', $filters['governorate_id'])
+            ))
+            ->when(! empty($filters['city_id']), fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->where('city_id', $filters['city_id'])
+            ))
+            // The facilities holding a branch nobody can place on a map. They
+            // are invisible to the two filters above, and they are exactly the
+            // rows an operator exports in order to go and fix them.
+            ->when($branchesMissing === 'governorate', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')
+            ))
+            ->when($branchesMissing === 'city', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('city_id')
+            ))
+            ->when($branchesMissing === 'either', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')->orWhereNull('city_id')
+            ))
+            ->when($branchesMissing === 'both', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')->whereNull('city_id')
+            ))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
             ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             // A stable order is what makes offset/limit slicing safe across parts.
@@ -471,10 +653,9 @@ class FacilityMigrationExporter
             'id' => $manager->id,
             'name' => $manager->name,
             'position' => $manager->position,
-            'phones' => array_values(array_filter(
-                array_map(fn ($p) => trim((string) $p), (array) ($manager->phones ?? [])),
-                fn ($p) => $p !== ''
-            )),
+            // Typed entries, so a move between sites keeps "mobile" /
+            // "WhatsApp" rather than flattening every number to a digit string.
+            'phones' => PhoneNumbers::entries($manager->phones),
             'created_at' => $manager->created_at?->toIso8601String(),
             'updated_at' => $manager->updated_at?->toIso8601String(),
             'created_by' => $manager->creator ? [
@@ -765,6 +946,17 @@ class FacilityMigrationExporter
         $source = $payload['source']['app_url'] ?? 'unknown';
         $generated = $payload['generated_at'];
         $withFiles = $payload['options']['include_media_files'];
+        $author = $payload['exported_by']['name'] ?? 'unknown';
+        $authorEmail = $payload['exported_by']['email'] ?? null;
+        $author = $authorEmail ? "{$author} <{$authorEmail}>" : $author;
+        // Which slice of the site this is. Spelled out, because a package named
+        // "part 2 of 5" says nothing about what put those rows in it.
+        $described = $payload['options']['filters_described'] ?? [];
+        $filterLines = $described === []
+            ? '- No filters — every facility on the source site.'
+            : collect($described)
+                ->map(fn (array $row) => "- {$row['label']}: {$row['value']}")
+                ->implode("\n");
 
         $imagesSection = $withFiles
             ? <<<'MD'
@@ -790,10 +982,15 @@ MD;
 
 - Format: `{$payload['format']}` v{$payload['format_version']}
 - Generated: {$generated}
+- Exported by: {$author}
 - Source site: {$source}
 - Facilities: {$counts['facilities']} | Branches: {$counts['branches']} | Managers: {$counts['managers']} | Offers: {$counts['offers']}
 - Tags links: {$counts['tags']} | Media rows described: {$counts['media']} | Images this package restores: {$counts['media_restorable']}
 - Image files bundled: {$counts['media_files_bundled']} (files missing on the source host: {$counts['media_files_missing']})
+
+## Filters this export was built with
+
+{$filterLines}
 
 ## What is inside
 

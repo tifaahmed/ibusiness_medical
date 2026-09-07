@@ -148,8 +148,13 @@ class FacilityMigrationImporter
      *                                         instead of recording it and moving on (default false)
      * @return array<string, mixed>
      */
-    public function beginSession(string $packagePath, array $options = []): array
+    public function beginSession(string $packagePath, array $options = [], ?callable $onProgress = null): array
     {
+        // Opening a whole-site package is the slow half of an import, and the
+        // screen waiting on it can only say how far along it is if the work
+        // reports as it goes. Callers that do not care pass nothing.
+        $report = $onProgress ?? static fn (string $phase, int $processed, int $total) => null;
+
         $mode = $options['mode'] ?? self::MODE_MERGE;
         if (! in_array($mode, [self::MODE_FRESH, self::MODE_MERGE], true)) {
             throw new RuntimeException("Unknown import mode \"{$mode}\". Use \"fresh\" or \"merge\".");
@@ -162,11 +167,15 @@ class FacilityMigrationImporter
         }
 
         try {
+            // Unpacking and parsing is one indivisible block — there is nothing
+            // to count until the package has been read.
+            $report('extracting', 0, 0);
             [$payload, $extractedTo] = $this->readPackage($packagePath, $dir.'/package');
 
             // One file per facility, so a step only ever decodes what it needs.
             $facilityDir = $dir.'/facilities';
             mkdir($facilityDir, 0775, true);
+            $expected = is_array($payload['facilities'] ?? null) ? count($payload['facilities']) : 0;
             $total = 0;
             foreach ($payload['facilities'] ?? [] as $facility) {
                 file_put_contents(
@@ -174,6 +183,7 @@ class FacilityMigrationImporter
                     json_encode($facility, JSON_UNESCAPED_UNICODE)
                 );
                 $total++;
+                $report('indexing', $total, $expected);
             }
             file_put_contents($dir.'/lookups.json', json_encode($payload['lookups'] ?? [], JSON_UNESCAPED_UNICODE));
 
@@ -2093,22 +2103,20 @@ class FacilityMigrationImporter
     }
 
     /**
-     * A facility manager is a person to ring rather than a branch line, so
-     * their numbers stay a flat list with no type attached.
+     * A manager's numbers are stored the way a branch's are: one typed entry
+     * each. The reader takes the typed entries a current package carries, the
+     * flat strings an older one does, and the single cell a spreadsheet has —
+     * so nothing is flattened on the way in.
      *
-     * @return list<string>|null
+     * @return list<array{number: string, type: string}>|null
      */
     private function normalizeManagerPhones($raw): ?array
     {
-        if (is_array($raw)) {
-            $raw = array_map(fn ($p) => is_scalar($p) ? (string) $p : '', $raw);
-        } elseif (is_scalar($raw)) {
-            $raw = (string) $raw;
-        } else {
-            $raw = null;
+        if (! is_array($raw) && ! is_scalar($raw)) {
+            return null;
         }
 
-        return PhoneNumbers::split($raw) ?: null;
+        return PhoneNumbers::entries(is_scalar($raw) ? (string) $raw : $raw) ?: null;
     }
 
     /**
@@ -2376,7 +2384,9 @@ class FacilityMigrationImporter
             'facility_id' => $manager->facility_id,
             'name' => (string) $manager->name,
             'position' => $manager->position,
-            'phones' => array_values(array_map('strval', $this->arrayOrEmpty($manager->phones))),
+            // Flat numbers: this is the "what the site already has" column in
+            // the import preview, shown beside the package's own list.
+            'phones' => PhoneNumbers::numbers($this->arrayOrEmpty($manager->phones)),
         ];
     }
 

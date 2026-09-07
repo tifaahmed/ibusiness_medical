@@ -2,6 +2,7 @@
 
 namespace App\Services\FacilityMigration;
 
+use App\Support\PhoneNumbers;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -28,6 +29,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
  *   Managers    the same, for the contact people
  *   Offers      tied to the facility or branch that owns them
  *   Package     what this file is and where it came from — read on import
+ *   Export Info who exported it and exactly which filters they asked for —
+ *               written for people, never read back on import
  */
 class FacilityMigrationWorkbook
 {
@@ -49,6 +52,18 @@ class FacilityMigrationWorkbook
      * too.
      */
     public const LOOKUPS_SHEET = 'Lookups';
+
+    /**
+     * The report sheet: who built this file, when, and the filters that decided
+     * which facilities are in it.
+     *
+     * Deliberately not part of the format. XlsxToMigrationZip reads sheets by
+     * name and knows nothing of this one, so an operator can read it, edit it or
+     * delete it and the workbook still imports exactly the same — which is the
+     * whole reason the answer is a separate sheet rather than extra columns or
+     * a header band on the Facilities sheet.
+     */
+    public const EXPORT_INFO_SHEET = 'Export Info';
 
     /** @var array<string, array{label: string, width: int}> */
     private const FACILITY_COLUMNS = [
@@ -181,6 +196,7 @@ class FacilityMigrationWorkbook
         $this->fill($lookups, self::LOOKUP_COLUMNS, $this->lookupRows($payload['lookups'] ?? []), '4F46E5');
 
         $this->buildPackageSheet($spreadsheet, $payload);
+        $this->buildExportInfoSheet($spreadsheet, $payload);
         $spreadsheet->setActiveSheetIndex(0);
 
         (new XlsxWriter($spreadsheet))->save($destination);
@@ -279,7 +295,7 @@ class FacilityMigrationWorkbook
                     'id' => $manager['id'] ?? null,
                     'name' => $manager['name'] ?? null,
                     'position' => $manager['position'] ?? null,
-                    'phones' => collect($manager['phones'] ?? [])->implode(', '),
+                    'phones' => collect(PhoneNumbers::numbers($manager['phones'] ?? []))->implode(', '),
                 ];
             }
         }
@@ -428,6 +444,121 @@ class FacilityMigrationWorkbook
         $sheet->setCellValue('A'.($note + 1), 'The Import tab reads it to know this file came from a site export, '
             .'which is what lets it match rows by their slug instead of by name.');
         $sheet->getStyle("A{$note}:A".($note + 1))->getFont()->setItalic(true);
+    }
+
+    /**
+     * The human's sheet: who exported this and what they asked for.
+     *
+     * The Package sheet above is machine-facing and stays that way; this one
+     * answers the questions a person has when a file turns up — who made it,
+     * when, from which site, and which facilities it was narrowed to. Nothing
+     * reads it back, so it can say things in full sentences.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function buildExportInfoSheet(Spreadsheet $spreadsheet, array $payload): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle(self::EXPORT_INFO_SHEET);
+
+        $counts = $payload['counts'] ?? [];
+        $options = $payload['options'] ?? [];
+        $source = $payload['source'] ?? [];
+        $author = $payload['exported_by'] ?? [];
+        $slice = $options['slice'] ?? null;
+        $filters = $options['filters_described'] ?? [];
+
+        $sections = [];
+
+        $sections[] = ['Export', [
+            ['Exported by', $this->trimmed($author['name'] ?? null) ?? '—'],
+            ['Email', $this->trimmed($author['email'] ?? null) ?? '—'],
+            ['Exported at', $payload['generated_at'] ?? ''],
+            ['Source site', $source['app_name'] ?? ''],
+            ['Source URL', $source['app_url'] ?? ''],
+            ['File', 'Excel workbook (data only — no image files)'],
+        ]];
+
+        // The point of the sheet. An empty filter set is a statement in its own
+        // right: this is the whole site, not a slice somebody forgot to label.
+        $sections[] = ['Filters applied', $filters === []
+            ? [['No filters', 'Every facility on the source site was exported.']]
+            : array_map(fn (array $row) => [$row['label'], $row['value']], $filters)];
+
+        $sections[] = ['What was exported', [
+            ['Facilities', (string) ($counts['facilities'] ?? 0)],
+            ['Branches', ($options['include_branches'] ?? true)
+                ? (string) ($counts['branches'] ?? 0)
+                : 'not included'],
+            ['Managers', ($options['include_managers'] ?? true)
+                ? (string) ($counts['managers'] ?? 0)
+                : 'not included'],
+            ['Offers', ($options['include_offers'] ?? true)
+                ? (string) ($counts['offers'] ?? 0)
+                : 'not included'],
+            ['Tag links', (string) ($counts['tags'] ?? 0)],
+            ['Images', 'not included — importing this file leaves the pictures on the '
+                .'other site exactly as they are'],
+        ]];
+
+        if (is_array($slice)) {
+            $perPart = $slice['limit'] ?? null;
+            $offset = $slice['offset'] ?? 0;
+            $total = $slice['total_matching'] ?? null;
+            $sections[] = ['This part', [
+                ['Part', $perPart ? (string) ((int) floor($offset / $perPart) + 1) : '1'],
+                ['Parts in total', ($perPart && $total !== null)
+                    ? (string) max(1, (int) ceil($total / $perPart))
+                    : '—'],
+                ['Facilities per part', $perPart !== null ? (string) $perPart : '—'],
+                ['Facilities skipped before this part', (string) $offset],
+                ['Facilities matching the filters', $total !== null ? (string) $total : '—'],
+            ]];
+        }
+
+        $sheet->setCellValue('A1', 'EXPORT REPORT');
+        $sheet->mergeCells('A1:B1');
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B45309']],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        $row = 3;
+        foreach ($sections as [$heading, $pairs]) {
+            $sheet->setCellValue("A{$row}", $heading);
+            $sheet->mergeCells("A{$row}:B{$row}");
+            $sheet->getStyle("A{$row}")->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => '78350F']],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FEF3C7']],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FCD34D']]],
+            ]);
+            $sheet->getRowDimension($row)->setRowHeight(20);
+            $row++;
+
+            foreach ($pairs as [$label, $value]) {
+                $sheet->setCellValueExplicit("A{$row}", (string) $label, DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit("B{$row}", (string) $value, DataType::TYPE_STRING);
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
+                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+                ]);
+                $row++;
+            }
+
+            $row++;
+        }
+
+        $sheet->getColumnDimension('A')->setWidth(34);
+        $sheet->getColumnDimension('B')->setWidth(64);
+
+        $sheet->setCellValue("A{$row}", 'This sheet is a report for people, not part of the import.');
+        $sheet->setCellValue('A'.($row + 1), 'The Import tab never reads it — editing or deleting it changes nothing '
+            .'about what gets imported.');
+        $sheet->getStyle("A{$row}:A".($row + 1))->getFont()->setItalic(true);
     }
 
     /**

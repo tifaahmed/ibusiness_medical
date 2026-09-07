@@ -15,6 +15,7 @@
       ]"
       :aria-expanded="isOpen"
       :aria-haspopup="true"
+      :title="selectedLabel || placeholder"
       :aria-invalid="error ? 'true' : undefined"
       :aria-disabled="disabled ? 'true' : undefined"
     >

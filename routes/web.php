@@ -145,6 +145,9 @@ use App\Http\Controllers\Admin\Order\Export\AdminOrderExportController;
 use App\Http\Controllers\Admin\Order\ForceDelete\AdminOrderForceDeleteController;
 use App\Http\Controllers\Admin\Order\List\AdminOrderListController;
 use App\Http\Controllers\Admin\Order\Restore\AdminOrderRestoreController;
+use App\Http\Controllers\Admin\Order\Ship\AdminOrderShipCitiesController;
+use App\Http\Controllers\Admin\Order\Ship\AdminOrderShipController;
+use App\Http\Controllers\Admin\Order\Ship\AdminOrderShipPreviewController;
 use App\Http\Controllers\Admin\Order\Show\AdminOrderShowController;
 use App\Http\Controllers\Admin\Order\Trash\AdminOrderTrashController;
 use App\Http\Controllers\Admin\Order\Update\AdminOrderUpdateController;
@@ -514,6 +517,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // request nor the progress bar has to survive the whole package at once.
         Route::post('/admin/facility/migration/inspect', [AdminFacilityMigrationImportController::class, 'inspect'])->name('admin.facility.migration.inspect');
         Route::post('/admin/facility/migration/preview', [AdminFacilityMigrationImportController::class, 'preview'])->name('admin.facility.migration.preview');
+        // The same preview, streamed line by line so the screen can show how far
+        // through a big package it is instead of a spinner.
+        Route::post('/admin/facility/migration/preview/stream', [AdminFacilityMigrationImportController::class, 'previewStream'])->name('admin.facility.migration.preview.stream');
         Route::post('/admin/facility/migration/edit', [AdminFacilityMigrationImportController::class, 'edit'])->name('admin.facility.migration.edit');
         // Recompute the new/already-here match for a facility edited in the preview.
         Route::post('/admin/facility/migration/rematch', [AdminFacilityMigrationImportController::class, 'rematch'])->name('admin.facility.migration.rematch');
@@ -541,6 +547,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // AI geocoder for the form's branch modal: address in, coordinates and
         // a Google Maps link out (called via axios, answers JSON).
         Route::post('/admin/facility/branch/locate', AdminFacilityBranchLocateController::class)->name('admin.facility.branch.locate');
+        // "Fix English with AI" inside the branch modal — translates the boxes as
+        // they stand and answers JSON; nothing is written until the admin saves.
+        Route::post('/admin/facility/branch/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityBranchTranslateController::class)->name('admin.facility.branch.translate');
         // "Fill locations with AI" sweep on the list — browser-stepped begin/step.
         Route::post('/admin/facility/location/bulk/begin', [AdminFacilityLocationBulkController::class, 'begin'])->name('admin.facility.location.bulk.begin');
         Route::post('/admin/facility/location/bulk/step', [AdminFacilityLocationBulkController::class, 'step'])->name('admin.facility.location.bulk.step');
@@ -557,6 +566,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // Branch add/edit from the facility form's modal — writes the one branch
         // immediately and answers JSON (called via axios).
         Route::post('/admin/facility/{facility}/branch', \App\Http\Controllers\Admin\Facility\Branch\AdminFacilityBranchSaveController::class)->name('admin.facility.branch.save');
+        // Manager add/edit from the facility form's modal — same deal: the one
+        // manager is written immediately and answered as JSON.
+        Route::post('/admin/facility/{facility}/manager', \App\Http\Controllers\Admin\Facility\Manager\AdminFacilityManagerSaveController::class)->name('admin.facility.manager.save');
         Route::get('/admin/facility/{facility}/edit', AdminFacilityEditController::class)->name('admin.facility.edit');
         Route::put('/admin/facility/{facility}', AdminFacilityUpdateController::class)->name('admin.facility.update');
         Route::delete('/admin/facility/{facility}', AdminFacilityDeleteController::class)->name('admin.facility.destroy');
@@ -663,7 +675,27 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         /* Same reason: a POST path under `/admin/order` that the show route's
            binding must never claim. */
         Route::post('/admin/order/bulk-status', AdminOrderBulkStatusController::class)->name('admin.order.bulk-status');
+        /*
+         * ABS cities for one governorate, read by the ship dialog when an admin
+         * corrects the governorate it guessed. A literal path under
+         * `/admin/order`, so it goes above the `{order}` routes for the same
+         * reason `export` does.
+         */
+        Route::get('/admin/order/ship/cities', AdminOrderShipCitiesController::class)->name('admin.order.ship.cities');
         Route::get('/admin/order/{order}/edit', AdminOrderEditController::class)->name('admin.order.edit');
+        /*
+         * Handing an order to the courier, in two halves. The GET books
+         * nothing: it reads the ABS dropdowns, guesses the destination and
+         * returns the exact body the POST would send, for a human to check.
+         * Only the POST creates a shipment — see ShipOrderAction for why the
+         * two ids it needs come from the dialog and never from the order.
+         */
+        Route::get('/admin/order/{order}/ship/preview', AdminOrderShipPreviewController::class)
+            ->where('order', '[A-Za-z0-9\\-]+')
+            ->name('admin.order.ship.preview');
+        Route::post('/admin/order/{order}/ship', AdminOrderShipController::class)
+            ->where('order', '[A-Za-z0-9\\-]+')
+            ->name('admin.order.ship');
         Route::put('/admin/order/{order}', AdminOrderUpdateController::class)->name('admin.order.update');
         /* Soft delete — bound by `order_code` like the edit and update above it,
            and constrained the same way so it cannot answer for `/export`. */

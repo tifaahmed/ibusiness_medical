@@ -21,9 +21,11 @@ use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1Partner
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
 use App\Http\Controllers\Api\V1\Partner\OrderController as V1PartnerOrderController;
+use App\Http\Controllers\Api\V1\Partner\OtpAuthController as V1PartnerOtpAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +123,30 @@ Route::prefix('v1')
                     ->name('memberships.show');
 
                 /*
+                 * Phone sign-in for the storefront: a member's number in, a
+                 * code by SMS, a Sanctum token back. Key-gated like everything
+                 * else here AND throttled on top, because these two are the
+                 * only partner endpoints that mint a credential.
+                 *
+                 * The request throttle is deliberately loose — `MemberOtp`
+                 * enforces a per-member cooldown of its own, which is the limit
+                 * that actually matters, while this one only stops a caller
+                 * sweeping numbers. Verification is tighter: a four-digit code
+                 * is only safe because guesses are counted.
+                 *
+                 * Nothing here decides policy. Whether a real code is sent at
+                 * all, how long it is and what the message says are settings in
+                 * this application — see `App\Support\OtpSettings`.
+                 */
+                Route::post('/auth/otp', [V1PartnerOtpAuthController::class, 'request'])
+                    ->middleware('throttle:30,1')
+                    ->name('auth.otp.request');
+
+                Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
+                    ->middleware('throttle:20,1')
+                    ->name('auth.otp.verify');
+
+                /*
                  * Enquiries from a partner storefront's public forms. Key-gated
                  * for the same reason orders are: they WRITE, and the caller
                  * speaks for its visitor — the visitor's own IP and user agent
@@ -176,6 +202,30 @@ Route::prefix('v1')
         Route::post('/auth/login', [V1AuthController::class, 'login'])->name('auth.login');
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/auth/logout', [V1AuthController::class, 'logout'])->name('auth.logout');
+
+            /*
+             * A signed-in member's own orders. Token-gated, not key-gated: the
+             * caller speaks AS the member here, every query is scoped to
+             * `$request->user()`, and no id is ever read out of the request.
+             *
+             * `claim` is what turns a browser's list of order codes into a
+             * history that follows the member — the storefront posts the codes
+             * it remembers the first time somebody signs in on that machine.
+             * Throttled because it takes a list: fifty codes a request is a
+             * migration, not a way to sweep the code space.
+             */
+            Route::get('/orders', [V1MemberOrderController::class, 'index'])->name('orders.index');
+
+            /*
+             * Registered BEFORE `/orders/{orderCode}`: routes match in
+             * declaration order, and "claim" is a perfectly good order code as
+             * far as the pattern is concerned.
+             */
+            Route::post('/orders/claim', [V1MemberOrderController::class, 'claim'])
+                ->middleware('throttle:20,1')
+                ->name('orders.claim');
+
+            Route::get('/orders/{orderCode}', [V1MemberOrderController::class, 'show'])->name('orders.show');
             Route::get('/profile', [V1AuthController::class, 'profile'])->name('profile.show');
             Route::put('/profile', [V1AuthController::class, 'updateProfile'])->name('profile.update');
             Route::put('/profile/password', [V1AuthController::class, 'changePassword'])->name('profile.password');

@@ -68,28 +68,91 @@
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Governorate</span>
-            <Select
+            <SearchableSelect
               v-model="exportFilters.governorate_id"
               :options="allGovernoratesOptions"
               placeholder="All governorates"
             />
           </label>
           <label class="space-y-1">
+            <span class="text-xs font-medium text-muted-foreground">City</span>
+            <SearchableSelect
+              v-model="exportFilters.city_id"
+              :options="exportCityOptions"
+              placeholder="All cities"
+            />
+          </label>
+          <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Sales rep</span>
-            <Select
+            <SearchableSelect
               v-model="exportFilters.sales_id"
               :options="allSalesOptions"
-              placeholder="All"
+              :disabled="exportFilters.sales_presence === 'without'"
+              :placeholder="exportFilters.sales_presence === 'without' ? 'No sales rep' : 'All'"
             />
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Created from</span>
-            <input v-model="exportFilters.created_from" type="date" :class="inputCls" />
+            <input v-model="exportFilters.created_from" type="date" :max="exportFilters.created_to || null" :class="inputCls" />
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Created to</span>
-            <input v-model="exportFilters.created_to" type="date" :class="inputCls" />
+            <input v-model="exportFilters.created_to" type="date" :min="exportFilters.created_from || null" :class="inputCls" />
           </label>
+        </div>
+
+        <!-- The two questions the dropdowns above cannot ask, because both are
+             about something that is *not* there: a facility nobody sells, and a
+             branch with no place on the map. The second is why an operator
+             exports at all — those rows are the ones that need fixing, and the
+             import screen stops on every one of them. -->
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-1">
+            <span class="text-xs font-medium text-muted-foreground">Sales assignment</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                v-for="opt in SALES_PRESENCE_OPTIONS"
+                :key="opt.value"
+                type="button"
+                @click="toggleExportChoice('sales_presence', opt.value)"
+                :aria-pressed="exportFilters.sales_presence === opt.value"
+                :class="[chipCls, exportFilters.sales_presence === opt.value ? chipOnCls : chipOffCls]"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <span class="text-xs font-medium text-muted-foreground">Branches missing location</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                v-for="opt in BRANCHES_MISSING_OPTIONS"
+                :key="opt.value"
+                type="button"
+                @click="toggleExportChoice('branches_missing', opt.value)"
+                :aria-pressed="exportFilters.branches_missing === opt.value"
+                :class="[chipCls, exportFilters.branches_missing === opt.value ? chipOnCls : chipOffCls]"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 text-xs">
+          <span class="text-muted-foreground">
+            <template v-if="activeExportFilters.length">
+              {{ activeExportFilters.length }} filter{{ activeExportFilters.length === 1 ? '' : 's' }} on —
+              the package lists every one of them on its <strong>Export Info</strong> sheet, next to your name.
+            </template>
+            <template v-else>
+              No filters — every facility on this site, and the package's
+              <strong>Export Info</strong> sheet says so.
+            </template>
+          </span>
+          <button v-if="activeExportFilters.length" type="button" class="underline font-medium" @click="clearExportFilters">
+            Clear filters
+          </button>
         </div>
 
         <!-- Images are the one choice with a consequence on the far side rather
@@ -210,6 +273,22 @@
               of {{ plan.per_part }}.
             </template>
           </p>
+
+          <!-- Read back from the server rather than from the inputs on screen:
+               this is the sentence the file itself will carry, so seeing it
+               here is seeing what the package will say it holds. -->
+          <div class="rounded-md border border-border bg-muted/40 p-3 space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filters counted</p>
+            <p v-if="!(plan.filters_described || []).length" class="text-xs text-muted-foreground">
+              None — every facility on this site.
+            </p>
+            <dl v-else class="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
+              <div v-for="f in plan.filters_described" :key="f.key" class="flex gap-1.5 min-w-0">
+                <dt class="text-muted-foreground shrink-0">{{ f.label }}:</dt>
+                <dd class="font-medium truncate">{{ f.value }}</dd>
+              </div>
+            </dl>
+          </div>
           <div v-if="splitParts && plan.parts" class="flex flex-wrap gap-2">
             <a
               v-for="n in plan.parts"
@@ -406,9 +485,39 @@
             <button type="button" @click="inspectPackage" :disabled="!hasPackage || busy" :class="btnPrimary">
               {{ busy ? 'Reading…' : 'Review branches & import' }}
             </button>
-            <p class="text-xs text-muted-foreground">
+            <p v-if="!busy" class="text-xs text-muted-foreground">
               Nothing is written yet — the package is read, and the next screen shows what it
               would change. The import starts from there.
+            </p>
+          </div>
+
+          <!-- Reading a whole-site package runs for minutes. The server reports
+               each stage as it goes, so this says which one is running, how far
+               through it is, and roughly how long is left. -->
+          <div v-if="busy && inspectProgress" class="rounded-lg border border-border p-3 space-y-2">
+            <div class="flex items-center justify-between gap-3 text-sm">
+              <span class="font-medium">{{ inspectPhaseLabel }}</span>
+              <span class="text-muted-foreground text-xs">
+                <template v-if="inspectPercent !== null">
+                  {{ inspectProgress.processed }} of {{ inspectProgress.total }} — {{ inspectPercent }}%
+                </template>
+                <template v-else>working…</template>
+              </span>
+            </div>
+
+            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                v-if="inspectPercent !== null"
+                class="h-full bg-primary transition-all duration-300"
+                :style="{ width: inspectPercent + '%' }"
+              ></div>
+              <!-- Nothing to count during unpacking, so it reads as motion
+                   rather than a bar frozen at zero. -->
+              <div v-else class="h-full w-1/3 animate-pulse rounded-full bg-primary/70"></div>
+            </div>
+
+            <p class="text-xs text-muted-foreground">
+              {{ inspectEta || 'Nothing is written while the package is being read.' }}
             </p>
           </div>
           <p class="text-xs text-muted-foreground">
@@ -596,15 +705,15 @@
           </div>
 
           <div class="bg-card text-card-foreground border border-border rounded-xl overflow-x-auto">
-            <table class="text-xs text-foreground" style="min-width: 1200px; width: 100%;">
+            <table class="text-xs text-foreground" style="min-width: 1400px; width: 100%;">
               <thead class="bg-muted/50">
                 <tr class="border-b border-border">
                   <th class="px-2 py-2 text-left font-semibold w-10 sticky left-0 bg-muted/80 backdrop-blur z-10">#</th>
                   <th class="px-2 py-2 text-left font-semibold w-28">Status</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (EN)</th>
                   <th class="px-2 py-2 text-left font-semibold w-56">Name (AR)</th>
-                  <th class="px-2 py-2 text-left font-semibold w-40">Facility type</th>
-                  <th class="px-2 py-2 text-left font-semibold w-44">Sales rep</th>
+                  <th class="px-2 py-2 text-left font-semibold w-64 min-w-[16rem]">Facility type</th>
+                  <th class="px-2 py-2 text-left font-semibold w-64 min-w-[16rem]">Sales rep</th>
                   <th class="px-2 py-2 text-left font-semibold w-24">Discount %</th>
 
                   <th class="px-2 py-2 text-left font-semibold w-20">Branches</th>
@@ -680,6 +789,7 @@
                     </td>
                     <td class="px-2 py-1 align-top">
                       <SearchableSelect
+                        class="min-w-[15rem]"
                         :model-value="facility._facility_typeChoice"
                         :options="facilityTypeOptions(facility)"
                         :search-keys="LOOKUP_SEARCH_KEYS"
@@ -702,7 +812,7 @@
                     </td>
                     <td class="px-2 py-1 align-top">
                       <SearchableSelect
-                        class="min-w-[10rem]"
+                        class="min-w-[15rem]"
                         :model-value="facility._salesChoice"
                         :options="salesPickerOptions(facility)"
                         :search-keys="LOOKUP_SEARCH_KEYS"
@@ -1707,13 +1817,72 @@ const btnSecondary = 'inline-flex items-center justify-center rounded-md text-sm
 
 /* ------------------------------- export ------------------------------- */
 
-const exportFilters = ref({
+/* The facility list screen's filters, name for name — an operator who narrows
+   the list and comes here to export must be able to ask the same question and
+   get the same rows. */
+const BLANK_EXPORT_FILTERS = {
   search: '',
   facility_type_id: '',
   governorate_id: '',
+  city_id: '',
   sales_id: '',
+  sales_presence: '',
+  branches_missing: '',
   created_from: '',
   created_to: '',
+};
+const exportFilters = ref({ ...BLANK_EXPORT_FILTERS });
+
+const SALES_PRESENCE_OPTIONS = [
+  { value: 'with', label: 'Has a sales rep' },
+  { value: 'without', label: 'No sales rep' },
+];
+const BRANCHES_MISSING_OPTIONS = [
+  { value: 'governorate', label: 'No governorate' },
+  { value: 'city', label: 'No city' },
+  { value: 'either', label: 'Either' },
+  { value: 'both', label: 'Both' },
+];
+
+const chipCls = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap';
+const chipOnCls = 'border-primary bg-primary/15 text-foreground';
+const chipOffCls = 'border-border bg-background hover:bg-muted text-foreground';
+
+/* These two are one-of-or-nothing, so pressing the chip that is already on is
+   how you turn the filter off again. */
+const toggleExportChoice = (key, value) => {
+  exportFilters.value[key] = exportFilters.value[key] === value ? '' : value;
+  // A rep cannot be both nobody and somebody in particular.
+  if (key === 'sales_presence' && exportFilters.value.sales_presence === 'without') {
+    exportFilters.value.sales_id = '';
+  }
+};
+
+const clearExportFilters = () => {
+  exportFilters.value = { ...BLANK_EXPORT_FILTERS };
+};
+
+const activeExportFilters = computed(() =>
+  Object.entries(exportFilters.value).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+);
+
+/* Cities belong to a governorate: picking one narrows the list, and a city left
+   over from a governorate the operator has since changed is dropped rather than
+   silently filtering on a place that is no longer on screen. */
+const exportCityOptions = computed(() => {
+  const gov = exportFilters.value.governorate_id;
+  const list = gov === '' || gov === null
+    ? cityList.value
+    : cityList.value.filter(c => String(c.governorate_id) === String(gov));
+
+  return asOptions(list);
+});
+
+watch(() => exportFilters.value.governorate_id, () => {
+  const city = cityList.value.find(c => String(c.value) === String(exportFilters.value.city_id));
+  if (city && String(city.governorate_id) !== String(exportFilters.value.governorate_id)) {
+    exportFilters.value.city_id = '';
+  }
 });
 const includeMedia = ref(true);
 const includeOffers = ref(true);
@@ -2935,13 +3104,10 @@ const clearHighlight = (key) => {
 
 const hasBlockingIssues = computed(() => blockingIssues.value.length > 0);
 
-const inspectPackage = async () => {
-  busy.value = true;
-  importError.value = '';
-  try {
-    // Load preview data — this also creates the import session
-    const { data } = await axios.post(route('admin.facility.migration.preview'), packageForm());
-    previewData.value = {
+/* Reading a whole-site package takes minutes, so the request is streamed and
+   this only runs on the "result" line at the end of it. */
+const applyPreviewData = (data) => {
+  previewData.value = {
       token: data.token,
       facilities: (data.facilities || []).map(f => {
         const facility = {
@@ -2993,15 +3159,169 @@ const inspectPackage = async () => {
       origin: data.origin || null,
       package_options: data.package_options || null,
     };
-    previewPage.value = 0;
-    inspection.value = data;
-    importStep.value = 'preview';
-  } catch (e) {
-    inspection.value = null;
-    importError.value = e.response?.data?.message || 'Could not read that package.';
-  } finally {
-    busy.value = false;
-  }
+  previewPage.value = 0;
+  inspection.value = data;
+  importStep.value = 'preview';
+};
+
+/* How far through opening the package the server is.
+
+   `phase` is what it is doing: uploading the file, unzipping and parsing it,
+   writing a file per facility, then reading each one back against the rows
+   this site already holds. Only the last two can be counted, so the bar shows
+   real progress for those and an indeterminate stripe for the rest. */
+const inspectProgress = ref(null);
+
+const INSPECT_PHASES = {
+  uploading: 'Uploading the package',
+  extracting: 'Unpacking and reading the package',
+  indexing: 'Listing the facilities it carries',
+  reading: 'Checking each facility against this site',
+};
+
+const inspectPhaseLabel = computed(() =>
+  INSPECT_PHASES[inspectProgress.value?.phase] || 'Working'
+);
+
+// Counted from when the current phase started, so the estimate does not carry
+// the rate of a phase that was doing something else.
+const inspectEta = computed(() => {
+  const p = inspectProgress.value;
+  if (!p || !p.total || !p.processed || !p.startedAt) return '';
+
+  const elapsed = (p.at - p.startedAt) / 1000;
+  if (elapsed < 1.5 || p.processed >= p.total) return '';
+
+  const remaining = Math.round((p.total - p.processed) * (elapsed / p.processed));
+  if (remaining <= 0) return '';
+  if (remaining < 60) return `about ${remaining}s left`;
+
+  const minutes = Math.round(remaining / 60);
+
+  return `about ${minutes} minute${minutes === 1 ? '' : 's'} left`;
+});
+
+const inspectPercent = computed(() => {
+  const p = inspectProgress.value;
+  if (!p || !p.total) return null;
+
+  return Math.min(100, Math.round((p.processed / p.total) * 100));
+});
+
+const setInspectPhase = (phase, processed, total) => {
+  const previous = inspectProgress.value;
+  const now = Date.now();
+
+  inspectProgress.value = {
+    phase,
+    processed,
+    total,
+    at: now,
+    startedAt: previous && previous.phase === phase ? previous.startedAt : now,
+  };
+};
+
+/* One request, read as it arrives.
+
+   The server answers newline-delimited JSON — a "progress" line per stage, then
+   one "result" line — so XHR is used directly here rather than axios: it is the
+   only transport that gives both the upload percentage and the response body as
+   it streams in. */
+const inspectPackage = () => {
+  busy.value = true;
+  importError.value = '';
+  setInspectPhase('uploading', 0, 0);
+
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', route('admin.facility.migration.preview.stream'));
+    xhr.setRequestHeader('Accept', 'application/x-ndjson');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+    // axios reads this cookie for us; a bare XHR has to do it by hand or the
+    // request is rejected as cross-site.
+    const xsrf = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+    if (xsrf) xhr.setRequestHeader('X-XSRF-TOKEN', decodeURIComponent(xsrf.split('=')[1]));
+
+    const finish = (message) => {
+      busy.value = false;
+      inspectProgress.value = null;
+      if (message) {
+        inspection.value = null;
+        importError.value = message;
+      }
+      resolve();
+    };
+
+    // Everything before this offset has already been handled; the body only
+    // ever grows, so lines are never re-parsed.
+    let consumed = 0;
+
+    const drain = (final = false) => {
+      const text = xhr.responseText;
+      let newlineAt;
+
+      while ((newlineAt = text.indexOf('\n', consumed)) !== -1) {
+        const line = text.slice(consumed, newlineAt).trim();
+        consumed = newlineAt + 1;
+        if (line === '') continue;
+
+        let row;
+        try {
+          row = JSON.parse(line);
+        } catch {
+          // A newline was found, so this line arrived whole — it is corrupt
+          // rather than incomplete. Skip it; the result line is what matters.
+          continue;
+        }
+
+        if (row.type === 'progress') {
+          setInspectPhase(row.phase, row.processed || 0, row.total || 0);
+        } else if (row.type === 'result') {
+          applyPreviewData(row);
+          finish(null);
+
+          return true;
+        } else if (row.type === 'error') {
+          finish(row.message || 'Could not read that package.');
+
+          return true;
+        }
+      }
+
+      if (final) {
+        finish('The package could not be read — the connection ended before the result arrived.');
+      }
+
+      return false;
+    };
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      setInspectPhase('uploading', event.loaded, event.total);
+    };
+
+    xhr.onprogress = () => drain();
+
+    xhr.onload = () => {
+      if (xhr.status >= 400) {
+        let message = 'Could not read that package.';
+        try {
+          message = JSON.parse(xhr.responseText)?.message || message;
+        } catch { /* a non-JSON error body has nothing better to say */ }
+        finish(message);
+
+        return;
+      }
+
+      drain(true);
+    };
+
+    xhr.onerror = () => finish('Could not reach the server to read that package.');
+    xhr.onabort = () => finish(null);
+
+    xhr.send(packageForm());
+  });
 };
 
 const cancelPreview = () => {

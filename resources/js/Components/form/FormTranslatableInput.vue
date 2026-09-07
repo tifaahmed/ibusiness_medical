@@ -9,7 +9,25 @@
         <label :for="`${id}-${locale}`" class="block text-xs font-medium text-muted-foreground mb-1">
           {{ locale.toUpperCase() }}
         </label>
+        <textarea
+          v-if="multiline"
+          :id="`${id}-${locale}`"
+          :value="getLocaleValue(locale)"
+          @input="updateLocaleValue(locale, $event.target.value)"
+          :rows="rows"
+          :required="required && locale === 'ar'"
+          :dir="locale === 'ar' ? 'rtl' : 'ltr'"
+          :class="[
+            'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md mt-1 focus:ring-[3px] focus:ring-ring/50 resize-y',
+            getLocaleError(locale)
+              ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40'
+              : '',
+          ]"
+          :placeholder="`Enter ${label.toLowerCase()} in ${locale.toUpperCase()}`"
+          v-bind="$attrs"
+        ></textarea>
         <input
+          v-else
           :id="`${id}-${locale}`"
           :value="getLocaleValue(locale)"
           @input="updateLocaleValue(locale, $event.target.value)"
@@ -52,6 +70,16 @@ const props = defineProps({
   hint: {
     type: String,
     default: ''
+  },
+  // Renders a textarea per locale instead of a single-line input — for values
+  // long enough that a one-line box hides most of what was typed.
+  multiline: {
+    type: Boolean,
+    default: false
+  },
+  rows: {
+    type: [Number, String],
+    default: 3
   },
 });
 

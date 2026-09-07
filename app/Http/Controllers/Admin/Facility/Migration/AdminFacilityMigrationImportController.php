@@ -97,6 +97,127 @@ class AdminFacilityMigrationImportController extends BaseController
     }
 
     /**
+     * The same preview, delivered as it is built.
+     *
+     * Opening a whole-site package takes minutes — unzipping it, writing a file
+     * per facility, then reading each one back against the rows this site
+     * already holds — and {@see preview()} says nothing until all of it is
+     * done. This answers newline-delimited JSON on the one request instead:
+     * a "progress" line as each stage advances, then a single "result" line
+     * carrying exactly what preview() returns.
+     *
+     * Progress rides the same request deliberately. A second endpoint polled
+     * alongside would be the obvious shape, but the dev server runs one request
+     * at a time, so every poll would queue behind the very work it is asking
+     * about and the bar would sit at zero until the end.
+     */
+    public function previewStream(Request $request): StreamedResponse
+    {
+        $request->validate([
+            'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
+            'server_path' => ['required_without:package', 'nullable', 'string'],
+        ]);
+
+        // Resolved before the stream opens: once the first byte is out the
+        // status code is fixed, and a bad upload deserves a real HTTP error.
+        $packagePath = $this->packagePath($request);
+
+        return response()->stream(function () use ($packagePath) {
+            $emit = function (array $row): void {
+                echo json_encode($row, JSON_UNESCAPED_UNICODE), "\n";
+
+                // Pushing each line out as it is written is what makes this a
+                // progress report rather than one big answer at the end. Under
+                // the test runner the response is captured by an output buffer
+                // of its own, and flushing would empty it out from under the
+                // assertions — there is no client waiting there anyway.
+                if (PHP_SAPI === 'cli') {
+                    return;
+                }
+
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
+                flush();
+            };
+
+            // A package of thousands emits one line per row otherwise, which is
+            // more bytes of progress than progress.
+            $last = 0.0;
+            $throttled = function (array $row) use ($emit, &$last): void {
+                $now = microtime(true);
+                if ($now - $last < 0.1) {
+                    return;
+                }
+                $last = $now;
+                $emit($row);
+            };
+
+            try {
+                $session = $this->importer->beginSession(
+                    $packagePath,
+                    ['mode' => 'merge', 'dry_run' => false, 'skip_media' => false],
+                    function (string $phase, int $processed, int $total) use ($throttled) {
+                        $throttled([
+                            'type' => 'progress',
+                            'phase' => $phase,
+                            'processed' => $processed,
+                            'total' => $total,
+                        ]);
+                    },
+                );
+
+                $dir = storage_path('app/facility-migration/sessions/'.$session['token'].'/facilities');
+                $facilities = [];
+                $total = $session['total'];
+
+                $emit(['type' => 'progress', 'phase' => 'reading', 'processed' => 0, 'total' => $total]);
+
+                for ($i = 0; $i < $total; $i++) {
+                    $file = sprintf('%s/%06d.json', $dir, $i);
+                    if (is_file($file)) {
+                        $facility = json_decode(file_get_contents($file), true) ?: [];
+                        $facilities[] = array_merge(
+                            $this->markBundledMedia($this->withExistingRows($facility), $session['token']),
+                            ['_index' => $i]
+                        );
+                    }
+
+                    $throttled([
+                        'type' => 'progress',
+                        'phase' => 'reading',
+                        'processed' => $i + 1,
+                        'total' => $total,
+                    ]);
+                }
+
+                $emit([
+                    'type' => 'result',
+                    'token' => $session['token'],
+                    'total' => $total,
+                    'facilities' => $facilities,
+                    'source' => $session['source'],
+                    'generated_at' => $session['generated_at'],
+                    'counts' => $session['counts'],
+                    'origin' => $session['origin'],
+                    'package_options' => $session['package_options'],
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Facility migration preview failed', ['error' => $e->getMessage()]);
+
+                // The status line went out with the first byte, so the failure
+                // has to travel in the body like everything else.
+                $emit(['type' => 'error', 'message' => $e->getMessage()]);
+            }
+        }, 200, [
+            'Content-Type' => 'application/x-ndjson',
+            'Cache-Control' => 'no-cache, no-store',
+            // Tells nginx not to sit on the body until the handler returns.
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
      * Stream one image out of an open session's package.
      *
      * The preview shows what a package carries before a single row is written,

@@ -42,8 +42,8 @@ class SaveFacilityBranchRequest extends FormRequest
     {
         return [
             'id' => 'nullable|exists:facility_branches,id',
-            'governorate_id' => 'nullable|exists:governorates,id',
-            'city_id' => 'nullable|exists:cities,id',
+            'governorate_id' => 'required|exists:governorates,id',
+            'city_id' => 'required|exists:cities,id',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'google_location_url' => 'nullable|url|max:2048',
@@ -92,6 +92,8 @@ class SaveFacilityBranchRequest extends FormRequest
     {
         return [
             'id.exists' => 'The branch being edited no longer exists.',
+            'governorate_id.required' => 'Choose the governorate this branch is in.',
+            'city_id.required' => 'Choose the city this branch is in.',
             'google_location_url.url' => 'The Google location URL must be a full URL, e.g. https://maps.app.goo.gl/xxxx.',
             'phone.*.max' => 'Each branch phone number must be 20 characters or fewer — put one number per line.',
         ];

@@ -75,6 +75,8 @@
                          shows that one and nothing else. -->
                     <Link
                       :href="getEditRoute(facility.slug)"
+                      :prefetch="['hover', 'click']"
+                      cache-for="30s"
                       class="group flex flex-col gap-0.5 max-w-[180px] sm:max-w-[230px] break-words cursor-pointer"
                       :title="[localeName(facility.name), otherName(facility.name)].filter(Boolean).join(' — ')"
                     >
@@ -211,6 +213,8 @@
                   <div class="flex items-center justify-center gap-2">
                     <Link
                       :href="getEditRoute(facility.slug)"
+                      :prefetch="['hover', 'click']"
+                      cache-for="30s"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                       :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': !facility.slug }"
                       title="Edit"

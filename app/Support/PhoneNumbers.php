@@ -201,6 +201,48 @@ final class PhoneNumbers
     }
 
     /**
+     * A phone number in the national form this application stores: digits only,
+     * Arabic-Indic folded to ASCII, no country code, trunk zero on the front.
+     *
+     *     national('+20 106 258 7475')  // '01062587475'
+     *     national('٠١٠٦٢٥٨٧٤٧٥')       // '01062587475'
+     *
+     * Written for the storefront's phone login, where the number is typed by a
+     * visitor and has to match a `users.phone` somebody keyed in years ago.
+     * Comparing the raw strings misses on a space, a plus or a country code —
+     * all three of which are how people actually write their own number.
+     *
+     * Returns null for anything that cannot be a number here, so a caller never
+     * runs a lookup on a fragment.
+     */
+    public static function national(string $raw, string $countryCode = '20'): ?string
+    {
+        $digits = preg_replace('/\D+/', '', self::foldDigits($raw)) ?? '';
+
+        // 0020… is the same number as +20… and as 20….
+        $digits = preg_replace('/^00+/', '', $digits) ?? $digits;
+
+        $countryCode = preg_replace('/\D+/', '', $countryCode) ?? '';
+
+        /*
+         * Only strip the country code when what is left still looks like a
+         * national number. "20" is also how a landline area code can begin, and
+         * a member whose number genuinely starts there must not be shortened.
+         */
+        if ($countryCode !== '' && str_starts_with($digits, $countryCode) && strlen($digits) > strlen($countryCode) + 8) {
+            $digits = substr($digits, strlen($countryCode));
+        }
+
+        $digits = ltrim($digits, '0');
+
+        if (strlen($digits) < 8) {
+            return null;
+        }
+
+        return '0'.$digits;
+    }
+
+    /**
      * Fold Arabic-Indic (٠-٩) and Persian (۰-۹) digits to ASCII.
      *
      * Public because searching for a phone number has to fold the typed term

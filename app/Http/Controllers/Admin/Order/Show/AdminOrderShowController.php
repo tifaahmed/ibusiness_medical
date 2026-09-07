@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Order\Show\AdminOrderShowResource;
 use App\Models\Order;
 use App\Models\OrderLog;
+use App\Services\Abs\AbsClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -40,6 +41,12 @@ class AdminOrderShowController extends BaseController
 
         return Inertia::render('Admin/Order/Show', [
             'order' => (new AdminOrderShowResource($orderModel))->toArray($request),
+            /*
+             * Whether the courier is set up at all. With no ABS key the page
+             * hides the ship button rather than offering one that can only
+             * fail — the same way the AI helpers hide without a Gemini key.
+             */
+            'absConfigured' => AbsClient::isConfigured(),
         ]);
     }
 

@@ -27,65 +27,6 @@
     </div>
 
     <div class="px-6">
-      <!-- Add/Edit Form -->
-      <div v-if="showAddForm || editingIndex !== null" class="mb-6 p-4 bg-accent/50 rounded-lg border border-border">
-        <h3 class="text-sm font-semibold mb-4 text-white">
-          {{ editingIndex !== null ? (t.facility_manager?.edit_manager || 'Edit Manager') : (t.facility_manager?.add_new_manager || 'Add New Manager') }}
-        </h3>
-        <!-- .stop: this form is nested inside the page form; without it the submit
-             event bubbles up and triggers a full facility save. -->
-        <form @submit.prevent.stop="handleSubmit" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FormInput
-                v-model="form.name"
-                :label="t.facility_manager?.name || 'Name'"
-                :placeholder="t.facility_manager?.name_placeholder || 'Enter manager name'"
-                :error="errors.name"
-              />
-            </div>
-            <div>
-              <FormInput
-                v-model="form.position"
-                :label="t.facility_manager?.position || 'Position'"
-                :placeholder="t.facility_manager?.position_placeholder || 'Enter position'"
-                :error="errors.position"
-              />
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-white mb-2">
-                {{ t.facility_manager?.phones || 'Phone Numbers' }}
-                <span class="text-xs text-white/70 ml-1">{{ t.facility_manager?.phones_help || '(one per line)' }}</span>
-              </label>
-              <textarea
-                v-model="phonesText"
-                :class="[
-                  'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md min-h-[80px] focus:ring-[3px] focus:ring-ring/50',
-                  errors.phones ? 'border-destructive focus:border-destructive focus:ring-destructive/20 dark:focus:ring-destructive/40' : ''
-                ]"
-                :placeholder="t.facility_manager?.phones_placeholder || 'Enter phone numbers, one per line\nExample:\n+20 123 456 7890\n+20 987 654 3210'"
-              ></textarea>
-              <p v-if="errors.phones" class="mt-1 text-sm text-destructive">{{ errors.phones }}</p>
-            </div>
-          </div>
-          <div class="flex gap-3 justify-end">
-            <button
-              type="button"
-              @click="cancelForm"
-              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
-            >
-              {{ t.common?.cancel || 'Cancel' }}
-            </button>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
-            >
-              {{ editingIndex !== null ? (t.common?.update || 'Update') : (t.common?.add || 'Add') }} {{ t.facility_manager?.label || 'Manager' }}
-            </button>
-          </div>
-        </form>
-      </div>
-
       <!-- Managers List -->
       <div v-if="modelValue && modelValue.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
@@ -109,16 +50,17 @@
                   {{ manager.position }}
                 </p>
               </div>
-              <div v-if="manager.phones && manager.phones.length > 0" class="flex flex-wrap gap-2 text-xs text-white/70">
+              <div v-if="managerPhones(manager).length > 0" class="flex flex-wrap gap-2 text-xs text-white/70">
                 <span
-                  v-for="(phone, phoneIndex) in manager.phones"
+                  v-for="(entry, phoneIndex) in managerPhones(manager)"
                   :key="phoneIndex"
                   class="inline-flex items-center gap-1"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/50">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                   </svg>
-                  {{ phone }}
+                  <span dir="ltr">{{ entry.number }}</span>
+                  <span class="text-white/50">· {{ typeLabel(entry.type) }}</span>
                 </span>
               </div>
             </div>
@@ -151,7 +93,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="!showAddForm" class="text-center py-8 text-white">
+      <div v-else class="text-center py-8 text-white">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 opacity-50 text-white/70">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
           <circle cx="9" cy="7" r="4"></circle>
@@ -162,13 +104,98 @@
         <p class="text-sm mt-1 text-white/80">{{ t.facility_manager?.add_manager_help || 'Click "Add Manager" to get started.' }}</p>
       </div>
     </div>
+
+    <!-- Add / Edit Manager modal -->
+    <Teleport to="body">
+      <div
+        v-if="isFormOpen"
+        class="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        @click.self="cancelForm"
+      >
+        <div class="my-8 w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+          <div class="flex items-start gap-3 border-b border-border p-4">
+            <h3 class="text-sm font-semibold text-white">
+              {{ editingIndex !== null ? (t.facility_manager?.edit_manager || 'Edit Manager') : (t.facility_manager?.add_new_manager || 'Add New Manager') }}
+            </h3>
+            <button
+              type="button"
+              class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              :title="t.common?.close || 'Close (Esc)'"
+              @click="cancelForm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- .stop: this form is nested inside the page form; without it the submit
+               event bubbles up and triggers a full facility save. -->
+          <form @submit.prevent.stop="handleSubmit">
+            <div class="max-h-[70vh] overflow-y-auto p-4 space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormInput
+                    v-model="form.name"
+                    :label="t.facility_manager?.name || 'Name'"
+                    :placeholder="t.facility_manager?.name_placeholder || 'Enter manager name'"
+                    :error="errors.name"
+                  />
+                </div>
+                <div>
+                  <FormInput
+                    v-model="form.position"
+                    :label="t.facility_manager?.position || 'Position'"
+                    :placeholder="t.facility_manager?.position_placeholder || 'Enter position'"
+                    :error="errors.position"
+                  />
+                </div>
+                <div class="md:col-span-2">
+                  <BranchPhonesInput
+                    v-model="form.phones"
+                    :label="t.facility_manager?.phones || 'Phone Numbers'"
+                    :hint="t.facility_manager?.phones_help || '(one number per row)'"
+                    :errors="errors"
+                    error-prefix="phones"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-3 justify-end border-t border-border p-3">
+              <button
+                type="button"
+                @click="cancelForm"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
+              >
+                {{ t.common?.cancel || 'Cancel' }}
+              </button>
+              <button
+                type="submit"
+                :disabled="saving"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
+              >
+                <svg v-if="saving" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+                {{ editingIndex !== null ? (t.common?.update || 'Update') : (t.common?.add || 'Add') }} {{ t.facility_manager?.label || 'Manager' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
-import { FormInput } from '@/Components/form';
+import axios from 'axios';
+import { FormInput, BranchPhonesInput } from '@/Components/form';
+import { normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
 import { usePage } from '@inertiajs/vue3';
+import { useNotification } from '@/composables/useNotification';
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -177,6 +204,13 @@ const props = defineProps({
   modelValue: {
     type: Array,
     default: () => []
+  },
+  // Set on the edit page only: with a facility to attach it to, a manager is
+  // saved the moment the modal is submitted instead of waiting for the
+  // facility save. Blank on the create page, where there is no facility yet.
+  facilitySlug: {
+    type: String,
+    default: ''
   }
 });
 
@@ -185,6 +219,9 @@ const emit = defineEmits(['update:modelValue']);
 const showAddForm = ref(false);
 const editingIndex = ref(null);
 const errors = ref({});
+const saving = ref(false);
+
+const isFormOpen = computed(() => showAddForm.value || editingIndex.value !== null);
 
 const form = ref({
   name: '',
@@ -192,24 +229,12 @@ const form = ref({
   phones: []
 });
 
-const phonesText = computed({
-  get: () => {
-    if (!form.value.phones || !Array.isArray(form.value.phones)) {
-      return '';
-    }
-    return form.value.phones.filter(p => p && p.trim()).join('\n');
-  },
-  set: (value) => {
-    if (!value || !value.trim()) {
-      form.value.phones = [];
-      return;
-    }
-    form.value.phones = value
-      .split(/[\n/\\،,;|]| [-–—] /)
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-  }
-});
+// Phones are stored as { number, type }; rows written before types existed
+// still hold flat strings, so everything is read through the shared reader.
+const managerPhones = (manager) => normalizePhoneEntries(manager?.phones);
+
+const typeLabel = (type) =>
+  t.value.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
 
 const resetForm = () => {
   form.value = {
@@ -234,12 +259,12 @@ const editManager = (index) => {
   form.value = {
     name: manager.name || '',
     position: manager.position || '',
-    phones: Array.isArray(manager.phones) ? [...manager.phones] : (manager.phones ? [manager.phones] : [])
+    phones: normalizePhoneEntries(manager.phones)
   };
   errors.value = {};
 };
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   errors.value = {};
 
   if (!form.value.name || !form.value.name.trim()) {
@@ -256,16 +281,68 @@ const handleSubmit = () => {
     phones: form.value.phones && form.value.phones.length > 0 ? form.value.phones : null
   };
 
+  // Without a facility there is nothing to attach the manager to yet, so it
+  // waits in the list until the facility itself is created.
+  if (!props.facilitySlug) {
+    applyManager(managerData);
+    cancelForm();
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.manager.save', props.facilitySlug), {
+      ...managerData,
+      phones: managerData.phones || []
+    });
+
+    // The saved row carries the real id, which is what keeps the later
+    // facility save from writing a second copy of this manager.
+    applyManager(data.manager);
+    useNotification().success(
+      data.created
+        ? (t.value?.facility_manager?.created || 'Manager created successfully')
+        : (t.value?.facility_manager?.updated || 'Manager updated successfully')
+    );
+    cancelForm();
+  } catch (error) {
+    errors.value = modalErrors(error?.response?.data?.errors);
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value?.facility_manager?.save_failed || 'Failed to save the manager. Please try again.')
+    );
+  } finally {
+    saving.value = false;
+  }
+};
+
+// Put a manager — the one just saved, or the local copy on the create page —
+// into the list the form holds.
+const applyManager = (manager) => {
   const currentManagers = [...props.modelValue];
 
   if (editingIndex.value !== null) {
-    currentManagers[editingIndex.value] = { ...currentManagers[editingIndex.value], ...managerData };
+    currentManagers[editingIndex.value] = { ...currentManagers[editingIndex.value], ...manager };
   } else {
-    currentManagers.push(managerData);
+    currentManagers.push(manager);
   }
 
   emit('update:modelValue', currentManagers);
-  cancelForm();
+};
+
+/* Server-side errors for the manager modal. Laravel reports the phone list per
+   row ("phones.0"), while the inputs take one message per field. */
+const modalErrors = (responseErrors) => {
+  const mapped = {};
+
+  Object.entries(responseErrors || {}).forEach(([key, messages]) => {
+    const field = key.split('.')[0];
+    const message = Array.isArray(messages) ? messages[0] : messages;
+
+    if (!mapped[field]) mapped[field] = message;
+  });
+
+  return mapped;
 };
 
 const deleteManager = (index) => {

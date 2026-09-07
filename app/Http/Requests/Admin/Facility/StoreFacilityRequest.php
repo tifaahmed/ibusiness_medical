@@ -42,7 +42,8 @@ class StoreFacilityRequest extends FormRequest
         if (is_array($managers)) {
             foreach ($managers as $i => $manager) {
                 if (array_key_exists('phones', $manager)) {
-                    $managers[$i]['phones'] = PhoneNumbers::split($manager['phones']);
+                    // Typed entries, the same shape a branch's phones take.
+                    $managers[$i]['phones'] = $this->normalisedPhones($manager['phones']);
                 }
             }
             $this->merge(['managers' => $managers]);
@@ -86,16 +87,15 @@ class StoreFacilityRequest extends FormRequest
             'banner_config.days' => ['nullable', 'numeric', 'between:1,365'],
             'branches' => 'nullable|array',
             'branches.*.id' => 'nullable|exists:facility_branches,id',
-            'branches.*.governorate_id' => 'nullable|exists:governorates,id',
+            'branches.*.governorate_id' => 'required|exists:governorates,id',
             'managers' => 'nullable|array',
             'managers.*.id' => 'nullable|exists:facility_managers,id',
             'managers.*.name' => 'nullable|string|max:255',
             'managers.*.position' => 'nullable|string|max:255',
-            'managers.*.phones' => 'nullable|array',
-            'managers.*.phones.*' => 'nullable|string|max:20',
+            ...$this->phoneRules('managers.*.phones'),
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
-            'branches.*.city_id' => 'nullable|exists:cities,id',
+            'branches.*.city_id' => 'required|exists:cities,id',
             'branches.*.latitude' => 'nullable|numeric|between:-90,90',
             'branches.*.longitude' => 'nullable|numeric|between:-180,180',
             'branches.*.name' => 'nullable|array',
@@ -157,7 +157,9 @@ class StoreFacilityRequest extends FormRequest
             'sales_id.exists' => 'The selected sales representative is invalid.',
             ...$this->phoneMessages('branches.*.phone'),
             'branches.*.google_location_url.url' => 'The Google location URL must be a full URL, e.g. https://maps.app.goo.gl/xxxx.',
-            'managers.*.phones.*.max' => 'Each manager phone number must be 20 characters or fewer — put one number per line.',
+            ...$this->phoneMessages('managers.*.phones'),
+            'branches.*.governorate_id.required' => 'Choose the governorate each branch is in.',
+            'branches.*.city_id.required' => 'Choose the city each branch is in.',
         ];
     }
 }

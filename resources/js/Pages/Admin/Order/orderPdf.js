@@ -179,20 +179,52 @@ const totals = (order, t, currency, { withMargin }) => {
     </table>`;
 };
 
-const header = (order, t, { appName, logoUrl, title, subtitle }) => `
+/* The masthead: who the document is from, what it is, and the code it is
+   about. The shop's own details come from Settings — logo, name and the link
+   the QR encodes — so a rebrand is three rows in the admin, not an edit here. */
+const header = (order, t, { appName, logoUrl, qrDataUrl, site, title, subtitle }) => `
   <div data-atom style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:2px solid ${INK};padding-bottom:12px;margin-bottom:18px">
     <div>
       ${logoUrl ? `<img src="${esc(logoUrl)}" alt="" style="height:38px;width:auto;display:block;margin-bottom:8px" onerror="this.style.display='none'" />` : ''}
-      <div style="font-size:17px;font-weight:800;color:${INK}">${esc(appName || '')}</div>
+      <div style="font-size:17px;font-weight:800;color:${INK}">${esc(site.name || appName || '')}</div>
       <div style="font-size:13px;font-weight:600;color:${ACCENT};margin-top:2px">${esc(title)}</div>
       ${subtitle ? `<div style="font-size:11px;color:${MUTED};margin-top:2px">${esc(subtitle)}</div>` : ''}
     </div>
-    <div style="text-align:end">
-      <div style="font-size:11px;color:${MUTED}">${esc(t.order?.order_code || 'Order Code')}</div>
-      <div style="font-size:16px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:${INK};direction:ltr">${esc(order.order_code)}</div>
-      <div style="font-size:11px;color:${MUTED};margin-top:6px;direction:ltr">${esc(order.created_at || '')}</div>
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="text-align:end">
+        <div style="font-size:11px;color:${MUTED}">${esc(t.order?.order_code || 'Order Code')}</div>
+        <div style="font-size:16px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:${INK};direction:ltr">${esc(order.order_code)}</div>
+        <div style="font-size:11px;color:${MUTED};margin-top:6px;direction:ltr">${esc(order.created_at || '')}</div>
+      </div>
+      ${qrDataUrl ? `
+      <div style="text-align:center">
+        <img src="${qrDataUrl}" alt="" style="width:64px;height:64px;display:block" />
+        <div style="font-size:8px;color:${MUTED};margin-top:2px">${esc(t.order?.pdf_scan_us || 'Scan us')}</div>
+      </div>` : ''}
     </div>
   </div>`;
+
+/* Where to find the shop, printed once at the end of the document.
+
+   Not stamped per page like the watermark: jsPDF's own fonts cannot shape
+   Arabic, and an address here is Arabic as often as not — the only way to draw
+   it correctly is as HTML the browser has laid out. */
+const footer = (t, site) => {
+    const parts = [
+        site.address ? `<div style="margin-bottom:2px">${esc(site.address)}</div>` : '',
+        [
+            site.phone ? `<span style="direction:ltr;display:inline-block">${esc(site.phone)}</span>` : '',
+            site.url ? `<span style="direction:ltr;display:inline-block">${esc(site.url)}</span>` : '',
+        ].filter(Boolean).join(`<span style="color:${LINE};margin:0 6px">|</span>`),
+    ].filter(Boolean).join('');
+
+    if (parts === '') return '';
+
+    return `
+  <div data-atom style="margin-top:22px;padding-top:10px;border-top:1px solid ${LINE};text-align:center;font-size:10px;color:${MUTED}">
+    ${parts}
+  </div>`;
+};
 
 /* ------------------------------------------------------------------ *
  * The two documents.
@@ -242,6 +274,8 @@ const adminDocument = (order, t, locale, currency, meta) => `
           <td style="padding:4px 0;font-size:11px;color:${MUTED}">${esc(log.admin?.name || '—')}</td>
         </tr>`).join('')}
     </table>`) : ''}
+
+  ${footer(t, meta.site)}
 `;
 
 const receiptDocument = (order, t, locale, currency, meta) => `
@@ -268,6 +302,8 @@ const receiptDocument = (order, t, locale, currency, meta) => `
     <div style="font-size:12px;font-weight:600;color:${INK}">${esc(t.order?.pdf_thanks || 'Thank you for your order.')}</div>
     <div style="font-size:10px;color:${MUTED};margin-top:4px">${esc((t.order?.pdf_receipt_footer || 'Keep this receipt — :code is how you track this order.').replace(':code', order.order_code))}</div>
   </div>
+
+  ${footer(t, meta.site)}
 `;
 
 /* ------------------------------------------------------------------ *
@@ -537,11 +573,45 @@ const DOCUMENTS = {
     },
 };
 
-const render = async (variant, { order, t = {}, locale = 'ar', appName = '', logoUrl = null, currency = 'EGP' }) => {
+/**
+ * The QR for the header, as a data URL.
+ *
+ * Drawn here rather than fetched: the printable node is rasterised by
+ * html2canvas, which can only read images the page is allowed to read back,
+ * and a remote QR service would taint the canvas. Resolves to `null` when
+ * there is no link configured or the encoder refuses one — a document without
+ * a QR still prints, which is the right trade.
+ */
+const buildQr = async (link) => {
+    const text = String(link ?? '').trim();
+    if (text === '') return null;
+
+    try {
+        const QRCode = (await import('qrcode')).default;
+
+        return await QRCode.toDataURL(text, { margin: 0, width: 192, errorCorrectionLevel: 'M' });
+    } catch {
+        return null;
+    }
+};
+
+const render = async (variant, {
+    order,
+    t = {},
+    locale = 'ar',
+    appName = '',
+    logoUrl = null,
+    currency = 'EGP',
+    // The shop's own details, straight from Settings: name and QR link in the
+    // header, address / site / phone in the footer.
+    site = {},
+}) => {
     const spec = DOCUMENTS[variant];
     if (!spec) throw new Error(`Unknown order document "${variant}".`);
 
-    const doc = await buildPdf(spec.build(order, t, locale, currency, { appName, logoUrl }), {
+    const qrDataUrl = await buildQr(site.qrLink);
+
+    const doc = await buildPdf(spec.build(order, t, locale, currency, { appName, logoUrl, qrDataUrl, site }), {
         rtl: locale === 'ar',
         logoUrl,
     });

@@ -6,7 +6,6 @@ use App\Models\Facility;
 use App\Services\Ai\GeminiClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 
 /**
  * Fills / repairs the English (`en`) translation of a facility and its branches
@@ -126,6 +125,67 @@ class FacilityEnglishBackfiller
         }
 
         return ['applied' => $applied, 'errors' => $errors];
+    }
+
+    /**
+     * English for Arabic values that only exist in an open form — the facility
+     * form's branch modal, where the branch may not be saved yet and so there
+     * is no model to walk. Nothing is written here; the answers go back into
+     * the form for the admin to check before saving, the same way the
+     * "Find on map with AI" button fills the coordinates.
+     *
+     * @param  array<string, array{kind: string, ar: string}>  $fields  keyed by the form field
+     * @param  array<string, string>  $context  free-form lines given to the model as context
+     * @return array<string, string> the same keys, with the English value; a
+     *                               field the model could not translate is left out
+     */
+    public function translateFields(array $fields, array $context = []): array
+    {
+        $pending = [];
+        foreach ($fields as $key => $field) {
+            $ar = trim((string) ($field['ar'] ?? ''));
+            if ($ar === '') {
+                continue;
+            }
+
+            $pending[] = ['key' => $key, 'kind' => (string) ($field['kind'] ?? $key), 'ar' => $ar];
+        }
+
+        if ($pending === []) {
+            return [];
+        }
+
+        $lines = [];
+        foreach ($context as $label => $value) {
+            $value = trim((string) $value);
+            if ($value !== '') {
+                $lines[] = "{$label}: {$value}";
+            }
+        }
+        $lines[] = '';
+        $lines[] = 'Fields to translate:';
+
+        foreach ($pending as $index => $row) {
+            $lines[] = "{$index}. [{$row['kind']}] Arabic: {$row['ar']}";
+        }
+
+        $answers = $this->ai->json($this->systemPrompt(), implode("\n", $lines), 1024);
+
+        $out = [];
+        foreach ($pending as $index => $row) {
+            $value = data_get($answers, (string) $index);
+            $value = is_scalar($value) ? trim((string) $value) : '';
+
+            // A value that came back still in Arabic is no better than the one
+            // already in the box, so it is dropped rather than written over it.
+            if ($value === '' || $this->looksArabic($value)) {
+                continue;
+            }
+
+            $out[$row['key']] = $value;
+        }
+
+        return $out;
     }
 
     /**

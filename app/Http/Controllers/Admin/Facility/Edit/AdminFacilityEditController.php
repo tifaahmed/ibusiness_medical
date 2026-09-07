@@ -12,6 +12,7 @@ use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
 use App\Models\Tag;
+use App\Services\BranchGeocoder;
 use App\Services\FacilityEnglishBackfiller;
 use App\Services\FacilitySeoGenerator;
 use Illuminate\Http\Request;
@@ -85,6 +86,7 @@ class AdminFacilityEditController extends BaseController
             'tags' => $tags,
             'salesOptions' => $salesOptions,
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
+            'locationAiEnabled' => BranchGeocoder::isConfigured(),
             'englishFixEnabled' => FacilityEnglishBackfiller::isConfigured(),
         ];
 

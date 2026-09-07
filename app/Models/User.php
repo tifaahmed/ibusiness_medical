@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\User\UserPermissionEnum;
+use App\Enums\User\UserRoleEnum;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\MediaImageTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -15,22 +18,48 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
-use App\Traits\MediaImageTrait;
+
 class User extends Authenticatable implements HasMedia
 {
     use HasApiTokens;
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
+
     use HasProfilePhoto;
+    use HasRoles;
+    use HasSlug;
+    use InteractsWithMedia;
+    use MediaImageTrait;
     use Notifiable;
     use SoftDeletes;
     use TwoFactorAuthenticatable;
-    use HasRoles;
-    use InteractsWithMedia;
-    use HasSlug;
-    use MediaImageTrait;
 
+    /**
+     * Every permission this user can actually exercise, by name.
+     *
+     * NOT the same question as `getAllPermissions()`, which reads the rows in
+     * `role_has_permissions`. A super admin is granted everything by the
+     * `Gate::before` in AppServiceProvider, whatever those rows happen to say,
+     * so reading the table for one would report less than the account can
+     * really do — and the admin UI hides buttons on exactly this list. The
+     * result was a route the super admin could reach by typing the URL, behind
+     * a link the page would not draw.
+     *
+     * The enum is the source of truth here rather than the permissions table:
+     * the whole point is to stay right for a permission that has been added in
+     * code but not yet seeded.
+     *
+     * @return list<string>
+     */
+    public function effectivePermissionNames(): array
+    {
+        if ($this->hasRole(UserRoleEnum::SUPER_ADMIN)) {
+            return UserPermissionEnum::all();
+        }
+
+        return $this->getAllPermissions()->pluck('name')->values()->all();
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -41,6 +70,8 @@ class User extends Authenticatable implements HasMedia
         'name',
         'email',
         'phone',
+        /* Asked for on the storefront's registration form, always optional. */
+        'gender',
         'password',
         'slug',
         'partner_id',
@@ -79,7 +110,6 @@ class User extends Authenticatable implements HasMedia
             'password' => 'hashed',
         ];
     }
-
 
     /**
      * Get the options for generating the slug.
@@ -136,7 +166,7 @@ class User extends Authenticatable implements HasMedia
     {
         return $query->where(function ($q) use ($search) {
             $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
+                ->orWhere('email', 'like', "%{$search}%");
         });
     }
 

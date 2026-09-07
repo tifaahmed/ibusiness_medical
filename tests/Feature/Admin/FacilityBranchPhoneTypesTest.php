@@ -3,9 +3,11 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\User\UserRoleEnum;
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityType;
+use App\Models\Governorate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +34,23 @@ class FacilityBranchPhoneTypesTest extends TestCase
         return $user;
     }
 
+    /**
+     * Somewhere for the branch to be: the save endpoint asks for both, the same
+     * as the modal that calls it.
+     *
+     * @return array{governorate_id: int, city_id: int}
+     */
+    private function place(): array
+    {
+        $governorate = Governorate::create(['name' => ['en' => 'Cairo', 'ar' => 'القاهرة']]);
+        $city = City::create([
+            'governorate_id' => $governorate->id,
+            'name' => ['en' => 'Maadi', 'ar' => 'المعادي'],
+        ]);
+
+        return ['governorate_id' => $governorate->id, 'city_id' => $city->id];
+    }
+
     private function facility(): Facility
     {
         $type = FacilityType::create(['name' => ['en' => 'Clinic', 'ar' => 'عيادة']]);
@@ -49,6 +68,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [
                     ['number' => '0663400006', 'type' => FacilityBranch::PHONE_LANDLINE],
@@ -74,6 +94,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Maadi', 'ar' => 'المعادي'],
                 'phone' => ['01020709993', '0233046378'],
             ],
@@ -92,6 +113,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [['number' => '01020709993', 'type' => 'telegram']],
             ],
@@ -109,6 +131,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [
                     ['number' => '01020709993', 'type' => 'phone'],
@@ -123,6 +146,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'id' => $branch->id,
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [],
@@ -164,6 +188,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [['number' => '01020709993/01020709994', 'type' => 'whatsapp']],
             ],
@@ -184,6 +209,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [['number' => str_repeat('9', 34), 'type' => 'phone']],
             ],
@@ -200,6 +226,7 @@ class FacilityBranchPhoneTypesTest extends TestCase
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $facility->slug),
             [
+                ...$this->place(),
                 'name' => ['en' => 'Downtown', 'ar' => 'وسط البلد'],
                 'phone' => [['number' => '0233046378-01210541111', 'type' => 'landline']],
             ],

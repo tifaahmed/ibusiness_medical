@@ -130,7 +130,7 @@
                           </span>
                         </div>
                         <span v-else class="text-muted-foreground text-xs italic">
-                          {{ log.action === 'created' || log.action === 'branch_created' ? 'Initial values' : '—' }}
+                          {{ ['created', 'branch_created', 'manager_created'].includes(log.action) ? 'Initial values' : '—' }}
                         </span>
                       </td>
                       <td class="p-2 sm:p-3 align-middle text-center">
@@ -145,7 +145,7 @@
                     <tr v-if="expanded[log.id]" class="bg-muted/30 border-b border-border">
                       <td colspan="5" class="p-3 sm:p-4 space-y-4">
                         <div
-                          v-if="(log.action === 'updated' || log.action === 'branch_updated') && (log.changed_fields?.length || 0) > 0"
+                          v-if="['updated', 'branch_updated', 'manager_updated'].includes(log.action) && (log.changed_fields?.length || 0) > 0"
                           class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
                         >
                           <div class="flex items-center gap-2 text-xs font-semibold text-amber-300 uppercase tracking-wide mb-2">
@@ -310,6 +310,8 @@ const ACTION_LABELS = {
   branch_created: 'Branch Added',
   branch_updated: 'Branch Updated',
   branch_deleted: 'Branch Removed',
+  manager_created: 'Manager Added',
+  manager_updated: 'Manager Updated',
 };
 
 const formatAction = (action) => ACTION_LABELS[action] || action;
@@ -321,6 +323,8 @@ const actionClass = (action) => ({
   branch_created: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
   branch_updated: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
   branch_deleted: 'bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400',
+  manager_created: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
+  manager_updated: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
 }[action] || 'bg-gray-500/15 text-gray-600 dark:text-gray-400');
 
 const formatField = (field) => String(field).replace(/_/g, ' ');

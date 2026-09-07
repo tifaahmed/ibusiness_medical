@@ -3,9 +3,11 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\User\UserRoleEnum;
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityType;
+use App\Models\Governorate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -30,6 +32,20 @@ class FacilityBranchInlineSaveTest extends TestCase
         return $user;
     }
 
+    /**
+     * @return array{governorate_id: int, city_id: int}
+     */
+    private function place(): array
+    {
+        $governorate = Governorate::create(['name' => ['en' => 'Damietta', 'ar' => 'دمياط']]);
+        $city = City::create([
+            'governorate_id' => $governorate->id,
+            'name' => ['en' => 'New Damietta', 'ar' => 'دمياط الجديدة'],
+        ]);
+
+        return ['governorate_id' => $governorate->id, 'city_id' => $city->id];
+    }
+
     private function facility(): Facility
     {
         $type = FacilityType::create(['name' => ['en' => 'Clinic', 'ar' => 'عيادة']]);
@@ -52,6 +68,7 @@ class FacilityBranchInlineSaveTest extends TestCase
                 'address' => ['en' => 'Nile street', 'ar' => 'شارع النيل'],
                 'google_location_url' => 'https://maps.app.goo.gl/abc',
                 'phone' => ['0663400006'],
+                ...$this->place(),
             ],
         );
 
@@ -80,6 +97,7 @@ class FacilityBranchInlineSaveTest extends TestCase
                 // Same name, typed with different case and spacing.
                 'name' => ['en' => '  damietta ', 'ar' => 'دمياط'],
                 'address' => ['en' => 'Another street', 'ar' => 'شارع آخر'],
+                ...$this->place(),
             ],
         )->assertStatus(422)->assertJsonValidationErrors('name');
 
@@ -100,6 +118,7 @@ class FacilityBranchInlineSaveTest extends TestCase
             [
                 'name' => ['en' => 'Port Said', 'ar' => 'بورسعيد'],
                 'address' => ['en' => 'Nile Street', 'ar' => 'شارع النيل'],
+                ...$this->place(),
             ],
         )->assertStatus(422)->assertJsonValidationErrors('address');
     }
@@ -119,7 +138,7 @@ class FacilityBranchInlineSaveTest extends TestCase
 
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $second->slug),
-            ['name' => ['en' => 'Damietta', 'ar' => 'دمياط']],
+            ['name' => ['en' => 'Damietta', 'ar' => 'دمياط'], ...$this->place()],
         )->assertOk();
 
         $this->assertDatabaseCount('facility_branches', 2);
@@ -141,6 +160,7 @@ class FacilityBranchInlineSaveTest extends TestCase
                 'name' => ['en' => 'Damietta', 'ar' => 'دمياط'],
                 'address' => ['en' => 'Nile street', 'ar' => 'شارع النيل'],
                 'google_location_url' => 'https://maps.app.goo.gl/xyz',
+                ...$this->place(),
             ],
         )->assertOk()->assertJsonPath('created', false);
 

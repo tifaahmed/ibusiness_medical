@@ -86,6 +86,15 @@ class AdminOrderShowResource extends JsonResource
             'user_agent' => $this->user_agent,
             'source' => $this->source,
 
+            /*
+             * The courier's side of the order. `abs_awb` is what the page reads
+             * to decide between offering the ship button and showing the
+             * waybill: an order that has one has already been handed over, and
+             * must not be offered a second booking.
+             */
+            'abs_awb' => $this->abs_awb,
+            'abs_shipped_at' => $this->abs_shipped_at?->format('Y-m-d H:i:s'),
+
             'products' => $lines instanceof \Illuminate\Support\Collection
                 ? AdminOrderProductResource::collection($lines)->resolve($request)
                 : [],

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Setting;
+use App\Support\OtpSettings;
 use Illuminate\Database\Seeder;
 
 class SettingSeeder extends Seeder
@@ -67,6 +68,15 @@ class SettingSeeder extends Seeder
                 'value_type' => Setting::TYPE_URL,
             ],
         ];
+
+        /*
+         * How the storefront's phone login behaves. Seeded rather than
+         * hardcoded for the same reason the details above are — an
+         * administrator turns SMS off and works with the fixed code without a
+         * deploy — and listed by `OtpSettings` rather than here so the defaults
+         * that class reads and the rows an install starts with cannot drift.
+         */
+        $settings = [...$settings, ...OtpSettings::seedRows()];
 
         foreach ($settings as $setting) {
             Setting::query()->firstOrCreate(

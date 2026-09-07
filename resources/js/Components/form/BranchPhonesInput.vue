@@ -7,7 +7,7 @@
 
     <div class="space-y-2">
       <div
-        v-for="(entry, index) in entries"
+        v-for="(entry, index) in rows"
         :key="index"
         class="flex flex-col sm:flex-row gap-2"
       >
@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Select from '@/Components/ui/Select.vue';
 import { usePage } from '@inertiajs/vue3';
 import { PHONE_TYPES, DEFAULT_PHONE_TYPE, normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
@@ -108,42 +108,63 @@ const numberPlaceholder = computed(() =>
   t.value.facility_branch?.phone_number_placeholder || '01020709993'
 );
 
+// The rows are held here rather than derived from the model on every render:
+// a row being typed into is blank for as long as it takes to type the first
+// digit, and the model only ever carries the filled ones.
+//
 // Always render at least one row: an empty branch should show an input to type
 // into, not a bare "add" button.
-const entries = computed(() => {
-  const normalized = normalizePhoneEntries(props.modelValue);
+const hydrate = (raw) => {
+  const normalized = normalizePhoneEntries(raw);
   return normalized.length > 0 ? normalized : [{ number: '', type: DEFAULT_PHONE_TYPE }];
-});
+};
 
-const commit = (next) => {
-  // Rows left completely blank are dropped on the way out — the server would
-  // reject them, and an admin who clicked "add" twice did not mean to add one.
-  emit('update:modelValue', next.filter((entry) => String(entry.number || '').trim() !== ''));
+const rows = ref(hydrate(props.modelValue));
+
+// What the model holds for a given set of rows — blank rows dropped, because
+// the server would reject them and an admin who clicked "add" twice did not
+// mean to add one.
+const filled = (list) =>
+  list
+    .map((entry) => ({ number: String(entry.number ?? '').trim(), type: entry.type }))
+    .filter((entry) => entry.number !== '');
+
+const signature = (list) => JSON.stringify(list);
+
+// Re-read the model only when it changed somewhere other than here — a parent
+// resetting the form, say. Echoes of this component's own emit are ignored, so
+// the blank row being typed into survives them.
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (signature(normalizePhoneEntries(value)) === signature(filled(rows.value))) return;
+    rows.value = hydrate(value);
+  },
+  { deep: true }
+);
+
+const commit = () => {
+  emit('update:modelValue', filled(rows.value));
 };
 
 const updateNumber = (index, value) => {
-  const next = entries.value.map((entry) => ({ ...entry }));
-  next[index].number = value;
-  commit(next);
+  rows.value[index].number = value;
+  commit();
 };
 
 const updateType = (index, value) => {
-  const next = entries.value.map((entry) => ({ ...entry }));
-  next[index].type = value;
-  commit(next);
+  rows.value[index].type = value;
+  commit();
 };
 
 const addRow = () => {
-  // The new row is only kept once it has a number, so append it to what the
-  // parent holds rather than to the rendered list.
-  const next = [...entries.value.map((entry) => ({ ...entry })), { number: '', type: DEFAULT_PHONE_TYPE }];
-  emit('update:modelValue', next);
+  rows.value.push({ number: '', type: DEFAULT_PHONE_TYPE });
 };
 
 const removeRow = (index) => {
-  const next = entries.value.map((entry) => ({ ...entry }));
-  next.splice(index, 1);
-  commit(next);
+  rows.value.splice(index, 1);
+  if (rows.value.length === 0) rows.value.push({ number: '', type: DEFAULT_PHONE_TYPE });
+  commit();
 };
 
 const rowError = (index) =>
@@ -157,7 +178,7 @@ const errorText = computed(() => {
   const list = props.errors?.[props.errorPrefix];
   if (list) return Array.isArray(list) ? list[0] : list;
 
-  for (let i = 0; i < entries.value.length; i += 1) {
+  for (let i = 0; i < rows.value.length; i += 1) {
     const message = rowError(i);
     if (message) return Array.isArray(message) ? message[0] : message;
   }

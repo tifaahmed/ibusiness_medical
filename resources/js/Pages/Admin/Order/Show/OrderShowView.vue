@@ -146,6 +146,42 @@
                 </svg>
                 {{ t.order?.trash_title || 'Trash - Deleted Orders' }}
               </Link>
+              <!--
+                Hand the order to the courier. Offered only while there is
+                something to hand over: an order that already carries an AWB
+                shows that number instead (below), because a second booking is
+                a second courier sent for one parcel and a second delivery fee.
+              -->
+              <button
+                v-if="canShip"
+                type="button"
+                @click="shipping = true"
+                class="btn-golden inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 h-8 text-sm font-semibold text-primary-foreground shadow-xs transition-all hover:bg-primary/90 cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                  <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path>
+                  <path d="M15 18H9"></path>
+                  <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path>
+                  <circle cx="17" cy="18" r="2"></circle>
+                  <circle cx="7" cy="18" r="2"></circle>
+                </svg>
+                {{ t.order?.ship_action || 'Ship with ABS' }}
+              </button>
+              <!-- Already shipped: the waybill, not the button. -->
+              <div
+                v-else-if="order.abs_awb"
+                class="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-green-600/40 bg-green-600/10 px-3 py-1.5 h-8 text-sm text-green-700 dark:text-green-400"
+                :title="order.abs_shipped_at ? `${t.order?.ship_shipped_at || 'Shipped'} ${order.abs_shipped_at}` : undefined"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 shrink-0">
+                  <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path>
+                  <path d="M15 18H9"></path>
+                  <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path>
+                  <circle cx="17" cy="18" r="2"></circle>
+                  <circle cx="7" cy="18" r="2"></circle>
+                </svg>
+                <span class="font-mono text-xs font-semibold" dir="ltr">{{ order.abs_awb }}</span>
+              </div>
               <!-- The edit form refuses a trashed order, so the page does not
                    offer it one: restore it first, from the trash page. -->
               <Link
@@ -473,6 +509,12 @@
       :title="preview?.title || ''"
       @close="closePreview"
     />
+    <!-- The payload ABS would receive, before any courier is booked. -->
+    <OrderShipDialog
+      :open="shipping"
+      :order-code="order.order_code"
+      @close="shipping = false"
+    />
   </OrderLayout>
 </template>
 
@@ -482,6 +524,7 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import OrderLayout from "../OrderLayout.vue";
 import OrderLogTimeline from "./OrderLogTimeline.vue";
 import OrderPdfPreview from "./OrderPdfPreview.vue";
+import OrderShipDialog from "./OrderShipDialog.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
 import { useNotification } from "@/composables/useNotification";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
@@ -501,6 +544,10 @@ const props = defineProps({
   order: {
     type: Object,
     required: true,
+  },
+  absConfigured: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -525,6 +572,20 @@ const canManage = computed(() => {
 
 const saved = computed(() => savedAmount(props.order));
 
+/** Whether the ship dialog is open. */
+const shipping = ref(false);
+
+/* Every condition that has to hold before an order can go to the courier.
+   A trashed order is one somebody decided should not exist; an order with an
+   AWB has already gone; and with no ABS key the button could only ever fail,
+   so it is not offered at all. The server checks all three again. */
+const canShip = computed(() => Boolean(
+  canManage.value
+  && props.absConfigured
+  && !props.order.deleted_at
+  && !props.order.abs_awb,
+));
+
 /* Which export is running, or null. One at a time: both rasterise a node into
    the same document body, and two at once would measure each other. */
 const exporting = ref(null);
@@ -546,6 +607,9 @@ const pdfOptions = () => ({
   appName: page.props.appName || '',
   logoUrl: page.props.appLogo || null,
   currency: t.value.order?.currency || 'EGP',
+  // Shared by HandleInertiaRequests from the Settings table — the printed
+  // document's header and footer are the shop's, not the application's.
+  site: page.props.siteDetails || {},
 });
 
 /**

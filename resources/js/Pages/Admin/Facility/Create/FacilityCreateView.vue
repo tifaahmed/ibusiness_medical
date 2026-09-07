@@ -11,7 +11,7 @@
 
             <div v-show="activeTab === 'details'" class="space-y-3">
               <FacilityForm :facility-types="facilityTypes" :facility="null" :tags="tags" :sales-options="salesOptions" />
-              <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :ai-enabled="locationAiEnabled" />
+              <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :ai-enabled="locationAiEnabled" :english-fix-enabled="englishFixEnabled" />
               <FacilityManagerCard v-model="managers" />
             </div>
 
@@ -102,6 +102,10 @@ const props = defineProps({
     default: false
   },
   locationAiEnabled: {
+    type: Boolean,
+    default: false
+  },
+  englishFixEnabled: {
     type: Boolean,
     default: false
   }

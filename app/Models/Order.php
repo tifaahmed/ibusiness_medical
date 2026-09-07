@@ -8,6 +8,7 @@ use App\Enums\Order\OrderStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -48,6 +49,7 @@ class Order extends Model implements HasMedia
 
     protected $fillable = [
         'order_code',
+        'user_id',
         'total_paid',
         'total_amount',
         'total_amount_before_discount',
@@ -75,6 +77,8 @@ class Order extends Model implements HasMedia
         'ip_address',
         'user_agent',
         'source',
+        'abs_awb',
+        'abs_shipped_at',
     ];
 
     protected function casts(): array
@@ -91,7 +95,23 @@ class Order extends Model implements HasMedia
             'order_status' => OrderStatusEnum::class,
             'payment_type' => PaymentTypeEnum::class,
             'customer_address_type' => AddressTypeEnum::class,
+            'abs_shipped_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The member who placed this order, when it was placed by somebody signed
+     * in on the storefront.
+     *
+     * Null for every guest checkout, which is most of them and will stay that
+     * way: the order code is still the credential that opens an order, and
+     * signing in is what turns a browser's list of codes into a history that
+     * follows the member to another device. See
+     * `Api\V1\Partner\OrderController::claim()`.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**
@@ -165,6 +185,19 @@ class Order extends Model implements HasMedia
     public function acceptsReceipts(): bool
     {
         return $this->payment_type === PaymentTypeEnum::TRANSFER_WALLET;
+    }
+
+    /**
+     * Whether this order has already been handed to ABS.
+     *
+     * The AWB is the whole answer: it exists only because ABS accepted the
+     * shipment and gave us a number to track it by. An order that has one must
+     * never be offered the ship button again — a second booking is a second
+     * courier sent for one parcel, and a second delivery fee.
+     */
+    public function isShipped(): bool
+    {
+        return filled($this->abs_awb);
     }
 
     /**

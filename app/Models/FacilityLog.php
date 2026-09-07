@@ -12,11 +12,20 @@ class FacilityLog extends Model
     use HasFactory;
 
     public const ACTION_CREATED = 'created';
+
     public const ACTION_UPDATED = 'updated';
+
     public const ACTION_DELETED = 'deleted';
+
     public const ACTION_BRANCH_CREATED = 'branch_created';
+
     public const ACTION_BRANCH_UPDATED = 'branch_updated';
+
     public const ACTION_BRANCH_DELETED = 'branch_deleted';
+
+    public const ACTION_MANAGER_CREATED = 'manager_created';
+
+    public const ACTION_MANAGER_UPDATED = 'manager_updated';
 
     protected $fillable = [
         'facility_id',
@@ -76,10 +85,11 @@ class FacilityLog extends Model
 
         $changed = [];
         foreach ($new as $key => $value) {
-            if (!array_key_exists($key, $old) || $old[$key] !== $value) {
+            if (! array_key_exists($key, $old) || $old[$key] !== $value) {
                 $changed[] = $key;
             }
         }
+
         return $changed;
     }
 }

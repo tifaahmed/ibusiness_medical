@@ -33,6 +33,16 @@ class OrderLog extends Model
     public const ACTION_PRODUCTS_CHANGED = 'products_changed';
 
     /**
+     * The order was handed to the courier and came back with an AWB.
+     *
+     * Its own action rather than an `updated` row: "when did this leave us, on
+     * whose say-so, and under which waybill" is the first thing anybody asks
+     * about a parcel that has gone missing, and it should not have to be dug
+     * out of a diff.
+     */
+    public const ACTION_SHIPPED = 'shipped';
+
+    /**
      * How long the same admin's repeat visit to the same order is folded into
      * the visit already logged. Without it, one admin refreshing an order page
      * buries every real change under a column of identical rows.

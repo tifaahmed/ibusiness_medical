@@ -16,10 +16,26 @@
           <!-- One-click English cleanup for this facility + its branches. -->
           <div class="flex flex-wrap items-center justify-end gap-2">
             <p v-if="englishFixMessage" class="mr-auto text-xs text-muted-foreground">{{ englishFixMessage }}</p>
+            <!-- A disabled button with no reason on it reads as broken, and the
+                 title tooltip cannot be reached without a hover — so the reason
+                 gets its own marker, readable on tap as well. -->
+            <button
+              v-if="!englishFixEnabled"
+              type="button"
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              :title="englishFixDisabledReason"
+              :aria-label="englishFixDisabledReason"
+              @click="showEnglishFixReason = !showEnglishFixReason"
+            >
+              i
+            </button>
+            <p v-if="!englishFixEnabled && showEnglishFixReason" class="text-xs text-amber-300">
+              {{ englishFixDisabledReason }}
+            </p>
             <button
               type="button"
               :disabled="!englishFixEnabled || englishFixRunning"
-              :title="englishFixEnabled ? 'Translate / fix empty or Arabic English fields' : 'Set GEMINI_API_KEY in your .env file to enable this'"
+              :title="englishFixEnabled ? 'Translate / fix empty or Arabic English fields' : englishFixDisabledReason"
               class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
               @click="fixEnglish"
             >
@@ -38,8 +54,8 @@
 
             <div v-show="activeTab === 'details'" class="space-y-3">
               <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
-              <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :facility-slug="facility.slug" :ai-enabled="locationAiEnabled" />
-              <FacilityManagerCard v-model="managers" />
+              <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :facility-slug="facility.slug" :ai-enabled="locationAiEnabled" :english-fix-enabled="englishFixEnabled" />
+              <FacilityManagerCard v-model="managers" :facility-slug="facility.slug" />
             </div>
 
             <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled
@@ -162,6 +178,14 @@ const facilityStore = useFacilityStore();
 
 const englishFixRunning = ref(false);
 const englishFixMessage = ref('');
+const showEnglishFixReason = ref(false);
+
+// The one thing that turns this button off is a missing key, so the message
+// names it rather than saying "unavailable".
+const englishFixDisabledReason = computed(() =>
+  t.value.facility?.english_fix_disabled
+  || 'AI is not configured on this server: set GEMINI_API_KEY in the .env file, then restart, to enable this.'
+);
 
 const fixEnglish = async () => {
   if (!props.englishFixEnabled || englishFixRunning.value) return;

@@ -20,8 +20,13 @@ class FacilityMigrationExport extends Command
         {--search= : Only facilities matching this name/slug}
         {--slug= : Export a single facility by slug}
         {--facility-type= : Filter by facility_type_id}
-        {--governorate= : Filter by governorate_id}
-        {--sales= : Filter by sales_id}';
+        {--governorate= : Only facilities with a branch in this governorate_id}
+        {--city= : Only facilities with a branch in this city_id}
+        {--sales= : Filter by sales_id}
+        {--sales-presence= : with|without — facilities that have a sales rep, or have none}
+        {--branches-missing= : governorate|city|either|both — facilities holding a branch with no location}
+        {--created-from= : Only facilities created on or after this date}
+        {--created-to= : Only facilities created on or before this date}';
 
     protected $description = 'Build a portable migration package (facilities + branches + managers + tags + offers + images).';
 
@@ -31,12 +36,22 @@ class FacilityMigrationExport extends Command
         $includeBranches = ! $this->option('no-branches');
         $includeManagers = ! $this->option('no-managers');
 
+        // The same filters the facility list screen offers, under the same names.
         $filters = array_filter([
             'search' => $this->option('search'),
             'slug' => $this->option('slug'),
             'facility_type_id' => $this->option('facility-type'),
             'governorate_id' => $this->option('governorate'),
+            'city_id' => $this->option('city'),
             'sales_id' => $this->option('sales'),
+            'sales_presence' => in_array($this->option('sales-presence'), ['with', 'without'], true)
+                ? $this->option('sales-presence')
+                : null,
+            'branches_missing' => in_array(
+                $this->option('branches-missing'), ['governorate', 'city', 'either', 'both'], true
+            ) ? $this->option('branches-missing') : null,
+            'created_from' => $this->option('created-from'),
+            'created_to' => $this->option('created-to'),
         ], fn ($v) => $v !== null && $v !== '');
 
         // --part/--per-part is the friendly way to say --offset/--limit.

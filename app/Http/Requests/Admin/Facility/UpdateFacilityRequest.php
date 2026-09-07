@@ -42,7 +42,8 @@ class UpdateFacilityRequest extends FormRequest
         if (is_array($managers)) {
             foreach ($managers as $i => $manager) {
                 if (array_key_exists('phones', $manager)) {
-                    $managers[$i]['phones'] = PhoneNumbers::split($manager['phones']);
+                    // Typed entries, the same shape a branch's phones take.
+                    $managers[$i]['phones'] = $this->normalisedPhones($manager['phones']);
                 }
             }
             $this->merge(['managers' => $managers]);
@@ -91,8 +92,7 @@ class UpdateFacilityRequest extends FormRequest
             'managers.*.id' => 'nullable|exists:facility_managers,id',
             'managers.*.name' => 'nullable|string|max:255',
             'managers.*.position' => 'nullable|string|max:255',
-            'managers.*.phones' => 'nullable|array',
-            'managers.*.phones.*' => 'nullable|string|max:20',
+            ...$this->phoneRules('managers.*.phones'),
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
             'branches.*.city_id' => 'nullable|exists:cities,id',
@@ -157,7 +157,7 @@ class UpdateFacilityRequest extends FormRequest
             'sales_id.exists' => 'The selected sales representative is invalid.',
             ...$this->phoneMessages('branches.*.phone'),
             'branches.*.google_location_url.url' => 'The Google location URL must be a full URL, e.g. https://maps.app.goo.gl/xxxx.',
-            'managers.*.phones.*.max' => 'Each manager phone number must be 20 characters or fewer — put one number per line.',
+            ...$this->phoneMessages('managers.*.phones'),
         ];
     }
 }

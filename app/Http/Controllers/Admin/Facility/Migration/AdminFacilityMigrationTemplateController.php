@@ -9,6 +9,7 @@ use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -163,16 +164,26 @@ class AdminFacilityMigrationTemplateController extends BaseController
      */
     private function facilityExamples(): array
     {
-        // A made-up sales name would be created as a new person on import, so
-        // the example borrows real ones where this site has any — the row can
-        // then be imported as it stands.
+        // Every lookup cell in these rows names something this site already
+        // has, wherever it has anything at all.
+        //
+        // The rule is the one the sales column has always followed: a made-up
+        // name is a row this site does not hold, so the import preview flags it
+        // as new and offers to create it — "“Clinic” is not one of your facility
+        // types" — for a file the operator downloaded from this very screen and
+        // was told to import as it stands. The invented names below are only the
+        // fallback for an empty site, which is the one case where nothing can be
+        // borrowed and everything has to be created anyway.
         $reps = $this->salesRows()->take(3)->map(fn (Sales $s) => $this->salesLabel($s))->values()->all();
         $rep = fn (int $i, string $fallback) => $reps[$i] ?? $fallback;
 
+        $types = $this->exampleTypes();
+        $type = fn (int $i, string $fallback) => $types[$i] ?? ($types[0] ?? $fallback);
+
         return [
-            ['El Gouna Medical Center', 'مركز الغردقة الطبي', 'el-gouna-medical-center', 'Clinic', $rep(0, 'Ahmed Hassan'), 15],
-            ['Cairo Dental Clinic', 'عيادة أسنان القاهرة', 'cairo-dental-clinic', 'Dental Clinic', $rep(1, 'Mona Adel'), 20],
-            ['Alexandria Eye Hospital', 'مستشفى العيون بالإسكندرية', 'alexandria-eye-hospital', 'Hospital', $rep(2, 'Ahmed Hassan'), 10],
+            ['El Gouna Medical Center', 'مركز الغردقة الطبي', 'el-gouna-medical-center', $type(0, 'Clinic'), $rep(0, 'Ahmed Hassan'), 15],
+            ['Cairo Dental Clinic', 'عيادة أسنان القاهرة', 'cairo-dental-clinic', $type(1, 'Dental Clinic'), $rep(1, 'Mona Adel'), 20],
+            ['Alexandria Eye Hospital', 'مستشفى العيون بالإسكندرية', 'alexandria-eye-hospital', $type(2, 'Hospital'), $rep(2, 'Ahmed Hassan'), 10],
         ];
     }
 
@@ -181,11 +192,57 @@ class AdminFacilityMigrationTemplateController extends BaseController
      */
     private function branchExamples(): array
     {
+        // Governorate and city travel as a pair: a city belongs to exactly one
+        // governorate, and an example naming a city from somewhere else would be
+        // teaching the operator to write a row this site has to reject.
+        $places = $this->examplePlaces();
+        $place = fn (int $i, array $fallback) => $places[$i] ?? ($places[0] ?? $fallback);
+
+        [$redSeaGov, $redSeaCity] = $place(0, ['Red Sea', 'El Gouna']);
+        [$somaGov, $somaCity] = $place(1, ['Red Sea', 'Soma Bay']);
+        [$cairoGov, $cairoCity] = $place(2, ['Cairo', 'Nasr City']);
+
         return [
-            ['El Gouna Medical Center', 'El Gouna Branch', 'فرع الغردقة', 'Abu Tig Marina, El Gouna', 'مارينا أبو تيج، الغردقة', '+20 65 358 0123', 'Red Sea', 'El Gouna', 27.3977, 33.6596, 'https://maps.app.goo.gl/example1'],
-            ['El Gouna Medical Center', 'Soma Bay Branch', 'فرع سوما باي', 'Soma Bay Resort', 'منتجع سوما باي', '+20 65 358 0456', 'Red Sea', 'Soma Bay', 27.1044, 33.8350, 'https://maps.app.goo.gl/example2'],
-            ['Cairo Dental Clinic', 'Main Branch', 'الفرع الرئيسي', '15 Abbas El Akkad St, Nasr City', 'شارع عباس العقاد، مدينة نصر', '+20 2 2273 0000', 'Cairo', 'Nasr City', 30.0561, 31.3389, 'https://maps.app.goo.gl/example3'],
+            ['El Gouna Medical Center', 'El Gouna Branch', 'فرع الغردقة', 'Abu Tig Marina, El Gouna', 'مارينا أبو تيج، الغردقة', '+20 65 358 0123', $redSeaGov, $redSeaCity, 27.3977, 33.6596, 'https://maps.app.goo.gl/example1'],
+            ['El Gouna Medical Center', 'Soma Bay Branch', 'فرع سوما باي', 'Soma Bay Resort', 'منتجع سوما باي', '+20 65 358 0456', $somaGov, $somaCity, 27.1044, 33.8350, 'https://maps.app.goo.gl/example2'],
+            ['Cairo Dental Clinic', 'Main Branch', 'الفرع الرئيسي', '15 Abbas El Akkad St, Nasr City', 'شارع عباس العقاد، مدينة نصر', '+20 2 2273 0000', $cairoGov, $cairoCity, 30.0561, 31.3389, 'https://maps.app.goo.gl/example3'],
         ];
+    }
+
+    /**
+     * The first few facility types this site holds, spelled the way the Facility
+     * Type column is read — English where there is one, Arabic otherwise.
+     *
+     * @return array<int, string>
+     */
+    private function exampleTypes(): array
+    {
+        return FacilityType::orderBy('id')->take(3)->get()
+            ->map(fn (FacilityType $t) => $this->readableName($t))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The first few governorate/city pairs this site holds, each city under the
+     * governorate it actually belongs to.
+     *
+     * @return array<int, array{0: string, 1: string}>
+     */
+    private function examplePlaces(): array
+    {
+        return City::with('governorate')->orderBy('id')->take(3)->get()
+            ->filter(fn (City $c) => $c->governorate !== null)
+            ->map(fn (City $c) => [$this->readableName($c->governorate), $this->readableName($c)])
+            ->filter(fn (array $pair) => $pair[0] !== '' && $pair[1] !== '')
+            ->values()
+            ->all();
+    }
+
+    private function readableName(Model $model): string
+    {
+        return trim((string) ($model->getTranslation('name', 'en') ?: $model->getTranslation('name', 'ar')));
     }
 
     /**

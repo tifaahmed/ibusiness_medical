@@ -169,7 +169,10 @@ class FacilityMigrationTest extends TestCase
         $this->assertNotNull($manager);
         $this->assertSame('أحمد سعيد', $manager->name);
         $this->assertSame('General Manager', $manager->position);
-        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
+        $this->assertEquals([
+            ['number' => '0100000000', 'type' => 'phone'],
+            ['number' => '0111111111', 'type' => 'phone'],
+        ], $manager->phones);
 
         $branch = $facility->branches->first();
         $this->assertSame('الفرع الرئيسي', $branch->getTranslation('name', 'ar'));
@@ -312,6 +315,95 @@ class FacilityMigrationTest extends TestCase
         $this->assertSame('Cairo', $branch['_existing']['governorate']['label']);
         // The package itself is untouched — the old value only travels alongside.
         $this->assertSame(['0100000000', '0111111111'], $branch['phone']);
+    }
+
+    public function test_the_streamed_preview_reports_its_progress_then_the_same_result(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $package = $this->buildPackage();
+
+        $response = $this->actingAs($this->admin())->post(
+            route('admin.facility.migration.preview.stream'),
+            ['server_path' => basename($package)],
+            ['Accept' => 'application/x-ndjson'],
+        );
+
+        $response->assertOk();
+
+        $rows = array_map(
+            fn (string $line) => json_decode($line, true),
+            array_filter(explode("\n", $response->streamedContent()), fn ($line) => trim($line) !== '')
+        );
+
+        $phases = array_values(array_unique(array_column(
+            array_filter($rows, fn ($row) => ($row['type'] ?? '') === 'progress'),
+            'phase'
+        )));
+
+        // The stages the bar names, in the order the work happens.
+        $this->assertContains('extracting', $phases);
+        $this->assertContains('reading', $phases);
+
+        // Exactly one result, and it carries what the plain preview carries.
+        $results = array_values(array_filter($rows, fn ($row) => ($row['type'] ?? '') === 'result'));
+        $this->assertCount(1, $results);
+        $this->assertSame($rows[array_key_last($rows)], $results[0]);
+
+        $result = $results[0];
+        $this->assertNotEmpty($result['token']);
+        $this->assertSame(1, $result['total']);
+        $this->assertCount(1, $result['facilities']);
+        $this->assertSame('Sunrise Clinic', $result['facilities'][0]['name']['en']);
+    }
+
+    public function test_the_streamed_preview_refuses_a_package_that_is_not_there(): void
+    {
+        Storage::fake('public');
+
+        // Resolving the package happens before the stream opens, so a name that
+        // points at nothing is still a plain HTTP error.
+        $this->actingAs($this->admin())->post(
+            route('admin.facility.migration.preview.stream'),
+            ['server_path' => 'no-such-package.zip'],
+            ['Accept' => 'application/x-ndjson'],
+        )->assertStatus(422);
+    }
+
+    public function test_the_streamed_preview_reports_an_unreadable_package_in_the_body(): void
+    {
+        Storage::fake('public');
+
+        // A real file in the drop directory that is not a package: it resolves,
+        // so the failure happens once the stream is already open — and by then
+        // the status line has gone out and the error has to travel in the body.
+        $dir = storage_path('app/facility-migration');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $broken = $dir.'/not-a-package.zip';
+        file_put_contents($broken, 'this is not a zip');
+
+        try {
+            $response = $this->actingAs($this->admin())->post(
+                route('admin.facility.migration.preview.stream'),
+                ['server_path' => basename($broken)],
+                ['Accept' => 'application/x-ndjson'],
+            );
+
+            $response->assertOk();
+
+            $rows = array_map(
+                fn (string $line) => json_decode($line, true),
+                array_filter(explode("\n", $response->streamedContent()), fn ($line) => trim($line) !== '')
+            );
+
+            $last = $rows[array_key_last($rows)];
+            $this->assertSame('error', $last['type']);
+            $this->assertNotEmpty($last['message']);
+        } finally {
+            @unlink($broken);
+        }
     }
 
     public function test_preview_marks_rows_the_site_does_not_have_as_new(): void
@@ -603,6 +695,70 @@ class FacilityMigrationTest extends TestCase
     }
 
     /**
+     * The example is meant to be imported as it stands. Every lookup cell in it
+     * therefore has to name something this site already holds — a made-up type
+     * or city would have the preview flag the row as new and offer to create it,
+     * for a file the screen itself handed the operator.
+     */
+    public function test_the_example_workbook_names_lookups_this_site_actually_has(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+
+        $response = $this->actingAs($this->admin())->get(route('admin.facility.migration.template.example'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'template').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+
+            $facilities = $spreadsheet->getSheetByName('Facilities');
+            $this->assertSame('Facility Type', $facilities->getCell('D1')->getValue());
+            // This site has exactly one type; every example row names it rather
+            // than inventing "Clinic", "Dental Clinic" and "Hospital".
+            foreach (['D2', 'D3', 'D4'] as $cell) {
+                $this->assertSame('Clinic', $facilities->getCell($cell)->getValue());
+            }
+
+            // Governorate and city travel as a pair, and the pair is a real one.
+            $branches = $spreadsheet->getSheetByName('Branches');
+            $this->assertSame('Governorate', $branches->getCell('G1')->getValue());
+            $this->assertSame('City', $branches->getCell('H1')->getValue());
+            foreach ([2, 3, 4] as $row) {
+                $this->assertSame('Cairo', $branches->getCell("G{$row}")->getValue());
+                $this->assertSame('Nasr City', $branches->getCell("H{$row}")->getValue());
+            }
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * An empty site can borrow nothing, so the example falls back to the names
+     * it always carried — everything in it is new there anyway.
+     */
+    public function test_the_example_workbook_still_has_rows_on_a_site_with_no_lookups(): void
+    {
+        Storage::fake('public');
+
+        $response = $this->actingAs($this->admin())->get(route('admin.facility.migration.template.example'));
+        $response->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'template').'.xlsx';
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            $facilities = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getSheetByName('Facilities');
+            $this->assertSame('Clinic', $facilities->getCell('D2')->getValue());
+            $this->assertSame('Dental Clinic', $facilities->getCell('D3')->getValue());
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
      * The multi-sheet workbook an operator fills in. A csv only ever has one
      * sheet, so the Managers sheet needs a real xlsx.
      *
@@ -657,7 +813,10 @@ class FacilityMigrationTest extends TestCase
         $this->assertNotNull($manager);
         $this->assertSame('أحمد سعيد', $manager->name);
         $this->assertSame('General Manager', $manager->position);
-        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
+        $this->assertEquals([
+            ['number' => '0100000000', 'type' => 'phone'],
+            ['number' => '0111111111', 'type' => 'phone'],
+        ], $manager->phones);
     }
 
     public function test_a_managers_sheet_adds_people_and_updates_the_ones_already_listed(): void
@@ -689,7 +848,10 @@ class FacilityMigrationTest extends TestCase
         // Matched by the folded name rather than character for character.
         $listed->refresh();
         $this->assertSame('Managing Director', $listed->position);
-        $this->assertSame(['0100000000', '0122222222'], $listed->phones);
+        $this->assertEquals([
+            ['number' => '0100000000', 'type' => 'phone'],
+            ['number' => '0122222222', 'type' => 'phone'],
+        ], $listed->phones);
     }
 
     public function test_a_workbook_without_a_managers_sheet_leaves_the_people_listed_alone(): void
@@ -856,7 +1018,10 @@ class FacilityMigrationTest extends TestCase
 
         $manager = $restored->managers->first();
         $this->assertSame('أحمد سعيد', $manager->name);
-        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
+        $this->assertEquals([
+            ['number' => '0100000000', 'type' => 'phone'],
+            ['number' => '0111111111', 'type' => 'phone'],
+        ], $manager->phones);
     }
 
     public function test_a_data_only_import_leaves_the_images_the_site_already_holds(): void

@@ -8,6 +8,7 @@ use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
+use App\Support\PhoneNumbers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -367,10 +368,9 @@ class AdminFacilityExportController extends BaseController
             }
             foreach ($facility->managers as $manager) {
                 $index++;
-                $phones = $manager->phones;
-                if (is_array($phones)) {
-                    $phones = implode(', ', $phones);
-                }
+                // Read through the shared reader: managers hold typed entries
+                // now, and rows written before that still hold flat strings.
+                $phones = implode(', ', PhoneNumbers::numbers($manager->phones));
 
                 $sheet->setCellValue("A{$row}", $index);
                 $sheet->setCellValue("B{$row}", (string) ($facility->getTranslation('name', 'en') ?: ''));

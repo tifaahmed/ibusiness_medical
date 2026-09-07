@@ -54,6 +54,19 @@ class OrderController extends Controller
         $items = $request->items();
         $memberPrice = Membership::earnsMemberPrice($request->input('membership_number'));
 
+        /*
+         * Who is buying, when the storefront had somebody signed in. The
+         * storefront forwards the member's own token in `Authorization`
+         * alongside its `X-Api-Key`, so the buyer is read from a credential
+         * rather than from a field in the body — a user id the caller could
+         * simply type would let one storefront file orders against any member
+         * it liked.
+         *
+         * Optional throughout: guest checkout is the common case and stays
+         * exactly as it was.
+         */
+        $buyer = $request->user('sanctum');
+
         /** @var \Illuminate\Support\Collection<int, Product> $products */
         /*
          * `is_purchasable` is enforced here rather than only on the storefront:
@@ -81,7 +94,7 @@ class OrderController extends Controller
         }
 
         try {
-            $order = DB::transaction(function () use ($request, $items, $products, $memberPrice) {
+            $order = DB::transaction(function () use ($request, $items, $products, $memberPrice, $buyer) {
                 $lines = [];
                 $total = 0.0;
                 $totalBeforeDiscount = 0.0;
@@ -120,6 +133,8 @@ class OrderController extends Controller
 
                 $order = Order::query()->create([
                     'order_code' => Order::generateCode(),
+                    /* Null for a guest checkout, which is most of them. */
+                    'user_id' => $buyer?->id,
                     'total_amount' => round($total + $delivery['delivery_price'], 2),
                     'total_amount_before_discount' => round($totalBeforeDiscount + $delivery['delivery_price'], 2),
                     ...$delivery,

@@ -35,6 +35,10 @@ class AdminFacilityMigrationExportController extends BaseController
             'per_part' => $perPart,
             'parts' => $total > 0 ? (int) ceil($total / $perPart) : 0,
             'filters' => $filters,
+            // The same sentences the workbook's Export Info sheet will carry,
+            // so what the screen says it counted and what the file says it
+            // holds can never be two different stories.
+            'filters_described' => $this->exporter->describeFilters($filters),
         ]);
     }
 
@@ -112,16 +116,35 @@ class AdminFacilityMigrationExportController extends BaseController
     }
 
     /**
+     * The facility list screen's filters, read off the query string.
+     *
+     * Kept the same set and the same names as that screen so a link can be
+     * carried from one to the other, and so an operator who narrows the list
+     * and then exports gets the rows that were in front of them.
+     *
      * @return array<string, mixed>
      */
     private function filters(Request $request): array
     {
+        // Neither of these two reaches SQL as a value, so anything else the
+        // query string carries for them is no filter at all and is dropped.
+        $salesPresence = $request->input('sales_presence');
+        $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : null;
+
+        $branchesMissing = $request->input('branches_missing');
+        $branchesMissing = in_array($branchesMissing, ['governorate', 'city', 'either', 'both'], true)
+            ? $branchesMissing
+            : null;
+
         return array_filter([
             'search' => $request->input('search'),
             'slug' => $request->input('slug'),
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
+            'sales_presence' => $salesPresence,
             'governorate_id' => $request->input('governorate_id'),
+            'city_id' => $request->input('city_id'),
+            'branches_missing' => $branchesMissing,
             'created_from' => $request->input('created_from'),
             'created_to' => $request->input('created_to'),
         ], fn ($v) => $v !== null && $v !== '');

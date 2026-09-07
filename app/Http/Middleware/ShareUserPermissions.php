@@ -13,7 +13,10 @@ class ShareUserPermissions
     {
         if ($user = $request->user()) {
             $roles = $user->getRoleNames()->values()->all();
-            $permissions = $user->getAllPermissions()->pluck('name')->values()->all();
+            /* Effective, not merely granted: a super admin passes every check
+               through the Gate regardless of `role_has_permissions`, and this
+               list is what the front end hides its buttons on. */
+            $permissions = $user->effectivePermissionNames();
 
             Inertia::share([
                 'auth' => [

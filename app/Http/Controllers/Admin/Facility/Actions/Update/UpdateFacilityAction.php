@@ -280,16 +280,18 @@ class UpdateFacilityAction
     }
 
     /**
-     * Manager phones: a flat list of numbers. A manager is a person to ring,
-     * not a branch line, so there is nothing to type here.
+     * Manager phones, one typed entry per number — the same shape a branch's
+     * phones take, so "mobile", "WhatsApp" and the rest read the same wherever
+     * a number is shown. Rows written before types existed arrive as flat
+     * strings and are typed from their shape.
      *
-     * @return list<string>|null
+     * @return list<array{number: string, type: string}>|null
      */
     private function normalizePhone(mixed $phone): ?array
     {
-        $numbers = PhoneNumbers::numbers(is_array($phone) || is_string($phone) ? $phone : null);
+        $entries = PhoneNumbers::entries(is_array($phone) || is_string($phone) ? $phone : null);
 
-        return $numbers === [] ? null : $numbers;
+        return $entries === [] ? null : $entries;
     }
 
     /**
