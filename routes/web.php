@@ -231,6 +231,7 @@ use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
 use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
 use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
 use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
+use App\Http\Controllers\Admin\User\Membership\Otp\AdminMembershipOtpController;
 use App\Http\Controllers\Admin\User\Membership\Address\Delete\AdminAddressDeleteController;
 use App\Http\Controllers\Admin\User\Membership\Address\Store\AdminAddressStoreController;
 use App\Http\Controllers\Admin\User\Membership\Address\Update\AdminAddressUpdateController;
@@ -400,6 +401,20 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/user/membership/{user}/restore', AdminUserMembershipRestoreController::class)->name('admin.user.membership.restore');
         Route::delete('/admin/user/membership/{user}/force-delete', AdminUserMembershipForceDeleteController::class)->name('admin.user.membership.force-delete');
 
+        /* The storefront login's code policy. Ahead of the /{user} wildcard
+           below for the same reason /create and /export are: otherwise `otp`
+           is read as a member's key and this is never reachable.
+
+           `manage settings` rather than this group's permission, and so
+           registered with its own middleware: turning SMS off weakens the
+           login for every member at once, which is a settings decision, not
+           membership administration. Giving ONE member a fixed code is the
+           latter, and stays in this group. */
+        Route::put('/admin/user/membership/otp', [AdminMembershipOtpController::class, 'site'])
+            ->middleware('permission:manage settings')
+            ->name('admin.user.membership.otp.site');
+        Route::put('/admin/user/membership/{user}/otp', [AdminMembershipOtpController::class, 'member'])->name('admin.user.membership.otp.member');
+
         Route::get('/admin/user/membership/{user}/edit', AdminUserMembershipEditController::class)->name('admin.user.membership.edit');
         Route::put('/admin/user/membership/{user}', AdminUserMembershipUpdateController::class)->name('admin.user.membership.update');
         Route::put('/admin/user/membership/{user}/password', AdminUserMembershipUpdatePasswordController::class)->name('admin.user.membership.password.update');
@@ -526,6 +541,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // The pictures a package carries, shown on the preview before anything
         // is written. They live only inside the open session's extraction.
         Route::get('/admin/facility/migration/media', [AdminFacilityMigrationImportController::class, 'media'])->name('admin.facility.migration.media');
+        // And the other direction: a picture the operator adds during the review,
+        // for a facility whose package brought none — the only route a
+        // spreadsheet import has to an image at all.
+        Route::post('/admin/facility/migration/media', [AdminFacilityMigrationImportController::class, 'uploadMedia'])->name('admin.facility.migration.media.upload');
         // AI: translate the English inputs on the preview to Arabic (one field or a sweep).
         Route::post('/admin/facility/migration/translate', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTranslateController::class)->name('admin.facility.migration.translate');
         Route::post('/admin/facility/migration/options', [AdminFacilityMigrationImportController::class, 'options'])->name('admin.facility.migration.options');

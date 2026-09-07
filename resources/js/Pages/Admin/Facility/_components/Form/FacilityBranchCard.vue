@@ -94,8 +94,8 @@
                 {{ t.common?.created_by || 'Created By' }}: {{ branch.created_by_name }}
                 <span v-if="branch.created_at">· {{ branch.created_at }}</span>
               </p>
-              <ul v-if="serverErrors[index]" class="mb-2 space-y-1 text-sm text-destructive">
-                <li v-for="(message, messageIndex) in serverErrors[index]" :key="messageIndex">{{ message }}</li>
+              <ul v-if="cardIssues(index).length" class="mb-2 space-y-1 text-sm text-destructive">
+                <li v-for="(message, messageIndex) in cardIssues(index)" :key="messageIndex">{{ message }}</li>
               </ul>
               <div v-if="branchPhones(branch).length > 0" class="flex flex-wrap gap-2 text-xs text-white/70">
                 <span
@@ -378,6 +378,7 @@ import { usePage } from '@inertiajs/vue3';
 import { useFacilityStore } from '../../Stores/FacilityStore';
 import { useNotification } from '@/composables/useNotification';
 import { normalizePhoneEntries, phoneTypeLabel, isWhatsapp } from '@/lib/branchPhones';
+import { bilingualLabel, nameIn, primaryName } from '@/lib/lookupNames';
 
 const facilityStore = useFacilityStore();
 const page = usePage();
@@ -499,17 +500,17 @@ const statusBadgeClass = (status) => ({
 // branches down as our modelValue first.
 watch(() => page.props.facility, () => nextTick(captureBaseline));
 
-const optionLabel = (name) => {
-  if (typeof name === 'object' && name !== null) {
-    return name[locale.value] || name['ar'] || name['en'] || Object.values(name)[0] || '';
-  }
-  return name;
-};
+// One language: this is the branch summary line, not a picker.
+const optionLabel = (name) => primaryName(name, locale.value);
 
+/* Both spellings in the option, because picking the city is what the branch
+   name is then built from in both languages — and several cities read alike in
+   one language while being plainly different in the other. Search reads the
+   whole label, so typing either spelling finds the row. */
 const governorateOptions = computed(() =>
   props.governorates.map(governorate => ({
     value: governorate.id,
-    label: optionLabel(governorate.name)
+    label: bilingualLabel(governorate.name, locale.value),
   }))
 );
 
@@ -519,7 +520,7 @@ const cityOptions = computed(() => {
     .filter(city => !selectedGov || String(city.governorate_id) === String(selectedGov))
     .map(city => ({
       value: city.id,
-      label: optionLabel(city.name)
+      label: bilingualLabel(city.name, locale.value),
     }));
 });
 
@@ -676,17 +677,17 @@ const selectedCity = computed(() =>
   props.cities.find(city => String(city.id) === String(form.value.city_id)) || null
 );
 
-const cityNameIn = (locale) => {
+const cityNameIn = (lang) => {
   const name = selectedCity.value?.name;
   if (!name) return '';
-  if (typeof name === 'object') return String(name[locale] || '').trim();
+  if (typeof name === 'object') return nameIn(name, lang);
 
   // A city stored as a plain string has one spelling; offer it for whichever
   // side it reads as, rather than guessing it must be the Arabic one.
   const plain = String(name).trim();
   const isArabic = /[\u0600-\u06FF]/.test(plain);
 
-  return (locale === 'ar') === isArabic ? plain : '';
+  return (lang === 'ar') === isArabic ? plain : '';
 };
 
 // A city already written into this language's name is not appended a second
@@ -787,7 +788,18 @@ const editingCreator = computed(() =>
 );
 
 /* Server-side branch errors arrive flattened ("branches.2.name.ar"). The modal
-   is closed by then, so they are shown on the card they belong to. */
+   is closed by then, so they are shown on the card they belong to.
+
+   They are a snapshot of the list as it was posted, which is why the duplicate
+   ones are dropped here: fixing the clashing name left the old message sitting
+   on the card, still insisting on a collision that no longer existed, because
+   nothing re-ran the check until the whole facility was saved again. That rule
+   is re-answered live below instead — it reads the list as it stands, so it
+   clears the moment either of the two branches is renamed. Every other server
+   error still stands until the next save, which is the only thing that can
+   answer it. */
+const isDuplicateMessage = (message) => /already uses this .*(name|address)\.?$/i.test(String(message || ''));
+
 const serverErrors = computed(() => {
   const byIndex = {};
 
@@ -795,13 +807,67 @@ const serverErrors = computed(() => {
     const match = key.match(/^branches\.(\d+)\./);
     if (!match) return;
 
+    const text = Array.isArray(message) ? message[0] : message;
+    if (isDuplicateMessage(text)) return;
+
     const index = Number(match[1]);
     byIndex[index] = byIndex[index] || [];
-    byIndex[index].push(Array.isArray(message) ? message[0] : message);
+    byIndex[index].push(text);
   });
 
   return byIndex;
 });
+
+/* The same rule App\Support\BranchUniqueness enforces, asked of the list as it
+   stands right now: no two branches of one facility may share a name or an
+   address in the same language. Compared the same loose way — trimmed,
+   whitespace collapsed, case folded — and per locale, so a repeated Arabic name
+   is a clash even when the English ones differ. A blank translation is skipped;
+   branches that simply have no English address do not collide.
+
+   Reported on the later of the two rows, as the server does, so the row that
+   established the name is left alone. */
+const duplicateIssues = computed(() => {
+  const byIndex = {};
+  const branches = props.modelValue || [];
+
+  for (const field of ['name', 'address']) {
+    const seen = {};
+
+    branches.forEach((branch, index) => {
+      const values = (branch && branch[field]) || {};
+
+      for (const [lang, value] of Object.entries(values)) {
+        const key = compareKey(value);
+        if (!key) continue;
+
+        seen[lang] = seen[lang] || {};
+        if (seen[lang][key] !== undefined) {
+          const label = t.value?.facility_branch?.[`duplicate_${field}`]
+            || (field === 'address'
+              ? 'Another branch of this facility already uses this address.'
+              : 'Another branch of this facility already uses this name.');
+
+          byIndex[index] = byIndex[index] || [];
+          byIndex[index].push(`${label} (${localeLabel(lang)})`);
+
+          continue;
+        }
+
+        seen[lang][key] = index;
+      }
+    });
+  }
+
+  return byIndex;
+});
+
+// What the card actually lists: the live duplicate answer first, then whatever
+// else the last save complained about.
+const cardIssues = (index) => [
+  ...(duplicateIssues.value[index] || []),
+  ...(serverErrors.value[index] || []),
+];
 
 const getTranslatedName = (name) => {
   if (!name) return '';
@@ -983,6 +1049,7 @@ const handleSubmit = async () => {
       phone: branchData.phone || []
     });
 
+    clearServerErrorsFor(editingIndex.value);
     applyBranch(data.branch);
     markSaved(data.branch);
     useNotification().success(
@@ -1014,6 +1081,21 @@ const applyBranch = (branch) => {
   }
 
   emit('update:modelValue', currentBranches);
+};
+
+/* The server has just accepted this branch, so whatever the previous facility
+   POST said about the row at this index describes a value that is gone. Left
+   in place it reads as a live complaint about the branch now on screen. */
+const clearServerErrorsFor = (index) => {
+  const all = facilityStore.validationErrors;
+  if (!all || index === null || index === undefined) return;
+
+  const prefix = `branches.${index}.`;
+  const kept = Object.fromEntries(
+    Object.entries(all).filter(([key]) => !key.startsWith(prefix))
+  );
+
+  facilityStore.validationErrors = Object.keys(kept).length ? kept : null;
 };
 
 // A branch that has just been written is the stored state now, so it should

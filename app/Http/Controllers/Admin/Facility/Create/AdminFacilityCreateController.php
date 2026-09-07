@@ -18,17 +18,25 @@ class AdminFacilityCreateController extends BaseController
 {
     public function __invoke(): Response
     {
+        // Both spellings, not the reader's one.
+        //
+        // `$type->name` resolves to the current locale and throws the other
+        // language away, which cost the form two things: a picker could only
+        // ever show one language, and "Add city to name (AR)" sat permanently
+        // disabled — it looks for an Arabic spelling in a value that, under an
+        // English locale, is only ever the English one. The components have
+        // always read a {ar, en} map when they are given one.
         $facilityTypes = FacilityType::all()->map(function ($type) {
             return [
                 'id' => $type->id,
-                'name' => $type->name,
+                'name' => $type->getTranslations('name'),
             ];
         });
 
         $governorates = Governorate::all()->map(function ($governorate) {
             return [
                 'id' => $governorate->id,
-                'name' => $governorate->name,
+                'name' => $governorate->getTranslations('name'),
             ];
         });
 
@@ -36,19 +44,21 @@ class AdminFacilityCreateController extends BaseController
             return [
                 'id' => $city->id,
                 'governorate_id' => $city->governorate_id,
-                'name' => $city->name,
+                'name' => $city->getTranslations('name'),
             ];
         });
 
         $salesOptions = Sales::query()
             ->orderBy('id')
             ->get()
+            // The label stays a single readable string for callers that only
+            // want one; `name` carries both the way every other lookup does.
+            // A rep whose name column holds a bare varchar reads the same in
+            // both — see Sales::nameTranslations().
             ->map(fn (Sales $sale) => [
                 'value' => $sale->id,
-                'label' => $sale->getTranslation('name', app()->getLocale())
-                    ?: $sale->getTranslation('name', 'ar')
-                    ?: $sale->getTranslation('name', 'en')
-                    ?: "#{$sale->id}",
+                'label' => $sale->displayName(),
+                'name' => $sale->nameTranslations(),
             ])->toArray();
 
         $tags = Tag::forPicker();

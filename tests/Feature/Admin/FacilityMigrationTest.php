@@ -1173,6 +1173,84 @@ class FacilityMigrationTest extends TestCase
         $importer->endSession($session['token']);
     }
 
+    /**
+     * The review screen could only ever refile or drop the pictures a package
+     * carried, which left the commonest case with nothing to offer: a workbook
+     * carries no image bytes at all, so every facility arrived picture-less and
+     * its logo could not be set here. An operator can now add one, and it has to
+     * behave from that moment exactly like an image the package had brought.
+     */
+    public function test_an_image_added_during_the_review_is_imported(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        // The workbook, deliberately: the session it opens has no media
+        // directory whatsoever, so the upload is what creates one.
+        $workbook = $this->buildWorkbook();
+
+        $this->wipeFacilityData();
+
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+        $session = $importer->beginSession($workbook, ['mode' => 'merge', 'dry_run' => false]);
+        $token = $session['token'];
+
+        $file = storage_path("app/facility-migration/sessions/{$token}/facilities/000000.json");
+        $facility = json_decode(file_get_contents($file), true);
+        $this->assertSame([], $facility['media'] ?? [], 'a workbook carries no images');
+
+        // Kept in a variable: the fake's temp file is deleted the moment the
+        // UploadedFile is collected, and inlining it would take the file away
+        // before storeSessionMedia ever sees it.
+        $picked = UploadedFile::fake()->image('picked-logo.png', 24, 24);
+        $row = $importer->storeSessionMedia($token, $picked->getRealPath(), 'شعار المنشأة.png', 'logo');
+
+        // Indistinguishable from a bundled row from here on: the same two paths,
+        // and the thumbnail endpoint finds it.
+        $this->assertNotNull($importer->sessionMediaPath($token, $row['package_path']));
+        $this->assertSame('logo', $row['collection_name']);
+        $this->assertSame('image/png', $row['mime_type']);
+
+        $facility['media'][] = $row;
+        $importer->writeFacilityFile($token, 0, $facility);
+
+        do {
+            $progress = $importer->processChunk($token, 5);
+        } while (! $progress['done']);
+        $importer->endSession($token);
+
+        $restored = Facility::first();
+        $this->assertNotNull($restored);
+        $logo = $restored->getFirstMedia('logo');
+        $this->assertNotNull($logo, 'the picture chosen during the review is on the facility');
+        $this->assertFileExists($logo->getPath());
+    }
+
+    /**
+     * And the screen's other half of the same job: seeing what is already here
+     * before a package paints over it.
+     */
+    public function test_the_preview_shows_the_images_the_site_already_holds(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $package = $this->buildPackage();
+
+        $response = $this->actingAs($this->admin())->post(
+            route('admin.facility.migration.preview'),
+            ['package' => new UploadedFile($package, 'package.zip', 'application/zip', null, true)]
+        );
+
+        $response->assertOk();
+        $existing = $response->json('facilities.0._existing.media');
+
+        $this->assertNotEmpty($existing, 'the matched facility carries the pictures this site holds today');
+        $this->assertEqualsCanonicalizing(
+            ['logo', 'image', 'gallery', 'gallery'],
+            array_column($existing, 'collection_name')
+        );
+        $this->assertNotNull($existing[0]['url']);
+    }
+
     public function test_the_review_can_be_saved_back_out_as_a_package(): void
     {
         Storage::fake('public');

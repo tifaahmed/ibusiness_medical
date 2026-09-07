@@ -1,5 +1,5 @@
 <template>
-  <MemberListView :members="users" :filters="filters" :chart-data="chartData" :chart-days="chartDays" />
+  <MemberListView :members="users" :filters="filters" :chart-data="chartData" :chart-days="chartDays" :otp-policy="otpPolicy" />
 </template>
 
 <script setup>
@@ -21,6 +21,11 @@ const props = defineProps({
   chartData: {
     type: Object,
     default: () => ({ daily: {}, monthly: {} })
+  },
+  /* The storefront login policy, straight from the list controller. */
+  otpPolicy: {
+    type: Object,
+    default: null
   }
 });
 

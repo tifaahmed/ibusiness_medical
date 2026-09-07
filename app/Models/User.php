@@ -75,6 +75,8 @@ class User extends Authenticatable implements HasMedia
         'password',
         'slug',
         'partner_id',
+        /* A login code just for this member; null follows the site setting. */
+        'otp_fixed_code',
     ];
 
     /**

@@ -503,6 +503,42 @@ class AdminFacilityMigrationImportController extends BaseController
     }
 
     /**
+     * Take an image the operator picked on the review screen into the open
+     * session and hand the row back, so the screen can push it onto the
+     * facility it belongs to.
+     *
+     * This is the only way to give a facility a picture it did not arrive with
+     * — and the only way at all for a spreadsheet, which carries no image bytes
+     * whatsoever.
+     */
+    public function uploadMedia(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'collection' => ['required', 'string', 'max:64'],
+            // Contracts travel in these packages beside the pictures, so a PDF
+            // is as valid an upload as an image.
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif,svg,pdf', 'max:10240'],
+        ]);
+
+        try {
+            $row = $this->importer->storeSessionMedia(
+                $validated['token'],
+                $request->file('file')->getRealPath(),
+                $request->file('file')->getClientOriginalName(),
+                $validated['collection']
+            );
+
+            // The file was just written into the session, so it is bundled by
+            // construction — the screen reads the same flag it does for every
+            // other row rather than a second kind of "is it here?".
+            return response()->json(['media' => $row + ['_bundled' => true]]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
      * Re-run the "does this site already have it?" match for one facility the
      * operator has edited on the preview screen.
      *

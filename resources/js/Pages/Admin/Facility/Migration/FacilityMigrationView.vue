@@ -861,17 +861,25 @@
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.branches || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.managers || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.offers || []).length }}</td>
+                    <!-- Always a way in, even at zero. A package that carries no
+                         picture for this facility is the commonest case of all —
+                         every spreadsheet import is one — and a dead “0” left the
+                         operator with no way to give it one, or even to see the
+                         logo this site already holds. -->
                     <td class="px-2 py-1 text-center">
                       <button
-                        v-if="(facility.media || []).length"
                         type="button"
                         @click="facility._showMedia = !facility._showMedia"
                         :class="['rounded px-1.5 py-0.5 text-[10px] font-semibold', mediaBadgeCls(facility)]"
-                        :title="bundledMedia(facility).length + ' of ' + facility.media.length + ' image files are in this package'"
+                        :title="mediaBadgeTitle(facility)"
                       >
                         {{ (facility.media || []).length }} img
                       </button>
-                      <span v-else class="text-muted-foreground">0</span>
+                      <span
+                        v-if="existingMedia(facility).length"
+                        class="mt-0.5 block text-[10px] leading-tight text-muted-foreground"
+                        :title="'This site holds ' + existingMedia(facility).length + ' image file(s) for this facility today'"
+                      >{{ existingMedia(facility).length }} here now</span>
                     </td>
                     <td class="px-2 py-1 text-center sticky right-0 z-[5] bg-card">
                       <button
@@ -1246,21 +1254,82 @@
 
                   <!-- Managers sub-table -->
                   <!-- Images sub-table -->
-                  <tr v-if="facility._showMedia && (facility.media || []).length" class="border-b border-border">
+                  <tr v-if="facility._showMedia" class="border-b border-border">
                     <td :colspan="12" class="p-0">
-                      <div class="bg-muted/20 px-3 py-3 space-y-2">
+                      <div class="bg-muted/20 px-3 py-3 space-y-3">
+
+                        <!-- What this site holds today. The other columns all say
+                             "now" beside "after"; the images said nothing, so a
+                             package carrying a logo replaced the existing one with
+                             no way to see what was being painted over. Read-only:
+                             nothing here is edited, it is the before picture. -->
+                        <div v-if="facility._existing" class="space-y-1.5">
+                          <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                            <span class="font-semibold uppercase tracking-wide text-muted-foreground">
+                              On this site now
+                            </span>
+                            <span class="rounded bg-muted px-1.5 py-0.5 font-semibold text-muted-foreground">
+                              facility #{{ facility._existing.id }}
+                            </span>
+                            <span v-if="!existingMedia(facility).length" class="text-muted-foreground">
+                              no images — this facility has none yet
+                            </span>
+                          </div>
+                          <div
+                            v-if="existingMedia(facility).length"
+                            class="grid gap-2"
+                            style="grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));"
+                          >
+                            <div
+                              v-for="(img, xi) in existingMedia(facility)"
+                              :key="img.id || xi"
+                              class="rounded-lg border p-2 space-y-1"
+                              :class="replacedCollections(facility).has(img.collection_name)
+                                ? 'border-amber-500/60 bg-amber-500/10'
+                                : 'border-border bg-card'"
+                            >
+                              <a v-if="img.url && isViewableImage(img)" :href="img.url" target="_blank" rel="noopener" class="block">
+                                <img
+                                  :src="img.url"
+                                  :alt="img.file_name"
+                                  loading="lazy"
+                                  class="h-20 w-full rounded border border-border bg-muted object-contain"
+                                />
+                              </a>
+                              <div
+                                v-else
+                                class="flex h-20 w-full items-center justify-center rounded border border-border bg-muted px-2 text-center text-[10px] text-muted-foreground"
+                              >
+                                <a v-if="img.url" :href="img.url" target="_blank" rel="noopener" class="underline">
+                                  {{ (img.mime_type || 'file').split('/').pop().toUpperCase() }} — open
+                                </a>
+                                <span v-else>file missing on this site</span>
+                              </div>
+                              <p class="truncate text-[10px] font-medium" :title="img.collection_name">{{ img.collection_name }}</p>
+                              <p
+                                v-if="replacedCollections(facility).has(img.collection_name)"
+                                class="text-[10px] leading-tight text-amber-600 dark:text-amber-400"
+                              >replaced on import</p>
+                              <p v-else class="text-[10px] leading-tight text-muted-foreground">kept</p>
+                            </div>
+                          </div>
+                        </div>
+
                         <div class="flex flex-wrap items-center gap-2 text-[11px]">
                           <span class="font-semibold uppercase tracking-wide text-muted-foreground">
-                            Images in this package
+                            Images to import
                           </span>
-                          <span class="rounded bg-emerald-700 px-1.5 py-0.5 font-semibold text-white">
+                          <span v-if="bundledMedia(facility).length" class="rounded bg-emerald-700 px-1.5 py-0.5 font-semibold text-white">
                             {{ bundledMedia(facility).length }} with a file
                           </span>
                           <span v-if="unbundledMedia(facility).length" class="rounded bg-red-700 px-1.5 py-0.5 font-semibold text-white">
                             {{ unbundledMedia(facility).length }} with no file
                           </span>
-                          <span class="text-muted-foreground">
+                          <span v-if="(facility.media || []).length" class="text-muted-foreground">
                             Importing replaces whatever this site holds in each collection named here.
+                          </span>
+                          <span v-else class="text-muted-foreground">
+                            This package carries none — add one below, or the images here stay as they are.
                           </span>
                           <button
                             v-if="unbundledMedia(facility).length"
@@ -1325,6 +1394,42 @@
                                 class="ml-auto text-destructive hover:underline"
                               >remove</button>
                             </div>
+                          </div>
+
+                          <!-- The one thing this screen could never do: put a
+                               picture on a facility. The file goes into the open
+                               session, so from the moment it lands it is treated
+                               exactly like an image the package had carried —
+                               importable, removable, and written into the package
+                               if the review is saved rather than run. -->
+                          <div class="rounded-lg border border-dashed border-border bg-card/50 p-2 space-y-1.5">
+                            <label
+                              class="flex h-24 w-full cursor-pointer items-center justify-center rounded border border-dashed border-border bg-muted/50 px-2 text-center text-[10px] text-muted-foreground hover:bg-muted"
+                            >
+                              <input
+                                type="file"
+                                class="hidden"
+                                accept="image/*,application/pdf"
+                                :disabled="uploadingMedia === facility._index"
+                                @change="addMediaFile(facility, $event)"
+                              />
+                              <span v-if="uploadingMedia === facility._index">uploading…</span>
+                              <span v-else>+ add an image<br />for this facility</span>
+                            </label>
+
+                            <div title="Which collection the file you pick is imported into">
+                              <Select
+                                :model-value="newMediaCollection"
+                                :options="mediaCollectionOptions({ collection_name: newMediaCollection })"
+                                @update:model-value="newMediaCollection = $event"
+                              />
+                            </div>
+
+                            <p v-if="mediaUploadError && mediaUploadFacility === facility._index"
+                               class="text-[10px] leading-tight text-destructive">{{ mediaUploadError }}</p>
+                            <p v-else class="text-[10px] leading-tight text-muted-foreground">
+                              Replaces the “{{ newMediaCollection }}” image on import.
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -2951,14 +3056,93 @@ const isViewableImage = (img) => String(img?.mime_type || '').startsWith('image/
 const bundledMedia = (facility) => (facility.media || []).filter(m => m._bundled);
 const unbundledMedia = (facility) => (facility.media || []).filter(m => !m._bundled);
 
-const mediaBadgeCls = (facility) =>
-  (unbundledMedia(facility).length ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white');
+/* The pictures this site already holds for the facility a merge would land on.
+   Nothing to show for a facility that is new here — there is no "now" yet. */
+const existingMedia = (facility) => facility._existing?.media || [];
+
+/* The collections the package's own rows name: exactly the ones the import
+   empties and refills, which is what makes an existing picture in one of them
+   about to be replaced rather than kept. */
+const replacedCollections = (facility) =>
+  new Set(bundledMedia(facility).map(m => m.collection_name).filter(Boolean));
+
+const mediaBadgeCls = (facility) => {
+  if (unbundledMedia(facility).length) return 'bg-red-600 text-white';
+  if (!(facility.media || []).length) return 'bg-muted text-muted-foreground';
+
+  return 'bg-emerald-600 text-white';
+};
+
+const mediaBadgeTitle = (facility) => {
+  const count = (facility.media || []).length;
+  const here = existingMedia(facility).length;
+
+  return count
+    ? `${bundledMedia(facility).length} of ${count} image files are in this package`
+    : `This package carries no image for this facility${here ? ` — it keeps the ${here} already here` : ''}. Click to add one.`;
+};
 
 /* A row naming a picture the archive does not carry imports nothing and warns.
    Dropping it is the honest edit: the collection then keeps whatever this site
    already has, rather than being emptied for a file that never arrives. */
 const dropUnbundled = (facility) => {
   facility.media = bundledMedia(facility);
+};
+
+/* ---------------------------- adding a picture ----------------------------- */
+
+/* Until now the review could only refile or drop the images a package carried,
+   which left the commonest case with nothing at all: a spreadsheet carries no
+   image bytes, so every facility arrived picture-less and its logo could only
+   be set by opening the facility afterwards, one at a time.
+
+   The file is handed to the open session rather than held in the browser, so
+   the row it produces is the same shape as a bundled one — the thumbnail
+   endpoint serves it, the import restores it, and saving the review writes it
+   into the package. It lives and dies with the session, like the rest. */
+const newMediaCollection = ref('logo');
+const uploadingMedia = ref(null);
+const mediaUploadError = ref('');
+const mediaUploadFacility = ref(null);
+
+const addMediaFile = async (facility, event) => {
+  const input = event.target;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  // Clearing it up front is what lets the same file be picked twice — the input
+  // fires nothing when its value has not changed.
+  input.value = '';
+
+  if (!previewData.value.token) {
+    mediaUploadFacility.value = facility._index;
+    mediaUploadError.value = 'This import session is closed — upload the package again.';
+
+    return;
+  }
+
+  uploadingMedia.value = facility._index;
+  mediaUploadFacility.value = facility._index;
+  mediaUploadError.value = '';
+
+  try {
+    const form = new FormData();
+    form.append('token', previewData.value.token);
+    form.append('collection', newMediaCollection.value);
+    form.append('file', file);
+
+    const { data } = await axios.post(route('admin.facility.migration.media.upload'), form);
+
+    if (!Array.isArray(facility.media)) facility.media = [];
+    facility.media.push(data.media);
+    facility._showMedia = true;
+  } catch (e) {
+    mediaUploadError.value = e.response?.data?.message
+      || e.response?.data?.errors?.file?.[0]
+      || 'Could not add that image.';
+  } finally {
+    uploadingMedia.value = null;
+  }
 };
 
 /* The collections a facility image can be filed under. The one the package

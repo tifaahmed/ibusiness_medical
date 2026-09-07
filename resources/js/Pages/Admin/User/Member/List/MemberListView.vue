@@ -18,6 +18,26 @@
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              <!-- Turning SMS off weakens the login for every member at once,
+                   so this is shown only to accounts that may change settings —
+                   the same permission the route enforces. -->
+              <button
+                v-if="canManageOtp"
+                type="button"
+                @click="otpDialogOpen = true"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
+                :title="otpButtonTitle"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                  <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/>
+                  <circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>
+                </svg>
+                <span class="hidden sm:inline">Login codes</span>
+                <span
+                  v-if="otpPolicy && !otpPolicy.sms_active"
+                  class="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                >fixed</span>
+              </button>
               <div class="flex-shrink-0">
                 <button
                   v-if="canWrite"
@@ -240,6 +260,13 @@
         <MemberListTable :members="members" @delete="handleDelete" />
       </div>
     </div>
+
+    <!-- Teleports to <body>; parked here so it is not nested in a card. -->
+    <MemberOtpDialog
+      :open="otpDialogOpen"
+      :policy="otpPolicy"
+      @close="otpDialogOpen = false"
+    />
   </MemberLayout>
 </template>
 
@@ -247,6 +274,7 @@
 import MemberLayout from "../MemberLayout.vue";
 import UserMembershipListFilterContent from "./UserMembershipListFilterContent.vue";
 import MemberListTable from "./MemberListTable.vue";
+import MemberOtpDialog from "./MemberOtpDialog.vue";
 import MembersChart from "./MembersChart.vue";
 import { useMemberStore } from "../Stores/MemberStore";
 import { Link, usePage } from "@inertiajs/vue3";
@@ -254,10 +282,18 @@ import { storeToRefs } from "pinia";
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
 
-const { canManage } = usePermissions();
+const { canManage, can } = usePermissions();
 // Export, import and create are writes; a read-only account keeps the
 // list, the trash view and the detail pages.
 const canWrite = computed(() => canManage('manage memberships', 'manage own memberships', 'manage partner memberships'));
+
+/* The site-wide login policy is a settings change on top of membership
+   administration: the route sits in the write group AND adds
+   `manage settings`, so both are required and this asks for both. A viewer
+   with `manage settings` but read-only membership access would otherwise be
+   shown a button that only ever 403s. */
+const canManageOtp = computed(() => canWrite.value && can('manage settings'));
+const otpDialogOpen = ref(false);
 
 
 // `page.props.translations.admin.member_list.*` — shared via HandleInertiaRequests
@@ -290,8 +326,21 @@ const props = defineProps({
   chartDays: {
     type: [String, Number],
     default: null
+  },
+  /* The storefront login policy as the server has it — what is actually in
+     force, not merely what the settings rows say. */
+  otpPolicy: {
+    type: Object,
+    default: null
   }
 });
+
+const otpPolicy = computed(() => props.otpPolicy);
+const otpButtonTitle = computed(() => (
+  otpPolicy.value?.sms_active
+    ? 'Members receive a real code by SMS'
+    : `SMS is off — everyone signs in with ${otpPolicy.value?.fixed_code || 'no code set'}`
+));
 
 const memberStore = useMemberStore();
 const { members: storeMembers } = storeToRefs(memberStore);

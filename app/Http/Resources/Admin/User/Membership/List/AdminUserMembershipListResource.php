@@ -55,6 +55,12 @@ class AdminUserMembershipListResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'slug' => $this->slug,
+            /* The member's own login code, when somebody has given them one.
+               Sent in full rather than as a flag: an admin setting a fixed
+               code needs to be able to read back the one already there, and
+               it is not a secret in the sense a password is — it is a code
+               deliberately shared with the member. */
+            'otp_fixed_code' => $this->otp_fixed_code,
             'avatar_url' => get_image_url($this->resource, 'avatar'),
             'membership' => $this->whenLoaded('memberships', function () use ($request) {
                 // Get the first membership from loaded collection

@@ -407,6 +407,24 @@
                 </td>
                 <td v-if="cols.actions" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex items-center justify-center gap-2">
+                    <!-- A code just for this member. Amber while one is set, so
+                         a row that bypasses the normal login is visible at a
+                         glance rather than only on opening the dialog. -->
+                    <button
+                      v-if="canWrite"
+                      type="button"
+                      @click="openOtpDialog(member)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2"
+                      :class="member.otp_fixed_code ? 'text-amber-500 hover:!bg-amber-500/10 hover:!text-amber-500' : 'text-muted-foreground'"
+                      :title="member.otp_fixed_code
+                        ? `Signs in with the fixed code ${member.otp_fixed_code}`
+                        : 'Set a login code for this member'"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                        <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/>
+                        <circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>
+                      </svg>
+                    </button>
                     <a
                       v-if="canWrite"
                       :href="getCardGeneratorUrl(member)"
@@ -591,6 +609,14 @@
       </div>
     </div>
   </div>
+
+  <!-- Teleports to <body>; one dialog serves every row. -->
+  <MemberOtpDialog
+    :open="otpMember !== null"
+    :member="otpMember"
+    @close="closeOtpDialog"
+  />
+
 </template>
 
 <script setup>
@@ -600,8 +626,18 @@ import { Link, router, usePage } from "@inertiajs/vue3";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
+import MemberOtpDialog from './MemberOtpDialog.vue';
+
 
 const { canManage } = usePermissions();
+
+
+/* The per-member code dialog. One instance for the whole table rather than one
+   per row — it teleports to <body> and only ever shows a single member. */
+const otpMember = ref(null);
+const openOtpDialog = (member) => { otpMember.value = member; };
+const closeOtpDialog = () => { otpMember.value = null; };
+
 // Two resources meet in this row: the membership itself and the
 // payment shortcut, each gated by its own permission.
 const canWrite = computed(() => canManage('manage memberships', 'manage own memberships', 'manage partner memberships'));

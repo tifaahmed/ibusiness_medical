@@ -13,6 +13,9 @@ use App\Models\MembershipCard;
 use App\Models\Partner;
 use App\Models\Sales;
 use App\Models\User;
+use App\Services\Sms\SmsGateway;
+use App\Support\OtpSettings;
+use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -471,6 +474,17 @@ class AdminUserMembershipListController extends BaseController
             'chartData' => [
                 'daily' => $dailyCounts,
                 'monthly' => $monthlyCounts,
+            ],
+            /* The storefront login's current policy, so the screen can say what
+               is actually in force rather than what the settings rows say.
+               `sms_active` is the honest answer: the switch can be on while the
+               gateway has no credentials, and OtpSettings treats that as
+               fixed-code mode — showing "SMS on" there would be a lie. */
+            'otpPolicy' => [
+                'sms_enabled' => SiteSettings::get(OtpSettings::SMS_ENABLED, true) === true,
+                'sms_configured' => SmsGateway::isConfigured(),
+                'sms_active' => OtpSettings::deliversBySms(),
+                'fixed_code' => OtpSettings::fixedCode(),
             ],
         ]);
     }

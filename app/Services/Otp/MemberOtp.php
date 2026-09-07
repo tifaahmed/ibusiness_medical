@@ -89,6 +89,23 @@ class MemberOtp
     }
 
     /**
+     * The fixed code set on the member behind `$phone`, or null when there is
+     * no such member or nobody has given them one.
+     *
+     * Digits only, and an empty result reads as null: a column holding spaces
+     * or a stray letter must not become a code nobody can type. Cleared back
+     * to null, the member simply follows the site setting again.
+     */
+    private function memberFixedCode(string $phone): ?string
+    {
+        $raw = (string) ($this->findMember($phone)?->otp_fixed_code ?? '');
+
+        $code = preg_replace('/\D+/', '', $raw) ?? '';
+
+        return $code === '' ? null : $code;
+    }
+
+    /**
      * Issue a code for `$phone` and, when SMS is on, send it there.
      *
      * Keyed on the PHONE rather than on a member, because an unknown number
@@ -105,9 +122,17 @@ class MemberOtp
      */
     public function issue(string $phone): array
     {
-        $bySms = OtpSettings::deliversBySms();
+        /*
+         * A member carrying their own code is exempt from the whole policy:
+         * nothing is sent, and that code is what verifies. Checked before the
+         * site setting because it exists precisely to differ from it — the
+         * site can be sending real codes by SMS while this one member is not.
+         */
+        $memberCode = $this->memberFixedCode($phone);
 
-        $code = $bySms ? $this->generateCode() : OtpSettings::fixedCode();
+        $bySms = $memberCode === null && OtpSettings::deliversBySms();
+
+        $code = $memberCode ?? ($bySms ? $this->generateCode() : OtpSettings::fixedCode());
 
         if ($code === null) {
             /*

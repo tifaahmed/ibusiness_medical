@@ -594,6 +594,7 @@ import { useFacilityStore } from "../../Stores/FacilityStore";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from '@inertiajs/vue3';
+import { bilingualLabel, nameIn } from '@/lib/lookupNames';
 
 const props = defineProps({
   facilityTypes: {
@@ -778,18 +779,22 @@ const getTranslatedName = (name, currentLocale) => {
   return '';
 };
 
-const facilityTypeOptions = computed(() => {
-  const currentLocale = locale.value;
-  return props.facilityTypes.map(type => ({
+/* Both spellings in the option itself. Choosing a facility type or a rep means
+   reconciling this list against names written elsewhere in the other language,
+   and a picker showing only the reader's locale makes that a guess. */
+const facilityTypeOptions = computed(() =>
+  props.facilityTypes.map(type => ({
     value: type.id,
-    label: getTranslatedName(type.name, currentLocale)
-  }));
-});
+    label: bilingualLabel(type.name, locale.value),
+  }))
+);
 
 const salesSelectOptions = computed(() =>
   props.salesOptions.map(option => ({
     value: option.value,
-    label: getTranslatedName(option.label, locale.value),
+    // `name` carries both; `label` is the single-language fallback for a
+    // payload written before it did.
+    label: bilingualLabel(option.name || option.label, locale.value),
   }))
 );
 
@@ -811,7 +816,7 @@ const otherLocale = computed(() => (currentLocale.value === 'ar' ? 'en' : 'ar'))
 // `name` for older payloads that have no translation map.
 const tagNameIn = (tag, lang) => {
   const map = tag.name_translations;
-  if (map && typeof map === 'object') return map[lang] || '';
+  if (map && typeof map === 'object') return nameIn(map, lang);
   return lang === currentLocale.value ? (typeof tag.name === 'string' ? tag.name : '') : '';
 };
 

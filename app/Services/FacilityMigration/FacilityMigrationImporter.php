@@ -746,6 +746,98 @@ class FacilityMigrationImporter
     }
 
     /**
+     * Take a file the operator picked on the review screen into the open
+     * session, and hand back the media row that stands for it.
+     *
+     * The images a facility gets have until now been only the ones its package
+     * carried, which leaves the commonest case with nothing to offer: a
+     * workbook carries no bytes at all, so every row arrives picture-less and
+     * the collection could only be left as it was. The uploaded file is written
+     * into the session's own media directory — created here when the package
+     * never had one — so from this point on it is indistinguishable from a
+     * bundled image: the thumbnail endpoint serves it, the import restores it,
+     * and saving the review writes it into the package.
+     *
+     * @return array<string, mixed> a media row, ready to push onto a facility
+     */
+    public function storeSessionMedia(
+        string $token,
+        string $sourcePath,
+        string $originalName,
+        string $collection
+    ): array {
+        $state = $this->loadState($token);
+        $root = $this->resolveMediaRoot($state['extracted_to'] ?? '', $state['media_path'] ?? null);
+
+        if ($root === null) {
+            $extracted = (string) ($state['extracted_to'] ?? '');
+            if ($extracted === '' || ! is_dir($extracted)) {
+                throw new RuntimeException('That import session has nowhere to keep an image. Upload the package again.');
+            }
+
+            // A data-only package has no media/ directory, and every later
+            // lookup resolves against exactly this path — so making it is what
+            // turns the session into one that can hold pictures.
+            $root = $extracted.'/'.FacilityMigrationExporter::MEDIA_DIR;
+            if (! is_dir($root) && ! mkdir($root, 0775, true) && ! is_dir($root)) {
+                throw new RuntimeException('Could not create a media directory for this import session.');
+            }
+        }
+
+        $fileName = $this->safeMediaFileName($originalName);
+
+        // One directory per upload, so two facilities given files of the same
+        // name do not land on each other.
+        $relativeDir = 'uploads/'.bin2hex(random_bytes(8));
+        $directory = $root.'/'.$relativeDir;
+        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+            throw new RuntimeException('Could not write the image into this import session.');
+        }
+
+        $target = $directory.'/'.$fileName;
+        if (! is_file($sourcePath) || ! @copy($sourcePath, $target)) {
+            throw new RuntimeException('Could not write the image into this import session.');
+        }
+
+        $mime = mime_content_type($target) ?: 'application/octet-stream';
+
+        return [
+            // No id: the row is not a copy of anything on another site, and the
+            // media library gives it a fresh one when the import writes it.
+            'id' => null,
+            'uuid' => (string) Str::uuid(),
+            'collection_name' => $collection,
+            'name' => pathinfo($fileName, PATHINFO_FILENAME),
+            'file_name' => $fileName,
+            'mime_type' => $mime,
+            'size' => filesize($target) ?: 0,
+            'custom_properties' => [],
+            // The two paths every other media row carries: the first is how the
+            // package names the file, the second how it is found under the
+            // media root. Written the same way here so nothing downstream has
+            // to know an upload from a bundled picture.
+            'package_path' => FacilityMigrationExporter::MEDIA_DIR.'/'.$relativeDir.'/'.$fileName,
+            'source_relative_path' => $relativeDir.'/'.$fileName,
+        ];
+    }
+
+    /**
+     * A name that is safe to put on disk and still recognisable in the package.
+     */
+    private function safeMediaFileName(string $originalName): string
+    {
+        $originalName = basename(str_replace('\\', '/', $originalName));
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $stem = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) ?: 'image';
+
+        // Arabic file names slug down to nothing, and an empty stem would make
+        // the whole name an extension.
+        $stem = Str::limit($stem, 60, '');
+
+        return $extension === '' ? $stem : $stem.'.'.preg_replace('/[^a-z0-9]/', '', $extension);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function loadState(string $token): array
@@ -2395,7 +2487,7 @@ class FacilityMigrationImporter
      */
     private function facilitySnapshot(Facility $facility): array
     {
-        $facility->loadMissing(['facilityType', 'sales']);
+        $facility->loadMissing(['facilityType', 'sales', 'media']);
 
         return [
             'id' => $facility->id,
@@ -2412,7 +2504,38 @@ class FacilityMigrationImporter
                 : (string) $facility->discount_percent,
             'branches_count' => $facility->branches()->count(),
             'managers_count' => $facility->managers()->count(),
+            // The pictures this site holds for the facility today. Every other
+            // column on the review screen says what is here now beside what the
+            // package brings; without this the images were the one field an
+            // operator had to take on faith — and a package that carries a logo
+            // silently replaces that collection.
+            'media' => $facility->media
+                ->map(fn ($media) => [
+                    'id' => $media->id,
+                    'collection_name' => $media->collection_name,
+                    'file_name' => $media->file_name,
+                    'mime_type' => $media->mime_type,
+                    'size' => $media->size,
+                    'url' => $this->mediaUrlOrNull($media),
+                ])
+                ->values()
+                ->all(),
         ];
+    }
+
+    /**
+     * A media row whose file has gone missing off the disk still answers
+     * getUrl(), and some disks throw instead. Neither should take the whole
+     * preview down, so the snapshot carries a null url and the screen shows the
+     * row without a thumbnail.
+     */
+    private function mediaUrlOrNull(mixed $media): ?string
+    {
+        try {
+            return $media->getUrl() ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
