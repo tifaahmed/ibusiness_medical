@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateFacilityBranchForm } from '../validation/facilityBranchValidation';
+import { normalizePhoneEntries } from '@/lib/branchPhones';
 
 export const useFacilityBranchStore = defineStore('facilityBranch', {
     state: () => ({
@@ -69,17 +70,13 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 addressValue = {};
             }
             
-            // Handle phone - can be array, string, or null
-            let phoneValue = facilityBranch.phone || [];
-            if (typeof phoneValue === 'string' && phoneValue.trim() !== '') {
-                // If it's a string, convert to array (backward compatibility)
-                phoneValue = [phoneValue.trim()];
-            } else if (!Array.isArray(phoneValue)) {
-                phoneValue = [];
-            } else {
-                // Ensure it's an array of strings
-                phoneValue = phoneValue.map(p => String(p).trim()).filter(p => p.length > 0);
-            }
+            /* Phones are typed entries — { number, type } — not bare strings.
+               Stringifying one gives "[object Object]" in the number box, so the
+               shared normaliser is what reads them: it takes the typed shape,
+               the flat list a row saved before the types existed, and a single
+               string, and answers with entries either way. */
+            const phoneValue = normalizePhoneEntries(facilityBranch.phone);
+
             
             // Always create a new form instance to ensure reactivity
             this.form = useForm({

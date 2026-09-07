@@ -110,6 +110,16 @@ class FacilityMigrationTest extends TestCase
         ]);
     }
 
+    /**
+     * The other shape the same dataset takes: one .xlsx, no images, no JSON.
+     */
+    private function buildWorkbook(): string
+    {
+        return app(FacilityMigrationExporter::class)->buildSpreadsheet([
+            'destination' => storage_path('app/facility-migration/test-package.xlsx'),
+        ]);
+    }
+
     private function wipeFacilityData(): void
     {
         Facility::each(fn (Facility $f) => $f->delete());
@@ -164,10 +174,11 @@ class FacilityMigrationTest extends TestCase
         $branch = $facility->branches->first();
         $this->assertSame('الفرع الرئيسي', $branch->getTranslation('name', 'ar'));
         // Stored as typed entries. The package carries flat numbers, so the
-        // importer types them from their shape — both of these are landlines.
+        // importer types them from their shape — anything beginning "01" is a
+        // mobile, whether or not it has all eleven of its digits.
         $this->assertSame([
-            ['number' => '0100000000', 'type' => 'landline'],
-            ['number' => '0111111111', 'type' => 'landline'],
+            ['number' => '0100000000', 'type' => 'phone'],
+            ['number' => '0111111111', 'type' => 'phone'],
         ], $branch->phone);
         $this->assertSame('Nasr City', $branch->city->getTranslation('name', 'en'));
 
@@ -351,7 +362,7 @@ class FacilityMigrationTest extends TestCase
         // Updated in place rather than stacked as a second copy.
         $this->assertSame(1, Facility::count());
         $this->assertSame(1, FacilityBranch::count());
-        $this->assertSame([['number' => '0100000000', 'type' => 'landline']], FacilityBranch::first()->phone);
+        $this->assertSame([['number' => '0100000000', 'type' => 'phone']], FacilityBranch::first()->phone);
     }
 
     public function test_dry_run_writes_nothing(): void
@@ -772,5 +783,336 @@ class FacilityMigrationTest extends TestCase
         } finally {
             @unlink($path);
         }
+    }
+
+    // ------------------------------------------------------------------ xlsx
+    //
+    // With no images to carry there is nothing an archive holds that a workbook
+    // cannot, so a data-only export is a spreadsheet — one the operator can read
+    // and correct, and the Import tab reads back as the site package it is.
+
+    public function test_a_data_only_export_is_a_workbook_and_not_an_archive(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+
+        $path = $this->buildWorkbook();
+
+        $this->assertStringEndsWith('.xlsx', $path);
+        $this->assertStringEndsWith(
+            '.xlsx',
+            app(FacilityMigrationExporter::class)->filename(includeMediaFiles: false)
+        );
+        $this->assertStringEndsWith(
+            '.zip',
+            app(FacilityMigrationExporter::class)->filename(includeMediaFiles: true)
+        );
+
+        // A workbook, not a renamed package: the archive holds Excel's own
+        // parts and none of the package's.
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($path) === true);
+        $this->assertNotFalse($zip->locateName('xl/workbook.xml'));
+        $this->assertFalse($zip->locateName('data/facilities.json'));
+        $zip->close();
+    }
+
+    public function test_the_workbook_carries_every_column_back_onto_its_own_rows(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        $branchId = $facility->branches()->first()->id;
+
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+        $importer->import($this->buildWorkbook(), ['mode' => 'merge']);
+
+        // Merged onto what was already here rather than duplicated.
+        $this->assertSame(1, Facility::count());
+        $this->assertSame(1, FacilityBranch::count());
+        $this->assertSame(1, FacilityManager::count());
+
+        $restored = Facility::with(['branches', 'managers', 'tags', 'governorate', 'city', 'sales'])->first();
+        $this->assertSame($facility->id, $restored->id);
+        $this->assertSame('عيادة الشروق', $restored->getTranslation('name', 'ar'));
+        $this->assertSame('<p>أفضل عيادة</p>', $restored->getTranslation('description', 'ar'));
+        $this->assertSame('الشروق', $restored->getTranslation('meta_title', 'ar'));
+        $this->assertSame('https://old.example.test/sunrise', $restored->canonical_url);
+        $this->assertSame('15.50', (string) $restored->discount_percent);
+        $this->assertSame('Cairo', $restored->governorate->getTranslation('name', 'en'));
+        $this->assertSame('Nasr City', $restored->city->getTranslation('name', 'en'));
+        // The rep the facility already points at, matched by name off the sheet
+        // — a merge onto a site that already has the row leaves that row alone
+        // rather than rewriting how its name is stored.
+        $this->assertSame($facility->sales_id, $restored->sales_id);
+        $this->assertSame(1, Sales::count());
+        $this->assertSame(['Featured'], $restored->tags->pluck('name')->all());
+        $this->assertSame(1, Tag::count());
+
+        $branch = $restored->branches->first();
+        $this->assertSame($branchId, $branch->id);
+        $this->assertSame('الفرع الرئيسي', $branch->getTranslation('name', 'ar'));
+        $this->assertSame('١٢ شارع تجريبي', $branch->getTranslation('address', 'ar'));
+        $this->assertSame('Nasr City', $branch->city->getTranslation('name', 'en'));
+
+        $manager = $restored->managers->first();
+        $this->assertSame('أحمد سعيد', $manager->name);
+        $this->assertSame(['0100000000', '0111111111'], $manager->phones);
+    }
+
+    public function test_a_data_only_import_leaves_the_images_the_site_already_holds(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+        $logoPath = $facility->getFirstMedia('logo')->getPath();
+
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+        $result = $importer->import($this->buildWorkbook(), ['mode' => 'merge']);
+
+        // The package names no image, so no collection is emptied and there is
+        // nothing to warn about. Clearing one it could not refill would destroy
+        // the picture and put nothing in its place.
+        $this->assertSame(4, $facility->fresh()->media()->count());
+        $this->assertFileExists($logoPath);
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame(0, $result['stats']['media_files_missing'] ?? 0);
+    }
+
+    public function test_two_branches_sharing_a_name_come_back_to_their_own_rows(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        // The case a hand-typed sheet cannot express: same name, different row.
+        $twin = FacilityBranch::create([
+            'facility_id' => $facility->id,
+            'name' => ['en' => 'Main Branch', 'ar' => 'الفرع الرئيسي'],
+            'address' => ['en' => '99 Other St', 'ar' => '٩٩ شارع آخر'],
+            'phone' => ['0122222222'],
+        ]);
+        $ids = FacilityBranch::orderBy('id')->pluck('id')->all();
+
+        app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($this->buildWorkbook(), ['mode' => 'merge']);
+
+        // Matched by the slug each row carries, so neither is duplicated and
+        // neither swallows the other.
+        $this->assertSame($ids, FacilityBranch::orderBy('id')->pluck('id')->all());
+        $this->assertSame('99 Other St', $twin->fresh()->getTranslation('address', 'en'));
+    }
+
+    public function test_the_workbook_says_it_came_from_a_site_export(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+
+        $inspection = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->inspect($this->buildWorkbook());
+
+        // The import screen reads this to know it may match rows by their slug
+        // rather than asking somebody to tell same-named branches apart.
+        $this->assertSame(FacilityMigrationExporter::ORIGIN_SITE_EXPORT, $inspection['origin']);
+        $this->assertSame(0, $inspection['sample'][0]['media']);
+    }
+
+    public function test_an_image_whose_file_is_gone_is_never_named_in_the_package(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        // The row survives a file that does not — a dev copy of a live database
+        // is full of them. Naming it would have the importing site clear the
+        // collection and then find nothing to put back.
+        $logo = $facility->getFirstMedia('logo');
+        unlink($logo->getPath());
+
+        $package = $this->buildPackage();
+        $zip = new \ZipArchive;
+        $zip->open($package);
+        $data = json_decode($zip->getFromName('data/facilities.json'), true);
+        $csv = $zip->getFromName('data/media.csv');
+        $zip->close();
+
+        $collections = array_column($data['facilities'][0]['media'], 'collection_name');
+        $this->assertNotContains('logo', $collections);
+        $this->assertContains('image', $collections);
+        $this->assertSame(4, $data['counts']['media']);
+        $this->assertSame(3, $data['counts']['media_restorable']);
+        // Still auditable: the csv lists what the site holds, marked missing.
+        $this->assertStringContainsString('logo.png', $csv);
+        $this->assertStringContainsString('MISSING', $csv);
+    }
+
+    public function test_a_city_named_without_a_governorate_still_lands_in_the_right_one(): void
+    {
+        Storage::fake('public');
+        $facility = $this->seedFacility();
+
+        // The row that used to lose its city: a branch that names a city and no
+        // governorate of its own. A site that does not have that city yet has
+        // nothing to attach a new one to unless the package says where it
+        // belongs — which is what the workbook's Lookups sheet is for.
+        $orphan = FacilityBranch::create([
+            'facility_id' => $facility->id,
+            'name' => ['en' => 'Placeless Branch', 'ar' => 'فرع بلا محافظة'],
+            'city_id' => City::where('name->en', 'Nasr City')->value('id'),
+        ]);
+        $this->assertNull($orphan->governorate_id);
+
+        $workbook = $this->buildWorkbook();
+        $this->wipeFacilityData();
+        $this->assertSame(0, City::count());
+
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($workbook, ['mode' => 'merge']);
+
+        $this->assertSame([], $result['warnings']);
+
+        $restored = FacilityBranch::where('slug', $orphan->slug)->first();
+        $this->assertNotNull($restored->city_id);
+        $this->assertSame('Nasr City', $restored->city->getTranslation('name', 'en'));
+        // Created under the governorate it had on the source site, not guessed.
+        $this->assertSame('Cairo', $restored->city->governorate->getTranslation('name', 'en'));
+    }
+
+    // ------------------------------------------------- reviewing with images
+    //
+    // A package's pictures have no model, no disk and no URL until the import
+    // writes them, so the review screen reads them out of the open session's
+    // own extraction — and the review itself can be saved back out as a package
+    // rather than dying with the session.
+
+    public function test_an_image_in_an_open_session_can_be_looked_at(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+
+        $session = $importer->beginSession($this->buildPackage(), ['mode' => 'merge', 'dry_run' => true]);
+        $facility = json_decode(
+            file_get_contents(storage_path("app/facility-migration/sessions/{$session['token']}/facilities/000000.json")),
+            true
+        );
+
+        $logo = collect($facility['media'])->firstWhere('collection_name', 'logo');
+        $path = $importer->sessionMediaPath($session['token'], $logo['package_path']);
+
+        $this->assertNotNull($path);
+        $this->assertFileExists($path);
+        $this->assertSame('logo.png', basename($path));
+
+        // Only ever a file inside this session's own extraction.
+        foreach (['../../../../.env', '/etc/passwd', 'media/../../state.json'] as $escape) {
+            $this->assertNull($importer->sessionMediaPath($session['token'], $escape));
+        }
+
+        $importer->endSession($session['token']);
+    }
+
+    public function test_the_review_can_be_saved_back_out_as_a_package(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+
+        $session = $importer->beginSession($this->buildPackage(), ['mode' => 'merge', 'dry_run' => true]);
+        $file = storage_path("app/facility-migration/sessions/{$session['token']}/facilities/000000.json");
+        $facility = json_decode(file_get_contents($file), true);
+
+        // The edits an operator makes on the review screen.
+        $facility['name']['en'] = 'Sunrise Clinic (reviewed)';
+        $facility['branches'][0]['name']['en'] = 'Main Branch renamed';
+        $facility['media'] = array_values(array_filter(
+            $facility['media'],
+            fn (array $row) => $row['collection_name'] !== 'logo'
+        ));
+        // What the screen hangs on a row for its own use must not travel.
+        $facility['_existing'] = ['should' => 'not travel'];
+        $importer->writeFacilityFile($session['token'], 0, $facility);
+
+        $package = $importer->exportSession($session['token'], [
+            'format' => 'zip',
+            'include_media' => true,
+            'destination' => storage_path('app/facility-migration/reviewed-test.zip'),
+        ]);
+
+        $zip = new \ZipArchive;
+        $zip->open($package);
+        $data = json_decode($zip->getFromName('data/facilities.json'), true);
+        $entries = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entries[] = $zip->getNameIndex($i);
+        }
+        $zip->close();
+
+        $saved = $data['facilities'][0];
+        $this->assertSame('Sunrise Clinic (reviewed)', $saved['name']['en']);
+        $this->assertSame('Main Branch renamed', $saved['branches'][0]['name']['en']);
+        $this->assertArrayNotHasKey('_existing', $saved);
+        $this->assertSame(FacilityMigrationExporter::ORIGIN_SITE_EXPORT, $data['origin']);
+
+        // The dropped image is gone from the data and from the archive alike —
+        // a package must never name a picture it does not carry, nor carry one
+        // nothing names.
+        $this->assertNotContains('logo', array_column($saved['media'], 'collection_name'));
+        $this->assertCount(3, $saved['media']);
+        $this->assertCount(3, array_filter($entries, fn ($e) => str_starts_with($e, 'media/')));
+
+        $importer->endSession($session['token']);
+    }
+
+    public function test_a_saved_review_imports_with_the_edits_that_were_made(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+
+        $session = $importer->beginSession($this->buildPackage(), ['mode' => 'merge', 'dry_run' => true]);
+        $file = storage_path("app/facility-migration/sessions/{$session['token']}/facilities/000000.json");
+        $facility = json_decode(file_get_contents($file), true);
+        $facility['name']['en'] = 'Sunrise Clinic (reviewed)';
+        $importer->writeFacilityFile($session['token'], 0, $facility);
+
+        $package = $importer->exportSession($session['token'], [
+            'format' => 'zip',
+            'include_media' => true,
+            'destination' => storage_path('app/facility-migration/reviewed-roundtrip.zip'),
+        ]);
+        $importer->endSession($session['token']);
+
+        $this->wipeFacilityData();
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($package, ['mode' => 'merge']);
+
+        $this->assertSame([], $result['warnings']);
+        $restored = Facility::first();
+        $this->assertSame('Sunrise Clinic (reviewed)', $restored->getTranslation('name', 'en'));
+        // Everything else came through with it, images included.
+        $this->assertSame(4, $restored->media()->count());
+        $this->assertSame(1, $restored->branches()->count());
+    }
+
+    public function test_a_review_saved_without_images_is_a_workbook_naming_none(): void
+    {
+        Storage::fake('public');
+        $this->seedFacility();
+        $importer = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class);
+
+        $session = $importer->beginSession($this->buildPackage(), ['mode' => 'merge', 'dry_run' => true]);
+        $path = $importer->exportSession($session['token'], [
+            'format' => 'xlsx',
+            'include_media' => false,
+            'destination' => storage_path('app/facility-migration/reviewed-test.xlsx'),
+        ]);
+        $importer->endSession($session['token']);
+
+        $this->assertStringEndsWith('.xlsx', $path);
+
+        // Importing it leaves the pictures this site holds exactly as they are.
+        $before = Facility::first()->media()->count();
+        $result = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)
+            ->import($path, ['mode' => 'merge']);
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame($before, Facility::first()->media()->count());
     }
 }

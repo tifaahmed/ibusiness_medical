@@ -150,6 +150,69 @@
         </div>
       </div>
 
+      <!-- The facilities holding a branch nobody can place on a map. They are
+           invisible to the governorate and city filters above — those can only
+           name a place a branch actually has — and the migration import stops
+           on them, so the number left to fix rides on the switch. -->
+      <div class="w-full sm:w-auto">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+        >
+          {{ t.facility?.branches_missing_location || 'Branches missing location' }}
+        </label>
+        <div class="flex flex-wrap items-center gap-1.5 h-auto sm:h-8 md:h-9">
+          <button
+            type="button"
+            @click="toggleBranchesMissing('governorate')"
+            :aria-pressed="filters.branches_missing === 'governorate'"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
+              filters.branches_missing === 'governorate'
+                ? 'border-emerald-400 bg-emerald-500/30 text-emerald-950 dark:text-emerald-50'
+                : 'border-border bg-background hover:bg-muted text-foreground',
+            ]"
+          >
+            {{ t.governorate?.none || 'No governorate' }}
+            <span v-if="incompleteCounts.governorate" class="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+              {{ incompleteCounts.governorate }}
+            </span>
+          </button>
+          <button
+            type="button"
+            @click="toggleBranchesMissing('city')"
+            :aria-pressed="filters.branches_missing === 'city'"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
+              filters.branches_missing === 'city'
+                ? 'border-amber-400 bg-amber-500/30 text-amber-950 dark:text-amber-50'
+                : 'border-border bg-background hover:bg-muted text-foreground',
+            ]"
+          >
+            {{ t.city?.none || 'No city' }}
+            <span v-if="incompleteCounts.city" class="rounded bg-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+              {{ incompleteCounts.city }}
+            </span>
+          </button>
+          <button
+            type="button"
+            @click="toggleBranchesMissing('either')"
+            :aria-pressed="filters.branches_missing === 'either'"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
+              filters.branches_missing === 'either'
+                ? 'border-red-400 bg-red-500/30 text-red-50'
+                : 'border-border bg-background hover:bg-muted text-foreground',
+            ]"
+          >
+            {{ t.common?.either || 'Either' }}
+            <span v-if="incompleteCounts.either" class="rounded bg-red-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+              {{ incompleteCounts.either }}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div class="w-full sm:w-auto">
         <label
           data-slot="label"
@@ -220,6 +283,7 @@ const props = defineProps({
       facility_type_id: '',
       sales_id: '',
       sales_presence: '',
+      branches_missing: '',
       governorate_id: '',
       city_id: '',
       created_from: '',
@@ -242,6 +306,11 @@ const props = defineProps({
   cities: {
     type: Array,
     default: () => []
+  },
+  // How many facilities each switch would find, across the whole list.
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ governorate: 0, city: 0, either: 0 })
   }
 });
 
@@ -306,6 +375,7 @@ const getInitialFilters = () => {
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
       sales_id: props.initialFilters.sales_id || '',
       sales_presence: props.initialFilters.sales_presence || '',
+      branches_missing: props.initialFilters.branches_missing || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
       created_from: props.initialFilters.created_from || '',
@@ -319,20 +389,21 @@ const getInitialFilters = () => {
       facility_type_id: urlParams.get('facility_type_id') || '',
       sales_id: urlParams.get('sales_id') || '',
       sales_presence: urlParams.get('sales_presence') || '',
+      branches_missing: urlParams.get('branches_missing') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
       created_from: urlParams.get('created_from') || '',
       created_to: urlParams.get('created_to') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
 });
 
 let searchTimeout = null;
@@ -358,6 +429,13 @@ const handleReset = () => {
 /* The two boxes answer one question, so they behave as one control: ticking
    either unticks the other, and ticking the one already on clears the filter —
    which is what "show me all of them again" looks like from the keyboard. */
+/* One at a time: "no governorate" and "no city" are different questions about
+   the same branch list, and "either" is the one that asks both. */
+const toggleBranchesMissing = (value) => {
+  filters.value.branches_missing = filters.value.branches_missing === value ? '' : value;
+  applyFilters();
+};
+
 const toggleSalesPresence = (value) => {
   filters.value.sales_presence = filters.value.sales_presence === value ? '' : value;
 

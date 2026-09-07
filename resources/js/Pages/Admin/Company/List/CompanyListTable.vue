@@ -104,17 +104,11 @@
           </div>
           <div class="flex items-center gap-2">
             <p class="text-xs sm:text-sm font-medium whitespace-nowrap">Rows per page</p>
-            <select
-              :value="companies.meta?.per_page || 15"
-              @change="handlePerPageChange"
-              dir="ltr"
-              class="border-input dark:bg-input/30 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] h-8 w-[70px] cursor-pointer"
-            >
-              <option value="10">10</option>
-              <option value="15">15</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-            </select>
+            <PerPageSelect
+              :model-value="companies.meta?.per_page || 15"
+              @update:model-value="handlePerPageChange"
+              :choices="[10, 15, 25, 50]"
+            />
           </div>
           <Pagination v-if="companies?.meta?.links?.length > 0" :links="companies?.meta?.links" />
         </div>
@@ -335,6 +329,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from "vue";
@@ -508,7 +503,8 @@ const getOtherLocaleName = (name) => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const url = new URL(window.location.href);
   url.searchParams.set('per_page', perPage);
   url.searchParams.set('page', '1');

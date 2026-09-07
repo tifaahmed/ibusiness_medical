@@ -24,16 +24,11 @@
         <label class="text-xs font-medium text-muted-foreground whitespace-nowrap" for="bulk-order-status">
           {{ t.order?.bulk_status_label || 'Set order status' }}
         </label>
-        <select
-          id="bulk-order-status"
+        <Select
           v-model="bulkStatus"
-          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-background text-foreground px-2 py-1.5 text-xs sm:text-sm shadow-xs outline-none focus-visible:ring-[3px] h-8 cursor-pointer"
-        >
-          <option value="">{{ t.order?.bulk_status_placeholder || 'Choose a status' }}</option>
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-            {{ orderStatusLabel(t, option.value) }}
-          </option>
-        </select>
+          :options="statusOptions.map(option => ({ value: option.value ?? option, label: `${ orderStatusLabel(t, option.value) }` }))"
+          :placeholder="t.order?.bulk_status_placeholder || 'Choose a status'"
+        />
         <button
           type="button"
           :disabled="!bulkStatus || bulkSaving"
@@ -331,19 +326,10 @@
             <div class="flex items-center gap-2 order-2 flex-shrink-0">
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap hidden sm:inline">{{ t.common?.rows_per_page || 'Rows per page' }}</p>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.common?.per_page || 'Per page' }}</p>
-              <select
-                :value="orders.meta?.per_page || 15"
-                @change="handlePerPageChange"
-                dir="ltr"
-                translate="no"
-                class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] h-7 sm:h-8 w-[60px] sm:w-[70px] cursor-pointer"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+              <PerPageSelect
+                :model-value="orders.meta?.per_page || 15"
+                @update:model-value="handlePerPageChange"
+              />
             </div>
             <div class="order-3 flex-shrink-0 min-w-0">
               <Pagination
@@ -375,6 +361,8 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import Select from '@/Components/ui/Select.vue';
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import { orderStatusLabel } from "../orderDisplay";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, watch } from 'vue';
@@ -592,7 +580,8 @@ const applyBulkStatus = () => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set('per_page', perPage);
   currentUrl.searchParams.set('page', '1');

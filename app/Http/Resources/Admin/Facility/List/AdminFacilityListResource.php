@@ -17,7 +17,10 @@ class AdminFacilityListResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            // Both locales, not the reader's one: the list prints the English
+            // and Arabic names one above the other, and a resolved string has
+            // already thrown the other half away.
+            'name' => $this->getTranslations('name'),
             'description' => $this->description,
             'slug' => $this->slug,
             'discount_percent' => $this->discount_percent,

@@ -7,17 +7,19 @@ use App\Models\FacilityBranch;
 /**
  * Puts an Egyptian phone number back into the shape the directory expects.
  *
- * Two shapes are valid, and nothing else is:
+ * Three shapes are valid, and nothing else is:
  *   - mobile:   11 digits beginning "01"   (01208999581)
- *   - landline:  8 digits, no area code    (63222328)
+ *   - landline: 10 digits, area code and all (0663222328)
+ *   - hotline:  shorter than a landline, dialled as it stands (16064, 19011)
  *
- * Numbers imported from spreadsheets arrive with the area code still attached
- * ("066 3222328"), with several numbers packed into one cell, with the country
- * code in front, or written in Arabic-Indic digits. The repair is deliberately
- * mechanical — the area code is dropped by keeping the last eight digits, which
- * is what "066 3222328" -> "63222328" and "0212345678" -> "12345678" both are —
- * and every suggestion is shown to an admin, who can edit it, before anything
- * is written.
+ * Numbers imported from spreadsheets arrive with the country code in front,
+ * with several numbers packed into one cell, or written in Arabic-Indic digits.
+ * The repair is deliberately mechanical — a landline keeps its last ten digits,
+ * which is what "0020663222328" -> "0663222328" is — and every suggestion is
+ * shown to an admin, who can edit it, before anything is written.
+ *
+ * A hotline is never trimmed: it is short because that is what it is, so the
+ * only thing done to one is to split it out of a packed cell.
  *
  * A branch keeps its numbers as typed entries ({number, type}); the type a
  * number carries is never changed by a repair, only the number itself.
@@ -26,7 +28,10 @@ final class PhoneRepair
 {
     public const MOBILE_LENGTH = 11;
 
-    public const LANDLINE_LENGTH = 8;
+    public const LANDLINE_LENGTH = 10;
+
+    /** Shorter than a landline and dialled as it stands. */
+    public const HOTLINE_MAX_LENGTH = self::LANDLINE_LENGTH - 1;
 
     /** Already in shape — stored exactly as it should be. */
     public const STATUS_OK = 'ok';
@@ -41,7 +46,7 @@ final class PhoneRepair
     public const STATUS_SKIPPED = 'skipped';
 
     /** The kinds a repair can be narrowed to. */
-    public const KINDS = ['mobile', 'landline'];
+    public const KINDS = ['mobile', 'landline', 'hotline'];
 
     /**
      * Read one number and say what it should be.
@@ -75,18 +80,20 @@ final class PhoneRepair
             return self::entry($number, null, 'mobile');
         }
 
+        // A short national number — 16064, 19011. It has no area code to strip
+        // and nothing is missing from it, so it is already right as it stands.
+        if (strlen($digits) <= self::HOTLINE_MAX_LENGTH) {
+            return self::entry($number, $digits, 'hotline');
+        }
+
         // Filed as a mobile but not shaped like one — nothing safe to suggest.
-        if ($type !== null && $type !== FacilityBranch::PHONE_LANDLINE) {
+        if ($type !== null && ! in_array($type, [FacilityBranch::PHONE_LANDLINE, FacilityBranch::PHONE_HOTLINE], true)) {
             return self::entry($number, null, 'mobile');
         }
 
-        // Everything else is a landline, which is the last eight digits: the
-        // area code in front of it is what makes it too long.
-        if (strlen($digits) >= self::LANDLINE_LENGTH) {
-            return self::entry($number, substr($digits, -self::LANDLINE_LENGTH), 'landline');
-        }
-
-        return self::entry($number, null, 'landline');
+        // Everything else is a landline, which is the last ten digits: the
+        // country code in front of it is what makes it too long.
+        return self::entry($number, substr($digits, -self::LANDLINE_LENGTH), 'landline');
     }
 
     /**
@@ -105,7 +112,7 @@ final class PhoneRepair
      * @return array{
      *     current: array<int, string>,
      *     suggested: array<int, array{number: string, type: string}>,
-     *     entries: array<int, array{original: string, suggestion: string|null, kind: string, status: string, type: string, problem: bool}>,
+     *     entries: array<int, array{original: string, suggestion: string|null, kind: string, status: string, type: string, suggested_type: string|null, type_changed: bool, problem: bool}>,
      *     changed: bool,
      *     needs_review: bool,
      *     has_problem: bool
@@ -125,26 +132,34 @@ final class PhoneRepair
         foreach (PhoneNumbers::entries($phones) as $stored) {
             $entry = self::inspect($stored['number'], $stored['type']);
             $entry['type'] = $stored['type'];
+            // What kind of line the digits say it is. A hotline filed as a
+            // landline is as wrong as a mistyped number — the type predates the
+            // hotline entirely, so most of them are — and it is just as fixable.
+            $entry['suggested_type'] = self::typeFor($entry['kind'], $stored['type']);
 
             // A real kind that is not being worked on right now stays untouched.
             if (in_array($entry['kind'], self::KINDS, true) && ! in_array($entry['kind'], $kinds, true)) {
                 $entry['suggestion'] = null;
+                $entry['suggested_type'] = $stored['type'];
                 $entry['status'] = self::STATUS_SKIPPED;
             }
 
+            $entry['type_changed'] = $entry['suggested_type'] !== $stored['type'];
             $number = $entry['suggestion'] ?? $entry['original'];
 
-            // A number is wrong when it needs rewriting, and equally when it is
-            // right but shares a cell with another number instead of standing
-            // as its own entry.
+            // A number is wrong when it needs rewriting, when it is filed as the
+            // wrong kind of line, and equally when it is right but shares a cell
+            // with another number instead of standing as its own entry.
             $entry['problem'] = $entry['status'] !== self::STATUS_SKIPPED
-                && ($entry['status'] !== self::STATUS_OK || ! in_array($number, $current, true));
+                && ($entry['status'] !== self::STATUS_OK
+                    || $entry['type_changed']
+                    || ! in_array($number, $current, true));
 
             $hasProblem = $hasProblem || $entry['problem'];
             $entries[] = $entry;
 
             if ($number !== '' && ! in_array($number, array_column($suggested, 'number'), true)) {
-                $suggested[] = ['number' => $number, 'type' => $stored['type']];
+                $suggested[] = ['number' => $number, 'type' => $entry['suggested_type']];
             }
         }
 
@@ -158,6 +173,27 @@ final class PhoneRepair
             // worked on that is not stored the way it should be.
             'has_problem' => $hasProblem,
         ];
+    }
+
+    /**
+     * The type a number of this shape should be filed under.
+     *
+     * WhatsApp is not a shape — it says how the number is reached, and only a
+     * person knows that — so a number already filed under one of those keeps it.
+     * Everything else follows the digits.
+     */
+    private static function typeFor(string $kind, ?string $current): ?string
+    {
+        if (in_array($current, [FacilityBranch::PHONE_WHATSAPP, FacilityBranch::PHONE_MOBILE_WHATSAPP], true)) {
+            return $current;
+        }
+
+        return match ($kind) {
+            'mobile' => FacilityBranch::PHONE_MOBILE,
+            'landline' => FacilityBranch::PHONE_LANDLINE,
+            'hotline' => FacilityBranch::PHONE_HOTLINE,
+            default => $current,
+        };
     }
 
     /**
@@ -214,10 +250,22 @@ final class PhoneRepair
     {
         $digits = preg_replace('/\D+/', '', PhoneNumbers::foldDigits($number)) ?? '';
 
+        $hadCountryCode = false;
         if (str_starts_with($digits, '0020')) {
             $digits = substr($digits, 4);
+            $hadCountryCode = true;
         } elseif (str_starts_with($digits, '20') && strlen($digits) >= self::MOBILE_LENGTH) {
             $digits = substr($digits, 2);
+            $hadCountryCode = true;
+        }
+
+        // An Egyptian number written internationally drops the leading zero the
+        // national form carries, so taking the country code off leaves it a
+        // digit short — "+20 66 3222328" is the landline "0663222328". Only a
+        // number that actually had a country code gets the zero back: a hotline
+        // is short because that is what it is, not because a zero went missing.
+        if ($hadCountryCode && $digits !== '' && ! str_starts_with($digits, '0')) {
+            $digits = '0'.$digits;
         }
 
         // A mobile typed without its leading zero, which is how it comes back

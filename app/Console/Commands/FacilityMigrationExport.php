@@ -8,8 +8,8 @@ use Illuminate\Console\Command;
 class FacilityMigrationExport extends Command
 {
     protected $signature = 'facility:migration-export
-        {--output= : Where to write the .zip (default storage/app/facility-migration)}
-        {--no-media : Export data only, leaving the image files out}
+        {--output= : Where to write it (default storage/app/facility-migration)}
+        {--no-media : Export data only, as a single .xlsx workbook instead of a .zip}
         {--no-offers : Skip offers attached to facilities and branches}
         {--no-branches : Leave the branch rows out of the package}
         {--no-managers : Leave the facility managers out of the package}
@@ -72,7 +72,7 @@ class FacilityMigrationExport extends Command
                 $includeManagers
             ));
 
-        $path = $exporter->build([
+        $options = [
             'include_media_files' => $includeMedia,
             'include_offers' => ! $this->option('no-offers'),
             'include_branches' => $includeBranches,
@@ -81,7 +81,14 @@ class FacilityMigrationExport extends Command
             'filters' => $filters,
             'offset' => $offset,
             'limit' => $limit,
-        ]);
+        ];
+
+        // Same two shapes the admin screen offers: with images there are files
+        // to carry and the package is an archive; without them it is the
+        // workbook itself, which the import side reads just as well.
+        $path = $includeMedia
+            ? $exporter->build($options)
+            : $exporter->buildSpreadsheet($options);
 
         $this->newLine();
         $this->info('Package written to: '.$path);

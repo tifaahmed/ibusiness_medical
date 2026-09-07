@@ -13,10 +13,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label class="block text-xs font-medium mb-1">{{ t.partner || 'Partner' }}</label>
-            <select v-model="partnerId" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" :disabled="busy">
-              <option value="">{{ t.none || '— no partner —' }}</option>
-              <option v-for="p in partners" :key="p.id" :value="String(p.id)">{{ p.title }}</option>
-            </select>
+            <Select
+              v-model="partnerId"
+              :options="partners.map(p => ({ value: p.value ?? p, label: `${ p.title }` }))"
+              :placeholder="t.none || '— no partner —'"
+            />
             <p class="mt-1 text-[11px] text-muted-foreground">
               {{ t.partner_picks_design || 'The partner decides which design is used.' }}
             </p>
@@ -161,11 +162,7 @@
                 </label>
                 <label class="text-[10px] text-muted-foreground uppercase">
                   {{ t.align || 'Align' }}
-                  <select v-model="field.direction" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy">
-                    <option value="ltr">ltr (left)</option>
-                    <option value="center">center</option>
-                    <option value="rtl">rtl (right)</option>
-                  </select>
+                  <Select v-model="field.direction" :options="directionOptions" :disabled="busy" />
                 </label>
                 <label class="text-[10px] text-muted-foreground uppercase">
                   {{ t.layout_color || 'Colour' }}
@@ -373,6 +370,7 @@
 
 <script setup>
 import { ref, shallowRef, reactive, computed, watch, onBeforeUnmount } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import QRCode from 'qrcode';
@@ -382,6 +380,13 @@ import CardPreview from '@/Pages/Admin/MembershipCard/_components/CardPreview.vu
 import { drawBarcode } from '@/Pages/Admin/MembershipCard/_components/code128.js';
 import { assetUrl, FALLBACK_LAYOUT, FALLBACK_SAMPLE_DATA } from '@/Pages/Admin/MembershipCard/_components/cardRenderer.js';
 import { membershipQrUrl, withSlugQuery } from '@/composables/usePublicMembershipUrl.js';
+
+// How a field's text sits in its box.
+const directionOptions = [
+  { value: 'ltr', label: 'ltr (left)' },
+  { value: 'center', label: 'center' },
+  { value: 'rtl', label: 'rtl (right)' },
+];
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.card_generator || {});

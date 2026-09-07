@@ -548,19 +548,10 @@
               </div>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap hidden sm:inline">{{ t.rows_per_page_label || 'Rows per page' }}</p>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.per_page_label_mobile || 'Per page' }}</p>
-              <select 
-                :value="members.meta?.per_page || 15"
-                @change="handlePerPageChange"
-                dir="ltr" 
-                translate="no" 
-                class="border-input data-[placeholder]:text-gray-foreground [&_svg:not([class*='text-'])]:text-gray-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 rounded-md border bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 sm:h-8 w-[60px] sm:w-[70px] cursor-pointer"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+              <PerPageSelect
+                :model-value="members.meta?.per_page || 15"
+                @update:model-value="handlePerPageChange"
+              />
             </div>
             <div class="order-3 flex-shrink-0 min-w-0">
               <Pagination
@@ -604,6 +595,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
@@ -885,7 +877,8 @@ const getActiveHistoryRoute = (slug) => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set('per_page', perPage);
   currentUrl.searchParams.set('page', '1'); // Reset to first page

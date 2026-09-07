@@ -75,6 +75,22 @@ class AdminFacilityListController extends BaseController
                     $bq->where('city_id', (int) $filters['city_id']);
                 });
             })
+            // The facilities holding a branch nobody can place on a map. Asked
+            // of the branches rather than the facility: a facility is only ever
+            // as findable as its least complete branch, and it is the branch
+            // row that has to be fixed.
+            ->when($filters['branches_missing'] === 'governorate', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')
+            ))
+            ->when($filters['branches_missing'] === 'city', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('city_id')
+            ))
+            ->when($filters['branches_missing'] === 'either', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')->orWhereNull('city_id')
+            ))
+            ->when($filters['branches_missing'] === 'both', fn ($q) => $q->whereHas(
+                'branches', fn ($bq) => $bq->whereNull('governorate_id')->whereNull('city_id')
+            ))
             ->when(! empty($filters['created_from']), function ($q) use ($filters) {
                 $q->whereDate('created_at', '>=', $filters['created_from']);
             })
@@ -117,14 +133,36 @@ class AdminFacilityListController extends BaseController
             'name' => $c->name,
         ]);
 
+        // How many facilities each choice would find, over everything the
+        // reader may see — the size of the job, not of the page on screen.
+        $incompleteCounts = [
+            'governorate' => $this->countWithBranchesMissing(fn ($bq) => $bq->whereNull('governorate_id')),
+            'city' => $this->countWithBranchesMissing(fn ($bq) => $bq->whereNull('city_id')),
+            'either' => $this->countWithBranchesMissing(
+                fn ($bq) => $bq->whereNull('governorate_id')->orWhereNull('city_id')
+            ),
+        ];
+
         return Inertia::render('Admin/Facility/List', [
             'facilities' => new AdminFacilityListCollection($facilities)->toArray($request),
             'filters' => $filters,
+            'incompleteCounts' => $incompleteCounts,
             'facilityTypes' => $facilityTypes,
             'salesOptions' => $salesOptions,
             'governorates' => $governorates,
             'cities' => $cities,
         ]);
+    }
+
+    /**
+     * How many facilities hold at least one branch the clause matches.
+     */
+    private function countWithBranchesMissing(callable $clause): int
+    {
+        return Facility::query()
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->whereHas('branches', $clause)
+            ->count();
     }
 
     /**
@@ -137,11 +175,17 @@ class AdminFacilityListController extends BaseController
         $salesPresence = $request->input('sales_presence');
         $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : '';
 
+        $branchesMissing = $request->input('branches_missing');
+        $branchesMissing = in_array($branchesMissing, ['governorate', 'city', 'either', 'both'], true)
+            ? $branchesMissing
+            : '';
+
         return [
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
             'sales_presence' => $salesPresence,
+            'branches_missing' => $branchesMissing,
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
             'created_from' => $request->input('created_from'),

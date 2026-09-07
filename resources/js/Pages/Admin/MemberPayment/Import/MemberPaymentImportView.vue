@@ -99,11 +99,9 @@
                   <input type="number" min="0" step="0.01" v-model="row.parsed.amount" :disabled="row.parsed.type === 'free'" :class="inputCls(row.errors?.amount)" />
                 </td>
                 <td class="px-2 py-1">
-                  <select v-model="row.parsed.type" :class="inputCls(row.errors?.type)" class="w-28">
-                    <option value="commission">Commission</option>
-                    <option value="profit">Profit</option>
-                    <option value="free">Free</option>
-                  </select>
+                  <div class="w-32">
+                    <Select v-model="row.parsed.type" :options="paymentTypeOptions" />
+                  </div>
                 </td>
                 <td class="px-2 py-1">
                   <input type="number" min="1" v-model.number="row.months_paid" @input="onMonthsPaidChange(row)" :class="inputCls()" />
@@ -186,10 +184,18 @@
 
 <script setup>
 import { Link, usePage } from "@inertiajs/vue3";
+import Select from '@/Components/ui/Select.vue';
 import MemberPaymentLayout from "../MemberPaymentLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import axios from "axios";
 import { computed, ref } from "vue";
+
+// What a payment row is for.
+const paymentTypeOptions = [
+  { value: 'commission', label: 'Commission' },
+  { value: 'profit', label: 'Profit' },
+  { value: 'free', label: 'Free' },
+];
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.member_payment || {});

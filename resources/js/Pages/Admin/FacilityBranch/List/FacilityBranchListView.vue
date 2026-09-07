@@ -55,7 +55,7 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityBranchListFilterContent :initial-filters="filters" :facilities="facilities" @filter-change="handleFilterChange" />
+            <FacilityBranchListFilterContent :initial-filters="filters" :facilities="facilities" :incomplete-counts="incompleteCounts" @filter-change="handleFilterChange" />
           </div>
         </div>
 
@@ -97,12 +97,18 @@ const props = defineProps({
     type: Object,
     default: () => ({
       search: '',
-      facility_id: ''
+      facility_id: '',
+      no_governorate: false,
+      no_city: false
     })
   },
   facilities: {
     type: Array,
     default: () => []
+  },
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ no_governorate: 0, no_city: 0 })
   }
 });
 

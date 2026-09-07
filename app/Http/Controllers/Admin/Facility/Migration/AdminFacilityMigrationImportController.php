@@ -8,6 +8,8 @@ use App\Services\FacilityMigration\XlsxToMigrationZip;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Stepped restore of a migration package.
@@ -68,7 +70,7 @@ class AdminFacilityMigrationImportController extends BaseController
                 if (is_file($file)) {
                     $facility = json_decode(file_get_contents($file), true) ?: [];
                     $facilities[] = array_merge(
-                        $this->withExistingRows($facility),
+                        $this->markBundledMedia($this->withExistingRows($facility), $session['token']),
                         ['_index' => $i]
                     );
                 }
@@ -81,12 +83,46 @@ class AdminFacilityMigrationImportController extends BaseController
                 'source' => $session['source'],
                 'generated_at' => $session['generated_at'],
                 'counts' => $session['counts'],
+                // A package this site's own export built carries a stable id and
+                // slug for every row, so the screen can stop insisting a human
+                // tells two same-named branches apart.
+                'origin' => $session['origin'],
+                'package_options' => $session['package_options'],
             ]);
         } catch (\Throwable $e) {
             Log::error('Facility migration preview failed', ['error' => $e->getMessage()]);
 
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Stream one image out of an open session's package.
+     *
+     * The preview shows what a package carries before a single row is written,
+     * so its pictures have no model, no disk and no URL yet — they exist only
+     * inside the session's extraction, and this is the one way to look at them.
+     * The session ends and they are gone with it.
+     */
+    public function media(Request $request): Response
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'path' => ['required', 'string'],
+        ]);
+
+        try {
+            $path = $this->importer->sessionMediaPath($validated['token'], $validated['path']);
+        } catch (\Throwable) {
+            $path = null;
+        }
+
+        abort_if($path === null, 404, 'That image is not in this package.');
+
+        return response()->file($path, [
+            // Private to this operator's open session, and gone when it closes.
+            'Cache-Control' => 'private, max-age=300',
+        ]);
     }
 
     /**
@@ -124,6 +160,53 @@ class AdminFacilityMigrationImportController extends BaseController
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Say, of every image a facility payload names, whether its bytes are
+     * actually in the package.
+     *
+     * A row can name a picture the archive does not carry — a data-only package
+     * from an older version, or a file that had already gone missing on the
+     * source host. The screen has to know which is which, or it would paint a
+     * broken thumbnail and offer to import a picture that is not there.
+     *
+     * @param  array<string, mixed>  $facility
+     * @return array<string, mixed>
+     */
+    private function markBundledMedia(array $facility, string $token): array
+    {
+        $mark = function (array $rows) use ($token) {
+            foreach ($rows as $i => $row) {
+                $path = is_array($row) ? ($row['package_path'] ?? null) : null;
+                $rows[$i]['_bundled'] = $path !== null
+                    && $this->importer->sessionMediaPath($token, $path) !== null;
+            }
+
+            return $rows;
+        };
+
+        if (is_array($facility['media'] ?? null)) {
+            $facility['media'] = $mark($facility['media']);
+        }
+
+        foreach (['offers'] as $relation) {
+            foreach ($facility[$relation] ?? [] as $i => $offer) {
+                if (is_array($offer['media'] ?? null)) {
+                    $facility[$relation][$i]['media'] = $mark($offer['media']);
+                }
+            }
+        }
+
+        foreach ($facility['branches'] ?? [] as $bi => $branch) {
+            foreach ($branch['offers'] ?? [] as $oi => $offer) {
+                if (is_array($offer['media'] ?? null)) {
+                    $facility['branches'][$bi]['offers'][$oi]['media'] = $mark($offer['media']);
+                }
+            }
+        }
+
+        return $facility;
     }
 
     /**
@@ -273,6 +356,58 @@ class AdminFacilityMigrationImportController extends BaseController
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Hand the review back as a package.
+     *
+     * Working through a whole-site package is hours of picking cities, renaming
+     * branches and dropping images, and none of it used to outlive the session.
+     * This writes the edited rows out as a file the operator keeps — to put the
+     * job down and come back to it, or to hand it to somebody else — and it
+     * imports exactly like the package it came from.
+     */
+    public function exportSession(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'format' => ['nullable', 'in:zip,xlsx'],
+        ]);
+
+        $includeMedia = ! $request->has('include_media') || $request->boolean('include_media');
+        $format = $validated['format'] ?? ($includeMedia ? 'zip' : 'xlsx');
+
+        $path = $this->importer->exportSession($validated['token'], [
+            'format' => $format,
+            'include_media' => $includeMedia,
+            'include_branches' => ! $request->has('include_branches') || $request->boolean('include_branches'),
+            'include_managers' => ! $request->has('include_managers') || $request->boolean('include_managers'),
+            'include_offers' => ! $request->has('include_offers') || $request->boolean('include_offers'),
+        ]);
+
+        $filename = sprintf('facility-migration-reviewed-%s.%s', now()->format('Y-m-d_His'), $format);
+
+        return response()->stream(function () use ($path) {
+            $out = fopen('php://output', 'wb');
+            $in = fopen($path, 'rb');
+            // A reviewed package carries the same images the original did, so it
+            // is piped out in chunks rather than read into memory.
+            while (! feof($in)) {
+                fwrite($out, fread($in, 1024 * 1024));
+                flush();
+            }
+            fclose($in);
+            fclose($out);
+            // The session owns the originals; this copy was only ever the download.
+            @unlink($path);
+        }, 200, [
+            'Content-Type' => $format === 'zip'
+                ? 'application/zip'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Length' => (string) filesize($path),
+            'Cache-Control' => 'no-store, no-cache',
+        ]);
     }
 
     /**

@@ -22,13 +22,13 @@
             rowError(index) ? 'border-destructive focus:border-destructive focus:ring-destructive/20' : 'border-border'
           ]"
         />
-        <select
-          :value="entry.type"
-          @change="updateType(index, $event.target.value)"
-          class="sm:w-48 shrink-0 border-border rounded-md border bg-transparent dark:bg-input/30 px-3 text-sm h-9 cursor-pointer focus:outline-none focus:ring-[3px] focus:ring-ring/50 focus:border-ring"
-        >
-          <option v-for="type in types" :key="type" :value="type">{{ typeLabel(type) }}</option>
-        </select>
+        <div class="w-full shrink-0 sm:w-48">
+          <Select
+            :model-value="entry.type"
+            :options="typeOptions"
+            @update:model-value="updateType(index, $event)"
+          />
+        </div>
         <button
           type="button"
           @click="removeRow(index)"
@@ -59,6 +59,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { usePage } from '@inertiajs/vue3';
 import { PHONE_TYPES, DEFAULT_PHONE_TYPE, normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
 
@@ -99,6 +100,9 @@ const t = computed(() => page.props.translations?.admin || {});
 const types = PHONE_TYPES;
 
 const typeLabel = (type) => t.value.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
+
+// Built once per language change rather than on every render of every row.
+const typeOptions = computed(() => types.map(type => ({ value: type, label: typeLabel(type) })));
 
 const numberPlaceholder = computed(() =>
   t.value.facility_branch?.phone_number_placeholder || '01020709993'

@@ -23,9 +23,10 @@
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">Status</label>
-            <select v-model="form.status" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" :disabled="busy">
-              <option v-for="s in statuses" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
+            <Select
+              v-model="form.status"
+              :options="statuses"
+            />
             <p v-if="hiddenFields.length" class="mt-1 text-[11px] text-muted-foreground">
               Hides: {{ hiddenFields.join(', ') }}
             </p>
@@ -187,11 +188,7 @@
                 </label>
                 <label class="text-[10px] text-muted-foreground uppercase">
                   Align
-                  <select v-model="field.direction" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy">
-                    <option value="ltr">ltr (left)</option>
-                    <option value="center">center</option>
-                    <option value="rtl">rtl (right)</option>
-                  </select>
+                  <Select v-model="field.direction" :options="directionOptions" :disabled="busy" />
                 </label>
                 <label class="text-[10px] text-muted-foreground uppercase">
                   Colour
@@ -342,6 +339,7 @@
 
 <script setup>
 import { ref, shallowRef, computed, reactive, watch, onBeforeUnmount } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import QRCode from 'qrcode';
@@ -350,6 +348,13 @@ import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from '@/Pages/Admin/MembershipCard/_components/CardPreview.vue';
 import { drawBarcode } from '@/Pages/Admin/MembershipCard/_components/code128.js';
 import { assetUrl } from '@/Pages/Admin/MembershipCard/_components/cardRenderer.js';
+
+// How a field's text sits in its box.
+const directionOptions = [
+  { value: 'ltr', label: 'ltr (left)' },
+  { value: 'center', label: 'center' },
+  { value: 'rtl', label: 'rtl (right)' },
+];
 
 const props = defineProps({
   template: { type: Object, default: null },

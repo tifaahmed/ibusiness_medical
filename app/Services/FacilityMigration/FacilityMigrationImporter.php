@@ -195,6 +195,10 @@ class FacilityMigrationImporter
                 'source' => $payload['source'] ?? [],
                 'generated_at' => $payload['generated_at'] ?? null,
                 'counts' => $payload['counts'] ?? [],
+                // Where the package came from — a site export or a spreadsheet.
+                // The preview screen holds them to different standards.
+                'origin' => $payload['origin'] ?? null,
+                'package_options' => $payload['options'] ?? [],
                 'started_at' => now()->toIso8601String(),
             ];
             $this->saveState($token, $state);
@@ -209,6 +213,8 @@ class FacilityMigrationImporter
                 'source' => $state['source'],
                 'generated_at' => $state['generated_at'],
                 'counts' => $state['counts'],
+                'origin' => $state['origin'],
+                'package_options' => $state['package_options'],
                 'has_bundled_media' => is_dir($extractedTo.'/'.FacilityMigrationExporter::MEDIA_DIR),
             ];
         } catch (\Throwable $e) {
@@ -338,6 +344,266 @@ class FacilityMigrationImporter
     }
 
     /**
+     * Write the session's facilities back out as a package.
+     *
+     * Reviewing a whole-site package is hours of work — cities picked, branches
+     * renamed, images dropped — and until now none of it outlived the session:
+     * closing the tab or letting the token go threw the lot away. This hands the
+     * edited dataset back as a file, so the work can be put down, kept, handed
+     * to somebody else, and imported later from where it left off.
+     *
+     * What it writes is a package like any other, and the same switches the
+     * Export tab offers apply here: a relation left out is not carried, and
+     * without the images it is a workbook rather than an archive.
+     *
+     * @param  array<string, mixed>  $options
+     *                                         - format: 'zip' | 'xlsx' (default follows include_media)
+     *                                         - include_media / include_branches / include_managers / include_offers
+     *                                         - destination: absolute path (defaults to a temp file)
+     */
+    public function exportSession(string $token, array $options = []): string
+    {
+        $state = $this->loadState($token);
+
+        $includeMedia = (bool) ($options['include_media'] ?? true);
+        $includeBranches = (bool) ($options['include_branches'] ?? true);
+        $includeManagers = (bool) ($options['include_managers'] ?? true);
+        $includeOffers = (bool) ($options['include_offers'] ?? true);
+        // Images mean files to carry, so the package is an archive; without them
+        // there is nothing an archive would hold that a workbook cannot.
+        $format = $options['format'] ?? ($includeMedia ? 'zip' : 'xlsx');
+
+        $mediaRoot = $includeMedia
+            ? $this->resolveMediaRoot($state['extracted_to'] ?? '', $state['media_path'] ?? null)
+            : null;
+
+        $facilities = [];
+        $mediaPaths = [];
+        for ($i = 0; $i < (int) $state['total']; $i++) {
+            $file = sprintf('%s/facilities/%06d.json', $this->sessionDir($token), $i);
+            if (! is_file($file)) {
+                continue;
+            }
+
+            $facility = json_decode(file_get_contents($file), true);
+            if (! is_array($facility)) {
+                continue;
+            }
+
+            $facilities[] = $this->exportableFacility(
+                $facility,
+                $includeBranches,
+                $includeManagers,
+                $includeOffers,
+                $mediaRoot,
+                $mediaPaths
+            );
+        }
+
+        $lookupsFile = $this->sessionDir($token).'/lookups.json';
+        $lookups = is_file($lookupsFile)
+            ? (json_decode(file_get_contents($lookupsFile), true) ?: [])
+            : [];
+
+        $payload = [
+            'format' => FacilityMigrationExporter::FORMAT,
+            'format_version' => FacilityMigrationExporter::FORMAT_VERSION,
+            'origin' => FacilityMigrationExporter::ORIGIN_SITE_EXPORT,
+            'generated_at' => now()->toIso8601String(),
+            // Where the rows came from originally, plus the fact that they have
+            // been through a review here since.
+            'source' => array_merge($this->arrayOrEmpty($state['source'] ?? []), [
+                'reviewed_on' => config('app.url'),
+                'reviewed_at' => now()->toIso8601String(),
+                'original_generated_at' => $state['generated_at'] ?? null,
+            ]),
+            'options' => [
+                'include_media_files' => $includeMedia && $format === 'zip',
+                'include_offers' => $includeOffers,
+                'include_branches' => $includeBranches,
+                'include_managers' => $includeManagers,
+                'filters' => [],
+                'slice' => null,
+            ],
+            'lookups' => $lookups,
+            'facilities' => $facilities,
+        ];
+
+        $payload['counts'] = [
+            'facilities' => count($facilities),
+            'branches' => collect($facilities)->sum(fn (array $f) => count($f['branches'] ?? [])),
+            'managers' => collect($facilities)->sum(fn (array $f) => count($f['managers'] ?? [])),
+            'tags' => collect($facilities)->sum(fn (array $f) => count($f['tags'] ?? [])),
+            'offers' => collect($facilities)->sum(fn (array $f) => count($f['offers'] ?? [])
+                + collect($f['branches'] ?? [])->sum(fn (array $b) => count($b['offers'] ?? []))),
+            'media' => count($mediaPaths),
+            'media_restorable' => count($mediaPaths),
+            'media_files_bundled' => count($mediaPaths),
+            'media_files_missing' => 0,
+        ];
+
+        $destination = $options['destination'] ?? storage_path(
+            'app/facility-migration/'.uniqid('review_', true).'.'.($format === 'zip' ? 'zip' : 'xlsx')
+        );
+
+        if (! is_dir(dirname($destination))) {
+            mkdir(dirname($destination), 0775, true);
+        }
+
+        if ($format !== 'zip') {
+            return (new FacilityMigrationWorkbook)->write($payload, $destination);
+        }
+
+        $zip = new ZipArchive;
+        if ($zip->open($destination, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException("Unable to write the package at {$destination}.");
+        }
+
+        // Only the files the edited rows still name travel: an image dropped on
+        // the review screen is gone from the package, not merely unreferenced.
+        foreach ($mediaPaths as $entry => $absolute) {
+            $zip->addFile($absolute, $entry);
+        }
+
+        $zip->addFromString(
+            FacilityMigrationExporter::DATA_ENTRY,
+            json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+        $zip->addFromString(FacilityMigrationExporter::MANIFEST_ENTRY, json_encode([
+            'format' => FacilityMigrationExporter::FORMAT,
+            'format_version' => FacilityMigrationExporter::FORMAT_VERSION,
+            'origin' => FacilityMigrationExporter::ORIGIN_SITE_EXPORT,
+            'generated_at' => $payload['generated_at'],
+            'source' => $payload['source'],
+            'options' => $payload['options'],
+            'counts' => $payload['counts'],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $zip->close();
+
+        return $destination;
+    }
+
+    /**
+     * One facility as it should be written out: the screen's own bookkeeping
+     * dropped, the relations the caller left out removed, and every image whose
+     * file is actually present collected for the archive.
+     *
+     * @param  array<string, mixed>  $facility
+     * @param  array<string, string>  $mediaPaths  filled with entry => absolute path
+     * @return array<string, mixed>
+     */
+    private function exportableFacility(
+        array $facility,
+        bool $includeBranches,
+        bool $includeManagers,
+        bool $includeOffers,
+        ?string $mediaRoot,
+        array &$mediaPaths
+    ): array {
+        $facility = $this->withoutBookkeeping($facility);
+
+        if (! $includeBranches) {
+            unset($facility['branches']);
+        }
+        if (! $includeManagers) {
+            unset($facility['managers']);
+        }
+        if (! $includeOffers) {
+            unset($facility['offers']);
+            foreach ($facility['branches'] ?? [] as $i => $branch) {
+                unset($facility['branches'][$i]['offers']);
+            }
+        }
+
+        $facility['media'] = $this->collectMedia($facility['media'] ?? [], $mediaRoot, $mediaPaths);
+
+        foreach ($facility['offers'] ?? [] as $i => $offer) {
+            $facility['offers'][$i]['media'] = $this->collectMedia($offer['media'] ?? [], $mediaRoot, $mediaPaths);
+        }
+        foreach ($facility['branches'] ?? [] as $bi => $branch) {
+            foreach ($branch['offers'] ?? [] as $oi => $offer) {
+                $facility['branches'][$bi]['offers'][$oi]['media'] = $this->collectMedia(
+                    $offer['media'] ?? [],
+                    $mediaRoot,
+                    $mediaPaths
+                );
+            }
+        }
+
+        return $facility;
+    }
+
+    /**
+     * Keep the image rows whose bytes can actually travel, and remember where
+     * those bytes are. Without a media root — a data-only export — none can, so
+     * the rows go too: a package must never name a picture it does not carry.
+     *
+     * @param  array<int, mixed>  $rows
+     * @param  array<string, string>  $mediaPaths
+     * @return array<int, array<string, mixed>>
+     */
+    private function collectMedia(array $rows, ?string $mediaRoot, array &$mediaPaths): array
+    {
+        if ($mediaRoot === null) {
+            return [];
+        }
+
+        $kept = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $row = $this->withoutBookkeeping($row);
+            $entry = $row['package_path'] ?? null;
+            $relative = $row['source_relative_path'] ?? null;
+
+            $absolute = null;
+            foreach (array_filter([$relative, $entry]) as $candidate) {
+                $candidate = ltrim((string) $candidate, '/');
+                if (str_starts_with($candidate, FacilityMigrationExporter::MEDIA_DIR.'/')) {
+                    $candidate = substr($candidate, strlen(FacilityMigrationExporter::MEDIA_DIR) + 1);
+                }
+                if (is_file($mediaRoot.'/'.$candidate)) {
+                    $absolute = $mediaRoot.'/'.$candidate;
+                    break;
+                }
+            }
+
+            if ($absolute === null || ! $entry) {
+                continue;
+            }
+
+            $mediaPaths[$entry] = $absolute;
+            $kept[] = $row;
+        }
+
+        return $kept;
+    }
+
+    /**
+     * Drop the keys the review screen hangs on a row for its own use — they
+     * begin with an underscore and belong to no package.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function withoutBookkeeping(array $row): array
+    {
+        $clean = [];
+        foreach ($row as $key => $value) {
+            if (is_string($key) && str_starts_with($key, '_')) {
+                continue;
+            }
+            $clean[$key] = is_array($value)
+                ? array_map(fn ($item) => is_array($item) ? $this->withoutBookkeeping($item) : $item, $value)
+                : $value;
+        }
+
+        return $clean;
+    }
+
+    /**
      * Drop the unpacked package once the run is finished or abandoned.
      */
     public function endSession(string $token): void
@@ -434,6 +700,42 @@ class FacilityMigrationImporter
     }
 
     /**
+     * The absolute path of one image bundled in an open session's package.
+     *
+     * The preview screen shows the pictures a package carries before anything
+     * is written, and they only exist inside the session's extraction — there
+     * is no model, no disk and no URL for them yet. The path comes off the
+     * media row the browser is holding, so it is checked rather than trusted:
+     * only a real file inside this session's own extraction is ever returned.
+     */
+    public function sessionMediaPath(string $token, string $packagePath): ?string
+    {
+        $state = $this->loadState($token);
+        $root = $this->resolveMediaRoot($state['extracted_to'] ?? '', $state['media_path'] ?? null);
+
+        if (! $root) {
+            return null;
+        }
+
+        // Rows name their file as "media/{id}/{file}"; the root is that media
+        // directory, so the prefix is dropped before it is joined on.
+        $relative = ltrim($packagePath, '/');
+        if (str_starts_with($relative, FacilityMigrationExporter::MEDIA_DIR.'/')) {
+            $relative = substr($relative, strlen(FacilityMigrationExporter::MEDIA_DIR) + 1);
+        }
+
+        $resolvedRoot = realpath($root);
+        $resolved = realpath($root.'/'.$relative);
+
+        if (! $resolvedRoot || ! $resolved || ! is_file($resolved)) {
+            return null;
+        }
+
+        // Never out of the session's own directory, whatever the path said.
+        return str_starts_with($resolved, $resolvedRoot.DIRECTORY_SEPARATOR) ? $resolved : null;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function loadState(string $token): array
@@ -473,6 +775,7 @@ class FacilityMigrationImporter
         return [
             'format' => $payload['format'] ?? null,
             'format_version' => $payload['format_version'] ?? null,
+            'origin' => $payload['origin'] ?? null,
             'generated_at' => $payload['generated_at'] ?? null,
             'source' => $payload['source'] ?? [],
             'options' => $payload['options'] ?? [],
@@ -505,6 +808,15 @@ class FacilityMigrationImporter
             return [$this->decode(file_get_contents($packagePath)), ''];
         }
 
+        // A workbook is the shape a data-only export takes, and the shape an
+        // operator fills in by hand. Converting it here rather than in the
+        // controller means every way into the importer — the admin screen, the
+        // artisan command, a queued job — reads one just as well.
+        $converted = null;
+        if (Str::endsWith(Str::lower($packagePath), ['.xlsx', '.xls', '.csv'])) {
+            $packagePath = $converted = app(XlsxToMigrationZip::class)->convert($packagePath);
+        }
+
         $zip = new ZipArchive;
         if ($zip->open($packagePath) !== true) {
             throw new RuntimeException("Unable to open the package archive: {$packagePath}");
@@ -516,6 +828,12 @@ class FacilityMigrationImporter
         }
         $zip->extractTo($extractedTo);
         $zip->close();
+
+        // The workbook's own zip was a stepping stone; the extracted copy is
+        // what the rest of the run reads.
+        if ($converted !== null) {
+            $this->deleteDirectory(dirname($converted));
+        }
 
         $dataFile = $extractedTo.'/'.FacilityMigrationExporter::DATA_ENTRY;
         if (! is_file($dataFile)) {
@@ -632,6 +950,25 @@ class FacilityMigrationImporter
                 : $existing?->sales_id,
             'created_by' => $this->resolveUser($data['created_by'] ?? null),
         ];
+
+        // The facility's own place, map pin and banner block. Same rule as the
+        // columns above: a package that never names one is asking for it to be
+        // left alone, not blanked — a spreadsheet has no column for any of them.
+        if (array_key_exists('governorate', $data)) {
+            $fill['governorate_id'] = $this->resolveGovernorate($data['governorate']);
+        }
+        if (array_key_exists('city', $data)) {
+            $fill['city_id'] = $this->resolveCity($data['city'], $data['governorate'] ?? null);
+        }
+        foreach (['latitude', 'longitude'] as $coordinate) {
+            if (array_key_exists($coordinate, $data)) {
+                $fill[$coordinate] = is_numeric($data[$coordinate]) ? $data[$coordinate] : null;
+            }
+        }
+        if (array_key_exists('banner_config', $data)) {
+            $fill['banner_config'] = is_array($data['banner_config']) ? $data['banner_config'] : null;
+        }
+
         if (! $existing && ! empty($data['id'])) {
             // Only fresh rows take the source id; an existing row must never
             // have its primary key rewritten (child rows reference it).
@@ -912,17 +1249,31 @@ class FacilityMigrationImporter
             return;
         }
 
+        // Where each row's bytes actually are, resolved before anything is
+        // deleted. A row whose file is not in the package cannot be restored,
+        // and clearing its collection first would destroy the picture this site
+        // already has to put nothing in its place — so a collection is emptied
+        // only when there is at least one file to refill it with.
+        $sources = [];
+        $refillable = [];
+        foreach ($mediaRows as $index => $row) {
+            $sources[$index] = $this->locateMediaFile($row);
+            if ($sources[$index] !== null && ! empty($row['collection_name'])) {
+                $refillable[$row['collection_name']] = true;
+            }
+        }
+
         // Re-importing the same package must not stack duplicates: clear only the
         // collections this package actually carries, leaving others untouched.
         // Skipped on a dry run — clearing deletes files off disk for real.
         if (! $this->dryRun) {
-            foreach (collect($mediaRows)->pluck('collection_name')->filter()->unique() as $collection) {
+            foreach (array_keys($refillable) as $collection) {
                 $model->clearMediaCollection($collection);
             }
         }
 
-        foreach ($mediaRows as $row) {
-            $source = $this->locateMediaFile($row);
+        foreach ($mediaRows as $index => $row) {
+            $source = $sources[$index];
             if ($source === null) {
                 $this->bump('media_files_missing');
                 $this->warnings[] = sprintf(

@@ -81,6 +81,19 @@
                     {{ phone }}
                   </li>
                 </ul>
+                <!-- The kind each number is filed under today. A hotline stored
+                     as a landline is wrong in a way the digits never show, so
+                     the old type is named where it is about to change. -->
+                <ul v-if="retypedEntries(row).length" class="mt-1 space-y-0.5">
+                  <li
+                    v-for="(entry, i) in retypedEntries(row)"
+                    :key="`retype-${i}`"
+                    class="text-[11px] text-amber-500 dark:text-amber-400"
+                  >
+                    <span class="font-mono" dir="ltr">{{ entry.original }}</span>
+                    — filed as {{ typeLabel(entry.type) }}, it is a {{ typeLabel(entry.suggested_type) }}
+                  </li>
+                </ul>
               </div>
 
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden sm:block flex-shrink-0 text-muted-foreground" :class="isRtl ? 'rotate-180' : ''">
@@ -114,9 +127,16 @@
                       maxlength="20"
                       class="w-full min-w-0 rounded-md border border-border bg-transparent px-2 py-1 font-mono text-sm text-emerald-400 focus:border-ring focus:outline-none focus:ring-[3px] focus:ring-ring/50 dark:bg-input/30"
                     />
-                    <span class="flex-shrink-0 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {{ typeLabel(entry.type) }}
-                    </span>
+                    <!-- The kind of line, not just the digits. A number filed
+                         wrong — a hotline stored as a landline, a mobile that
+                         lost a digit and got stamped landline — is as broken as
+                         a mistyped one, and this is the screen for fixing it. -->
+                    <div
+                      class="w-32 shrink-0 sm:w-40"
+                      :title="t.facility?.phone_fix_type || 'What kind of line this number is'"
+                    >
+                      <Select v-model="entry.type" :options="phoneTypeOptions" />
+                    </div>
                     <button
                       type="button"
                       class="flex-shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
@@ -132,7 +152,7 @@
                     <button
                       type="button"
                       class="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                      @click="row.draft.push({ number: '', type: 'phone' })"
+                      @click="row.draft.push({ number: '', type: DEFAULT_PHONE_TYPE })"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M5 12h14"></path><path d="M12 5v14"></path>
@@ -213,6 +233,8 @@ import FacilityLayout from '../FacilityLayout.vue';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
 import Pagination from '@/Pages/_components/Pagination.vue';
 import { useNotification } from '@/composables/useNotification';
+import { PHONE_TYPES, DEFAULT_PHONE_TYPE, phoneTypeLabel } from '@/lib/branchPhones';
+import Select from '@/Components/ui/Select.vue';
 
 const props = defineProps({
   problems: {
@@ -251,9 +273,10 @@ watch(
 const remaining = computed(() => rows.value.filter(row => !row.done).length);
 
 const kindOptions = computed(() => [
-  { value: 'all', label: t.value.facility?.phone_fix_kind_all || 'Mobiles and landlines' },
+  { value: 'all', label: t.value.facility?.phone_fix_kind_all || 'All kinds' },
   { value: 'mobile', label: t.value.facility?.phone_fix_kind_mobile || 'Mobiles only' },
   { value: 'landline', label: t.value.facility?.phone_fix_kind_landline || 'Landlines only' },
+  { value: 'hotline', label: t.value.facility?.phone_fix_kind_hotline || 'Hotlines only' },
 ]);
 
 // Changing the kind starts the list again from page one; the numbers of the
@@ -272,14 +295,20 @@ const fingerprint = (entries) => entries.map(entry => `${entry.number}\u0000${en
 
 const isEdited = (row) => fingerprint(row.draft) !== fingerprint(row.suggested);
 
-// The type a number carries is set on the branch form; here it only travels
-// with the number so a repair never changes what kind of line it is.
-const typeLabel = (type) => ({
-  landline: t.value.facility_branch?.phone_type_landline || 'Landline',
-  phone: t.value.facility_branch?.phone_type_phone || 'Mobile',
-  whatsapp: t.value.facility_branch?.phone_type_whatsapp || 'WhatsApp',
-  phone_whatsapp: t.value.facility_branch?.phone_type_phone_whatsapp || 'Mobile + WhatsApp',
-}[type] || type);
+/* The kinds a number can be filed under, straight from the shared list rather
+   than spelled out again here — a type added to the model has to appear in this
+   picker, or a number could never be moved to it. */
+const typeLabel = (type) => t.value.facility_branch?.phone_types?.[type] || phoneTypeLabel(type);
+
+// Shaped for the shared picker, and re-labelled when the language changes.
+const phoneTypeOptions = computed(() =>
+  PHONE_TYPES.map(type => ({ value: type, label: typeLabel(type) }))
+);
+
+// The numbers on this row whose kind is about to change, so the old one can be
+// named beside the new. WhatsApp is never among them: it says how a number is
+// reached, which no amount of digits can settle.
+const retypedEntries = (row) => (row.entries || []).filter(entry => entry.type_changed);
 
 const confirmRow = async (row) => {
   if (row.saving || row.done) return;

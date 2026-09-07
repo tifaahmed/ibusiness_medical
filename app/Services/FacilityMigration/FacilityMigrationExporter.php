@@ -35,6 +35,14 @@ class FacilityMigrationExporter
 
     public const FORMAT_VERSION = 1;
 
+    /**
+     * Marks a package this exporter built, as opposed to one converted from a
+     * hand-written spreadsheet. Both share the format; only this one carries a
+     * stable id and slug for every row, which is what lets the import screen
+     * stop demanding that a human tell two same-named branches apart.
+     */
+    public const ORIGIN_SITE_EXPORT = 'site-export';
+
     /** Relative paths used inside the archive. */
     public const DATA_ENTRY = 'data/facilities.json';
 
@@ -50,19 +58,23 @@ class FacilityMigrationExporter
     private int $mediaFilesMissing = 0;
 
     /**
-     * Build the package and return the absolute path of the written .zip.
+     * Whether the bytes are travelling with this package.
      *
-     * @param  array<string, mixed>  $options
-     *                                         - filters: array of the same filters the list screen uses
-     *                                         - include_media_files: bool (default true)
-     *                                         - include_offers: bool (default true)
-     *                                         - include_branches: bool (default true) — leave the branch rows out
-     *                                         - include_managers: bool (default true) — leave the contact people out
-     *                                         - destination: absolute path for the .zip (defaults to a temp file)
-     *                                         - offset / limit: export a slice, so a big site can be handed over in
-     *                                         parts instead of one enormous download
+     * The data file only ever names an image the importer can actually put
+     * back: a merge clears the collections a package names before refilling
+     * them, so naming an image whose file is not in the archive would delete
+     * the picture the other site already had and put nothing in its place.
      */
-    public function build(array $options = []): string
+    private bool $bundlingMediaFiles = true;
+
+    /**
+     * The dataset every shape of this export is written from — the .zip and the
+     * .xlsx alike, so the two can never describe the site differently.
+     *
+     * @param  array<string, mixed>  $options  the keys build() documents
+     * @return array<string, mixed>
+     */
+    private function payload(array $options): array
     {
         $includeMediaFiles = $options['include_media_files'] ?? true;
         $includeOffers = $options['include_offers'] ?? true;
@@ -78,6 +90,7 @@ class FacilityMigrationExporter
         $this->mediaManifest = [];
         $this->mediaFilesBundled = 0;
         $this->mediaFilesMissing = 0;
+        $this->bundlingMediaFiles = (bool) $includeMediaFiles;
 
         $facilities = $this->queryFacilities(
             $filters,
@@ -91,6 +104,7 @@ class FacilityMigrationExporter
         $payload = [
             'format' => self::FORMAT,
             'format_version' => self::FORMAT_VERSION,
+            'origin' => self::ORIGIN_SITE_EXPORT,
             'generated_at' => now()->toIso8601String(),
             'source' => [
                 'app_name' => config('app.name'),
@@ -123,10 +137,40 @@ class FacilityMigrationExporter
             'offers' => collect($payload['facilities'])->sum(fn (array $f) => count($f['offers'] ?? [])
                 + collect($f['branches'])->sum(fn (array $b) => count($b['offers'] ?? []))),
             'media' => count($this->mediaManifest),
+            // How many of those the dataset asks the importer to restore. Lower
+            // than `media` for a data-only package (none) or when a file has
+            // gone astray on this server.
+            'media_restorable' => collect($payload['facilities'])->sum(
+                fn (array $f) => count($f['media'] ?? [])
+                    + collect($f['offers'] ?? [])->sum(fn (array $o) => count($o['media'] ?? []))
+                    + collect($f['branches'] ?? [])->sum(
+                        fn (array $b) => collect($b['offers'] ?? [])->sum(fn (array $o) => count($o['media'] ?? []))
+                    )
+            ),
             'media_files_bundled' => 0,
             'media_files_missing' => 0,
         ];
 
+        return $payload;
+    }
+
+    /**
+     * Build the package and return the absolute path of the written .zip.
+     *
+     * @param  array<string, mixed>  $options
+     *                                         - filters: array of the same filters the list screen uses
+     *                                         - include_media_files: bool (default true)
+     *                                         - include_offers: bool (default true)
+     *                                         - include_branches: bool (default true) — leave the branch rows out
+     *                                         - include_managers: bool (default true) — leave the contact people out
+     *                                         - destination: absolute path for the .zip (defaults to a temp file)
+     *                                         - offset / limit: export a slice, so a big site can be handed over in
+     *                                         parts instead of one enormous download
+     */
+    public function build(array $options = []): string
+    {
+        $includeMediaFiles = $options['include_media_files'] ?? true;
+        $payload = $this->payload($options);
         $destination = $options['destination'] ?? $this->defaultDestination();
         $this->ensureDirectory(dirname($destination));
 
@@ -147,6 +191,7 @@ class FacilityMigrationExporter
         $zip->addFromString(self::MANIFEST_ENTRY, $this->encode([
             'format' => self::FORMAT,
             'format_version' => self::FORMAT_VERSION,
+            'origin' => self::ORIGIN_SITE_EXPORT,
             'generated_at' => $payload['generated_at'],
             'source' => $payload['source'],
             'options' => $payload['options'],
@@ -163,6 +208,26 @@ class FacilityMigrationExporter
         $zip->close();
 
         return $destination;
+    }
+
+    /**
+     * Build the same dataset as a single .xlsx workbook and return its path.
+     *
+     * This is what a data-only export hands over. It carries no images by
+     * definition — so it never asks the importing site to clear a picture — and
+     * every row keeps the id and slug it has here, which is what lets the
+     * Import tab treat it as a site package rather than a hand-typed sheet.
+     *
+     * @param  array<string, mixed>  $options  the keys build() documents, minus include_media_files
+     */
+    public function buildSpreadsheet(array $options = []): string
+    {
+        $payload = $this->payload(['include_media_files' => false] + $options);
+
+        $destination = $options['destination'] ?? $this->defaultDestination('xlsx');
+        $this->ensureDirectory(dirname($destination));
+
+        return (new FacilityMigrationWorkbook)->write($payload, $destination);
     }
 
     /**
@@ -183,12 +248,16 @@ class FacilityMigrationExporter
         // readable off its name rather than only out of its manifest.
         $without = ($includeBranches ? '' : '-nobranches').($includeManagers ? '' : '-nomanagers');
 
+        // With images there are files to carry, so the package is an archive.
+        // Without them there is nothing an archive would add over the workbook
+        // itself, and a .xlsx is a thing the operator can open and correct.
         return sprintf(
-            'facility-migration-%s%s%s-%s.zip',
+            'facility-migration-%s%s%s-%s.%s',
             $includeMediaFiles ? 'full' : 'data-only',
             $without,
             $slice,
-            now()->format('Y-m-d_His')
+            now()->format('Y-m-d_His'),
+            $includeMediaFiles ? 'zip' : 'xlsx'
         );
     }
 
@@ -349,6 +418,15 @@ class FacilityMigrationExporter
             'meta_keywords' => $this->translations($facility, 'meta_keywords'),
             'canonical_url' => $facility->canonical_url,
             'discount_percent' => $facility->discount_percent,
+            // The facility's own place and map pin, and the home-page banner
+            // block. They are columns on the facility row like any other; a
+            // package that left them out handed the other site a facility
+            // sitting in no governorate at all.
+            'governorate' => $this->slugRef($facility->governorate),
+            'city' => $this->slugRef($facility->city),
+            'latitude' => $facility->latitude,
+            'longitude' => $facility->longitude,
+            'banner_config' => $facility->banner_config,
             'created_at' => $facility->created_at?->toIso8601String(),
             'updated_at' => $facility->updated_at?->toIso8601String(),
             'facility_type' => $this->slugRef($facility->facilityType),
@@ -503,7 +581,13 @@ class FacilityMigrationExporter
                 'file_available' => $exists,
             ];
 
-            $out[] = $entry;
+            // Named in the dataset only when its bytes are in this archive.
+            // data/media.csv still lists every row, so a data-only package is
+            // as auditable as a full one — it simply does not ask the importer
+            // to restore a file it was never given.
+            if ($this->bundlingMediaFiles && $exists) {
+                $out[] = $entry;
+            }
 
             $this->mediaManifest[] = $entry + [
                 'owner_kind' => $ownerKind,
@@ -657,12 +741,12 @@ class FacilityMigrationExporter
         return json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    private function defaultDestination(): string
+    private function defaultDestination(string $extension = 'zip'): string
     {
         $dir = storage_path('app/facility-migration');
         $this->ensureDirectory($dir);
 
-        return $dir.'/'.uniqid('package_', true).'.zip';
+        return $dir.'/'.uniqid('package_', true).'.'.$extension;
     }
 
     private function ensureDirectory(string $dir): void
@@ -689,17 +773,16 @@ The image files are already inside this archive, under `media/`, laid out as
 you do **not** need to touch `storage/` by hand.
 MD
             : <<<'MD'
-This package carries **data only** — no image bytes. Put the old site's images
-next to the package before importing:
+This package carries **data only** — no image bytes, and `data/facilities.json`
+names no images either. Importing it therefore leaves whatever pictures the
+other site already holds exactly where they are: it can never clear a facility's
+logo to replace it with a file that is not here.
 
-1. Take the images zip from the old host (`storage/app/public/`).
-2. Unzip it so you get folders named after the old media ids: `1/`, `2/`, `17/` …
-3. Either drop that folder tree into a directory called `media/` inside this
-   package and re-zip it, or pass its path to the importer with
-   `--media=/absolute/path/to/unzipped/storage/app/public`.
+`data/media.csv` still lists every image the source site holds: which facility it
+belongs to, which collection (`logo`, `image`, `gallery`, …), and the path it had
+on the old host — so the files can be moved across by hand if you want them.
 
-`data/media.csv` lists every image: which facility it belongs to, which
-collection (`logo`, `image`, `gallery`, …), and the path it had on the old host.
+To bring the images over properly, export again with **images included**.
 MD;
 
         return <<<MD
@@ -709,7 +792,8 @@ MD;
 - Generated: {$generated}
 - Source site: {$source}
 - Facilities: {$counts['facilities']} | Branches: {$counts['branches']} | Managers: {$counts['managers']} | Offers: {$counts['offers']}
-- Tags links: {$counts['tags']} | Media rows: {$counts['media']} | Image files bundled: {$counts['media_files_bundled']} (missing: {$counts['media_files_missing']})
+- Tags links: {$counts['tags']} | Media rows described: {$counts['media']} | Images this package restores: {$counts['media_restorable']}
+- Image files bundled: {$counts['media_files_bundled']} (files missing on the source host: {$counts['media_files_missing']})
 
 ## What is inside
 

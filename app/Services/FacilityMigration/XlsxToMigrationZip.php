@@ -33,19 +33,24 @@ class XlsxToMigrationZip
 
         $facilityColumns = [];
         $facilityRows = $this->parseFacilitySheet($spreadsheet, $facilityColumns);
+        $hasBranchSheet = $spreadsheet->getSheetByName('Branches') !== null;
         $branchRows = $this->parseBranchSheet($spreadsheet);
         $hasManagerSheet = $spreadsheet->getSheetByName('Managers') !== null;
         $managerRows = $this->parseManagerSheet($spreadsheet);
+        $hasOfferSheet = $spreadsheet->getSheetByName('Offers') !== null;
+        $offerRows = $this->parseOfferSheet($spreadsheet);
+        $package = $this->parsePackageSheet($spreadsheet);
+        $sourceLookups = $this->parseLookupSheet($spreadsheet);
 
         $spreadsheet->disconnectWorksheets();
 
         $branchesByFacility = [];
         foreach ($branchRows as $branch) {
-            $key = mb_strtolower(trim($branch['facility_name'] ?? ''));
+            $key = $this->facilityKey($branch);
             if ($key === '') {
                 continue;
             }
-            $branchesByFacility[$key][] = [
+            $row = [
                 'name' => [
                     'en' => $branch['name'] ?: null,
                     'ar' => $branch['name_ar'] ?: null,
@@ -61,12 +66,16 @@ class XlsxToMigrationZip
                 'longitude' => $branch['longitude'] !== '' ? (float) $branch['longitude'] : null,
                 'google_location_url' => $branch['google_location_url'] ?: null,
             ];
+            // A workbook the site exported names each branch by the id and slug
+            // it holds there. That is what the import matches on, so two
+            // branches sharing a name still land on the two rows they came from.
+            $branchesByFacility[$key][] = $row + $this->identity($branch) + $this->timestamps($branch);
         }
 
-        // Managers hang off their facility by name, exactly as branches do.
+        // Managers hang off their facility the same way branches do.
         $managersByFacility = [];
         foreach ($managerRows as $manager) {
-            $key = mb_strtolower(trim($manager['facility_name'] ?? ''));
+            $key = $this->facilityKey($manager);
             $name = trim($manager['name'] ?? '');
             if ($key === '' || $name === '') {
                 continue;
@@ -75,7 +84,39 @@ class XlsxToMigrationZip
                 'name' => $name,
                 'position' => $manager['position'] ?: null,
                 'phones' => $this->phoneList($manager['phones'] ?? null),
-            ];
+            ] + $this->identity($manager);
+        }
+
+        // Offers belong either to the facility or to one of its branches; the
+        // branch slug column is what says which.
+        $offersByFacility = [];
+        $offersByBranch = [];
+        foreach ($offerRows as $offer) {
+            $facilityKey = mb_strtolower(trim($offer['facility_slug'] ?? ''));
+            $branchKey = mb_strtolower(trim($offer['branch_slug'] ?? ''));
+            if ($facilityKey === '' && $branchKey === '') {
+                continue;
+            }
+            $row = [
+                'title' => $this->localeMap($offer['title'] ?? null, $offer['title_ar'] ?? null),
+                'short_description' => $this->localeMap(
+                    $offer['short_description'] ?? null,
+                    $offer['short_description_ar'] ?? null
+                ),
+                'full_description' => $this->localeMap(
+                    $offer['full_description'] ?? null,
+                    $offer['full_description_ar'] ?? null
+                ),
+                'phone' => $offer['phone'] ?: null,
+                'price' => is_numeric($offer['price'] ?? '') ? (float) $offer['price'] : null,
+                'old_price' => is_numeric($offer['old_price'] ?? '') ? (float) $offer['old_price'] : null,
+            ] + $this->identity($offer) + $this->timestamps($offer);
+
+            if ($branchKey !== '') {
+                $offersByBranch[$branchKey][] = $row;
+            } else {
+                $offersByFacility[$facilityKey][] = $row;
+            }
         }
 
         $facilities = [];
@@ -84,14 +125,23 @@ class XlsxToMigrationZip
             $nameAr = $row['name_ar'] ?? '';
             $slug = $row['slug'] ?: \Illuminate\Support\Str::slug($nameEn);
 
-            $facilityKey = mb_strtolower(trim($nameEn));
+            // The rows underneath find their facility by slug when the sheet
+            // carries one on both sides — two facilities can share an English
+            // name, and a site export always writes the slug — and fall back to
+            // the name a hand-typed sheet ties them together with.
+            $slugKey = mb_strtolower(trim((string) ($row['slug'] ?? '')));
+            $nameKey = mb_strtolower(trim($nameEn));
+            $facilityKey = isset($branchesByFacility[$slugKey])
+                || isset($managersByFacility[$slugKey])
+                ? $slugKey
+                : $nameKey;
+
             $facility = [
                 'slug' => $slug,
                 'name' => [
                     'en' => $nameEn ?: null,
                     'ar' => $nameAr ?: null,
                 ],
-                'description' => [],
                 'facility_type' => $this->nameRef($row['facility_type'] ?? null),
                 'branches' => $branchesByFacility[$facilityKey] ?? [],
             ];
@@ -108,27 +158,97 @@ class XlsxToMigrationZip
                 $facility['discount_percent'] = $this->percent($row['discount_percent'] ?? null);
             }
 
+            // The columns a site export adds, each under the same rule: present
+            // in the sheet, present in the payload — and nowhere else, so a
+            // template that never mentions a facility's description cannot
+            // erase the one the other site wrote.
+            if (in_array('id', $facilityColumns, true) && ctype_digit((string) ($row['id'] ?? ''))) {
+                $facility['id'] = (int) $row['id'];
+            }
+            foreach ([
+                'description' => ['description', 'description_ar'],
+                'meta_title' => ['meta_title', 'meta_title_ar'],
+                'meta_description' => ['meta_description', 'meta_description_ar'],
+                'meta_keywords' => ['meta_keywords', 'meta_keywords_ar'],
+            ] as $field => [$en, $ar]) {
+                if (in_array($en, $facilityColumns, true) || in_array($ar, $facilityColumns, true)) {
+                    $facility[$field] = $this->localeMap($row[$en] ?? null, $row[$ar] ?? null);
+                }
+            }
+            foreach (['governorate', 'city'] as $place) {
+                if (in_array($place, $facilityColumns, true)) {
+                    $facility[$place] = $this->nameRef($row[$place] ?? null);
+                }
+            }
+            if (in_array('canonical_url', $facilityColumns, true)) {
+                $facility['canonical_url'] = $row['canonical_url'] ?: null;
+            }
+            if (in_array('tags', $facilityColumns, true)) {
+                $facility['tags'] = $this->tagList($row['tags'] ?? null);
+            }
+            foreach (['created_at', 'updated_at'] as $stamp) {
+                if (in_array($stamp, $facilityColumns, true) && ($row[$stamp] ?? '') !== '') {
+                    $facility[$stamp] = $row[$stamp];
+                }
+            }
+
             // Same rule as the columns above: a workbook with no Managers sheet
             // is not saying "this facility has none".
             if ($hasManagerSheet) {
                 $facility['managers'] = $managersByFacility[$facilityKey] ?? [];
             }
 
+            if ($hasOfferSheet) {
+                $facility['offers'] = $offersByFacility[$slugKey] ?? [];
+                foreach ($facility['branches'] as $i => $branch) {
+                    $branchKey = mb_strtolower(trim((string) ($branch['slug'] ?? '')));
+                    $facility['branches'][$i]['offers'] = $branchKey === ''
+                        ? []
+                        : ($offersByBranch[$branchKey] ?? []);
+                }
+            }
+
             $facilities[] = $facility;
         }
+
+        // A workbook the Export tab wrote says so on its Package sheet, and is
+        // treated as the site package it is: the import screen then matches
+        // rows by the slugs in it instead of asking somebody to tell same-named
+        // branches apart by hand.
+        $isSiteExport = ($package['origin'] ?? null) === FacilityMigrationExporter::ORIGIN_SITE_EXPORT;
 
         $payload = [
             'format' => 'ibusiness-medical/facility-migration',
             'format_version' => 1,
-            'generated_at' => now()->toIso8601String(),
-            'source' => [
-                'label' => 'Spreadsheet import',
-                'site_url' => config('app.url'),
+            'origin' => $isSiteExport ? FacilityMigrationExporter::ORIGIN_SITE_EXPORT : null,
+            'generated_at' => $package['generated at'] ?? now()->toIso8601String(),
+            'options' => [
+                // A workbook never carries image bytes, so the importing site
+                // keeps the pictures it has: no media row is named anywhere in
+                // this payload, and a collection is only ever cleared to be
+                // refilled.
+                'include_media_files' => false,
+                'include_branches' => $hasBranchSheet,
+                'include_managers' => $hasManagerSheet,
+                'include_offers' => $hasOfferSheet,
             ],
+            'source' => $isSiteExport
+                ? [
+                    'app_name' => $package['source site'] ?? null,
+                    'app_url' => $package['source url'] ?? null,
+                ]
+                : [
+                    'label' => 'Spreadsheet import',
+                    'site_url' => config('app.url'),
+                ],
             'lookups' => [
                 'facility_types' => $this->getFacilityTypes(),
                 'governorates' => $this->getGovernorates(),
-                'cities' => $this->getCities(),
+                // The source site's cities first: a city this site does not have
+                // yet can only be created under the right governorate if the
+                // package says which one that is, and the rows below know only
+                // about the places this site already holds.
+                'cities' => array_merge($sourceLookups['cities'], $this->getCities()),
                 'sales' => $this->getSales(),
                 'tags' => [],
             ],
@@ -137,6 +257,9 @@ class XlsxToMigrationZip
                 'facilities' => count($facilities),
                 'branches' => count($branchRows),
                 'managers' => count($managerRows),
+                'offers' => count($offerRows),
+                'media' => 0,
+                'media_restorable' => 0,
             ],
         ];
 
@@ -274,6 +397,9 @@ class XlsxToMigrationZip
     {
         $sheet = $spreadsheet->getSheetByName('Facilities') ?? $spreadsheet->getActiveSheet();
 
+        // Everything from `id` down is written by the site export and simply
+        // absent from a hand-typed sheet — which is why every one of them is
+        // carried only when its column is actually there.
         return $this->extractRows($sheet, [
             'name' => ['name'],
             'name_ar' => ['name (ar)', 'name_ar', 'arabic name'],
@@ -284,6 +410,21 @@ class XlsxToMigrationZip
                 'discount', 'discount %', 'discount percent', 'discount_percent',
                 'discount percentage', 'خصم',
             ],
+            'id' => ['id'],
+            'governorate' => ['governorate'],
+            'city' => ['city'],
+            'description' => ['description'],
+            'description_ar' => ['description (ar)', 'description_ar'],
+            'meta_title' => ['meta title', 'meta_title'],
+            'meta_title_ar' => ['meta title (ar)', 'meta_title_ar'],
+            'meta_description' => ['meta description', 'meta_description'],
+            'meta_description_ar' => ['meta description (ar)', 'meta_description_ar'],
+            'meta_keywords' => ['meta keywords', 'meta_keywords'],
+            'meta_keywords_ar' => ['meta keywords (ar)', 'meta_keywords_ar'],
+            'canonical_url' => ['canonical url', 'canonical_url'],
+            'tags' => ['tags', 'tag'],
+            'created_at' => ['created at', 'created_at'],
+            'updated_at' => ['updated at', 'updated_at'],
         ], $present);
     }
 
@@ -295,11 +436,109 @@ class XlsxToMigrationZip
         }
 
         return $this->extractRows($sheet, [
+            'facility_slug' => ['facility slug', 'facility_slug'],
             'facility_name' => ['facility name', 'facility'],
+            'id' => ['id'],
             'name' => ['manager name', 'name', 'المسؤول'],
             'position' => ['position', 'title', 'role', 'job title', 'الوظيفة'],
             'phones' => ['phones', 'phone', 'mobile', 'telephone', 'الهاتف'],
         ]);
+    }
+
+    /**
+     * The offers sheet a site export writes. A hand-typed workbook has none, and
+     * then the facilities keep whatever offers the target site already holds.
+     */
+    private function parseOfferSheet($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName('Offers');
+        if (! $sheet) {
+            return [];
+        }
+
+        return $this->extractRows($sheet, [
+            'facility_slug' => ['facility slug', 'facility_slug'],
+            'branch_slug' => ['branch slug', 'branch_slug'],
+            'id' => ['id'],
+            'slug' => ['offer slug', 'offer_slug', 'slug'],
+            'title' => ['title'],
+            'title_ar' => ['title (ar)', 'title_ar'],
+            'short_description' => ['short description', 'short_description'],
+            'short_description_ar' => ['short description (ar)', 'short_description_ar'],
+            'full_description' => ['full description', 'full_description'],
+            'full_description_ar' => ['full description (ar)', 'full_description_ar'],
+            'phone' => ['phone', 'phones'],
+            'price' => ['price'],
+            'old_price' => ['old price', 'old_price'],
+            'created_at' => ['created at', 'created_at'],
+            'updated_at' => ['updated at', 'updated_at'],
+        ]);
+    }
+
+    /**
+     * The reference rows a site export ships alongside its sheets.
+     *
+     * Only the city rows carry anything the rest of the workbook cannot say:
+     * the governorate each city belongs to. Without it, a branch naming a city
+     * but no governorate loses that city on any site that does not already
+     * have it — there is nothing to attach a new row to.
+     *
+     * @return array{cities: array<int, array<string, mixed>>}
+     */
+    private function parseLookupSheet($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName(FacilityMigrationWorkbook::LOOKUPS_SHEET);
+        if (! $sheet) {
+            return ['cities' => []];
+        }
+
+        $cities = [];
+        foreach ($this->extractRows($sheet, [
+            'kind' => ['kind'],
+            'slug' => ['slug'],
+            'name' => ['name'],
+            'name_ar' => ['name (ar)', 'name_ar'],
+            'governorate_slug' => ['governorate slug', 'governorate_slug'],
+            'governorate' => ['governorate'],
+        ]) as $row) {
+            if (mb_strtolower(trim($row['kind'] ?? '')) !== 'city' || trim($row['slug'] ?? '') === '') {
+                continue;
+            }
+
+            $cities[] = [
+                'slug' => trim($row['slug']),
+                'name' => $this->localeMap($row['name'] ?? null, $row['name_ar'] ?? null),
+                'governorate_slug' => trim($row['governorate_slug'] ?? '') ?: null,
+            ];
+        }
+
+        return ['cities' => $cities];
+    }
+
+    /**
+     * What the workbook says about itself, off the sheet the exporter writes.
+     * A hand-typed sheet has none, and stays a spreadsheet as far as the rest
+     * of the import is concerned.
+     *
+     * @return array<string, string>
+     */
+    private function parsePackageSheet($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName(FacilityMigrationWorkbook::PACKAGE_SHEET);
+        if (! $sheet) {
+            return [];
+        }
+
+        $out = [];
+        for ($row = 1, $last = min($sheet->getHighestDataRow(), 60); $row <= $last; $row++) {
+            $label = $this->headerKey((string) $sheet->getCell("A{$row}")->getValue());
+            $value = trim((string) $sheet->getCell("B{$row}")->getValue());
+            if ($label !== '' && $value !== '') {
+                $out[$label] = $value;
+            }
+        }
+
+        return $out;
     }
 
     private function parseBranchSheet($spreadsheet): array
@@ -310,7 +549,10 @@ class XlsxToMigrationZip
         }
 
         return $this->extractRows($sheet, [
+            'facility_slug' => ['facility slug', 'facility_slug'],
             'facility_name' => ['facility name', 'facility'],
+            'id' => ['id'],
+            'slug' => ['branch slug', 'branch_slug'],
             'name' => ['branch name', 'name'],
             'name_ar' => ['branch name (ar)', 'name_ar', 'arabic name'],
             'address' => ['address'],
@@ -478,5 +720,96 @@ class XlsxToMigrationZip
             // named here before falling back to the branch's own.
             'governorate_slug' => $governorateSlugs[$c->governorate_id] ?? null,
         ])->toArray();
+    }
+
+    /**
+     * Which facility a branch, manager or offer row belongs to. The slug is the
+     * answer whenever the sheet carries one — names repeat, slugs do not — and
+     * the facility name is the fallback a hand-typed sheet ties rows with.
+     *
+     * @param  array<string, string>  $row
+     */
+    private function facilityKey(array $row): string
+    {
+        $slug = mb_strtolower(trim($row['facility_slug'] ?? ''));
+
+        return $slug !== '' ? $slug : mb_strtolower(trim($row['facility_name'] ?? ''));
+    }
+
+    /**
+     * The id and slug a site export writes for a row, so the import updates the
+     * row it came from rather than guessing from its name. A hand-typed sheet
+     * has neither, and nothing is added.
+     *
+     * @param  array<string, string>  $row
+     * @return array<string, mixed>
+     */
+    private function identity(array $row): array
+    {
+        $out = [];
+
+        if (ctype_digit((string) ($row['id'] ?? ''))) {
+            $out['id'] = (int) $row['id'];
+        }
+        if (trim((string) ($row['slug'] ?? '')) !== '') {
+            $out['slug'] = trim($row['slug']);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     * @return array<string, string>
+     */
+    private function timestamps(array $row): array
+    {
+        $out = [];
+        foreach (['created_at', 'updated_at'] as $key) {
+            if (trim((string) ($row[$key] ?? '')) !== '') {
+                $out[$key] = trim($row[$key]);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * The two language columns of one translatable field, as the locale map the
+     * importer reads. An empty pair stays an empty map, which is how the
+     * importer is told the field has no value rather than no column.
+     *
+     * @return array<string, string>
+     */
+    private function localeMap(?string $en, ?string $ar): array
+    {
+        $out = [];
+        $en = trim((string) $en);
+        $ar = trim((string) $ar);
+
+        if ($en !== '') {
+            $out['en'] = $en;
+        }
+        if ($ar !== '') {
+            $out['ar'] = $ar;
+        }
+
+        return $out;
+    }
+
+    /**
+     * One cell of comma-separated tag names, as the rows the importer links.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function tagList(?string $value): array
+    {
+        return collect(preg_split('/\R+|[,;|]/u', (string) $value) ?: [])
+            ->map(fn ($tag) => trim($tag))
+            ->filter()
+            ->unique()
+            ->map(fn ($tag) => ['name' => $tag])
+            ->values()
+            ->all();
     }
 }

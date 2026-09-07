@@ -150,9 +150,11 @@ final class PhoneNumbers
      * What kind of line a number looks like, for values that arrive without a
      * type: rows written before types existed, and every spreadsheet import.
      *
-     * Egyptian mobiles are 11 digits starting 01 (or the same with a country
-     * code); anything else is taken for a landline. It is a starting point an
-     * admin can correct in the form, not a fact about the number.
+     * Three shapes, told apart by how many digits they have: an Egyptian mobile
+     * is 11 digits starting 01 (or the same with a country code), a landline is
+     * 10, and anything shorter is a hotline — 16064 and 19011 are dialled as
+     * they stand and belong to no area code. It is a starting point an admin
+     * can correct in the form, not a fact about the number.
      */
     public static function guessType(string $number): string
     {
@@ -161,9 +163,20 @@ final class PhoneNumbers
         // Drop a leading 20 / 0020 country code before measuring.
         $digits = preg_replace('/^(?:00)?20/', '0', $digits) ?? $digits;
 
-        return strlen($digits) === 11 && str_starts_with($digits, '01')
-            ? FacilityBranch::PHONE_MOBILE
-            : FacilityBranch::PHONE_LANDLINE;
+        // A number beginning "01" is a mobile whatever length it came in at —
+        // the same rule PhoneRepair reads it by, so the two can never disagree.
+        // One with a digit too many or too few is a broken mobile, not a
+        // landline, and the phone-fix page is where it gets straightened out.
+        if (str_starts_with($digits, '01')) {
+            return FacilityBranch::PHONE_MOBILE;
+        }
+
+        // Too short to be a line with an area code in front of it.
+        if ($digits !== '' && strlen($digits) < PhoneRepair::LANDLINE_LENGTH) {
+            return FacilityBranch::PHONE_HOTLINE;
+        }
+
+        return FacilityBranch::PHONE_LANDLINE;
     }
 
     /**

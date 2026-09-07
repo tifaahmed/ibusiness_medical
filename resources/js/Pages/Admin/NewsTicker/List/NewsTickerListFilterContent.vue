@@ -12,21 +12,21 @@
       </div>
     </div>
     <div class="flex items-center gap-2 w-full sm:w-auto">
-      <select
-        :value="localFilters.is_active"
-        @change="handleActiveChange"
-        class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] w-full sm:w-auto cursor-pointer"
-      >
-        <option value="">{{ t.common?.all_status || 'All Status' }}</option>
-        <option value="1">{{ t.common?.active || 'Active' }}</option>
-        <option value="0">{{ t.common?.inactive || 'Inactive' }}</option>
-      </select>
+      <div class="w-full sm:w-44">
+        <Select
+          :model-value="localFilters.is_active"
+          :options="statusOptions"
+          :placeholder="t.common?.all_status || 'All Status'"
+          @update:model-value="handleActiveChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -49,7 +49,9 @@ const emit = defineEmits(['filter-change']);
 const localFilters = ref({ ...props.initialFilters });
 
 const handleCategoryChange = (e) => {
-  localFilters.value.category = e.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const eValue = e?.target?.value ?? e;
+  localFilters.value.category = eValue;
   debouncedCategory();
 };
 
@@ -61,8 +63,15 @@ const debouncedCategory = () => {
   }, 400);
 };
 
+const statusOptions = computed(() => [
+  { value: '1', label: t.value.common?.active || 'Active' },
+  { value: '0', label: t.value.common?.inactive || 'Inactive' },
+]);
+
 const handleActiveChange = (e) => {
-  localFilters.value.is_active = e.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const eValue = e?.target?.value ?? e;
+  localFilters.value.is_active = eValue;
   applyFilters();
 };
 

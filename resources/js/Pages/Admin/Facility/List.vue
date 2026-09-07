@@ -1,5 +1,5 @@
 <template>
-  <FacilityListView :facilities="facilities" :filters="filters" :facility-types="facilityTypes" :governorates="governorates" :cities="cities" :sales-options="salesOptions" />
+  <FacilityListView :facilities="facilities" :filters="filters" :facility-types="facilityTypes" :governorates="governorates" :cities="cities" :sales-options="salesOptions" :incomplete-counts="incompleteCounts" />
 </template>
 
 <script setup>
@@ -35,6 +35,10 @@ const props = defineProps({
   salesOptions: {
     type: Array,
     default: () => []
+  },
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ governorate: 0, city: 0, either: 0 })
   }
 });
 </script>

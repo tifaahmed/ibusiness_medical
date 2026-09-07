@@ -33,6 +33,13 @@ class FacilityBranch extends Model
     public const PHONE_MOBILE_WHATSAPP = 'phone_whatsapp';
 
     /**
+     * A short national number — 16064, 19011 — that belongs to no area code and
+     * is dialled as it stands. Shorter than a landline, which is what tells the
+     * two apart.
+     */
+    public const PHONE_HOTLINE = 'hotline';
+
+    /**
      * The types a phone entry may declare, in the order the form offers them.
      *
      * @var array<int, string>
@@ -42,6 +49,7 @@ class FacilityBranch extends Model
         self::PHONE_MOBILE,
         self::PHONE_WHATSAPP,
         self::PHONE_MOBILE_WHATSAPP,
+        self::PHONE_HOTLINE,
     ];
 
     /**

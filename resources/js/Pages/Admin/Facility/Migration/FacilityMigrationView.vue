@@ -45,7 +45,11 @@
         <div>
           <h2 class="text-lg font-semibold">Build a migration package</h2>
           <p class="text-sm text-muted-foreground mt-1">
-            Produces a .zip holding the data and the image files. Import it on the other site.
+            Produces a file the <button type="button" class="underline font-medium" @click="activeTab = 'import'">Import</button>
+            tab reads directly — here or on another site running this codebase: a
+            <strong>.zip</strong> when the images travel with it, a single <strong>.xlsx</strong>
+            when they do not. Rows carry the id and slug they have here, so a package imported back
+            onto this site updates the very rows it came from rather than duplicating them.
           </p>
         </div>
 
@@ -56,24 +60,27 @@
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Facility type</span>
-            <select v-model="exportFilters.facility_type_id" :class="inputCls">
-              <option value="">All types</option>
-              <option v-for="o in facilityTypes" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
+            <Select
+              v-model="exportFilters.facility_type_id"
+              :options="allTypesOptions"
+              placeholder="All types"
+            />
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Governorate</span>
-            <select v-model="exportFilters.governorate_id" :class="inputCls">
-              <option value="">All governorates</option>
-              <option v-for="o in governorates" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
+            <Select
+              v-model="exportFilters.governorate_id"
+              :options="allGovernoratesOptions"
+              placeholder="All governorates"
+            />
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Sales rep</span>
-            <select v-model="exportFilters.sales_id" :class="inputCls">
-              <option value="">All</option>
-              <option v-for="o in salesOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
+            <Select
+              v-model="exportFilters.sales_id"
+              :options="allSalesOptions"
+              placeholder="All"
+            />
           </label>
           <label class="space-y-1">
             <span class="text-xs font-medium text-muted-foreground">Created from</span>
@@ -85,14 +92,58 @@
           </label>
         </div>
 
+        <!-- Images are the one choice with a consequence on the far side rather
+             than just a size: a package is only allowed to name the pictures it
+             actually carries, so a data-only one leaves the other site's images
+             alone instead of clearing them. Spelled out as two options rather
+             than a checkbox, because that is the sentence that matters. -->
+        <div class="rounded-lg border border-border p-4 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Images</p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <label
+              class="flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors"
+              :class="includeMedia ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'"
+            >
+              <input type="radio" class="mt-0.5" :value="true" v-model="includeMedia" />
+              <span class="space-y-0.5">
+                <span class="block text-sm font-medium">With images — a .zip</span>
+                <span class="block text-xs text-muted-foreground">
+                  Logos, covers, gallery and contract files travel inside the archive alongside the
+                  data. The other site restores them itself — nothing to copy by hand. Much larger
+                  download.
+                </span>
+              </span>
+            </label>
+            <label
+              class="flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors"
+              :class="!includeMedia ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'"
+            >
+              <input type="radio" class="mt-0.5" :value="false" v-model="includeMedia" />
+              <span class="space-y-0.5">
+                <span class="block text-sm font-medium">No images — an Excel file</span>
+                <span class="block text-xs text-muted-foreground">
+                  One .xlsx you can open and edit: Facilities, Branches, Managers and Offers, every
+                  language in its own column. No zip, no JSON. Importing it leaves whatever pictures
+                  the other site already holds exactly as they are.
+                </span>
+              </span>
+            </label>
+          </div>
+          <p v-if="includeMedia && summary.media" class="text-xs text-muted-foreground">
+            Only images whose file is still on this server are put in the package — an image the
+            package cannot carry is never named in it, so importing can never blank a picture it
+            has nothing to put back.
+          </p>
+          <p v-else-if="!includeMedia" class="text-xs text-muted-foreground">
+            The workbook keeps the slug and id of every row, so the Import tab reads it as a package
+            from this site rather than a hand-typed sheet: rows go back to the facilities and
+            branches they came from, even where two branches share a name.
+          </p>
+        </div>
+
         <div class="rounded-lg border border-border p-4 space-y-3">
           <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">What goes in the package</p>
           <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" v-model="includeMedia" />
-              Include image files
-              <span class="text-xs text-muted-foreground">(off = data only, much smaller)</span>
-            </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="includeBranches" />
               Include branches
@@ -146,7 +197,9 @@
           <button type="button" @click="loadPlan" :disabled="planLoading" :class="btnSecondary">
             {{ planLoading ? 'Counting…' : 'Check what matches' }}
           </button>
-          <a v-if="!splitParts" :href="exportUrl()" :class="btnPrimary" @click="noteExport">Download package</a>
+          <a v-if="!splitParts" :href="exportUrl()" :class="btnPrimary" @click="noteExport">
+            {{ includeMedia ? 'Download .zip package' : 'Download Excel file' }}
+          </a>
         </div>
 
         <div v-if="plan" class="rounded-lg border border-border p-4 space-y-3">
@@ -187,9 +240,11 @@
         <div>
           <h2 class="text-lg font-semibold">Restore a migration package</h2>
           <p class="text-sm text-muted-foreground mt-1">
-            Upload a .zip built by the other site — or, if it is too big to upload, drop it into
+            Upload what the Export tab produced — the .zip with the images, or the .xlsx without
+            them — or, if it is too big to upload, drop it into
             <code class="px-1 rounded bg-muted">storage/app/facility-migration/</code> over FTP and
-            give the filename below.
+            give the filename below. A workbook filled in by hand from the templates below is read
+            just as well.
           </p>
         </div>
 
@@ -299,10 +354,13 @@
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label class="space-y-1">
               <span class="text-xs font-medium text-muted-foreground">Mode</span>
-              <select v-model="importMode" :class="inputCls">
-                <option value="merge">Merge — update by slug, insert what is missing</option>
-                <option value="fresh">Fresh — delete everything first</option>
-              </select>
+          <Select
+            v-model="importMode"
+            :options="[
+              { value: 'merge', label: 'Merge — update by slug, insert what is missing' },
+              { value: 'fresh', label: 'Fresh — delete everything first' },
+            ]"
+          />
             </label>
             <label class="space-y-1">
               <span class="text-xs font-medium text-muted-foreground">Facilities per step</span>
@@ -375,6 +433,28 @@
 
         <!-- Step 1.5: preview / edit -->
         <div v-if="importStep === 'preview'" class="space-y-4">
+          <!-- What kind of package this is, because it changes what the screen
+               asks of the operator: a site export identifies every row by its
+               own slug, so same-named branches and blank governorates are facts
+               to carry across rather than problems to fix by hand. -->
+          <div
+            v-if="packageIsNative"
+            class="rounded-xl border border-sky-500/40 bg-sky-500/10 p-3 text-xs text-foreground"
+          >
+            <strong>Site package</strong> from
+            {{ previewData.source?.app_url || previewData.source?.app_name || 'another site' }}. Every
+            facility and branch is matched by the slug it carries, so branches sharing a name stay
+            apart on their own and a missing city or governorate is imported as-is.
+            <template v-if="previewData.package_options">
+              <template v-if="previewData.package_options.include_media_files">
+                Images travel inside this package and replace the ones here.
+              </template>
+              <template v-else>
+                Built <strong>without images</strong> — whatever pictures this site already holds are
+                left untouched.
+              </template>
+            </template>
+          </div>
           <div class="bg-card border border-border rounded-xl p-4 flex flex-wrap items-center gap-4">
             <div class="space-y-1">
               <p class="text-sm font-medium">
@@ -671,7 +751,18 @@
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.branches || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.managers || []).length }}</td>
                     <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.offers || []).length }}</td>
-                    <td class="px-2 py-1 text-center text-muted-foreground">{{ (facility.media || []).length }}</td>
+                    <td class="px-2 py-1 text-center">
+                      <button
+                        v-if="(facility.media || []).length"
+                        type="button"
+                        @click="facility._showMedia = !facility._showMedia"
+                        :class="['rounded px-1.5 py-0.5 text-[10px] font-semibold', mediaBadgeCls(facility)]"
+                        :title="bundledMedia(facility).length + ' of ' + facility.media.length + ' image files are in this package'"
+                      >
+                        {{ (facility.media || []).length }} img
+                      </button>
+                      <span v-else class="text-muted-foreground">0</span>
+                    </td>
                     <td class="px-2 py-1 text-center sticky right-0 z-[5] bg-card">
                       <button
                         type="button"
@@ -698,7 +789,7 @@
                           <!-- The same fix as the per-row button, applied to every branch
                                that needs it. Only shown when there is something to fix. -->
                           <button
-                            v-if="facilityRepeatedBranches(facility).length"
+                            v-if="!packageIsNative && facilityRepeatedBranches(facility).length"
                             type="button"
                             @click="fixRepeatedBranchNames(facility)"
                             class="ml-auto rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-600"
@@ -708,7 +799,7 @@
                           <span
                             class="px-1.5 py-0.5 rounded text-[10px]"
                             :class="[
-                              facilityRepeatedBranches(facility).length ? '' : 'ml-auto',
+                              !packageIsNative && facilityRepeatedBranches(facility).length ? '' : 'ml-auto',
                               facilityBranchIssues(facility).length ? 'bg-red-700' : 'bg-emerald-700',
                             ]"
                           >
@@ -740,8 +831,15 @@
                             <tr
                               v-for="(br, bi) in facility.branches"
                               :key="bi"
-                              class="border-t border-border align-top"
-                              :class="branchIssues(br).length ? 'bg-red-500/5' : ''"
+                              :data-issue-row="`${facility._index}:b${bi}`"
+                              class="border-t border-border align-top scroll-mt-24"
+                              :class="[
+                                branchIssues(br).length ? 'bg-red-500/5' : '',
+                                highlightedRow === `${facility._index}:b${bi}`
+                                  ? 'ring-2 ring-inset ring-destructive bg-destructive/10'
+                                  : '',
+                              ]"
+                              @click="clearHighlight(`${facility._index}:b${bi}`)"
                             >
                               <td class="px-3 py-1">
                                 <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', branchStateCls(facility, br)]">
@@ -772,7 +870,7 @@
                                      genuinely ambiguous — and a flag that just stayed on
                                      would look like a check that had missed the edit. -->
                                 <p
-                                  v-if="branchNameRepeated(facility, br)"
+                                  v-if="!packageIsNative && branchNameRepeated(facility, br)"
                                   class="mt-0.5 text-[10px] leading-tight text-amber-600 dark:text-amber-400"
                                 >
                                   {{ repeatedLocaleLabel(facility, br) }} name is shared by
@@ -790,10 +888,17 @@
                                   — importing updates it instead of creating a new branch.
                                 </p>
                                 <p
-                                  v-if="!branchNameAmbiguous(facility, br)"
+                                  v-if="!packageIsNative && !branchNameAmbiguous(facility, br)"
                                   class="mt-0.5 text-[10px] leading-tight text-emerald-600 dark:text-emerald-400"
                                 >
                                   Name is unique — here and among the branches already on this site.
+                                </p>
+                                <p
+                                  v-else-if="packageIsNative && !br._existing && branchNameRepeated(facility, br)"
+                                  class="mt-0.5 text-[10px] leading-tight text-muted-foreground"
+                                >
+                                  Shares a name with another branch in this package — matched by its own
+                                  slug “{{ br.slug }}”, so the rows stay apart.
                                 </p>
 
                                 <!-- Always here, so the city can be pasted onto any name;
@@ -1030,6 +1135,92 @@
                   </tr>
 
                   <!-- Managers sub-table -->
+                  <!-- Images sub-table -->
+                  <tr v-if="facility._showMedia && (facility.media || []).length" class="border-b border-border">
+                    <td :colspan="12" class="p-0">
+                      <div class="bg-muted/20 px-3 py-3 space-y-2">
+                        <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                          <span class="font-semibold uppercase tracking-wide text-muted-foreground">
+                            Images in this package
+                          </span>
+                          <span class="rounded bg-emerald-700 px-1.5 py-0.5 font-semibold text-white">
+                            {{ bundledMedia(facility).length }} with a file
+                          </span>
+                          <span v-if="unbundledMedia(facility).length" class="rounded bg-red-700 px-1.5 py-0.5 font-semibold text-white">
+                            {{ unbundledMedia(facility).length }} with no file
+                          </span>
+                          <span class="text-muted-foreground">
+                            Importing replaces whatever this site holds in each collection named here.
+                          </span>
+                          <button
+                            v-if="unbundledMedia(facility).length"
+                            type="button"
+                            @click="dropUnbundled(facility)"
+                            class="ml-auto rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-600"
+                          >
+                            Drop the {{ unbundledMedia(facility).length }} with no file
+                          </button>
+                        </div>
+
+                        <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));">
+                          <div
+                            v-for="(img, mi) in facility.media"
+                            :key="img.uuid || img.id || mi"
+                            class="rounded-lg border p-2 space-y-1.5"
+                            :class="img._bundled ? 'border-border bg-card' : 'border-red-500/50 bg-red-500/10'"
+                          >
+                            <!-- Straight out of the open session's extraction: the
+                                 picture has no model and no disk yet, so this is
+                                 the only place it can be looked at. -->
+                            <a
+                              v-if="img._bundled && isViewableImage(img)"
+                              :href="mediaUrl(img)"
+                              target="_blank"
+                              rel="noopener"
+                              class="block"
+                            >
+                              <img
+                                :src="mediaUrl(img)"
+                                :alt="img.file_name"
+                                loading="lazy"
+                                class="h-24 w-full rounded border border-border bg-muted object-contain"
+                              />
+                            </a>
+                            <div
+                              v-else
+                              class="flex h-24 w-full items-center justify-center rounded border border-border bg-muted text-[10px] text-muted-foreground text-center px-2"
+                            >
+                              <span v-if="!img._bundled">no file in this package</span>
+                              <a v-else :href="mediaUrl(img)" target="_blank" rel="noopener" class="underline">
+                                {{ (img.mime_type || 'file').split('/').pop().toUpperCase() }} — open
+                              </a>
+                            </div>
+
+                            <div title="Which collection this picture is imported into">
+                              <Select
+                                :model-value="img.collection_name"
+                                :options="mediaCollectionOptions(img)"
+                                @update:model-value="img.collection_name = $event"
+                              />
+                            </div>
+
+                            <p class="truncate text-[10px] text-muted-foreground" :title="img.file_name">
+                              {{ img.file_name }}
+                            </p>
+                            <div class="flex items-center gap-2 text-[10px]">
+                              <span class="text-muted-foreground">{{ readableSize(img.size) }}</span>
+                              <button
+                                type="button"
+                                @click="facility.media.splice(mi, 1)"
+                                class="ml-auto text-destructive hover:underline"
+                              >remove</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
                   <tr v-if="facility._showManagers && ((facility.managers || []).length || missingManagers(facility).length)" class="border-b border-border">
                     <td colspan="12" class="p-3">
                       <div class="bg-card border border-sky-500 rounded-md overflow-hidden">
@@ -1062,8 +1253,15 @@
                             <tr
                               v-for="(mg, mi) in facility.managers"
                               :key="mi"
-                              class="border-t border-border align-top"
-                              :class="managerIssues(mg).length ? 'bg-red-500/5' : ''"
+                              :data-issue-row="`${facility._index}:m${mi}`"
+                              class="border-t border-border align-top scroll-mt-24"
+                              :class="[
+                                managerIssues(mg).length ? 'bg-red-500/5' : '',
+                                highlightedRow === `${facility._index}:m${mi}`
+                                  ? 'ring-2 ring-inset ring-destructive bg-destructive/10'
+                                  : '',
+                              ]"
+                              @click="clearHighlight(`${facility._index}:m${mi}`)"
                             >
                               <td class="px-3 py-1">
                                 <span :class="['mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold', rowStateCls(mg)]">
@@ -1161,29 +1359,185 @@
             </button>
           </div>
 
-          <div
-            v-if="hasBlockingIssues"
-            class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-1"
-          >
-            <p class="font-semibold text-destructive">
-              Fix {{ blockingIssues.length }} branch problem{{ blockingIssues.length === 1 ? '' : 's' }} before importing:
-            </p>
-            <ul class="list-disc pl-4 space-y-0.5 max-h-32 overflow-y-auto">
-              <li v-for="(issue, i) in blockingIssues.slice(0, 20)" :key="i">{{ issue }}</li>
-            </ul>
-            <p v-if="blockingIssues.length > 20" class="text-muted-foreground">
-              …and {{ blockingIssues.length - 20 }} more.
-            </p>
-          </div>
-
-          <div class="sticky bottom-0 z-10 bg-card border border-border rounded-lg p-3 flex flex-wrap items-center gap-3">
+          <div class="sticky bottom-0 z-20 bg-card border border-border rounded-lg p-3 flex flex-wrap items-center gap-3">
             <button type="button" @click="cancelPreview" :class="btnSecondary">Back</button>
+
+            <!-- Hours of review — cities picked, branches renamed, images
+                 dropped — used to die with the session. This writes it back out
+                 as a package, so the job can be put down and picked up later,
+                 or handed to somebody else, instead of being done again. -->
+            <div class="relative">
+              <button
+                type="button"
+                @click="saveOpen = !saveOpen"
+                :disabled="!previewData.token"
+                class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 h-9 text-sm font-medium hover:bg-muted disabled:opacity-50 cursor-pointer"
+                :aria-expanded="saveOpen"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Save progress
+                <span class="text-[10px] opacity-70">{{ saveOpen ? '▾' : '▸' }}</span>
+              </button>
+
+              <div
+                v-if="saveOpen"
+                class="absolute bottom-full left-0 mb-2 w-[min(26rem,90vw)] rounded-lg border border-border bg-card p-4 shadow-2xl space-y-3"
+              >
+                <div>
+                  <p class="text-sm font-semibold">Download the review so far</p>
+                  <p class="mt-0.5 text-[11px] text-muted-foreground">
+                    Every edit you have made on this screen, written out as a package. Import it
+                    later — here or on another site — and it picks up exactly where you left off.
+                  </p>
+                </div>
+
+                <div class="space-y-2 text-sm">
+                  <label class="flex cursor-pointer items-start gap-2">
+                    <input type="radio" class="mt-0.5" :value="true" v-model="saveWithMedia" />
+                    <span>
+                      <span class="block font-medium">With images — a .zip</span>
+                      <span class="block text-[11px] text-muted-foreground">
+                        Carries the picture files still in the package, the ones you dropped left out.
+                      </span>
+                    </span>
+                  </label>
+                  <label class="flex cursor-pointer items-start gap-2">
+                    <input type="radio" class="mt-0.5" :value="false" v-model="saveWithMedia" />
+                    <span>
+                      <span class="block font-medium">No images — an Excel file</span>
+                      <span class="block text-[11px] text-muted-foreground">
+                        One .xlsx you can read and correct. Importing it leaves existing pictures alone.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+                <div class="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-xs">
+                  <label class="flex cursor-pointer items-center gap-1.5">
+                    <input type="checkbox" v-model="saveBranches" /> Branches
+                  </label>
+                  <label class="flex cursor-pointer items-center gap-1.5">
+                    <input type="checkbox" v-model="saveManagers" /> Managers
+                  </label>
+                  <label class="flex cursor-pointer items-center gap-1.5">
+                    <input type="checkbox" v-model="saveOffers" /> Offers
+                  </label>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button type="button" @click="saveOpen = false" :class="btnSecondary">Cancel</button>
+                  <button
+                    type="button"
+                    @click="saveProgress"
+                    :disabled="savingProgress"
+                    class="ml-auto inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50 btn-golden cursor-pointer"
+                  >
+                    {{ savingProgress ? 'Saving your edits…' : 'Download' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div v-if="importError" class="text-xs text-destructive">{{ importError }}</div>
+
+            <!-- The problems, next to the button they are holding shut. Each one
+                 walks the operator to the row it is about rather than leaving
+                 them to find it in a table that pages 25 facilities at a time. -->
+            <div v-if="hasBlockingIssues" class="relative ml-auto">
+              <button
+                type="button"
+                @click="issuesOpen = !issuesOpen"
+                class="inline-flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 h-9 text-sm font-semibold text-destructive hover:bg-destructive/20 cursor-pointer"
+                :aria-expanded="issuesOpen"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                {{ blockingIssues.length }} problem{{ blockingIssues.length === 1 ? '' : 's' }} to fix
+                <span class="text-[10px] opacity-70">{{ issuesOpen ? '▾' : '▸' }}</span>
+              </button>
+
+              <!-- A whole-site package can list hundreds of these, so the panel
+                   is a proper pane rather than a dropdown: it opens over the
+                   page on its own opaque ground, wide enough to read a facility
+                   name and tall enough to work down a list. -->
+              <teleport to="body">
+                <div
+                  v-if="issuesOpen"
+                  class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center"
+                  @click.self="issuesOpen = false"
+                >
+                  <div class="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-destructive/50 bg-card shadow-2xl">
+                    <div class="flex items-start gap-3 border-b border-border bg-destructive/15 p-4">
+                      <div class="space-y-1">
+                        <p class="text-base font-semibold text-destructive">
+                          {{ blockingIssues.length }} problem{{ blockingIssues.length === 1 ? '' : 's' }}
+                          — the import is stopped until these are fixed
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          A branch has to say where it is. Press <strong>Go</strong> to jump straight
+                          to the row — the page turns, the branch list opens and the row is ringed in
+                          red so it is the one thing on screen you cannot miss.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        @click="issuesOpen = false"
+                        class="ml-auto shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    <div class="border-b border-border bg-muted/40 px-4 py-2">
+                      <input
+                        v-model="issueSearch"
+                        type="text"
+                        placeholder="Filter by facility or branch name…"
+                        class="h-8 w-full rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+                      />
+                    </div>
+
+                    <ul class="flex-1 divide-y divide-border overflow-y-auto">
+                      <li
+                        v-for="(issue, i) in visibleIssues"
+                        :key="`${issue.key}-${i}`"
+                        class="flex items-start gap-3 px-4 py-3 hover:bg-muted/50"
+                      >
+                        <div class="min-w-0 flex-1 space-y-0.5">
+                          <p class="truncate text-sm font-medium">{{ issue.label }}</p>
+                          <p class="text-xs font-medium text-destructive">{{ issue.text }}</p>
+                          <p class="truncate text-[11px] text-muted-foreground">{{ issue.row }}</p>
+                        </div>
+                        <button
+                          type="button"
+                          @click="goToIssue(issue)"
+                          class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-primary hover:text-primary-foreground cursor-pointer"
+                        >
+                          Go →
+                        </button>
+                      </li>
+                      <li v-if="!visibleIssues.length" class="px-4 py-6 text-center text-xs text-muted-foreground">
+                        Nothing matches “{{ issueSearch }}”.
+                      </li>
+                    </ul>
+
+                    <div class="border-t border-border bg-muted/40 px-4 py-2 text-[11px] text-muted-foreground">
+                      Showing {{ visibleIssues.length }} of {{ blockingIssues.length }}.
+                      Fixing a row removes it from this list.
+                    </div>
+                  </div>
+                </div>
+              </teleport>
+            </div>
+
             <button
               type="button"
               @click="startImportFromPreview"
               :disabled="busy || previewData.facilities.length === 0 || hasLookupIssues || hasBlockingIssues || (importMode === 'fresh' && !dryRun && !confirmWipe)"
-              class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-9 px-4 disabled:opacity-50 btn-golden cursor-pointer"
+              :title="hasBlockingIssues ? 'Fix the problems listed beside this button first' : ''"
+              :class="[
+                'inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-9 px-4 disabled:opacity-50 btn-golden cursor-pointer',
+                hasBlockingIssues ? '' : 'ml-auto',
+              ]"
             >
               {{ busy ? 'Saving edits…' : 'Start import' }}
             </button>
@@ -1283,6 +1637,7 @@
 import { Link } from '@inertiajs/vue3';
 import FacilityLayout from '../FacilityLayout.vue';
 import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
+import Select from '@/Components/ui/Select.vue';
 import ExistingValueHint from './ExistingValueHint.vue';
 import { oldValue } from './existingValue.js';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
@@ -1529,7 +1884,16 @@ const packageForm = (extra = {}) => {
 
 /* ----------------------------- preview / edit ----------------------------- */
 
-const previewData = ref({ token: null, facilities: [], source: {}, generated_at: '', counts: {} });
+const previewData = ref({ token: null, facilities: [], source: {}, generated_at: '', counts: {}, origin: null, package_options: null });
+
+/* A package built by another site's Export tab, as opposed to one converted from
+   a hand-written spreadsheet. Every row in it carries the id and slug it had on
+   the source site, so the import matches rows by those and never has to guess
+   from a name — which is why this screen stops demanding that two same-named
+   branches be told apart, and lets a place the package names be created on the
+   way in instead of blocking on it. A spreadsheet has none of that, so the
+   checks stay exactly as strict for one. */
+const packageIsNative = computed(() => previewData.value.origin === 'site-export');
 const previewPage = ref(0);
 const previewPageSize = 25;
 const totalPreviewPages = computed(() => Math.ceil(previewData.value.facilities.length / previewPageSize));
@@ -2137,6 +2501,11 @@ const branchIssues = (branch) => {
   if (!String(branch.name?.en || '').trim() && !String(branch.name?.ar || '').trim()) {
     issues.push('Branch has no name');
   }
+
+  /* Every branch has to say where it is, whoever wrote the file. A row that
+     names no governorate or city imports as a branch nobody can find on the
+     site, so the import stops on it and the panel by the Start button walks the
+     operator to each one. */
   if (branch._governorateChoice === '') {
     issues.push('No governorate');
   } else if (branch._governorateChoice === NEW_LOOKUP) {
@@ -2392,6 +2761,66 @@ const managerIssues = (manager) => {
   return issues;
 };
 
+/* ------------------------------- the images -------------------------------- */
+
+/* A package built with images carries the files themselves, and the preview is
+   the only moment they can be looked at: they have no model, no disk and no URL
+   until the import writes them, so the browser reads them straight out of the
+   open session's extraction. When the session ends they are gone with it. */
+const mediaUrl = (img) =>
+  `${route('admin.facility.migration.media')}?token=${encodeURIComponent(previewData.value.token)}`
+  + `&path=${encodeURIComponent(img.package_path || '')}`;
+
+// A PDF contract is carried like any other file but cannot be shown as one.
+const isViewableImage = (img) => String(img?.mime_type || '').startsWith('image/');
+
+const bundledMedia = (facility) => (facility.media || []).filter(m => m._bundled);
+const unbundledMedia = (facility) => (facility.media || []).filter(m => !m._bundled);
+
+const mediaBadgeCls = (facility) =>
+  (unbundledMedia(facility).length ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white');
+
+/* A row naming a picture the archive does not carry imports nothing and warns.
+   Dropping it is the honest edit: the collection then keeps whatever this site
+   already has, rather than being emptied for a file that never arrives. */
+const dropUnbundled = (facility) => {
+  facility.media = bundledMedia(facility);
+};
+
+/* The collections a facility image can be filed under. The one the package
+   already names is always offered, even if it is not one of these — a package
+   from a site with a collection this one has never used must not silently have
+   its pictures refiled. */
+const FACILITY_COLLECTIONS = [
+  'logo', 'mobile_logo', 'image', 'mobile_image', 'gallery', 'og_image', 'contract',
+];
+
+// Shaped for the shared picker. The blank "all" row is the placeholder rather
+// than an option, so clearing a filter is the same gesture on every screen.
+const asOptions = (list) => list.map(o => ({ value: o.value, label: o.label }));
+const allTypesOptions = computed(() => asOptions(props.facilityTypes));
+const allGovernoratesOptions = computed(() => asOptions(governorateList.value));
+const allSalesOptions = computed(() => asOptions(salesList.value));
+
+const mediaCollectionOptions = (img) =>
+  mediaCollectionsFor(img).map(c => ({ value: c, label: c }));
+
+const mediaCollectionsFor = (img) => {
+  const current = String(img?.collection_name || '').trim();
+
+  return FACILITY_COLLECTIONS.includes(current) || current === ''
+    ? FACILITY_COLLECTIONS
+    : [...FACILITY_COLLECTIONS, current];
+};
+
+const readableSize = (bytes) => {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const facilityManagerIssues = (facility) =>
   (facility.managers || []).flatMap((manager, index) =>
     managerIssues(manager).map(issue => `Manager ${index + 1}: ${issue}`)
@@ -2422,20 +2851,87 @@ const blockingIssues = computed(() => {
   previewData.value.facilities.forEach((facility) => {
     const facilityName = facility.name?.en || facility.name?.ar || 'facility';
     (facility.branches || []).forEach((branch, index) => {
-      const label = `${facilityName} · branch ${index + 1}`;
-      branchIssues(branch).forEach(issue => out.push(`${label}: ${issue}`));
-      if (branchNameRepeated(facility, branch)) {
-        out.push(`${label}: ${repeatedLocaleLabel(facility, branch)} name is shared by ${repeatedBranchCount(facility, branch)} branches — add the city to tell them apart`);
+      const where = {
+        facilityIndex: facility._index,
+        relation: 'branches',
+        key: `${facility._index}:b${index}`,
+        label: `${facilityName} · branch ${index + 1}`,
+        row: branch.name?.en || branch.name?.ar || `branch ${index + 1}`,
+      };
+      branchIssues(branch).forEach(issue => out.push({ ...where, text: issue }));
+      // A repeated name is only ambiguous when the name is all the import has to
+      // go on. Rows in a site export carry their own id and slug, and the import
+      // pairs them off by those — two branches called "Main" land on the two
+      // rows they came from, not on whichever the name found first.
+      if (! packageIsNative.value && branchNameRepeated(facility, branch)) {
+        out.push({
+          ...where,
+          text: `${repeatedLocaleLabel(facility, branch)} name is shared by ${repeatedBranchCount(facility, branch)} branches — add the city to tell them apart`,
+        });
       }
     });
     (facility.managers || []).forEach((manager, index) => {
-      const label = `${facilityName} · manager ${index + 1}`;
-      phoneIssues(manager.phones).forEach(issue => out.push(`${label}: ${issue}`));
+      phoneIssues(manager.phones).forEach(issue => out.push({
+        facilityIndex: facility._index,
+        relation: 'managers',
+        key: `${facility._index}:m${index}`,
+        label: `${facilityName} · manager ${index + 1}`,
+        row: manager.name || `manager ${index + 1}`,
+        text: issue,
+      }));
     });
   });
 
   return out;
 });
+
+/* The problems panel by the Start button. The list can run to hundreds of rows
+   on a whole-site package, and a row buried on page 9 of the table is one the
+   operator would otherwise have to hunt for — so each entry walks them to it:
+   the right page, the branch list opened, the row scrolled to and ringed. */
+const issuesOpen = ref(false);
+const highlightedRow = ref(null);
+
+/* Hundreds of rows is a list nobody can scan, so the panel filters by name —
+   the one thing an operator working through a site actually searches by. */
+const issueSearch = ref('');
+
+const visibleIssues = computed(() => {
+  const needle = issueSearch.value.trim().toLowerCase();
+  if (!needle) return blockingIssues.value;
+
+  return blockingIssues.value.filter(issue =>
+    `${issue.label} ${issue.row} ${issue.text}`.toLowerCase().includes(needle)
+  );
+});
+
+/* The facility a problem belongs to may not even be on screen: the table pages
+   25 at a time, and the row lives inside a section that starts collapsed. */
+const goToIssue = async (issue) => {
+  const position = previewData.value.facilities.findIndex(f => f._index === issue.facilityIndex);
+  if (position < 0) return;
+
+  previewPage.value = Math.floor(position / previewPageSize);
+  const facility = previewData.value.facilities[position];
+  if (issue.relation === 'managers') {
+    facility._showManagers = true;
+  } else {
+    facility._showBranches = true;
+  }
+
+  issuesOpen.value = false;
+  highlightedRow.value = issue.key;
+
+  // The page and the expanded section have to be painted before the row exists.
+  await nextTick();
+  const row = document.querySelector(`[data-issue-row="${issue.key}"]`);
+  row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+// The ring is a pointer, not a state: it goes as soon as the row is dealt with.
+const clearHighlight = (key) => {
+  if (highlightedRow.value === key) highlightedRow.value = null;
+};
 
 const hasBlockingIssues = computed(() => blockingIssues.value.length > 0);
 
@@ -2484,6 +2980,7 @@ const inspectPackage = async () => {
           tags: f.tags || [],
           _showBranches: false,
           _showManagers: false,
+          _showMedia: false,
         };
         normalizeLookup(facility, 'facility_type', f.facility_type, props.facilityTypes);
         normalizeLookup(facility, 'sales', f.sales, salesList.value);
@@ -2493,6 +2990,8 @@ const inspectPackage = async () => {
       source: data.source || {},
       generated_at: data.generated_at || '',
       counts: data.counts || {},
+      origin: data.origin || null,
+      package_options: data.package_options || null,
     };
     previewPage.value = 0;
     inspection.value = data;
@@ -2511,7 +3010,7 @@ const cancelPreview = () => {
     axios.post(route('admin.facility.migration.cancel'), { token: previewData.value.token }).catch(() => {});
   }
   importStep.value = 'choose';
-  previewData.value = { token: null, facilities: [], source: {}, generated_at: '', counts: {} };
+  previewData.value = { token: null, facilities: [], source: {}, generated_at: '', counts: {}, origin: null, package_options: null };
   inspection.value = null;
   importError.value = '';
 };
@@ -2528,8 +3027,62 @@ const withoutBookkeeping = (row) => {
   if (Array.isArray(clean.managers)) {
     clean.managers = clean.managers.map(withoutBookkeeping);
   }
+  // Image rows carry a "is the file actually here?" flag this screen put on
+  // them; the importer has no use for it and the session file should not hold it.
+  if (Array.isArray(clean.media)) {
+    clean.media = clean.media.map(withoutBookkeeping);
+  }
+  if (Array.isArray(clean.offers)) {
+    clean.offers = clean.offers.map(withoutBookkeeping);
+  }
 
   return clean;
+};
+
+/* ------------------------- saving the review so far ------------------------ */
+
+const saveOpen = ref(false);
+const saveWithMedia = ref(true);
+const saveBranches = ref(true);
+const saveManagers = ref(true);
+const saveOffers = ref(true);
+const savingProgress = ref(false);
+
+/* The session files hold what was last sent to /edit, so the edits still sitting
+   in the browser have to be pushed before the download is asked for — otherwise
+   the package would be the review as it stood some clicks ago. */
+const saveProgress = async () => {
+  if (!previewData.value.token) return;
+
+  savingProgress.value = true;
+  importError.value = '';
+  try {
+    for (const facility of previewData.value.facilities) {
+      await axios.post(route('admin.facility.migration.edit'), {
+        token: previewData.value.token,
+        index: facility._index,
+        data: withoutBookkeeping(facility),
+      });
+    }
+
+    const params = new URLSearchParams({
+      token: previewData.value.token,
+      format: saveWithMedia.value ? 'zip' : 'xlsx',
+      include_media: saveWithMedia.value ? '1' : '0',
+      include_branches: saveBranches.value ? '1' : '0',
+      include_managers: saveManagers.value ? '1' : '0',
+      include_offers: saveOffers.value ? '1' : '0',
+    });
+
+    // A plain navigation, so the browser saves the file rather than the page
+    // holding a whole package in memory to hand back again.
+    window.location.href = `${route('admin.facility.migration.session.export')}?${params.toString()}`;
+    saveOpen.value = false;
+  } catch (e) {
+    importError.value = e.response?.data?.message || 'Could not save the review.';
+  } finally {
+    savingProgress.value = false;
+  }
 };
 
 const startImportFromPreview = async () => {
@@ -2630,7 +3183,7 @@ const resetImport = () => {
   result.value = null;
   importError.value = '';
   confirmWipe.value = false;
-  previewData.value = { token: null, facilities: [], source: {}, generated_at: '', counts: {} };
+  previewData.value = { token: null, facilities: [], source: {}, generated_at: '', counts: {}, origin: null, package_options: null };
   previewPage.value = 0;
   progress.value = { processed: 0, total: 0, percent: 0, stats: {}, errors: [] };
 };

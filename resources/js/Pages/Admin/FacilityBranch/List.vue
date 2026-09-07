@@ -1,5 +1,5 @@
 <template>
-  <FacilityBranchListView :facilityBranches="facilityBranches" :filters="filters" :facilities="facilities" />
+  <FacilityBranchListView :facilityBranches="facilityBranches" :filters="filters" :facilities="facilities" :incomplete-counts="incompleteCounts" />
 </template>
 
 <script setup>
@@ -14,8 +14,14 @@ const props = defineProps({
     type: Object,
     default: () => ({
       search: '',
-      facility_id: ''
+      facility_id: '',
+      no_governorate: false,
+      no_city: false
     })
+  },
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ no_governorate: 0, no_city: 0 })
   },
   facilities: {
     type: Array,

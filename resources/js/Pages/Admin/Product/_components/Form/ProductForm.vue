@@ -103,15 +103,11 @@
 
         <div class="space-y-2">
           <label class="text-sm font-medium">Product Type</label>
-          <select
+          <Select
             v-model="productStore.form.product_type_id"
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            <option value="">— None —</option>
-            <option v-for="pt in productTypes" :key="pt.id" :value="pt.id">
-              {{ getTranslatedName(pt.name) }}
-            </option>
-          </select>
+            :options="productTypes.map(pt => ({ value: pt.value ?? pt, label: `${ getTranslatedName(pt.name) }` }))"
+            placeholder="— None —"
+          />
           <p v-if="fieldError('product_type_id')" class="text-xs text-destructive">{{ fieldError('product_type_id') }}</p>
             <p v-else class="text-[11px] text-muted-foreground">Groups the product under a category — used for menus and filtering.</p>
         </div>
@@ -622,6 +618,7 @@
 
 <script setup>
 import { FormTranslatableInput, FormTranslatableQuillEditor } from "@/Components/form";
+import Select from '@/Components/ui/Select.vue';
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
 import ImageCropDialog from "@/Components/ui/ImageCropDialog.vue";
 import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";

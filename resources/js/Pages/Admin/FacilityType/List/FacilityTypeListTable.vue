@@ -112,19 +112,10 @@
             <div>
               <div class="flex items-center gap-2 order-1 sm:order-2">
                 <p class="text-xs sm:text-sm font-medium whitespace-nowrap">{{ t.common?.rows_per_page || 'Rows per page' }}</p>
-                <select 
-                  :value="facilityTypes.meta?.per_page || 15"
-                  @change="handlePerPageChange"
-                  dir="ltr" 
-                  translate="no" 
-                  class="border-input data-[placeholder]:text-gray-foreground [&_svg:not([class*='text-'])]:text-gray-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-8 w-[70px] cursor-pointer"
-                >
-                  <option value="10">10</option>
-                  <option value="15">15</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
+                <PerPageSelect
+                  :model-value="facilityTypes.meta?.per_page || 15"
+                  @update:model-value="handlePerPageChange"
+                />
               </div>
             </div>
             <Pagination
@@ -169,6 +160,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
@@ -213,7 +205,8 @@ const getEditRoute = (slug) => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set('per_page', perPage);
   currentUrl.searchParams.set('page', '1'); // Reset to first page

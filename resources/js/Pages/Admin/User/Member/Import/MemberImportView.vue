@@ -184,16 +184,18 @@
                   <td class="px-2 py-1 text-center"><input type="checkbox" v-model="row.parsed.is_visible" /></td>
                   <td class="px-2 py-1"><input v-model="row.parsed.job_title" :class="inputCls()" /></td>
                   <td class="px-2 py-1">
-                    <select v-model="row.parsed.company_id" :class="inputCls(row.errors?.company)">
-                      <option :value="null">— None —</option>
-                      <option v-for="c in companyOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
-                    </select>
+                    <Select
+                      v-model="row.parsed.company_id"
+                      :options="companyOptions"
+                      placeholder="— None —"
+                    />
                   </td>
                   <td class="px-2 py-1">
-                    <select v-model="row.parsed.partner_id" :class="inputCls(row.errors?.partner)">
-                      <option :value="null">— None —</option>
-                      <option v-for="p in partnerOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
-                    </select>
+                    <Select
+                      v-model="row.parsed.partner_id"
+                      :options="partnerOptions"
+                      placeholder="— None —"
+                    />
                   </td>
                   <td class="px-2 py-1"><input type="date" v-model="row.parsed.registration_date" :class="inputCls()" /></td>
                   <td class="px-2 py-1"><input type="date" v-model="row.parsed.expiration_date" :class="inputCls(row.errors?.expiration_date)" /></td>
@@ -389,6 +391,7 @@
 
 <script setup>
 import { Link, usePage } from "@inertiajs/vue3";
+import Select from '@/Components/ui/Select.vue';
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import UserMembershipListFilterContent from "../List/UserMembershipListFilterContent.vue";

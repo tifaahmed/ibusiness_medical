@@ -15,8 +15,9 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Branch numbers have two shapes and no others: an 11-digit mobile beginning
- * "01", and an 8-digit landline with the area code dropped.
+ * Branch numbers have three shapes and no others: an 11-digit mobile beginning
+ * "01", a 10-digit landline with its area code, and a hotline — shorter than a
+ * landline and dialled exactly as it stands.
  */
 class FacilityPhoneFixTest extends TestCase
 {
@@ -71,17 +72,22 @@ class FacilityPhoneFixTest extends TestCase
     public static function numbers(): array
     {
         return [
-            'area code and mobile in one cell' => ['066 3222328 / 01208999581', ['63222328', '01208999581']],
-            'cairo landline' => ['0212345678', ['12345678']],
-            'landline with area code' => ['0663222328', ['63222328']],
+            'area code and mobile in one cell' => ['066 3222328 / 01208999581', ['0663222328', '01208999581']],
+            'cairo landline' => ['0212345678', ['0212345678']],
+            'landline already right' => ['0663222328', ['0663222328']],
             'mobile left alone' => ['01208999581', ['01208999581']],
-            'landline already right' => ['63222328', ['63222328']],
             'international mobile' => ['+201208999581', ['01208999581']],
+            'international landline keeps its zero' => ['+20 66 3222328', ['0663222328']],
             'double-zero country code' => ['00201023307060', ['01023307060']],
             'arabic-indic digits' => ['٠١٢٠٨٩٩٩٥٨١', ['01208999581']],
+            // Short national numbers stand as they are: there is no area code
+            // in front of one, so trimming it would destroy the number.
+            'hotline left alone' => ['16064', ['16064']],
+            'five-digit hotline' => ['19011', ['19011']],
+            'hotline packed with a mobile' => ['16064 / 01208999581', ['16064', '01208999581']],
             'three numbers in one cell' => [
                 '066 3400006 / 01023307060 / 01208999584',
-                ['63400006', '01023307060', '01208999584'],
+                ['0663400006', '01023307060', '01208999584'],
             ],
         ];
     }
@@ -121,7 +127,7 @@ class FacilityPhoneFixTest extends TestCase
         $this->assertSame(1, $problems['meta']['total']);
         $this->assertSame($wrong->id, $problems['data'][0]['branch_id']);
         $this->assertSame(['066 3222328 / 01208999581'], $problems['data'][0]['current']);
-        $this->assertSame(['63222328', '01208999581'], array_column($problems['data'][0]['suggested'], 'number'));
+        $this->assertSame(['0663222328', '01208999581'], array_column($problems['data'][0]['suggested'], 'number'));
         $this->assertNotContains($right->id, array_column($problems['data'], 'branch_id'));
     }
 
@@ -133,16 +139,16 @@ class FacilityPhoneFixTest extends TestCase
             ->postJson(route('admin.facility.phones.fix'), [
                 'branch_id' => $branch->id,
                 'phones' => [
-                    ['number' => '63222328', 'type' => 'landline'],
+                    ['number' => '0663222328', 'type' => 'landline'],
                     ['number' => '01208999581', 'type' => 'phone'],
                 ],
             ])
             ->assertOk()
             ->assertJsonPath('applied', true)
-            ->assertJsonPath('phones.0.number', '63222328')
+            ->assertJsonPath('phones.0.number', '0663222328')
             ->assertJsonPath('phones.1.number', '01208999581');
 
-        $this->assertSame(['63222328', '01208999581'], $branch->fresh()->phoneNumbers());
+        $this->assertSame(['0663222328', '01208999581'], $branch->fresh()->phoneNumbers());
     }
 
     public function test_the_admin_can_edit_the_suggestion_before_confirming(): void
@@ -171,10 +177,10 @@ class FacilityPhoneFixTest extends TestCase
         $this->actingAs($this->admin())
             ->postJson(route('admin.facility.phones.fix'), [
                 'branch_id' => $branch->id,
-                'phones' => [['number' => '63222328 / ٠١٢٠٨٩٩٩٥٨١', 'type' => 'landline']],
+                'phones' => [['number' => '0663222328 / ٠١٢٠٨٩٩٩٥٨١', 'type' => 'landline']],
             ])
             ->assertOk()
-            ->assertJsonPath('phones.0.number', '63222328')
+            ->assertJsonPath('phones.0.number', '0663222328')
             ->assertJsonPath('phones.1.number', '01208999581');
     }
 
@@ -205,6 +211,11 @@ class FacilityPhoneFixTest extends TestCase
             'facility_id' => $facility->id,
             'name' => ['en' => 'Damietta', 'ar' => 'دمياط'],
             'phone' => ['0212345678'],
+        ]);
+        // Stored the way an international export leaves a landline: the country
+        // code in front and the national leading zero dropped.
+        DB::table('facility_branches')->where('id', $landline->id)->update([
+            'phone' => json_encode(['00202 12345678']),
         ]);
         $mobiles = FacilityBranch::create([
             'facility_id' => $facility->id,
@@ -255,10 +266,15 @@ class FacilityPhoneFixTest extends TestCase
         ]);
 
         foreach (range(1, 7) as $i) {
-            FacilityBranch::create([
+            $branch = FacilityBranch::create([
                 'facility_id' => $facility->id,
                 'name' => ['en' => "Branch {$i}", 'ar' => "فرع {$i}"],
                 'phone' => ['066 322232'.$i],
+            ]);
+            // Two numbers sharing one cell — wrong however the shapes are
+            // defined, which is what keeps this test about the paginator.
+            DB::table('facility_branches')->where('id', $branch->id)->update([
+                'phone' => json_encode(['066 322232'.$i.' / 0120899958'.$i]),
             ]);
         }
 
@@ -270,5 +286,49 @@ class FacilityPhoneFixTest extends TestCase
         $this->assertSame(7, $problems['meta']['total']);
         $this->assertSame(2, $problems['meta']['current_page']);
         $this->assertCount(2, $problems['data']);
+    }
+
+    public function test_a_number_filed_as_the_wrong_kind_of_line_is_flagged_and_refiled(): void
+    {
+        // A hotline stored as a landline: the digits are already right, so
+        // nothing but the type is wrong — and the type predates hotlines
+        // entirely, which is why so many rows carry it.
+        $repair = PhoneRepair::repair([['number' => '16064', 'type' => 'landline']]);
+
+        $this->assertTrue($repair['has_problem']);
+        $entry = $repair['entries'][0];
+        $this->assertSame('hotline', $entry['kind']);
+        $this->assertSame('landline', $entry['type']);
+        $this->assertSame('hotline', $entry['suggested_type']);
+        $this->assertTrue($entry['type_changed']);
+        // Confirming the row saves the corrected type with the untouched number.
+        $this->assertSame([['number' => '16064', 'type' => 'hotline']], $repair['suggested']);
+    }
+
+    public function test_a_number_reachable_on_whatsapp_is_never_refiled_by_its_digits(): void
+    {
+        // WhatsApp says how a number is reached, which no count of digits can
+        // settle — only a person knows it, so it is left exactly as filed.
+        $repair = PhoneRepair::repair([['number' => '01208999581', 'type' => 'whatsapp']]);
+
+        $this->assertFalse($repair['has_problem']);
+        $this->assertFalse($repair['entries'][0]['type_changed']);
+        $this->assertSame('whatsapp', $repair['entries'][0]['suggested_type']);
+    }
+
+    public function test_confirming_a_row_can_change_the_type_alone(): void
+    {
+        $branch = $this->branch([['number' => '16064', 'type' => 'landline']]);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('admin.facility.phones.fix'), [
+                'branch_id' => $branch->id,
+                'phones' => [['number' => '16064', 'type' => 'hotline']],
+            ])
+            ->assertOk()
+            ->assertJsonPath('applied', true)
+            ->assertJsonPath('phones.0.type', 'hotline');
+
+        $this->assertSame([['number' => '16064', 'type' => 'hotline']], $branch->fresh()->phone);
     }
 }

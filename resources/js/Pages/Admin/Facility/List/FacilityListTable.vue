@@ -68,13 +68,30 @@
                         <path d="M9 22v-4h6v4"/>
                       </svg>
                     </div>
-                    <!-- Name -->
+                    <!-- Name, both languages one above the other. The reader's
+                         own locale sits on top and stays the heading weight;
+                         the other language reads as the second line rather than
+                         a second name. A facility written in only one language
+                         shows that one and nothing else. -->
                     <Link
                       :href="getEditRoute(facility.slug)"
-                      class="font-semibold text-sm sm:text-base text-foreground hover:text-golden-yellow transition-colors cursor-pointer max-w-[180px] sm:max-w-[230px] break-words"
-                      :title="getTranslatedName(facility.name)"
+                      class="group flex flex-col gap-0.5 max-w-[180px] sm:max-w-[230px] break-words cursor-pointer"
+                      :title="[localeName(facility.name), otherName(facility.name)].filter(Boolean).join(' — ')"
                     >
-                      {{ getTranslatedName(facility.name) }}
+                      <span
+                        v-if="localeName(facility.name)"
+                        class="font-semibold text-sm sm:text-base text-foreground group-hover:text-golden-yellow transition-colors"
+                      >
+                        {{ localeName(facility.name) }}
+                      </span>
+                      <span
+                        v-if="otherName(facility.name)"
+                        class="text-xs text-muted-foreground group-hover:text-golden-yellow/80 transition-colors"
+                        :dir="otherNameDir"
+                      >
+                        {{ otherName(facility.name) }}
+                      </span>
+                      <span v-if="!localeName(facility.name) && !otherName(facility.name)" class="text-sm text-muted-foreground">—</span>
                     </Link>
                   </div>
                 </td>
@@ -232,19 +249,10 @@
             <div class="flex items-center gap-2 order-2 flex-shrink-0">
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap hidden sm:inline">{{ t.common?.rows_per_page || 'Rows per page' }}</p>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.common?.per_page || 'Per page' }}</p>
-              <select 
-                :value="facilities.meta?.per_page || 15"
-                @change="handlePerPageChange"
-                dir="ltr" 
-                translate="no" 
-                class="border-input data-[placeholder]:text-gray-foreground [&_svg:not([class*='text-'])]:text-gray-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 rounded-md border bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 sm:h-8 w-[60px] sm:w-[70px] cursor-pointer"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+              <PerPageSelect
+                :model-value="facilities.meta?.per_page || 15"
+                @update:model-value="handlePerPageChange"
+              />
             </div>
             <div class="order-3 flex-shrink-0 min-w-0">
               <Pagination
@@ -372,6 +380,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import Modal from "@/Components/Modal.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from 'vue';
@@ -423,6 +432,32 @@ const getTranslatedName = (name) => {
   return '';
 };
 
+/* The name column prints both languages. `localeName` is the reader's own —
+   the line that carries the weight — and `otherName` is the one underneath. A
+   facility written in only one language has an empty second line rather than
+   the same name twice. */
+const localeName = (name) => {
+  if (typeof name === 'string') return name.trim();
+  if (typeof name !== 'object' || name === null) return '';
+
+  return String(name[locale.value] || '').trim();
+};
+
+const otherName = (name) => {
+  if (typeof name !== 'object' || name === null) return '';
+
+  const other = locale.value === 'ar' ? 'en' : 'ar';
+  const value = String(name[other] || '').trim();
+
+  // The fallback shows the language the reader's locale lacks — printing the
+  // same string twice would only look like a mistake.
+  return value === localeName(name) ? '' : value;
+};
+
+// Arabic under an English heading has to be laid out right to left, or the
+// punctuation in a name lands on the wrong end of it.
+const otherNameDir = computed(() => (locale.value === 'ar' ? 'ltr' : 'rtl'));
+
 // "City, Governorate" for a branch in the popup (omits whichever is missing)
 const branchLocation = (branch) => {
   return [getTranslatedName(branch.city?.name), getTranslatedName(branch.governorate?.name)]
@@ -448,7 +483,8 @@ const getEditRoute = (slug) => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set('per_page', perPage);
   currentUrl.searchParams.set('page', '1'); // Reset to first page

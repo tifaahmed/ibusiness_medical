@@ -60,7 +60,7 @@ class AdminFacilityMigrationExportController extends BaseController
 
         $filename = $this->exporter->filename($includeMedia, $part, $totalParts, $includeBranches, $includeManagers);
 
-        $path = $this->exporter->build([
+        $options = [
             'include_media_files' => $includeMedia,
             'include_offers' => ! $request->has('include_offers') || $request->boolean('include_offers'),
             'include_branches' => $includeBranches,
@@ -74,7 +74,20 @@ class AdminFacilityMigrationExportController extends BaseController
             'destination' => $keep
                 ? AdminFacilityMigrationPackagesController::library().'/'.$filename
                 : null,
-        ]);
+        ];
+
+        // Two shapes, one dataset. Images mean files to carry, so the package is
+        // a .zip. Without them there is nothing an archive would hold that a
+        // workbook cannot — and a .xlsx is a file the operator can open, read
+        // and correct before handing it back to the Import tab, which reads it
+        // as the site package it is.
+        $path = $includeMedia
+            ? $this->exporter->build($options)
+            : $this->exporter->buildSpreadsheet($options);
+
+        $contentType = $includeMedia
+            ? 'application/zip'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
         return response()->stream(function () use ($path, $keep) {
             $out = fopen('php://output', 'wb');
@@ -91,7 +104,7 @@ class AdminFacilityMigrationExportController extends BaseController
                 @unlink($path);
             }
         }, 200, [
-            'Content-Type' => 'application/zip',
+            'Content-Type' => $contentType,
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Content-Length' => (string) filesize($path),
             'Cache-Control' => 'no-store, no-cache',

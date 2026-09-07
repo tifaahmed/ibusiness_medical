@@ -517,6 +517,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/edit', [AdminFacilityMigrationImportController::class, 'edit'])->name('admin.facility.migration.edit');
         // Recompute the new/already-here match for a facility edited in the preview.
         Route::post('/admin/facility/migration/rematch', [AdminFacilityMigrationImportController::class, 'rematch'])->name('admin.facility.migration.rematch');
+        // The pictures a package carries, shown on the preview before anything
+        // is written. They live only inside the open session's extraction.
+        Route::get('/admin/facility/migration/media', [AdminFacilityMigrationImportController::class, 'media'])->name('admin.facility.migration.media');
         // AI: translate the English inputs on the preview to Arabic (one field or a sweep).
         Route::post('/admin/facility/migration/translate', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationTranslateController::class)->name('admin.facility.migration.translate');
         Route::post('/admin/facility/migration/options', [AdminFacilityMigrationImportController::class, 'options'])->name('admin.facility.migration.options');
@@ -524,6 +527,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/migration/step', [AdminFacilityMigrationImportController::class, 'step'])->name('admin.facility.migration.step');
         Route::post('/admin/facility/migration/finish', [AdminFacilityMigrationImportController::class, 'finish'])->name('admin.facility.migration.finish');
         Route::post('/admin/facility/migration/cancel', [AdminFacilityMigrationImportController::class, 'cancel'])->name('admin.facility.migration.cancel');
+        // The review so far, written back out as a package — so hours of edits
+        // survive the tab being closed.
+        Route::get('/admin/facility/migration/session/export', [AdminFacilityMigrationImportController::class, 'exportSession'])->name('admin.facility.migration.session.export');
         // The preview refuses to import a branch pointing at a governorate or
         // city this site lacks; this makes the missing one without leaving it.
         Route::post('/admin/facility/migration/lookup', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationLookupController::class)->name('admin.facility.migration.lookup.store');

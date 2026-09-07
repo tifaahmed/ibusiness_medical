@@ -48,17 +48,64 @@
                 <span class="text-muted-foreground flex-shrink-0">{{ t.facility?.label || 'Facility' }}:</span>
                 <span class="text-foreground truncate">{{ getTranslatedName(branch.facility?.name) || '-' }}</span>
               </div>
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-muted-foreground flex-shrink-0">{{ t.common?.address || 'Address' }}:</span>
-                <span class="text-foreground truncate">{{ getAddress(branch) || '-' }}</span>
+              <!-- Three different things that all used to read as one line of
+                   grey text: the governorate, the city inside it, and the
+                   street address somebody typed. Each gets its own colour so a
+                   glance tells them apart — and a missing one is red, because
+                   that is a row still to be fixed. -->
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span
+                  v-if="governorateName(branch)"
+                  class="inline-flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-500/25 px-2 py-0.5 text-[11px] font-semibold text-emerald-950 dark:text-emerald-100"
+                  :title="t.governorate?.label || 'Governorate'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                  {{ governorateName(branch) }}
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded-md border border-red-400/60 bg-red-500/30 px-2 py-0.5 text-[11px] font-semibold text-red-50"
+                >
+                  {{ t.governorate?.none || 'No governorate' }}
+                </span>
+
+                <span
+                  v-if="cityName(branch)"
+                  class="inline-flex items-center gap-1 rounded-md border border-amber-400/50 bg-amber-500/25 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:text-amber-100"
+                  :title="t.city?.label || 'City'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M18 21V4a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v17"/><path d="M2 21h20"/><path d="M10 9h4"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
+                  {{ cityName(branch) }}
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded-md border border-red-400/60 bg-red-500/30 px-2 py-0.5 text-[11px] font-semibold text-red-50"
+                >
+                  {{ t.city?.none || 'No city' }}
+                </span>
               </div>
+              <!-- The typed address: free text somebody wrote, not a row picked
+                   from a table — a quiet ground of its own so it never reads as
+                   a third place chip. Sits with the two chips it belongs with,
+                   above the facility type. -->
+              <div
+                v-if="getTranslatedName(branch.address)"
+                class="flex items-start gap-1.5 rounded-md border border-white/25 bg-slate-900/35 px-2 py-1 text-xs text-white/90"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin h-3 w-3 flex-shrink-0 mt-0.5">
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span class="line-clamp-2">{{ getTranslatedName(branch.address) }}</span>
+              </div>
+
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-muted-foreground flex-shrink-0">{{ t.facility_type?.label || 'Facility Type' }}:</span>
                 <span class="text-foreground truncate">{{ getTranslatedName(branch.facility?.facility_type?.name) || '-' }}</span>
               </div>
             </div>
 
-            <div v-if="getTranslatedName(branch.address) || getPhonesArray(branch.phone).length > 0" class="flex flex-col gap-1 text-xs text-muted-foreground border-t border-border/60 pt-2">
+            <div v-if="getPhonesArray(branch.phone).length > 0" class="flex flex-col gap-1 text-xs text-muted-foreground border-t border-border/60 pt-2">
               <div v-if="getPhonesArray(branch.phone).length > 0" class="flex flex-col gap-0.5">
                 <div v-for="(phone, index) in getPhonesArray(branch.phone)" :key="index" class="flex items-center gap-1.5">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-phone h-3 w-3 flex-shrink-0">
@@ -67,13 +114,6 @@
                   <span class="truncate" dir="ltr">{{ phone.number }}</span>
                   <span class="truncate text-muted-foreground/70">· {{ phoneLabel(phone.type) }}</span>
                 </div>
-              </div>
-              <div v-if="getTranslatedName(branch.address)" class="flex items-start gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin h-3 w-3 flex-shrink-0 mt-0.5">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span class="line-clamp-2">{{ getTranslatedName(branch.address) }}</span>
               </div>
             </div>
           </div>
@@ -89,19 +129,10 @@
             <div class="flex items-center gap-2 order-2 flex-shrink-0">
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap hidden sm:inline">{{ t.common?.rows_per_page || 'Rows per page' }}</p>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.common?.per_page || 'Per page' }}</p>
-              <select
-                :value="facilityBranches.meta?.per_page || 15"
-                @change="handlePerPageChange"
-                dir="ltr"
-                translate="no"
-                class="border-input data-[placeholder]:text-gray-foreground [&_svg:not([class*='text-'])]:text-gray-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 rounded-md border bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 sm:h-8 w-[60px] sm:w-[70px] cursor-pointer"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+              <PerPageSelect
+                :model-value="facilityBranches.meta?.per_page || 15"
+                @update:model-value="handlePerPageChange"
+              />
             </div>
             <div class="order-3 flex-shrink-0 min-w-0">
               <Pagination
@@ -146,6 +177,7 @@
 
 <script setup>
 import Pagination from "@/Pages/_components/Pagination.vue";
+import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -183,6 +215,9 @@ const getTranslatedName = (name) => {
   return '';
 };
 
+const governorateName = (branch) => getTranslatedName(branch?.governorate?.name);
+const cityName = (branch) => getTranslatedName(branch?.city?.name);
+
 const getAddress = (branch) => {
   const governorate = getTranslatedName(branch?.governorate?.name);
   const city = getTranslatedName(branch?.city?.name);
@@ -210,7 +245,8 @@ const getEditRoute = (slug) => {
 };
 
 const handlePerPageChange = (event) => {
-  const perPage = event.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const perPage = event?.target?.value ?? event;
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set('per_page', perPage);
   currentUrl.searchParams.set('page', '1'); // Reset to first page

@@ -30,7 +30,7 @@
             data-slot="input"
             v-model="filters.search"
             @input="handleSearch"
-            class="file:text-foreground placeholder:text-gray-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border border-border text-foreground flex h-7 sm:h-8 md:h-9 w-full min-w-0 max-w-full rounded-md bg-transparent px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm md:text-base shadow-xs transition-all outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [color-scheme:dark] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:bg-secondary/10 data-[filled=true]:bg-secondary/5 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pl-7 sm:pl-8 md:pl-9 box-border"
+            class="file:text-foreground placeholder:text-white selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border border-border text-foreground flex h-7 sm:h-8 md:h-9 w-full min-w-0 max-w-full rounded-md bg-transparent px-2 sm:px-2.5 md:px-3 py-1 text-xs sm:text-sm md:text-base shadow-xs transition-all outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [color-scheme:dark] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:bg-secondary/10 data-[filled=true]:bg-secondary/5 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pl-7 sm:pl-8 md:pl-9 box-border"
             id="search"
             :placeholder="t.facility_branch?.search_placeholder || 'Search by name, phone...'"
           />
@@ -56,6 +56,50 @@
         />
       </div>
 
+    </div>
+
+    <!-- The rows nobody can place on a map. A branch with no governorate or
+         city is invisible to every place filter on the site, and the migration
+         import stops on it — so the number still to fix rides on the switch. -->
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <span class="text-xs font-medium text-muted-foreground">
+        {{ t.facility_branch?.missing_location || 'Missing location' }}:
+      </span>
+      <button
+        type="button"
+        @click="toggleMissing('no_governorate')"
+        :aria-pressed="filters.no_governorate"
+        :class="[
+          'inline-flex items-center gap-1.5 rounded-md border px-2 sm:px-2.5 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer',
+          filters.no_governorate
+            ? 'border-emerald-400 bg-emerald-500/30 text-emerald-950 dark:text-emerald-50'
+            : 'border-border bg-background hover:bg-muted text-foreground',
+        ]"
+      >
+        {{ t.governorate?.none || 'No governorate' }}
+        <span v-if="incompleteCounts.no_governorate" class="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+          {{ incompleteCounts.no_governorate }}
+        </span>
+      </button>
+      <button
+        type="button"
+        @click="toggleMissing('no_city')"
+        :aria-pressed="filters.no_city"
+        :class="[
+          'inline-flex items-center gap-1.5 rounded-md border px-2 sm:px-2.5 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer',
+          filters.no_city
+            ? 'border-amber-400 bg-amber-500/30 text-amber-950 dark:text-amber-50'
+            : 'border-border bg-background hover:bg-muted text-foreground',
+        ]"
+      >
+        {{ t.city?.none || 'No city' }}
+        <span v-if="incompleteCounts.no_city" class="rounded bg-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+          {{ incompleteCounts.no_city }}
+        </span>
+      </button>
+      <span v-if="filters.no_governorate && filters.no_city" class="text-[11px] text-muted-foreground">
+        missing <strong>both</strong>
+      </span>
     </div>
 
     <!-- Reset Filter - Only show if there's an active filter -->
@@ -101,6 +145,11 @@ const props = defineProps({
   facilities: {
     type: Array,
     default: () => []
+  },
+  // What each switch would find across the whole list, not just this page.
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ no_governorate: 0, no_city: 0 })
   }
 });
 
@@ -133,12 +182,18 @@ const facilityOptions = computed(() => {
 
 const emit = defineEmits(['filter-change']);
 
+// The switches arrive as a query string or as a server prop, so "1" and true
+// both have to read as on.
+const truthy = (value) => value === true || value === 1 || value === '1' || value === 'true';
+
 const getInitialFilters = () => {
   // First check props (from server)
   if (props.initialFilters) {
     return {
       search: props.initialFilters.search || '',
-      facility_id: props.initialFilters.facility_id || props.initialFilters.facility_id === 0 ? '0' : ''
+      facility_id: props.initialFilters.facility_id || props.initialFilters.facility_id === 0 ? '0' : '',
+      no_governorate: truthy(props.initialFilters.no_governorate),
+      no_city: truthy(props.initialFilters.no_city)
     };
   }
 
@@ -147,13 +202,17 @@ const getInitialFilters = () => {
     const urlParams = new URLSearchParams(window.location.search);
     return {
       search: urlParams.get('search') || '',
-      facility_id: urlParams.get('facility_id') || ''
+      facility_id: urlParams.get('facility_id') || '',
+      no_governorate: truthy(urlParams.get('no_governorate')),
+      no_city: truthy(urlParams.get('no_city'))
     };
   }
 
   return {
     search: '',
-    facility_id: ''
+    facility_id: '',
+    no_governorate: false,
+    no_city: false
   };
 };
 
@@ -161,7 +220,8 @@ const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_id);
+  return !!(filters.value.search || filters.value.facility_id
+    || filters.value.no_governorate || filters.value.no_city);
 });
 
 let searchTimeout = null;
@@ -179,10 +239,19 @@ const handleSearch = (event) => {
   debouncedSearch(event.target.value);
 };
 
+// Switched on, the list reloads at once: this is a filter reached for to start
+// fixing rows, not one tuned before applying.
+const toggleMissing = (key) => {
+  filters.value[key] = !filters.value[key];
+  applyFilters();
+};
+
 const handleReset = () => {
   filters.value = {
     search: '',
-    facility_id: ''
+    facility_id: '',
+    no_governorate: false,
+    no_city: false
   };
   applyFilters();
 };
@@ -204,6 +273,8 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.facility_id && currentFilters.facility_id !== '') {
     params.facility_id = currentFilters.facility_id;
   }
+  if (currentFilters.no_governorate) params.no_governorate = 1;
+  if (currentFilters.no_city) params.no_city = 1;
 
   emit('filter-change', currentFilters);
 

@@ -106,22 +106,25 @@
                   <td class="px-2 py-1"><input v-model="row.parsed.name" :class="inputCls(row.errors?.name)" /></td>
                   <td class="px-2 py-1"><input v-model="row.parsed.name_ar" :class="inputCls()" /></td>
                   <td class="px-2 py-1">
-                    <select v-model="row.parsed.facility_type_id" :class="inputCls(row.errors?.facility_type)">
-                      <option :value="null">— None —</option>
-                      <option v-for="o in facilityTypeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                    </select>
+                    <Select
+                      v-model="row.parsed.facility_type_id"
+                      :options="facilityTypeOptions"
+                      placeholder="— None —"
+                    />
                   </td>
                   <td class="px-2 py-1">
-                    <select v-model="row.parsed.governorate_id" :class="inputCls(row.errors?.governorate)">
-                      <option :value="null">— None —</option>
-                      <option v-for="o in governorateOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                    </select>
+                    <Select
+                      v-model="row.parsed.governorate_id"
+                      :options="governorateOptions"
+                      placeholder="— None —"
+                    />
                   </td>
                   <td class="px-2 py-1">
-                    <select v-model="row.parsed.city_id" :class="inputCls(row.errors?.city)">
-                      <option :value="null">— None —</option>
-                      <option v-for="o in citiesForRow(row)" :key="o.value" :value="o.value">{{ o.label }}</option>
-                    </select>
+                    <Select
+                      v-model="row.parsed.city_id"
+                      :options="citiesForRow(row)"
+                      placeholder="— None —"
+                    />
                   </td>
                   <td class="px-2 py-1"><input type="number" step="any" v-model="row.parsed.latitude" :class="inputCls(row.errors?.latitude)" /></td>
                   <td class="px-2 py-1"><input type="number" step="any" v-model="row.parsed.longitude" :class="inputCls(row.errors?.longitude)" /></td>
@@ -178,16 +181,18 @@
                             <td class="px-3 py-1"><input v-model="br.address" :class="inputCls()" /></td>
                             <td class="px-3 py-1"><input v-model="br.phone" :class="inputCls()" /></td>
                             <td class="px-3 py-1">
-                              <select v-model="br.governorate_id" :class="inputCls()">
-                                <option :value="null">— None —</option>
-                                <option v-for="o in governorateOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                              </select>
+                              <Select
+                                v-model="br.governorate_id"
+                                :options="governorateOptions"
+                                placeholder="— None —"
+                              />
                             </td>
                             <td class="px-3 py-1">
-                              <select v-model="br.city_id" :class="inputCls()">
-                                <option :value="null">— None —</option>
-                                <option v-for="o in citiesForBranch(br)" :key="o.value" :value="o.value">{{ o.label }}</option>
-                              </select>
+                              <Select
+                                v-model="br.city_id"
+                                :options="citiesForBranch(br)"
+                                placeholder="— None —"
+                              />
                             </td>
                             <td class="px-3 py-1"><input type="number" step="any" v-model="br.latitude" :class="inputCls()" /></td>
                             <td class="px-3 py-1"><input type="number" step="any" v-model="br.longitude" :class="inputCls()" /></td>
@@ -279,6 +284,7 @@
 
 <script setup>
 import { Link } from "@inertiajs/vue3";
+import Select from '@/Components/ui/Select.vue';
 import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { computed, ref } from "vue";

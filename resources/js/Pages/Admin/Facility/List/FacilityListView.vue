@@ -75,7 +75,7 @@
           
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" :governorates="governorates" :cities="cities" @filter-change="handleFilterChange" />
+            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" :governorates="governorates" :cities="cities" :incomplete-counts="incompleteCounts" @filter-change="handleFilterChange" />
           </div>
         </div>
 
@@ -140,6 +140,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  incompleteCounts: {
+    type: Object,
+    default: () => ({ governorate: 0, city: 0, either: 0 })
+  },
   cities: {
     type: Array,
     default: () => []
@@ -176,6 +180,7 @@ const exportUrl = computed(() => {
   if (f.facility_type_id) params.set('facility_type_id', f.facility_type_id);
   if (f.sales_id) params.set('sales_id', f.sales_id);
   if (f.sales_presence) params.set('sales_presence', f.sales_presence);
+  if (f.branches_missing) params.set('branches_missing', f.branches_missing);
   if (f.governorate_id) params.set('governorate_id', f.governorate_id);
   if (f.city_id) params.set('city_id', f.city_id);
   if (f.created_from) params.set('created_from', f.created_from);

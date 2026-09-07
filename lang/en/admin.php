@@ -360,15 +360,17 @@ return [
     'facility' => [
         'phone_fix' => 'Fix phones',
         'phone_fix_title' => 'Fix phone numbers',
-        'phone_fix_hint' => 'Find branch numbers that are not 11-digit mobiles or 8-digit landlines and correct them',
+        'phone_fix_hint' => 'Find branch numbers that are not 11-digit mobiles, 10-digit landlines or hotlines, and correct them',
         'phone_fix_heading' => 'Branches with a phone number in the wrong shape',
-        'phone_fix_rule' => 'A mobile is 11 digits starting with 01. A landline is 8 digits with no area code — "066 3222328" becomes "63222328", "0212345678" becomes "12345678". Numbers packed into one line are split apart.',
+        'phone_fix_rule' => 'A mobile is 11 digits starting with 01. A landline is 10 digits, area code included — "0020663222328" becomes "0663222328". A hotline is shorter than that and is dialled as it stands (16064, 19011), so it is never trimmed. Numbers packed into one line are split apart.',
         'phone_fix_current' => 'Stored now',
         'phone_fix_suggested' => 'Will be saved as',
         'phone_fix_needs_review' => 'One of these could not be worked out — check it before confirming.',
-        'phone_fix_kind_all' => 'Mobiles and landlines',
+        'phone_fix_kind_all' => 'All kinds',
         'phone_fix_kind_mobile' => 'Mobiles only',
         'phone_fix_kind_landline' => 'Landlines only',
+        'phone_fix_kind_hotline' => 'Hotlines only',
+        'phone_fix_type' => 'What kind of line this number is',
         'phone_fix_add' => 'Add a number',
         'phone_fix_reset' => 'Reset to the suggestion',
         'phone_fix_confirm' => 'Confirm',
@@ -574,6 +576,7 @@ return [
         // ring it or message it.
         'phone_types' => [
             'landline' => 'Landline',
+            'hotline' => 'Hotline',
             'phone' => 'Phone',
             'whatsapp' => 'WhatsApp',
             'phone_whatsapp' => 'Phone & WhatsApp',

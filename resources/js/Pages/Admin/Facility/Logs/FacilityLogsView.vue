@@ -49,38 +49,24 @@
           <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 px-3 sm:px-4 md:px-6">
             <div class="w-full sm:w-72 min-w-0">
               <label for="admin_id" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">Filter by admin</label>
-              <div class="relative">
-                <select
+                <Select
                   id="admin_id"
                   v-model="adminFilter"
-                  @change="applyFilters"
-                  class="appearance-none border border-border dark:bg-input/30 bg-transparent text-foreground rounded-md px-3 pr-8 py-1 text-xs sm:text-sm h-7 sm:h-8 md:h-9 w-full shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer transition-colors hover:border-ring/60 [color-scheme:dark]"
-                >
-                  <option :value="null" class="bg-card text-foreground">All admins</option>
-                  <option v-for="opt in adminOptions" :key="opt.value" :value="opt.value" class="bg-card text-foreground">{{ opt.label }}</option>
-                </select>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground">
-                  <path d="m6 9 6 6 6-6"></path>
-                </svg>
-              </div>
+                  :options="adminSelectOptions"
+                  placeholder="All admins"
+                  @update:model-value="applyFilters"
+                />
             </div>
 
             <div class="w-full sm:w-56 min-w-0">
               <label for="action" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">Filter by action</label>
-              <div class="relative">
-                <select
+                <Select
                   id="action"
                   v-model="actionFilter"
-                  @change="applyFilters"
-                  class="appearance-none border border-border dark:bg-input/30 bg-transparent text-foreground rounded-md px-3 pr-8 py-1 text-xs sm:text-sm h-7 sm:h-8 md:h-9 w-full shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer transition-colors hover:border-ring/60 [color-scheme:dark]"
-                >
-                  <option :value="null" class="bg-card text-foreground">All actions</option>
-                  <option v-for="key in Object.keys(ACTION_LABELS)" :key="key" :value="key" class="bg-card text-foreground">{{ ACTION_LABELS[key] }}</option>
-                </select>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground">
-                  <path d="m6 9 6 6 6-6"></path>
-                </svg>
-              </div>
+                  :options="actionSelectOptions"
+                  placeholder="All actions"
+                  @update:model-value="applyFilters"
+                />
             </div>
 
             <button
@@ -267,6 +253,7 @@
 
 <script setup>
 import FacilityLayout from "../FacilityLayout.vue";
+import Select from '@/Components/ui/Select.vue';
 import Pagination from "@/Pages/_components/Pagination.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, reactive, ref } from "vue";
@@ -296,6 +283,15 @@ const toggle = (id) => { expanded[id] = !expanded[id]; };
 
 const adminFilter = ref(props.filters?.admin_id ?? null);
 const actionFilter = ref(props.filters?.action ?? null);
+
+/* Shaped for the shared picker. "All admins" is the placeholder rather than a
+   row of its own, so clearing the filter is the same gesture everywhere. */
+const adminSelectOptions = computed(() =>
+  props.adminOptions.map(opt => ({ value: opt.value, label: opt.label }))
+);
+const actionSelectOptions = computed(() =>
+  Object.keys(ACTION_LABELS).map(key => ({ value: key, label: ACTION_LABELS[key] }))
+);
 const applyFilters = () => {
   const params = {};
   if (adminFilter.value !== null && adminFilter.value !== undefined && adminFilter.value !== '') params.admin_id = adminFilter.value;

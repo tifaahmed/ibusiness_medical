@@ -106,15 +106,11 @@
               disabled
               class="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm cursor-not-allowed opacity-75"
             />
-            <select
-              v-else
+            <Select
               v-model="form.partner_id"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              :disabled="busy"
-            >
-              <option :value="null">— no partner —</option>
-              <option v-for="p in partners" :key="p.id" :value="p.id">{{ p.title }}</option>
-            </select>
+              :options="partners.map(p => ({ value: p.value ?? p, label: `${ p.title }` }))"
+              placeholder="— no partner —"
+            />
             <p v-if="partnerLocked" class="mt-1 text-[11px] text-muted-foreground">
               Locked to your assigned partner.
             </p>
@@ -392,6 +388,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';

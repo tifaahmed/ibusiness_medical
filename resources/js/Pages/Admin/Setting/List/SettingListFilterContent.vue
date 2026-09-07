@@ -10,29 +10,26 @@
       />
     </div>
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-      <select
-        :value="localFilters.value_type"
-        @change="handleTypeChange"
-        class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] w-full sm:w-auto cursor-pointer"
-      >
-        <option value="">{{ t.setting?.all_types || 'All types' }}</option>
-        <option v-for="type in valueTypes" :key="type" :value="type">{{ typeLabel(type) }}</option>
-      </select>
-      <select
-        :value="localFilters.sort"
-        @change="handleSortChange"
-        class="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] w-full sm:w-auto cursor-pointer"
-      >
-        <option value="key">{{ t.setting?.sort_key || 'Sort by key' }}</option>
-        <option value="newest">{{ t.common?.newest || 'Newest first' }}</option>
-        <option value="oldest">{{ t.common?.oldest || 'Oldest first' }}</option>
-      </select>
+      <Select
+        :model-value="localFilters.value_type"
+        :options="valueTypes.map(type => ({ value: type.value ?? type, label: `${ typeLabel(type) }` }))"
+        :placeholder="t.setting?.all_types || 'All types'"
+        @update:model-value="handleTypeChange"
+      />
+      <div class="w-full sm:w-52">
+        <Select
+          :model-value="localFilters.sort"
+          :options="sortOptions"
+          @update:model-value="handleSortChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
+import Select from '@/Components/ui/Select.vue';
 import { router, usePage } from '@inertiajs/vue3';
 
 const page = usePage();
@@ -60,7 +57,9 @@ const localFilters = ref({ ...props.initialFilters });
 const typeLabel = (type) => t.value.setting?.types?.[type] || type;
 
 const handleSearchChange = (e) => {
-  localFilters.value.search = e.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const eValue = e?.target?.value ?? e;
+  localFilters.value.search = eValue;
   debouncedSearch();
 };
 
@@ -73,12 +72,22 @@ const debouncedSearch = () => {
 };
 
 const handleTypeChange = (e) => {
-  localFilters.value.value_type = e.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const eValue = e?.target?.value ?? e;
+  localFilters.value.value_type = eValue;
   applyFilters();
 };
 
+const sortOptions = computed(() => [
+  { value: 'key', label: t.value.setting?.sort_key || 'Sort by key' },
+  { value: 'newest', label: t.value.common?.newest || 'Newest first' },
+  { value: 'oldest', label: t.value.common?.oldest || 'Oldest first' },
+]);
+
 const handleSortChange = (e) => {
-  localFilters.value.sort = e.target.value;
+  // The shared picker emits the value; a native select would send an event.
+  const eValue = e?.target?.value ?? e;
+  localFilters.value.sort = eValue;
   applyFilters();
 };
 

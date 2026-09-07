@@ -10,8 +10,10 @@ export const PHONE_LANDLINE = 'landline';
 export const PHONE_MOBILE = 'phone';
 export const PHONE_WHATSAPP = 'whatsapp';
 export const PHONE_MOBILE_WHATSAPP = 'phone_whatsapp';
+// A short national number — 16064, 19011 — dialled as it stands.
+export const PHONE_HOTLINE = 'hotline';
 
-export const PHONE_TYPES = [PHONE_LANDLINE, PHONE_MOBILE, PHONE_WHATSAPP, PHONE_MOBILE_WHATSAPP];
+export const PHONE_TYPES = [PHONE_LANDLINE, PHONE_MOBILE, PHONE_WHATSAPP, PHONE_MOBILE_WHATSAPP, PHONE_HOTLINE];
 
 export const DEFAULT_PHONE_TYPE = PHONE_MOBILE;
 
@@ -20,6 +22,7 @@ const FALLBACK_LABELS = {
     [PHONE_MOBILE]: 'Phone',
     [PHONE_WHATSAPP]: 'WhatsApp',
     [PHONE_MOBILE_WHATSAPP]: 'Phone & WhatsApp',
+    [PHONE_HOTLINE]: 'Hotline',
 };
 
 /**
