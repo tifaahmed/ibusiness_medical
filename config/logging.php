@@ -118,6 +118,19 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+         * Everything one facility-migration import does — the browser's steps
+         * as well as this server's — under a shared trace id. laravel.log is
+         * far too noisy to follow a single upload through.
+         */
+        'migration' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/facility-migration.log'),
+            'level' => 'debug',
+            'days' => 7,
+            'replace_placeholders' => true,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,

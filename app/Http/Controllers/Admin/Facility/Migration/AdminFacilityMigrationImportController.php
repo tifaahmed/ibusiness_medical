@@ -32,6 +32,8 @@ class AdminFacilityMigrationImportController extends BaseController
      */
     public function inspect(Request $request): JsonResponse
     {
+        $this->liftTimeLimit();
+
         $request->validate([
             'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
@@ -50,6 +52,8 @@ class AdminFacilityMigrationImportController extends BaseController
      */
     public function preview(Request $request): JsonResponse
     {
+        $this->liftTimeLimit();
+
         $request->validate([
             'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
@@ -113,18 +117,112 @@ class AdminFacilityMigrationImportController extends BaseController
      */
     public function previewStream(Request $request): StreamedResponse
     {
+        // Before anything else: the whole point of this endpoint is a job too
+        // long for PHP's default clock, and the body is written from a closure
+        // that runs after this method returns — one call covers both.
+        $this->liftTimeLimit();
+
         $request->validate([
             'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
         ]);
 
+        // The browser sends the id it is logging under, so both halves of one
+        // attempt sit under the same trace in facility-migration.log.
+        $trace = (string) ($request->header('X-Migration-Trace') ?: bin2hex(random_bytes(6)));
+        $upload = $request->file('package');
+        $openedAt = microtime(true);
+
+        $this->trace($trace, 'server: preview stream requested', [
+            'via' => $upload ? 'upload' : 'server_path',
+            'file' => $upload?->getClientOriginalName(),
+            'file_bytes' => $upload?->getSize(),
+            'server_path' => $request->input('server_path'),
+            'php' => $this->phpLimits(),
+        ]);
+
         // Resolved before the stream opens: once the first byte is out the
         // status code is fixed, and a bad upload deserves a real HTTP error.
-        $packagePath = $this->packagePath($request);
+        // A spreadsheet is converted here too, which is the slowest thing this
+        // endpoint does and the one place a fatal has already been seen.
+        try {
+            $packagePath = $this->packagePath($request);
+        } catch (\Throwable $e) {
+            $this->trace($trace, 'server: the package could not be resolved', [
+                'error' => $e->getMessage(),
+                'at' => $e->getFile().':'.$e->getLine(),
+                'seconds' => round(microtime(true) - $openedAt, 2),
+            ], 'error');
 
-        return response()->stream(function () use ($packagePath) {
-            $emit = function (array $row): void {
-                echo json_encode($row, JSON_UNESCAPED_UNICODE), "\n";
+            throw $e;
+        }
+
+        $this->trace($trace, 'server: package resolved', [
+            'path' => $packagePath,
+            'bytes' => is_file($packagePath) ? filesize($packagePath) : null,
+            'seconds' => round(microtime(true) - $openedAt, 2),
+            'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+        ]);
+
+        return response()->stream(function () use ($packagePath, $trace, $openedAt) {
+            // What the shutdown guard below reports if the process never gets
+            // to the end of this closure.
+            $sent = ['lines' => 0, 'bytes' => 0, 'phase' => 'starting', 'result' => false, 'error' => false];
+
+            /* A fatal — the execution-time cap, an exhausted memory_limit, a
+               crash inside a extension — is not a Throwable, so the catch at
+               the bottom never sees it. The process simply stops mid-body and
+               the browser reports a connection that ended with no result in
+               it. This is the only thing that leaves a trace of that. */
+            register_shutdown_function(function () use (&$sent, $trace, $openedAt) {
+                if ($sent['result'] || $sent['error']) {
+                    return;
+                }
+
+                /* The likeliest reason for being here is an exhausted
+                   memory_limit — and writing a log line allocates, so without
+                   this the handler dies of the very thing it came to report.
+                   Raising the cap during shutdown costs nothing: the request
+                   is already over. */
+                ini_set('memory_limit', '-1');
+
+                $this->trace($trace, 'server: STREAM ENDED WITHOUT A RESULT', [
+                    'phase' => $sent['phase'],
+                    'lines_sent' => $sent['lines'],
+                    'bytes_sent' => $sent['bytes'],
+                    'seconds' => round(microtime(true) - $openedAt, 2),
+                    'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+                    'client_aborted' => connection_aborted() === 1,
+                    'connection_status' => connection_status(),
+                    'last_php_error' => error_get_last(),
+                ], 'error');
+            });
+
+            $emit = function (array $row) use (&$sent, $trace): void {
+                $line = json_encode($row, JSON_UNESCAPED_UNICODE);
+
+                /* json_encode answers false on so much as one byte that is not
+                   UTF-8 — a name that came out of a spreadsheet in the wrong
+                   encoding is enough. Echoing that would put a bare newline on
+                   the wire, and a browser waiting for a result line it will
+                   never get cannot tell that from a dead connection. */
+                if ($line === false) {
+                    $this->trace($trace, 'server: a line could not be encoded', [
+                        'type' => $row['type'] ?? null,
+                        'phase' => $row['phase'] ?? null,
+                        'json_error' => json_last_error_msg(),
+                    ], 'error');
+
+                    $line = json_encode([
+                        'type' => 'error',
+                        'message' => 'The package holds text this server could not encode as JSON ('.json_last_error_msg().').',
+                    ]);
+                    $sent['error'] = true;
+                }
+
+                echo $line, "\n";
+                $sent['lines']++;
+                $sent['bytes'] += strlen($line) + 1;
 
                 // Pushing each line out as it is written is what makes this a
                 // progress report rather than one big answer at the end. Under
@@ -154,10 +252,27 @@ class AdminFacilityMigrationImportController extends BaseController
             };
 
             try {
+                $sent['phase'] = 'extracting';
+                $sessionStartedAt = microtime(true);
+
+                // Logged once per phase rather than per row: the throttled rows
+                // on the wire are for the progress bar, these are for the file.
+                $loggedPhase = '';
+
                 $session = $this->importer->beginSession(
                     $packagePath,
                     ['mode' => 'merge', 'dry_run' => false, 'skip_media' => false],
-                    function (string $phase, int $processed, int $total) use ($throttled) {
+                    function (string $phase, int $processed, int $total) use ($throttled, &$sent, &$loggedPhase, $trace) {
+                        $sent['phase'] = $phase;
+
+                        if ($phase !== $loggedPhase) {
+                            $loggedPhase = $phase;
+                            $this->trace($trace, 'server: phase '.$phase, [
+                                'total' => $total,
+                                'memory_mb' => round(memory_get_usage(true) / 1048576, 1),
+                            ]);
+                        }
+
                         $throttled([
                             'type' => 'progress',
                             'phase' => $phase,
@@ -171,6 +286,17 @@ class AdminFacilityMigrationImportController extends BaseController
                 $facilities = [];
                 $total = $session['total'];
 
+                $this->trace($trace, 'server: session opened', [
+                    'token' => $session['token'],
+                    'total' => $total,
+                    'counts' => $session['counts'],
+                    'origin' => $session['origin'],
+                    'seconds' => round(microtime(true) - $sessionStartedAt, 2),
+                    'memory_mb' => round(memory_get_usage(true) / 1048576, 1),
+                ]);
+
+                $sent['phase'] = 'reading';
+                $readStartedAt = microtime(true);
                 $emit(['type' => 'progress', 'phase' => 'reading', 'processed' => 0, 'total' => $total]);
 
                 for ($i = 0; $i < $total; $i++) {
@@ -181,6 +307,19 @@ class AdminFacilityMigrationImportController extends BaseController
                             $this->markBundledMedia($this->withExistingRows($facility), $session['token']),
                             ['_index' => $i]
                         );
+                    } else {
+                        $this->trace($trace, 'server: a facility file is missing', ['index' => $i, 'file' => $file], 'warning');
+                    }
+
+                    // Often enough to see where a long read stopped, rarely
+                    // enough that the file stays readable.
+                    if ($i % 50 === 0 || $i === $total - 1) {
+                        $this->trace($trace, 'server: reading facilities', [
+                            'read' => $i + 1,
+                            'of' => $total,
+                            'memory_mb' => round(memory_get_usage(true) / 1048576, 1),
+                            'client_aborted' => connection_aborted() === 1,
+                        ]);
                     }
 
                     $throttled([
@@ -191,6 +330,13 @@ class AdminFacilityMigrationImportController extends BaseController
                     ]);
                 }
 
+                $this->trace($trace, 'server: facilities read, building the result line', [
+                    'facilities' => count($facilities),
+                    'seconds' => round(microtime(true) - $readStartedAt, 2),
+                    'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+                ]);
+
+                $sent['phase'] = 'result';
                 $emit([
                     'type' => 'result',
                     'token' => $session['token'],
@@ -202,11 +348,28 @@ class AdminFacilityMigrationImportController extends BaseController
                     'origin' => $session['origin'],
                     'package_options' => $session['package_options'],
                 ]);
+                $sent['result'] = ! $sent['error'];
+
+                $this->trace($trace, 'server: preview stream finished', [
+                    'token' => $session['token'],
+                    'lines_sent' => $sent['lines'],
+                    'bytes_sent' => $sent['bytes'],
+                    'seconds' => round(microtime(true) - $openedAt, 2),
+                    'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+                ]);
             } catch (\Throwable $e) {
                 Log::error('Facility migration preview failed', ['error' => $e->getMessage()]);
+                $this->trace($trace, 'server: preview stream threw', [
+                    'phase' => $sent['phase'],
+                    'error' => $e->getMessage(),
+                    'at' => $e->getFile().':'.$e->getLine(),
+                    'seconds' => round(microtime(true) - $openedAt, 2),
+                    'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+                ], 'error');
 
                 // The status line went out with the first byte, so the failure
                 // has to travel in the body like everything else.
+                $sent['error'] = true;
                 $emit(['type' => 'error', 'message' => $e->getMessage()]);
             }
         }, 200, [
@@ -214,7 +377,100 @@ class AdminFacilityMigrationImportController extends BaseController
             'Cache-Control' => 'no-cache, no-store',
             // Tells nginx not to sit on the body until the handler returns.
             'X-Accel-Buffering' => 'no',
+            'X-Migration-Trace' => $trace,
         ]);
+    }
+
+    /**
+     * Take a line the browser logged and put it in the same file, under the
+     * same trace, as the server's own.
+     *
+     * The two halves of a failed import each know only half of it: the browser
+     * that the connection ended, the server that it stopped writing. Read in
+     * one file in order, they say between them where it stopped.
+     */
+    public function clientLog(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'trace' => ['nullable', 'string', 'max:64'],
+            'event' => ['required', 'string', 'max:200'],
+            'context' => ['nullable', 'array'],
+            'level' => ['nullable', 'in:info,warning,error'],
+        ]);
+
+        $this->trace(
+            $validated['trace'] ?? 'browser',
+            $validated['event'],
+            $validated['context'] ?? [],
+            $validated['level'] ?? 'info',
+        );
+
+        return response()->json(['logged' => true]);
+    }
+
+    /**
+     * Take PHP's execution clock off a request that opens a package.
+     *
+     * Reading a whole-site export — converting a spreadsheet, unzipping it,
+     * writing a file per facility — runs for minutes, and PHP's default cap is
+     * 30 seconds. Worse, blowing it is a *fatal*: no exception is thrown, so
+     * nothing here catches it, the process simply stops mid-response, and the
+     * browser is left reporting a connection that ended before the result
+     * arrived. That is not a hypothetical — laravel.log has it twice, both
+     * inside PhpSpreadsheet, from a package exported in 215 parts.
+     *
+     * Note the cap does not come from the CLI's own settings, which is what
+     * makes it easy to miss: `php artisan serve` runs the cli-server SAPI, and
+     * that one honours php.ini's max_execution_time where the plain CLI forces
+     * it to 0. So the limit bites when the app is served and never when the
+     * same package is imported through the console command.
+     *
+     * Removing it here is safe because these endpoints already report their own
+     * progress — the streaming preview line by line, the stepped import a chunk
+     * per request — so a run that has genuinely stalled is visible without the
+     * clock, and a real deployment still has the server's own ceiling
+     * (fpm's request_terminate_timeout, nginx's read timeout) above this.
+     */
+    private function liftTimeLimit(): void
+    {
+        // Hosts sometimes put this on disable_functions; nothing is lost by
+        // carrying on with the default cap if so.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+    }
+
+    /**
+     * One line in storage/logs/facility-migration.log.
+     */
+    private function trace(string $trace, string $message, array $context = [], string $level = 'info'): void
+    {
+        try {
+            Log::channel('migration')->log($level, $message, ['trace' => $trace] + $context);
+        } catch (\Throwable) {
+            // Diagnostics must never be the thing that breaks the import.
+        }
+    }
+
+    /**
+     * The settings that decide whether a long import survives at all — the two
+     * fatals this endpoint has actually died of are a spent execution-time cap
+     * and an exhausted memory_limit, and neither leaves anything else behind.
+     *
+     * @return array<string, mixed>
+     */
+    private function phpLimits(): array
+    {
+        return [
+            'sapi' => PHP_SAPI,
+            'memory_limit' => ini_get('memory_limit'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'max_input_time' => ini_get('max_input_time'),
+            'post_max_size' => ini_get('post_max_size'),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'output_buffering' => ini_get('output_buffering'),
+            'ob_level' => ob_get_level(),
+        ];
     }
 
     /**
@@ -393,6 +649,9 @@ class AdminFacilityMigrationImportController extends BaseController
      */
     public function begin(Request $request): JsonResponse
     {
+        // Opens the same session the preview does, and unpacks the same package.
+        $this->liftTimeLimit();
+
         $validated = $request->validate([
             'package' => ['required_without:server_path', 'file', 'mimes:zip,json,xlsx,xls,csv'],
             'server_path' => ['required_without:package', 'nullable', 'string'],
@@ -490,6 +749,9 @@ class AdminFacilityMigrationImportController extends BaseController
      */
     public function exportSession(Request $request): StreamedResponse
     {
+        // Writes a whole package back out, media and all.
+        $this->liftTimeLimit();
+
         $validated = $request->validate([
             'token' => ['required', 'string'],
             'format' => ['nullable', 'in:zip,xlsx'],
@@ -619,9 +881,7 @@ class AdminFacilityMigrationImportController extends BaseController
 
             // Convert spreadsheet to migration zip on the fly
             if (in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
-                $converter = app(XlsxToMigrationZip::class);
-
-                return $converter->convert($file->getRealPath());
+                return $this->convertSpreadsheet($request, $file->getRealPath(), $file->getClientOriginalName());
             }
 
             return $file->getRealPath();
@@ -643,11 +903,41 @@ class AdminFacilityMigrationImportController extends BaseController
         // Convert spreadsheet server files too
         $ext = strtolower(pathinfo($resolved, PATHINFO_EXTENSION));
         if (in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
-            $converter = app(XlsxToMigrationZip::class);
-
-            return $converter->convert($resolved);
+            return $this->convertSpreadsheet($request, $resolved, basename($resolved));
         }
 
         return $resolved;
+    }
+
+    /**
+     * Turn a spreadsheet into a migration zip, timed.
+     *
+     * Reading a workbook is by far the slowest thing an import does and the one
+     * step that has died on PHP's execution-time cap — a fatal, so the request
+     * simply stops and the browser is left saying the connection ended. These
+     * two lines say how long it took, or that it never got to the second one.
+     */
+    private function convertSpreadsheet(Request $request, string $path, string $name): string
+    {
+        $trace = (string) ($request->header('X-Migration-Trace') ?: 'no-trace');
+        $startedAt = microtime(true);
+
+        $this->trace($trace, 'server: converting the spreadsheet', [
+            'name' => $name,
+            'bytes' => is_file($path) ? filesize($path) : null,
+            'php' => $this->phpLimits(),
+        ]);
+
+        $converted = app(XlsxToMigrationZip::class)->convert($path);
+
+        $this->trace($trace, 'server: spreadsheet converted', [
+            'name' => $name,
+            'zip' => $converted,
+            'zip_bytes' => is_file($converted) ? filesize($converted) : null,
+            'seconds' => round(microtime(true) - $startedAt, 2),
+            'peak_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 1),
+        ]);
+
+        return $converted;
     }
 }

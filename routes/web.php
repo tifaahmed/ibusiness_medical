@@ -539,6 +539,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // The preview refuses to import a branch pointing at a governorate or
         // city this site lacks; this makes the missing one without leaving it.
         Route::post('/admin/facility/migration/lookup', \App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationLookupController::class)->name('admin.facility.migration.lookup.store');
+        // What the browser saw, written into the same log as what the server
+        // saw — the only way to line the two halves of a failed import up.
+        Route::post('/admin/facility/migration/client-log', [AdminFacilityMigrationImportController::class, 'clientLog'])->name('admin.facility.migration.client.log');
         // AI metadata helper for the form's SEO tab (called via axios, answers JSON).
         Route::post('/admin/facility/seo/generate', AdminFacilitySeoGenerateController::class)->name('admin.facility.seo.generate');
         // "Fill SEO with AI" sweep on the list — browser-stepped begin/step.

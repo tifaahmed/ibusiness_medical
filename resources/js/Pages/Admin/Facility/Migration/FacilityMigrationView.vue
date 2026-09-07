@@ -1489,9 +1489,14 @@
                 <span class="text-[10px] opacity-70">{{ saveOpen ? '▾' : '▸' }}</span>
               </button>
 
+              <!-- bg-popover, not bg-card: this theme's --card carries an
+                   alpha of 0.302, so a panel floating straight over the
+                   facility table showed the rows through its own text. The
+                   popover token is the opaque one, and is what every other
+                   floating panel in the admin uses. -->
               <div
                 v-if="saveOpen"
-                class="absolute bottom-full left-0 mb-2 w-[min(26rem,90vw)] rounded-lg border border-border bg-card p-4 shadow-2xl space-y-3"
+                class="absolute bottom-full left-0 mb-2 w-[min(26rem,90vw)] rounded-lg border border-border bg-popover text-popover-foreground p-4 shadow-2xl space-y-3"
               >
                 <div>
                   <p class="text-sm font-semibold">Download the review so far</p>
@@ -3164,6 +3169,40 @@ const applyPreviewData = (data) => {
   importStep.value = 'preview';
 };
 
+/* --------------------------- import diagnostics --------------------------- */
+
+/* Opening a package fails in ways neither side can see on its own: the browser
+   knows only that the connection ended, the server only that it stopped
+   writing. Every line either side logs carries the same trace id — the
+   browser's are posted to the server as well as printed — so
+   storage/logs/facility-migration.log holds one whole attempt in order.
+   The same lines stay in window.__migrationLog for the console. */
+let migrationTrace = '';
+
+const newMigrationTrace = () => {
+  migrationTrace = Math.random().toString(16).slice(2, 14);
+  window.__migrationLog = [];
+
+  return migrationTrace;
+};
+
+const mlog = (event, context = {}, level = 'info') => {
+  const line = { at: new Date().toISOString(), trace: migrationTrace, event, ...context };
+  (window.__migrationLog ||= []).push(line);
+  console.log(`[migration ${migrationTrace}] ${event}`, context);
+
+  // Fire and forget, and never awaited: a diagnostic must not be the thing
+  // that breaks the screen it is diagnosing.
+  try {
+    axios.post(route('admin.facility.migration.client.log'), {
+      trace: migrationTrace,
+      event: `browser: ${event}`,
+      context,
+      level,
+    }).catch(() => {});
+  } catch { /* ignore */ }
+};
+
 /* How far through opening the package the server is.
 
    `phase` is what it is doing: uploading the file, unzipping and parsing it,
@@ -3232,18 +3271,34 @@ const inspectPackage = () => {
   importError.value = '';
   setInspectPhase('uploading', 0, 0);
 
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', route('admin.facility.migration.preview.stream'));
-    xhr.setRequestHeader('Accept', 'application/x-ndjson');
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  const trace = newMigrationTrace();
+  const startedAt = Date.now();
+  const seconds = () => Math.round((Date.now() - startedAt) / 100) / 10;
 
-    // axios reads this cookie for us; a bare XHR has to do it by hand or the
-    // request is rejected as cross-site.
-    const xsrf = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
-    if (xsrf) xhr.setRequestHeader('X-XSRF-TOKEN', decodeURIComponent(xsrf.split('=')[1]));
+  mlog('opening a package', {
+    file: packageFile.value
+      ? { name: packageFile.value.name, bytes: packageFile.value.size, type: packageFile.value.type }
+      : null,
+    server_path: packageFile.value ? null : serverPath.value.trim(),
+    page: window.location.href,
+  });
+
+  return new Promise((resolve) => {
+    /* The stream is settled once a result, an error, or a failure has been
+       reported — and it must be reported exactly once, across both attempts.
+
+       The last chunk of the body routinely arrives on `onprogress`, complete
+       result line and all; `onload` then fires immediately after and drains
+       again. That second pass finds nothing left beyond `consumed`, decides
+       the result never came, and replaces a preview that had already loaded
+       with a "the connection ended" error. Which is why this only ever bit on
+       a body big enough to be split across chunks. */
+    let settled = false;
 
     const finish = (message) => {
+      if (settled) return;
+      settled = true;
+
       busy.value = false;
       inspectProgress.value = null;
       if (message) {
@@ -3253,74 +3308,223 @@ const inspectPackage = () => {
       resolve();
     };
 
-    // Everything before this offset has already been handled; the body only
-    // ever grows, so lines are never re-parsed.
-    let consumed = 0;
+    /* One send. Run a second time, once, when the first is turned away for a
+       stale CSRF token — see the 419 branch in onload. */
+    const attempt = (isRetry) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', route('admin.facility.migration.preview.stream'));
+      xhr.setRequestHeader('Accept', 'application/x-ndjson');
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      // Both halves of this attempt log under the one id.
+      xhr.setRequestHeader('X-Migration-Trace', trace);
 
-    const drain = (final = false) => {
-      const text = xhr.responseText;
-      let newlineAt;
+      // axios reads this cookie for us; a bare XHR has to do it by hand or the
+      // request is rejected as cross-site. Read at send time, so a retry picks
+      // up the cookie Sanctum has just reissued rather than the stale one.
+      const xsrf = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+      if (xsrf) xhr.setRequestHeader('X-XSRF-TOKEN', decodeURIComponent(xsrf.split('=')[1]));
+      else mlog('no XSRF-TOKEN cookie to send', {}, 'warning');
 
-      while ((newlineAt = text.indexOf('\n', consumed)) !== -1) {
-        const line = text.slice(consumed, newlineAt).trim();
-        consumed = newlineAt + 1;
-        if (line === '') continue;
+      // Everything before this offset has already been handled; the body only
+      // ever grows, so lines are never re-parsed. Per attempt: a retry reads a
+      // fresh response from the start.
+      let consumed = 0;
+      // What the failure line below reports: how far the body actually got.
+      const seen = { lines: 0, unparsable: 0, phases: [] };
 
-        let row;
-        try {
-          row = JSON.parse(line);
-        } catch {
-          // A newline was found, so this line arrived whole — it is corrupt
-          // rather than incomplete. Skip it; the result line is what matters.
-          continue;
+      const drain = (final = false) => {
+        // Already delivered — there is nothing this pass could add but a wrong
+        // verdict on a body that has been read to the end.
+        if (settled) return true;
+
+        const text = xhr.responseText;
+        let newlineAt;
+
+        while ((newlineAt = text.indexOf('\n', consumed)) !== -1) {
+          const line = text.slice(consumed, newlineAt).trim();
+          consumed = newlineAt + 1;
+          if (line === '') continue;
+
+          seen.lines++;
+
+          let row;
+          try {
+            row = JSON.parse(line);
+          } catch {
+            // A newline was found, so this line arrived whole — it is corrupt
+            // rather than incomplete. Skip it; the result line is what matters.
+            seen.unparsable++;
+            mlog('a line on the stream would not parse', {
+              length: line.length,
+              starts_with: line.slice(0, 200),
+            }, 'warning');
+            continue;
+          }
+
+          if (row.type === 'progress') {
+            // One line per phase, not per row: the rest is the progress bar's.
+            if (!seen.phases.includes(row.phase)) {
+              seen.phases.push(row.phase);
+              mlog(`phase ${row.phase}`, { total: row.total || 0, seconds: seconds() });
+            }
+            setInspectPhase(row.phase, row.processed || 0, row.total || 0);
+          } else if (row.type === 'result') {
+            mlog('result line received', {
+              token: row.token,
+              total: row.total,
+              facilities: Array.isArray(row.facilities) ? row.facilities.length : null,
+              body_bytes: text.length,
+              lines: seen.lines,
+              seconds: seconds(),
+            });
+            applyPreviewData(row);
+            finish(null);
+
+            return true;
+          } else if (row.type === 'error') {
+            mlog('the server sent an error line', { message: row.message, seconds: seconds() }, 'error');
+            finish(row.message || 'Could not read that package.');
+
+            return true;
+          }
         }
 
-        if (row.type === 'progress') {
-          setInspectPhase(row.phase, row.processed || 0, row.total || 0);
-        } else if (row.type === 'result') {
-          applyPreviewData(row);
-          finish(null);
+        if (final) {
+          /* The body ended and no result line was in it. Everything known about
+             how far it got goes to the log — the status, how much arrived, which
+             phases were seen, and the tail of what did arrive, which is where a
+             PHP fatal or an error page would show up. */
+          const tail = xhr.responseText.slice(-800);
+          mlog('the stream ended with no result line', {
+            status: xhr.status,
+            status_text: xhr.statusText,
+            content_type: xhr.getResponseHeader('Content-Type'),
+            body_bytes: xhr.responseText.length,
+            lines_parsed: seen.lines,
+            unparsable_lines: seen.unparsable,
+            phases_seen: seen.phases,
+            last_phase: inspectProgress.value?.phase || null,
+            seconds: seconds(),
+            body_tail: tail,
+          }, 'error');
 
-          return true;
-        } else if (row.type === 'error') {
-          finish(row.message || 'Could not read that package.');
-
-          return true;
+          finish(
+            'The package could not be read — the connection ended before the result arrived. '
+            + `(HTTP ${xhr.status}, ${xhr.responseText.length} bytes after ${seconds()}s, `
+            + `last step: ${inspectProgress.value?.phase || 'none'}. Trace ${trace} — see storage/logs/facility-migration.log.)`
+          );
         }
-      }
 
-      if (final) {
-        finish('The package could not be read — the connection ended before the result arrived.');
-      }
+        return false;
+      };
 
-      return false;
+      // Logged at each quarter rather than each packet: enough to tell an upload
+      // that stalled from one that finished and left the server thinking.
+      let uploadMark = -1;
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        setInspectPhase('uploading', event.loaded, event.total);
+
+        const quarter = Math.floor((event.loaded / event.total) * 4);
+        if (quarter > uploadMark) {
+          uploadMark = quarter;
+          mlog('uploading', { loaded: event.loaded, total: event.total, seconds: seconds() });
+        }
+      };
+
+      xhr.upload.onerror = () => mlog('the upload itself failed', { seconds: seconds() }, 'error');
+
+      xhr.onreadystatechange = () => {
+        // Headers are in: the status here is the one the whole stream will carry,
+        // and a redirect or an error page announces itself in the content type.
+        if (xhr.readyState === 2) {
+          mlog('response headers received', {
+            status: xhr.status,
+            status_text: xhr.statusText,
+            content_type: xhr.getResponseHeader('Content-Type'),
+            server_trace: xhr.getResponseHeader('X-Migration-Trace'),
+            seconds: seconds(),
+          });
+        }
+      };
+
+      xhr.onprogress = () => drain();
+
+      xhr.onload = () => {
+        /* 419 is a stale CSRF token, not a bad package — and it is answered with
+           Laravel's HTML "Page Expired" screen, which parses as nothing and used
+           to surface as the thoroughly misleading "Could not read that package."
+
+           Every other call on this page recovers from it already: the axios
+           interceptor in bootstrap.js reissues the cookie through Sanctum and
+           replays the request once. This upload is a bare XHR — chosen for the
+           upload percentage and the streamed body, neither of which axios gives
+           — so no interceptor ever sees it, and it has to do the same dance
+           itself. Once only: if the session is genuinely gone the second answer
+           is the honest one. */
+        if (xhr.status === 419 && !isRetry) {
+          mlog('the csrf token was stale, refreshing it and sending once more', {
+            status: xhr.status,
+            content_type: xhr.getResponseHeader('Content-Type'),
+            seconds: seconds(),
+          }, 'warning');
+
+          axios.get('/sanctum/csrf-cookie')
+            .then(() => attempt(true))
+            .catch(() => finish(
+              'Your session has expired and could not be renewed. Reload the page and sign in again.'
+            ));
+
+          return;
+        }
+
+        if (xhr.status >= 400) {
+          let message = xhr.status === 419
+            ? 'Your session has expired. Reload the page and sign in again, then re-add the package.'
+            : 'Could not read that package.';
+          try {
+            message = JSON.parse(xhr.responseText)?.message || message;
+          } catch { /* a non-JSON error body has nothing better to say */ }
+
+          mlog('the server refused the package', {
+            status: xhr.status,
+            content_type: xhr.getResponseHeader('Content-Type'),
+            was_retry: isRetry,
+            message,
+            body_tail: xhr.responseText.slice(-800),
+            seconds: seconds(),
+          }, 'error');
+          finish(message);
+
+          return;
+        }
+
+        drain(true);
+      };
+
+      xhr.onerror = () => {
+        mlog('the request never reached the server, or the connection broke', {
+          status: xhr.status,
+          body_bytes: xhr.responseText?.length || 0,
+          seconds: seconds(),
+        }, 'error');
+        finish('Could not reach the server to read that package.');
+      };
+
+      xhr.ontimeout = () => {
+        mlog('the browser timed the request out', { seconds: seconds() }, 'error');
+        finish('Reading the package took longer than the browser would wait.');
+      };
+
+      xhr.onabort = () => {
+        mlog('the request was aborted', { seconds: seconds() }, 'warning');
+        finish(null);
+      };
+
+      xhr.send(packageForm());
     };
 
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      setInspectPhase('uploading', event.loaded, event.total);
-    };
-
-    xhr.onprogress = () => drain();
-
-    xhr.onload = () => {
-      if (xhr.status >= 400) {
-        let message = 'Could not read that package.';
-        try {
-          message = JSON.parse(xhr.responseText)?.message || message;
-        } catch { /* a non-JSON error body has nothing better to say */ }
-        finish(message);
-
-        return;
-      }
-
-      drain(true);
-    };
-
-    xhr.onerror = () => finish('Could not reach the server to read that package.');
-    xhr.onabort = () => finish(null);
-
-    xhr.send(packageForm());
+    attempt(false);
   });
 };
 

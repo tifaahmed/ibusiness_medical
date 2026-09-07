@@ -92,10 +92,11 @@ mysql -h"$HOST" -u"$USER" -p"$PASS" -e "
 echo
 echo "Expected roughly: 525 users, 513 memberships."
 echo
-echo "The replay stops BEFORE today's drop, so it also predates the two new"
+echo "The replay stops BEFORE today's drop, so it also predates the three new"
 echo "migrations added today. Finish with:"
 echo
 echo "    php artisan migrate"
 echo "    php artisan db:seed --class=SettingSeeder"
 echo
-echo "which add orders.user_id, users.gender and the otp_* settings rows."
+echo "which add orders.user_id, users.gender, the free-delivery columns on"
+echo "orders, and the otp_* settings rows."

@@ -1524,6 +1524,15 @@ return [
         'delivery_cost' => 'تكلفة التوصيل',
         'delivery_price' => 'سعر التوصيل',
         'delivery_profit' => 'ربح التوصيل',
+        /*
+         * Why an order was not charged for delivery, keyed by the slug stored
+         * on the row (`delivery_free_{reason}`). One reason today; the fallback
+         * `delivery_free` covers a new one added on the API side before it has
+         * wording of its own.
+         */
+        'delivery_free' => 'توصيل مجاني',
+        'delivery_free_order_total_reached_threshold' => 'توصيل مجاني — وصل الطلب إلى الحد المطلوب',
+        'free_delivery_threshold' => 'التوصيل مجاني عند',
         'payment_status' => 'حالة الدفع',
         'delivery_status' => 'حالة التوصيل',
         'order_status' => 'حالة الطلب',

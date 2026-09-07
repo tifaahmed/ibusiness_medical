@@ -1528,6 +1528,15 @@ return [
         'delivery_cost' => 'Delivery cost',
         'delivery_price' => 'Delivery price',
         'delivery_profit' => 'Delivery profit',
+        /*
+         * Why an order was not charged for delivery, keyed by the slug stored
+         * on the row (`delivery_free_{reason}`). One reason today; the fallback
+         * `delivery_free` covers a new one added on the API side before it has
+         * wording of its own.
+         */
+        'delivery_free' => 'Free delivery',
+        'delivery_free_order_total_reached_threshold' => 'Free delivery — the order reached the free-delivery total',
+        'free_delivery_threshold' => 'Free delivery over',
         'payment_status' => 'Payment Status',
         'delivery_status' => 'Delivery Status',
         'order_status' => 'Order Status',

@@ -323,6 +323,38 @@
                     {{ formatPrice(order.delivery_profit) }}
                   </p>
                 </div>
+                <!--
+                  Why the price above is zero, when it is. A zero delivery line
+                  with nothing beside it reads as a pricing bug; this says the
+                  basket crossed the storefront's free-delivery line, and what
+                  that line was on the day the order was placed. The negative
+                  profit above is then a decision rather than a mistake.
+                -->
+                <div
+                  v-if="order.delivery_free_reason"
+                  class="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5"
+                >
+                  <p class="text-xs font-medium text-emerald-500">
+                    {{ deliveryFreeReasonLabel }}
+                  </p>
+                  <p v-if="order.free_delivery_threshold !== null" class="text-xs value-muted mt-0.5">
+                    {{ t.order?.free_delivery_threshold || 'Free over' }}:
+                    {{ formatPrice(order.free_delivery_threshold) }}
+                  </p>
+                </div>
+                <!--
+                  The line the shop had set even when this basket did NOT reach
+                  it — the figure is archived on every order, so it explains an
+                  order that was charged for delivery just as readily as one
+                  that was not.
+                -->
+                <div
+                  v-else-if="order.free_delivery_threshold !== null && order.free_delivery_threshold !== undefined"
+                  class="flex items-center justify-between gap-2"
+                >
+                  <label class="text-xs font-medium text-muted-foreground">{{ t.order?.free_delivery_threshold || 'Free over' }}</label>
+                  <p class="text-sm value-muted">{{ formatPrice(order.free_delivery_threshold) }}</p>
+                </div>
               </div>
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.total_paid || 'Total Paid' }}</label>
@@ -571,6 +603,27 @@ const canManage = computed(() => {
 });
 
 const saved = computed(() => savedAmount(props.order));
+
+/*
+ * Why delivery was not charged, read in the admin's own language.
+ *
+ * The order stores a slug (`order_total_reached_threshold`) rather than a
+ * sentence, so a report can group by it and so this screen can say it in
+ * Arabic or English. An unknown slug falls back to itself instead of rendering
+ * blank — a reason added on the API side without a translation here should show
+ * up as something odd to fix, not as an empty green box.
+ */
+const deliveryFreeReasonLabel = computed(() => {
+  const reason = props.order?.delivery_free_reason;
+
+  if (!reason) {
+    return '';
+  }
+
+  return t.value.order?.[`delivery_free_${reason}`]
+    || t.value.order?.delivery_free
+    || 'Free delivery — the order reached the free-delivery total';
+});
 
 /** Whether the ship dialog is open. */
 const shipping = ref(false);

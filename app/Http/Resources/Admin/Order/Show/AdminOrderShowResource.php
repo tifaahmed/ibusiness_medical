@@ -38,6 +38,18 @@ class AdminOrderShowResource extends JsonResource
             'delivery_cost' => (float) $this->delivery_cost,
             'delivery_price' => (float) $this->delivery_price,
             'delivery_profit' => (float) $this->delivery_profit,
+            /*
+             * Why delivery was not charged, when it was not — and the basket
+             * total that earned it, as the storefront's settings had it on the
+             * day. Without these a zero in `delivery_price` is ambiguous: a
+             * shop that charges nothing, an order from before delivery was
+             * charged for, and a basket that crossed the free-delivery line all
+             * look identical on the row.
+             */
+            'delivery_free_reason' => $this->delivery_free_reason,
+            'free_delivery_threshold' => $this->free_delivery_threshold === null
+                ? null
+                : (float) $this->free_delivery_threshold,
 
             'customer_full_name' => $this->customer_full_name,
             'customer_phone' => $this->customer_phone,

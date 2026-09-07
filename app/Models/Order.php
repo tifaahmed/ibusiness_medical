@@ -31,6 +31,17 @@ class Order extends Model implements HasMedia
     public const SOURCE_STOREFRONT = 'storefront';
 
     /**
+     * Delivery was not charged because the basket reached the total the
+     * storefront's shop settings say earns free delivery.
+     *
+     * The only reason there is today. It is a slug rather than a sentence
+     * because the admin screens render it in the reader's own language, and
+     * because a report grouping orders by it should not be grouping by English
+     * prose. `free_delivery_threshold` records the figure that was in force.
+     */
+    public const DELIVERY_FREE_THRESHOLD_REACHED = 'order_total_reached_threshold';
+
+    /**
      * The receipts a buyer sends after a wallet transfer.
      *
      * Not `singleFile()`, and deliberately uncapped: a transfer sometimes takes
@@ -56,6 +67,9 @@ class Order extends Model implements HasMedia
         'delivery_cost',
         'delivery_price',
         'delivery_profit',
+        /* Why delivery was not charged, and the basket total that earned it. */
+        'delivery_free_reason',
+        'free_delivery_threshold',
         'customer_full_name',
         'customer_phone',
         'customer_address',
@@ -90,6 +104,13 @@ class Order extends Model implements HasMedia
             'delivery_cost' => 'decimal:2',
             'delivery_price' => 'decimal:2',
             'delivery_profit' => 'decimal:2',
+            /*
+             * Nullable, and the cast leaves null alone — which matters here:
+             * null means no threshold was in force when this order was placed,
+             * while 0.00 would mean the storefront said every basket earns free
+             * delivery. Two different things to read off an old order.
+             */
+            'free_delivery_threshold' => 'decimal:2',
             'payment_status' => PaymentStatusEnum::class,
             'delivery_status' => DeliveryStatusEnum::class,
             'order_status' => OrderStatusEnum::class,

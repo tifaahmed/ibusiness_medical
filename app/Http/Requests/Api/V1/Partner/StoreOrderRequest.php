@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1\Partner;
 
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\PaymentTypeEnum;
+use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -66,6 +67,22 @@ class StoreOrderRequest extends FormRequest
                always `price - cost`, worked out here. */
             'delivery_profit' => ['nullable', 'numeric'],
 
+            /*
+             * The basket total the storefront says earns free delivery — an
+             * administrator's setting over there, sent with the order rather
+             * than applied by it.
+             *
+             * Deciding here is deliberate: the storefront only QUOTES a
+             * subtotal, while this is where the basket is actually priced, so a
+             * card honoured on this side can take a basket back under the line
+             * after the checkout has already shown it crossed. See
+             * `OrderController::store()`.
+             *
+             * Null — the common case — means the shop does not do free delivery
+             * and the order is charged whatever `delivery_price` says.
+             */
+            'free_delivery_threshold' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
+
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values())],
@@ -105,6 +122,60 @@ class StoreOrderRequest extends FormRequest
             'delivery_cost' => $cost,
             'delivery_price' => $price,
             'delivery_profit' => round($price - $cost, 2),
+        ];
+    }
+
+    /**
+     * The basket total that earns free delivery on this order, or null when the
+     * storefront sent none.
+     *
+     * `filled()` rather than a falsy check, because zero is a real answer here
+     * — "every basket earns free delivery" — and only null or an empty string
+     * mean the storefront sent no threshold at all. `blank(0)` is false, so a
+     * literal 0 comes through as 0.0 rather than as null.
+     */
+    public function freeDeliveryThreshold(): ?float
+    {
+        return $this->filled('free_delivery_threshold')
+            ? round((float) $this->input('free_delivery_threshold'), 2)
+            : null;
+    }
+
+    /**
+     * Delivery as it should be stored for a basket of `$subtotal`, with the
+     * threshold applied.
+     *
+     * A basket that crossed the line is not charged, and the row says WHY: a
+     * zero in `delivery_price` has always been ambiguous, and now it is not.
+     *
+     * The profit follows the price down and goes NEGATIVE by the cost of the
+     * delivery. That is exactly right and should not be clamped — a shop
+     * offering free delivery over a certain basket is choosing to pay a courier
+     * out of the margin on the goods, and the reporting should show that rather
+     * than hide it.
+     *
+     * @return array{delivery_cost: float, delivery_price: float, delivery_profit: float, delivery_free_reason: ?string, free_delivery_threshold: ?float}
+     */
+    public function deliveryFor(float $subtotal): array
+    {
+        $delivery = $this->delivery();
+        $threshold = $this->freeDeliveryThreshold();
+
+        $earned = $threshold !== null && $subtotal >= $threshold;
+
+        return [
+            ...$delivery,
+            'delivery_price' => $earned ? 0.0 : $delivery['delivery_price'],
+            'delivery_profit' => $earned
+                ? round(0 - $delivery['delivery_cost'], 2)
+                : $delivery['delivery_profit'],
+            'delivery_free_reason' => $earned ? Order::DELIVERY_FREE_THRESHOLD_REACHED : null,
+            /*
+             * Archived whether or not it was crossed, so an order placed just
+             * under the line still says what the line was — and so changing the
+             * setting later cannot rewrite what an old order means.
+             */
+            'free_delivery_threshold' => $threshold,
         ];
     }
 

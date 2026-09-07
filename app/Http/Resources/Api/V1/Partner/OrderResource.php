@@ -55,6 +55,26 @@ class OrderResource extends JsonResource
             /* What delivery was charged at on this order, already included in
                `total_amount`. The buyer's half of the three columns. */
             'delivery_price' => (float) $this->delivery_price,
+            /*
+             * Why delivery was not charged, when it was not. Sent to the
+             * storefront rather than kept for the admin, because the buyer is
+             * the person most owed the explanation — a zero delivery line with
+             * no reason beside it reads as a mistake somebody might ring up
+             * about.
+             *
+             * Null on every order that was charged for delivery normally, and
+             * on every order placed before free delivery existed.
+             */
+            'delivery_free_reason' => $this->delivery_free_reason,
+            /*
+             * The basket total that earned it — the figure set in the
+             * storefront's own settings, archived here when the order was
+             * placed. Present even when the line was NOT crossed, so an order
+             * still says what the line was that day.
+             */
+            'free_delivery_threshold' => $this->free_delivery_threshold === null
+                ? null
+                : (float) $this->free_delivery_threshold,
 
             'payment_type' => [
                 'value' => $this->payment_type->value,

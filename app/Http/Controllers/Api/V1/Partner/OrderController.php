@@ -124,12 +124,21 @@ class OrderController extends Controller
 
                 /*
                  * Delivery, as the storefront charges it — see
-                 * `StoreOrderRequest::delivery()`. It is added to BOTH totals
-                 * so the difference between them stays exactly the discount the
-                 * card earned: adding it to one only would report delivery as a
-                 * saving, or as a loss.
+                 * `StoreOrderRequest::deliveryFor()`. It is added to BOTH
+                 * totals so the difference between them stays exactly the
+                 * discount the card earned: adding it to one only would report
+                 * delivery as a saving, or as a loss.
+                 *
+                 * The free-delivery threshold is applied HERE, against `$total`
+                 * — the price this order actually came to, member price and
+                 * all. The storefront sends the line but cannot apply it: it
+                 * only quotes a subtotal, and a card honoured on this side can
+                 * take a basket back under the line after the checkout has
+                 * already shown it crossed. When the charge is dropped the row
+                 * says why, so a zero in `delivery_price` is never ambiguous
+                 * again.
                  */
-                $delivery = $request->delivery();
+                $delivery = $request->deliveryFor(round($total, 2));
 
                 $order = Order::query()->create([
                     'order_code' => Order::generateCode(),
@@ -205,6 +214,13 @@ class OrderController extends Controller
                    against the lines is explained by the log rather than
                    investigated. */
                 'delivery_price' => (float) $order->delivery_price,
+                /* And why it was not charged, when it was not — otherwise a
+                   zero here reads as a pricing bug rather than as a basket that
+                   crossed the shop's free-delivery line. */
+                'delivery_free_reason' => $order->delivery_free_reason,
+                'free_delivery_threshold' => $order->free_delivery_threshold === null
+                    ? null
+                    : (float) $order->free_delivery_threshold,
                 'payment_type' => $order->payment_type->value,
                 'source' => $order->source,
                 /* Whether the card in the box was honoured. Without it a
