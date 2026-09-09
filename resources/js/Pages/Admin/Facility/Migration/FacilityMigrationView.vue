@@ -2399,10 +2399,21 @@ const asRef = (value) => {
    below shows one number per line either way, and the lines are the list. */
 const PHONE_MAX = 20;
 
+/* An entry can also arrive as a typed object — {number, type} — which is how
+   manager phones are exported so "mobile" / "WhatsApp" survives a move between
+   sites. Only the number is edited on this screen; the importer re-types what
+   it reads back (PhoneNumbers::guessType). */
+const asPhoneText = (entry) => {
+  if (entry === null || entry === undefined) return '';
+  if (typeof entry === 'object') return asPhoneText(entry.number ?? entry.phone ?? '');
+
+  return String(entry);
+};
+
 const asPhoneList = (raw) => {
   const flat = Array.isArray(raw)
-    ? raw.map(p => (p === null || p === undefined ? '' : String(p))).join('\n')
-    : String(raw ?? '');
+    ? raw.map(asPhoneText).join('\n')
+    : asPhoneText(raw);
 
   // One number per entry: split on newline / comma / semicolon / pipe / slash
   // and on a spaced hyphen, then drop the grouping spaces some numbers were
