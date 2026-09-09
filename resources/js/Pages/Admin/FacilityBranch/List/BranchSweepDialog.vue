@@ -189,12 +189,35 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
    error. Nothing is lost and nothing is skipped. */
 const RATE_LIMIT_WAIT_SECONDS = 10;
 
-const waitForRateLimit = async () => {
-  for (let left = RATE_LIMIT_WAIT_SECONDS; left > 0 && !cancelled; left -= 1) {
-    waitNotice.value = `AI rate limit reached — resuming in ${left}s`;
+/* A batch can also fail outright: the connection drops, the host cuts the
+   request off before the AI answers, the provider returns a 500. None of that
+   says the rest of the list is unreachable, so the same slice is sent again
+   after a pause instead of ending the sweep on one bad batch. */
+const RETRY_WAIT_SECONDS = 10;
+const MAX_BATCH_ATTEMPTS = 3;
+
+// Shared countdown, so the pause is visible rather than a frozen progress bar.
+const countdown = async (seconds, message) => {
+  for (let left = seconds; left > 0 && !cancelled; left -= 1) {
+    waitNotice.value = message(left);
     await sleep(1000);
   }
   waitNotice.value = '';
+};
+
+const waitForRateLimit = () => countdown(
+  RATE_LIMIT_WAIT_SECONDS,
+  (left) => `AI rate limit reached — resuming in ${left}s`,
+);
+
+/* Only worth sending again when the failure could pass. A refusal the server
+   will repeat — bad request, no permission, an expired session — stops the
+   sweep at once, because retrying it just spends thirty seconds on the same
+   answer. No response at all (a drop or a timeout) is always worth a retry. */
+const isRetryable = (error) => {
+  const status = error?.response?.status;
+
+  return !status || status === 408 || status === 429 || status >= 500;
 };
 
 const progressPct = computed(() => (total.value ? Math.round((processed.value / total.value) * 100) : 0));
@@ -300,14 +323,33 @@ const runQueue = async () => {
     const batch = queue.value.slice(i, i + chunk.value);
 
     let data;
-    try {
-      ({ data } = await axios.post(route(props.stepRoute), {
-        ids: batch.map((row) => row.id),
-        mode: mode.value,
-      }));
-    } catch (error) {
-      errorMessage.value = error?.response?.data?.message || 'A batch failed — stopped early.';
-      return;
+    let attempt = 0;
+
+    while (true) {
+      try {
+        ({ data } = await axios.post(route(props.stepRoute), {
+          ids: batch.map((row) => row.id),
+          mode: mode.value,
+        }));
+        errorMessage.value = '';
+        break;
+      } catch (error) {
+        attempt += 1;
+
+        if (!isRetryable(error) || attempt >= MAX_BATCH_ATTEMPTS) {
+          errorMessage.value = error?.response?.data?.message
+            || `A batch failed ${attempt} time(s) — stopped early.`;
+
+          return;
+        }
+
+        await countdown(
+          RETRY_WAIT_SECONDS,
+          (left) => `A batch failed — retrying in ${left}s (try ${attempt + 1} of ${MAX_BATCH_ATTEMPTS})`,
+        );
+
+        if (cancelled) return;
+      }
     }
 
     // The slice was not processed: wait out the quota and send it again, with
