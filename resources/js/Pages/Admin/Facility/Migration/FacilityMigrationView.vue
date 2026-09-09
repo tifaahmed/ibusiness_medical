@@ -680,30 +680,122 @@
             >{{ JSON.stringify(translateDebug, null, 2) }}</pre>
           </div>
 
-          <!-- Branch names, rebuilt wholesale. No AI in this one — it is the
-               facility name and the city the branch is already set to. -->
-          <div class="rounded-lg border border-border p-3 space-y-2">
-            <div class="flex flex-wrap items-center gap-3 text-xs">
-              <span class="font-semibold uppercase tracking-wide text-muted-foreground">Branch names</span>
+          <!-- The three sweeps the branch list carries, run over the package
+               here instead — this is the last moment the data can be fixed
+               without editing 300 saved rows afterwards. -->
+          <div class="rounded-lg border border-border p-3 space-y-3">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span class="font-semibold uppercase tracking-wide text-muted-foreground">Fix imported data</span>
               <span class="text-muted-foreground">
-                Throw away every packaged branch name and build each one as
-                “facility - city”, in both languages. Rows that come out the same
-                are numbered 1, 2, 3 so no two branches under one facility share a name.
+                Nothing is written — each sweep fills the preview, and the import still runs only when you press it.
               </span>
-              <button
-                type="button"
-                @click="runRebuildAllBranchNames"
-                class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted"
-              >
-                Rebuild all branch names from facility + city
-              </button>
             </div>
-            <p v-if="rebuildAllBranchNames.phase === 'done'" class="text-[11px] text-emerald-600 dark:text-emerald-400">
-              Renamed {{ rebuildAllBranchNames.renamed }} branch{{ rebuildAllBranchNames.renamed === 1 ? '' : 'es' }}
-              across {{ rebuildAllBranchNames.facilities }}
-              facilit{{ rebuildAllBranchNames.facilities === 1 ? 'y' : 'ies' }}.
-              Check them before importing.
-            </p>
+
+            <div class="flex flex-wrap items-stretch gap-3">
+              <!-- Names: no AI, it is the facility name and the city the branch
+                   is already set to. -->
+              <div class="min-w-[17rem] flex-1 space-y-1.5 rounded-md border border-border p-2.5">
+                <button
+                  type="button"
+                  @click="runRebuildAllBranchNames"
+                  :disabled="branchSweep.phase === 'running'"
+                  class="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                >
+                  <span>Fix branch names</span>
+                  <span
+                    v-if="renamePending"
+                    class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                  >{{ renamePending }}</span>
+                </button>
+                <p class="text-[11px] leading-tight text-muted-foreground">
+                  Renames every branch to “facility - city”, numbered so no two branches of one facility share a name.
+                </p>
+                <label class="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                  <input type="checkbox" v-model="renameOnlyBroken" />
+                  Only fix duplicates and blanks
+                </label>
+                <p v-if="rebuildAllBranchNames.phase === 'done'" class="text-[11px] text-emerald-600 dark:text-emerald-400">
+                  Renamed {{ rebuildAllBranchNames.renamed }} branch{{ rebuildAllBranchNames.renamed === 1 ? '' : 'es' }}
+                  across {{ rebuildAllBranchNames.facilities }}
+                  facilit{{ rebuildAllBranchNames.facilities === 1 ? 'y' : 'ies' }}.
+                </p>
+              </div>
+
+              <!-- Governorate & city, read off the address. -->
+              <div v-if="placeAiEnabled" class="min-w-[17rem] flex-1 space-y-1.5 rounded-md border border-border p-2.5">
+                <button
+                  type="button"
+                  @click="runBranchSweep('place')"
+                  :disabled="branchSweep.phase === 'running'"
+                  class="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                >
+                  <span>Fill governorate &amp; city with AI</span>
+                  <span
+                    v-if="placePending"
+                    class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                  >{{ placePending }}</span>
+                </button>
+                <p class="text-[11px] leading-tight text-muted-foreground">
+                  Reads each branch address and picks the governorate and city it names, from the ones this site has.
+                  Branches with no address are skipped.
+                </p>
+                <label class="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                  <input type="checkbox" v-model="sweepOverwrite.place" />
+                  Also re-read branches that already have both
+                </label>
+              </div>
+
+              <!-- Coordinates and the Maps link, read off the same address. -->
+              <div v-if="locationAiEnabled" class="min-w-[17rem] flex-1 space-y-1.5 rounded-md border border-border p-2.5">
+                <button
+                  type="button"
+                  @click="runBranchSweep('gps')"
+                  :disabled="branchSweep.phase === 'running'"
+                  class="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                >
+                  <span>Fill GPS with AI</span>
+                  <span
+                    v-if="gpsPending"
+                    class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                  >{{ gpsPending }}</span>
+                </button>
+                <p class="text-[11px] leading-tight text-muted-foreground">
+                  Reads each branch address for its latitude and longitude and builds the Google Maps link from them.
+                  Check the pins — they are read from the written address, not surveyed.
+                </p>
+                <label class="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                  <input type="checkbox" v-model="sweepOverwrite.gps" />
+                  Also re-read branches that already have coordinates
+                </label>
+              </div>
+            </div>
+
+            <!-- One progress line: only one sweep runs at a time. -->
+            <div v-if="branchSweep.phase !== 'idle'" class="space-y-1">
+              <div class="flex items-center gap-2">
+                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    class="h-full rounded-full bg-primary transition-all"
+                    :style="{ width: (branchSweep.total ? Math.round(branchSweep.processed / branchSweep.total * 100) : 100) + '%' }"
+                  ></div>
+                </div>
+                <button
+                  v-if="branchSweep.phase === 'running'"
+                  type="button"
+                  @click="cancelBranchSweep"
+                  class="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium hover:bg-muted"
+                >
+                  Stop
+                </button>
+              </div>
+              <p class="text-[11px] text-muted-foreground">
+                {{ branchSweep.kind === 'place' ? 'Governorate & city' : 'GPS' }}:
+                {{ branchSweep.processed }} / {{ branchSweep.total }} branches
+                <span v-if="branchSweep.wait" class="text-amber-600 dark:text-amber-400"> · {{ branchSweep.wait }}</span>
+                <span v-else-if="branchSweep.phase === 'done'"> · done</span>
+              </p>
+              <p v-if="branchSweep.note" class="text-[11px] text-emerald-600 dark:text-emerald-400">{{ branchSweep.note }}</p>
+            </div>
           </div>
 
           <!-- What the colours in the table mean. -->
@@ -1961,6 +2053,8 @@ const props = defineProps({
   cities: { type: Array, default: () => [] },
   salesOptions: { type: Array, default: () => [] },
   aiConfigured: { type: Boolean, default: false },
+  placeAiEnabled: { type: Boolean, default: false },
+  locationAiEnabled: { type: Boolean, default: false },
 });
 
 const tabs = [
@@ -3159,13 +3253,29 @@ const facilityNamePair = (facility) => {
   return { en: en || ar, ar: ar || en };
 };
 
-const rebuildBranchNames = (facility) => {
+const branchNameBlank = (branch) => branchNameValues(branch).length === 0;
+
+/* Which branches a run would touch. "all" is the wholesale rebuild; "missing"
+   is the careful pass the branch list offers — it leaves a name alone when it
+   is filled in and clashes with nothing. */
+const branchesToRename = (facility, mode) => {
+  const branches = facility.branches || [];
+
+  return mode === 'all'
+    ? branches
+    : branches.filter(br => branchNameBlank(br) || branchNameAmbiguous(facility, br));
+};
+
+const rebuildBranchNames = (facility, mode = 'all') => {
   const branches = facility.branches || [];
   if (!branches.length) return 0;
 
+  const targets = branchesToRename(facility, mode);
+  if (!targets.length) return 0;
+
   const base = facilityNamePair(facility);
 
-  branches.forEach((branch) => {
+  targets.forEach((branch) => {
     if (!branch.name || typeof branch.name !== 'object') branch.name = { en: '', ar: '' };
     const city = branchCityNames(branch);
 
@@ -3177,7 +3287,7 @@ const rebuildBranchNames = (facility) => {
   // Ties first: rows that came out identical are numbered from 1, so the number
   // reads as "one of several" rather than as an afterthought on the second one.
   const groups = new Map();
-  branches.forEach((branch) => {
+  targets.forEach((branch) => {
     const key = branchNameValues(branch).join('|');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(branch);
@@ -3193,37 +3303,50 @@ const rebuildBranchNames = (facility) => {
     });
   });
 
-  /* And anything that still lands on a branch already on this site which this
-     row is not itself meant to update — bounded, so a package that cannot be
-     settled stops rather than spins. */
-  branches.forEach((branch) => {
-    if (!siteBranchClash(facility, branch)) return;
+  /* And anything that still lands on a name kept by a branch this run did not
+     touch, or on one already on this site that this row is not meant to update
+     — bounded, so a package that cannot be settled stops rather than spins. */
+  const claimed = new Set();
+  branches
+    .filter(br => !targets.includes(br))
+    .forEach(br => branchNameValues(br).forEach(v => claimed.add(v)));
 
-    const start = {
-      en: String(branch.name.en || '').trim(),
-      ar: String(branch.name.ar || '').trim(),
-    };
+  targets.forEach((branch) => {
+    const taken = () =>
+      branchNameValues(branch).some(v => claimed.has(v)) || !!siteBranchClash(facility, branch);
 
-    for (let n = 2; n <= 99 && siteBranchClash(facility, branch); n += 1) {
-      ['en', 'ar'].forEach((locale) => {
-        if (start[locale]) branch.name[locale] = `${start[locale]} ${n}`;
-      });
+    if (taken()) {
+      const start = {
+        en: String(branch.name.en || '').trim(),
+        ar: String(branch.name.ar || '').trim(),
+      };
+
+      for (let n = 2; n <= 99 && taken(); n += 1) {
+        ['en', 'ar'].forEach((locale) => {
+          if (start[locale]) branch.name[locale] = `${start[locale]} ${n}`;
+        });
+      }
     }
+
+    branchNameValues(branch).forEach(v => claimed.add(v));
   });
 
-  return branches.length;
+  return targets.length;
 };
 
 /* The same over the whole package — one button for a sheet whose branch names
    are all worth throwing away. */
 const rebuildAllBranchNames = ref({ phase: 'idle', renamed: 0, facilities: 0 });
+// Off = every branch gets the standard name; on = only blanks and clashes.
+const renameOnlyBroken = ref(false);
 
 const runRebuildAllBranchNames = async () => {
+  const mode = renameOnlyBroken.value ? 'missing' : 'all';
   let renamed = 0;
   let touched = 0;
 
   previewData.value.facilities.forEach((facility) => {
-    const count = rebuildBranchNames(facility);
+    const count = rebuildBranchNames(facility, mode);
     if (count) { renamed += count; touched += 1; }
   });
 
@@ -3234,6 +3357,176 @@ const runRebuildAllBranchNames = async () => {
   for (const facility of previewData.value.facilities) {
     await rematchNow(facility);
   }
+};
+
+/* ---- the branch-list sweeps, run over the package instead --------------------
+
+   The branch list offers these three over saved rows, stepped by the server. A
+   package has no saved rows — it lives in this browser until the import runs —
+   so the same work is done here, one branch at a time, against the same
+   stateless endpoints the branch form's own buttons use. Nothing is written:
+   the answers land in the preview for the operator to check.
+--------------------------------------------------------------------------- */
+
+const branchSweep = ref({ phase: 'idle', kind: '', processed: 0, total: 0, filled: 0, wait: '', note: '' });
+const sweepOverwrite = ref({ place: false, gps: false });
+let branchSweepCancel = false;
+
+// Every branch in the package, with the facility it hangs off — the AI reads
+// the facility name as context, and the badges are refreshed per facility.
+const previewBranchRows = () =>
+  (previewData.value?.facilities || []).flatMap(
+    facility => (facility.branches || []).map(branch => ({ facility, branch }))
+  );
+
+const branchHasAddress = (branch) =>
+  String(branch?.address?.ar || '').trim() !== '' || String(branch?.address?.en || '').trim() !== '';
+
+// A place is "missing" while either half is unpicked or still points at a row
+// that would have to be created — neither is something to import as it stands.
+const branchNeedsPlace = (branch) =>
+  !branch._governorateChoice || branch._governorateChoice === NEW_LOOKUP
+  || !branch._cityChoice || branch._cityChoice === NEW_LOOKUP;
+
+const branchNeedsGps = (branch) =>
+  String(branch.latitude ?? '').trim() === ''
+  || String(branch.longitude ?? '').trim() === ''
+  || String(branch.google_location_url ?? '').trim() === '';
+
+const sweepPending = (kind) => {
+  const rows = previewBranchRows().filter(({ branch }) => branchHasAddress(branch));
+
+  if (sweepOverwrite.value[kind]) return rows.length;
+
+  return rows.filter(({ branch }) => (kind === 'place' ? branchNeedsPlace(branch) : branchNeedsGps(branch))).length;
+};
+
+const placePending = computed(() => sweepPending('place'));
+const gpsPending = computed(() => sweepPending('gps'));
+
+// How many branches the rename would touch, under the mode currently ticked.
+const renamePending = computed(() => {
+  const mode = renameOnlyBroken.value ? 'missing' : 'all';
+
+  return (previewData.value?.facilities || [])
+    .reduce((sum, facility) => sum + branchesToRename(facility, mode).length, 0);
+});
+
+// The label of a picked lookup row, falling back to whatever the package called
+// it — context for the geocoder, not something it has to match exactly.
+const choiceLabel = (options, choice, fallback) => {
+  const row = (options || []).find(o => String(o.value) === String(choice));
+
+  return row ? String(row.name_en || row.label || '') : String(fallback || '');
+};
+
+const cancelBranchSweep = () => { branchSweepCancel = true; };
+
+const runBranchSweep = async (kind) => {
+  if (branchSweep.value.phase === 'running') return;
+
+  const overwrite = sweepOverwrite.value[kind];
+  const rows = previewBranchRows().filter(({ branch }) =>
+    branchHasAddress(branch)
+    && (overwrite || (kind === 'place' ? branchNeedsPlace(branch) : branchNeedsGps(branch)))
+  );
+
+  branchSweepCancel = false;
+  branchSweep.value = {
+    phase: 'running',
+    kind,
+    processed: 0,
+    total: rows.length,
+    filled: 0,
+    wait: '',
+    note: '',
+  };
+
+  if (rows.length === 0) {
+    branchSweep.value.phase = 'done';
+    branchSweep.value.note = kind === 'place'
+      ? 'Nothing to do — every branch with an address already has a governorate and city.'
+      : 'Nothing to do — every branch with an address already has a location.';
+
+    return;
+  }
+
+  const endpoint = kind === 'place' ? 'admin.facility.branch.place' : 'admin.facility.branch.locate';
+  const touched = new Set();
+
+  for (const { facility, branch } of rows) {
+    if (branchSweepCancel) break;
+
+    const payload = {
+      address: branch.address || {},
+      name: branch.name || {},
+      facility_name: facility.name || {},
+    };
+
+    if (kind === 'gps') {
+      payload.governorate = choiceLabel(governorateList.value, branch._governorateChoice, branch._governorateLabel);
+      payload.city = choiceLabel(cityList.value, branch._cityChoice, branch._cityLabel);
+    }
+
+    // The free tier is ~15 requests a minute; on a 429 wait out the window
+    // Google names and try the same branch again rather than losing it.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (branchSweepCancel) break;
+
+      try {
+        const { data } = await axios.post(route(endpoint), payload);
+
+        if (kind === 'place') {
+          const place = data?.place || {};
+          // Governorate first: setting it can clear a city that does not belong
+          // to it, which would otherwise wipe the city set a line later.
+          if (place.governorate_id) setBranchGovernorate(branch, place.governorate_id);
+          if (place.city_id) setBranchCity(branch, place.city_id);
+          if (place.governorate_id || place.city_id) branchSweep.value.filled += 1;
+        } else {
+          const loc = data?.location || {};
+          if (loc.latitude !== null && loc.latitude !== undefined) branch.latitude = loc.latitude;
+          if (loc.longitude !== null && loc.longitude !== undefined) branch.longitude = loc.longitude;
+          if (loc.google_location_url) branch.google_location_url = loc.google_location_url;
+          if (loc.latitude !== null && loc.latitude !== undefined) branchSweep.value.filled += 1;
+        }
+
+        touched.add(facility);
+        break;
+      } catch (e) {
+        const status = e.response?.status;
+        const message = e.response?.data?.message || '';
+
+        if (status === 429 || /rate limit|retry in|quota/i.test(message)) {
+          const wait = retrySecondsFrom(message, RATE_LIMIT_WAIT_SECONDS);
+          for (let sec = wait; sec > 0 && !branchSweepCancel; sec -= 1) {
+            branchSweep.value.wait = `AI rate limit reached — retrying in ${sec}s`;
+            await sleep(1000);
+          }
+          branchSweep.value.wait = '';
+          continue; // same branch
+        }
+
+        // A branch the AI cannot read is skipped, not fatal: the sweep is
+        // meant to leave less to do by hand, not to stop at the first hard one.
+        break;
+      }
+    }
+
+    branchSweep.value.processed += 1;
+    await sleep(600);
+  }
+
+  // Place changes which existing row a branch lands on, so the badges have to
+  // be re-asked for the facilities this run actually touched.
+  for (const facility of touched) {
+    if (branchSweepCancel) break;
+    await rematchNow(facility);
+  }
+
+  const { filled, total } = branchSweep.value;
+  branchSweep.value.note = `Filled ${filled} of ${total} branch${total === 1 ? '' : 'es'}. Check what it chose before importing.`;
+  branchSweep.value.phase = branchSweepCancel ? 'idle' : 'done';
 };
 
 const facilityBranchIssues = (facility) =>

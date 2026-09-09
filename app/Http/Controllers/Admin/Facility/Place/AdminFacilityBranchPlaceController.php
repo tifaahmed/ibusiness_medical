@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Facility\ResolveFacilityBranchPlaceRequest;
 use App\Models\City;
 use App\Models\Governorate;
 use App\Services\BranchPlaceResolver;
+use App\Services\Ai\RateLimitException;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;
 
@@ -33,6 +34,10 @@ class AdminFacilityBranchPlaceController extends BaseController
 
         try {
             $place = $this->resolver->resolve($context);
+        } catch (RateLimitException $e) {
+            // Its own status, so a sweep can wait out the minute and retry the
+            // same row instead of recording it as a failure.
+            return response()->json(['rate_limited' => true, 'message' => $e->getMessage()], 429);
         } catch (RuntimeException $e) {
             // Configuration and upstream-API problems are both the admin's to
             // act on, so surface the message instead of a bare 500.

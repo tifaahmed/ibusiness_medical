@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Facility\Location;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Facility\LocateFacilityBranchRequest;
 use App\Services\BranchGeocoder;
+use App\Services\Ai\RateLimitException;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;
 
@@ -22,6 +23,10 @@ class AdminFacilityBranchLocateController extends BaseController
     {
         try {
             $location = $this->geocoder->locate($request->validated());
+        } catch (RateLimitException $e) {
+            // Its own status, so a sweep can wait out the minute and retry the
+            // same row instead of recording it as a failure.
+            return response()->json(['rate_limited' => true, 'message' => $e->getMessage()], 429);
         } catch (RuntimeException $e) {
             // Configuration and upstream-API problems are both the admin's to
             // act on, so surface the message instead of a bare 500.

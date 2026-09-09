@@ -48,6 +48,9 @@ class FacilityBranchRenameSweepTest extends TestCase
             'name' => ['en' => 'Nasr City', 'ar' => 'مدينة نصر'],
         ]);
 
+        Permission::findOrCreate(UserPermissionEnum::MANAGE_FACILITY_BRANCHES, 'web');
+        Permission::findOrCreate(UserPermissionEnum::MANAGE_OWN_FACILITY_BRANCHES, 'web');
+
         $type = FacilityType::create(['name' => ['en' => 'Clinic', 'ar' => 'عيادة']]);
         $this->facility = Facility::create([
             'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
@@ -219,16 +222,6 @@ class FacilityBranchRenameSweepTest extends TestCase
             ->postJson(route('admin.facility-branch.rename.bulk.step'), ['ids' => [$this->facility->id]])
             ->assertOk();
 
-        $this->actingAs($scoped);
-        dump([
-            'scoped_id' => $scoped->id,
-            'mine_id' => $mine->id,
-            'has_full' => $scoped->hasPermissionTo('manage facility branches'),
-            'has_own' => $scoped->hasPermissionTo('manage own facility branches'),
-            'plucked' => \App\Models\FacilityBranch::query()
-                ->where('created_by', $scoped->id)
-                ->pluck('facility_branches.id')->all(),
-        ]);
 
         $this->assertSame('Mytra Labs - Maadi', $theirs->refresh()->getTranslation('name', 'en'));
         $this->assertSame('Mytra Labs - Maadi 2', $mine->refresh()->getTranslation('name', 'en'));

@@ -41,6 +41,10 @@ class AdminFacilityMigrationPageController extends BaseController
             'salesOptions' => Sales::orderBy('id')->get()->map(fn ($s) => $this->salesOption($s))->values(),
             // Gates the "translate to Arabic" buttons on the import preview.
             'aiConfigured' => MigrationTextTranslator::isConfigured(),
+            // The preview runs the branch list's own sweeps over the package,
+            // so it needs to know which of them this server can actually do.
+            'placeAiEnabled' => \App\Services\BranchPlaceResolver::isConfigured(),
+            'locationAiEnabled' => \App\Services\BranchGeocoder::isConfigured(),
         ]);
     }
 }
