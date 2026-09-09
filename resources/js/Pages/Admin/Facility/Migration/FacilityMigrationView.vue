@@ -611,24 +611,43 @@
             </div>
           </div>
 
-          <!-- AI: fill the Arabic name / address from the English one. -->
+          <!-- AI: fill either side of a name / address from the other. -->
           <div v-if="aiConfigured" class="rounded-lg border border-border p-3 space-y-2">
             <div class="flex flex-wrap items-center gap-3 text-xs">
               <span class="font-semibold uppercase tracking-wide text-muted-foreground">Translate</span>
               <span class="text-muted-foreground">
-                Fill every empty Arabic facility name, branch name and branch address from its English value.
+                Fill the empty side of every facility name, branch name and branch address from the language it does have.
               </span>
               <label class="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" v-model="bulkTranslateOverwrite" />
-                also overwrite Arabic that is already filled
+                also overwrite values that are already filled
               </label>
+              <!-- A package usually arrives short of one language, but not always
+                   the same one — so the sweep that fills whichever side is empty
+                   leads, and the two one-way sweeps stay for a deliberate redo. -->
               <button
                 type="button"
-                @click="runBulkTranslate"
+                @click="runBulkTranslate(['ar', 'en'])"
+                :disabled="bulkTranslate.phase === 'running'"
+                class="rounded-md border border-primary bg-primary px-3 py-1 font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {{ bulkTranslate.phase === 'running' ? 'Translating…' : 'Fix all translations' }}
+              </button>
+              <button
+                type="button"
+                @click="runBulkTranslate(['ar'])"
                 :disabled="bulkTranslate.phase === 'running'"
                 class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted disabled:opacity-50"
               >
-                {{ bulkTranslate.phase === 'running' ? 'Translating…' : 'Fill Arabic from English' }}
+                Fill Arabic from English
+              </button>
+              <button
+                type="button"
+                @click="runBulkTranslate(['en'])"
+                :disabled="bulkTranslate.phase === 'running'"
+                class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted disabled:opacity-50"
+              >
+                Fill English from Arabic
               </button>
               <button
                 v-if="bulkTranslate.phase === 'running'"
@@ -648,6 +667,7 @@
               </div>
               <p class="text-[11px] text-muted-foreground">
                 {{ bulkTranslate.processed }} / {{ bulkTranslate.total }} fields
+                <span v-if="bulkTranslateLabel"> · {{ bulkTranslateLabel }}</span>
                 <span v-if="bulkTranslate.wait" class="text-amber-600 dark:text-amber-400"> · {{ bulkTranslate.wait }}</span>
                 <span v-else-if="bulkTranslate.phase === 'done'"> · done</span>
               </p>
@@ -658,6 +678,32 @@
               v-if="translateDebug"
               class="max-h-40 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight text-foreground"
             >{{ JSON.stringify(translateDebug, null, 2) }}</pre>
+          </div>
+
+          <!-- Branch names, rebuilt wholesale. No AI in this one — it is the
+               facility name and the city the branch is already set to. -->
+          <div class="rounded-lg border border-border p-3 space-y-2">
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <span class="font-semibold uppercase tracking-wide text-muted-foreground">Branch names</span>
+              <span class="text-muted-foreground">
+                Throw away every packaged branch name and build each one as
+                “facility - city”, in both languages. Rows that come out the same
+                are numbered 1, 2, 3 so no two branches under one facility share a name.
+              </span>
+              <button
+                type="button"
+                @click="runRebuildAllBranchNames"
+                class="rounded-md border border-border bg-background px-3 py-1 font-medium hover:bg-muted"
+              >
+                Rebuild all branch names from facility + city
+              </button>
+            </div>
+            <p v-if="rebuildAllBranchNames.phase === 'done'" class="text-[11px] text-emerald-600 dark:text-emerald-400">
+              Renamed {{ rebuildAllBranchNames.renamed }} branch{{ rebuildAllBranchNames.renamed === 1 ? '' : 'es' }}
+              across {{ rebuildAllBranchNames.facilities }}
+              facilit{{ rebuildAllBranchNames.facilities === 1 ? 'y' : 'ies' }}.
+              Check them before importing.
+            </p>
           </div>
 
           <!-- What the colours in the table mean. -->
@@ -765,6 +811,21 @@
                         :class="previewFieldCls(facility._existing, 'name.en', facility.name.en)"
                       />
                       <ExistingValueHint :existing="facility._existing" path="name.en" :current="facility.name.en" />
+                      <!-- The other direction: a package exported from an Arabic
+                           site arrives with this column empty. -->
+                      <button
+                        v-if="canTranslate(facility, 'name', 'en')"
+                        type="button"
+                        @click="translateField(facility, 'name', 'name', `f${facility._index}-name-en`, 'en')"
+                        :disabled="!!translating[`f${facility._index}-name-en`]"
+                        class="mt-1 w-full rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                      >
+                        {{ translateBtnLabel(`f${facility._index}-name-en`, 'en') }}
+                      </button>
+                      <p
+                        v-if="translateError && lastTranslateKey === `f${facility._index}-name-en`"
+                        class="mt-0.5 text-[10px] leading-tight text-destructive"
+                      >{{ translateError }}</p>
                     </td>
                     <td class="px-2 py-1 align-top">
                       <input
@@ -1043,6 +1104,21 @@
                                     ? `name not unique — add city${branchHasCity(br) ? ' “' + branchCityNames(br).ar + '”' : ''}`
                                     : '+ add city to name (optional)' }}
                                 </button>
+                                <!-- The other direction, for a package that
+                                     arrived with only the Arabic name. -->
+                                <button
+                                  v-if="canTranslate(br, 'name', 'en')"
+                                  type="button"
+                                  @click="translateField(br, 'name', 'name', `f${facility._index}-b${bi}-name-en`, 'en')"
+                                  :disabled="!!translating[`f${facility._index}-b${bi}-name-en`]"
+                                  class="mt-1 w-full rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                                >
+                                  {{ translateBtnLabel(`f${facility._index}-b${bi}-name-en`, 'en') }}
+                                </button>
+                                <p
+                                  v-if="translateError && lastTranslateKey === `f${facility._index}-b${bi}-name-en`"
+                                  class="mt-0.5 text-[10px] leading-tight text-destructive"
+                                >{{ translateError }}</p>
                               </td>
                               <td class="px-3 py-1">
                                 <input
@@ -1217,6 +1293,21 @@
                                   ]"
                                 ></textarea>
                                 <ExistingValueHint :existing="br._existing" path="address.ar" :current="br.address.ar" />
+                                <!-- The other direction, for a package that
+                                     arrived with only the Arabic address. -->
+                                <button
+                                  v-if="canTranslate(br, 'address', 'en')"
+                                  type="button"
+                                  @click="translateField(br, 'address', 'address', `f${facility._index}-b${bi}-address-en`, 'en')"
+                                  :disabled="!!translating[`f${facility._index}-b${bi}-address-en`]"
+                                  class="mt-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                                >
+                                  {{ translateBtnLabel(`f${facility._index}-b${bi}-address-en`, 'en') }}
+                                </button>
+                                <p
+                                  v-if="translateError && lastTranslateKey === `f${facility._index}-b${bi}-address-en`"
+                                  class="mt-0.5 text-[10px] leading-tight text-destructive"
+                                >{{ translateError }}</p>
                               </td>
                               <td class="px-3 py-1 text-center">
                                 <button type="button" @click="facility.branches.splice(bi, 1)" class="text-red-600 hover:underline text-[10px]">remove</button>
@@ -2276,9 +2367,9 @@ const retrySecondsFrom = (message, fallback) => {
  * One round trip. Returns { translations: string[] } aligned to `items`, or
  * { rateLimited: true } when the quota for this minute is spent.
  */
-const translateBatch = async (items) => {
+const translateBatch = async (items, to = 'ar') => {
   try {
-    const { data } = await axios.post(route('admin.facility.migration.translate'), { items });
+    const { data } = await axios.post(route('admin.facility.migration.translate'), { items, to });
     translateDebug.value = data;
     // eslint-disable-next-line no-console
     console.log('Migration translate — raw response:', data);
@@ -2300,21 +2391,25 @@ const localePair = (owner, path) => {
   return owner[path];
 };
 
-// Read-only — never touch state from here, it runs during render.
-const canTranslate = (owner, path) =>
-  props.aiConfigured && String(owner?.[path]?.en || '').trim() !== '';
+// The side a translation is read from is always the other one.
+const sourceLocale = (to) => (to === 'en' ? 'ar' : 'en');
 
-const translateBtnLabel = (key) => {
+// Read-only — never touch state from here, it runs during render.
+const canTranslate = (owner, path, to = 'ar') =>
+  props.aiConfigured && String(owner?.[path]?.[sourceLocale(to)] || '').trim() !== '';
+
+const translateBtnLabel = (key, to = 'ar') => {
   const state = translating.value[key];
   if (typeof state === 'string') return state;
+  if (state) return 'translating…';
 
-  return state ? 'translating…' : 'AR ← translate EN';
+  return to === 'en' ? 'EN ← translate AR' : 'AR ← translate EN';
 };
 
-const translateField = async (owner, path, kind, key) => {
-  if (translating.value[key] || !canTranslate(owner, path)) return;
+const translateField = async (owner, path, kind, key, to = 'ar') => {
+  if (translating.value[key] || !canTranslate(owner, path, to)) return;
 
-  const source = String(localePair(owner, path).en || '').trim();
+  const source = String(localePair(owner, path)[sourceLocale(to)] || '').trim();
   if (source === '') return;
 
   translating.value[key] = true;
@@ -2325,7 +2420,7 @@ const translateField = async (owner, path, kind, key) => {
     // Gemini's free tier is ~15 requests/minute; on a 429 wait out the window
     // Google names and try again, rather than making the operator re-click.
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      const res = await translateBatch([{ text: source, kind }]);
+      const res = await translateBatch([{ text: source, kind }], to);
 
       if (res.rateLimited) {
         const wait = retrySecondsFrom(res.message, RATE_LIMIT_WAIT_SECONDS);
@@ -2340,11 +2435,12 @@ const translateField = async (owner, path, kind, key) => {
 
       const value = String(res.translations[0] ?? '').trim();
       if (value) {
-        localePair(owner, path).ar = value;
+        localePair(owner, path)[to] = value;
         translateNote.value = `“${source}” → “${value}”`;
         translateError.value = '';
       } else {
-        translateError.value = `No Arabic in the reply. Raw response: ${JSON.stringify(res.raw).slice(0, 400)}`;
+        translateError.value = `No ${to === 'en' ? 'English' : 'Arabic'} in the reply. `
+          + `Raw response: ${JSON.stringify(res.raw).slice(0, 400)}`;
       }
 
       return;
@@ -2362,17 +2458,21 @@ const translateField = async (owner, path, kind, key) => {
 const bulkTranslate = ref({ phase: 'idle', processed: 0, total: 0, wait: '' });
 const bulkTranslateOverwrite = ref(false);
 let bulkTranslateCancel = false;
+// Which way the sweep currently running is filling, for its own progress line.
+const bulkTranslateLabel = ref('');
 
-// Every en → ar job the sweep would run, each carrying the setter for its own
-// Arabic field so the answers land back on the right row.
-const collectTranslateJobs = () => {
+/* Every job the sweep would run in one direction, each carrying the setter for
+   its own field so the answers land back on the right row. */
+const collectTranslateJobs = (to) => {
   const jobs = [];
+  const from = sourceLocale(to);
+
   const consider = (owner, path, kind) => {
     const pair = owner[path];
-    const en = String(pair?.en || '').trim();
-    const ar = String(pair?.ar || '').trim();
-    if (en === '' || (ar !== '' && !bulkTranslateOverwrite.value)) return;
-    jobs.push({ text: en, kind, apply: (value) => { localePair(owner, path).ar = value; } });
+    const source = String(pair?.[from] || '').trim();
+    const target = String(pair?.[to] || '').trim();
+    if (source === '' || (target !== '' && !bulkTranslateOverwrite.value)) return;
+    jobs.push({ text: source, kind, to, apply: (value) => { localePair(owner, path)[to] = value; } });
   };
 
   previewData.value.facilities.forEach((facility) => {
@@ -2386,57 +2486,83 @@ const collectTranslateJobs = () => {
   return jobs;
 };
 
-const runBulkTranslate = async () => {
-  if (bulkTranslate.value.phase === 'running') return;
-
-  const jobs = collectTranslateJobs();
-  bulkTranslateCancel = false;
-  translateError.value = '';
-  bulkTranslate.value = { phase: 'running', processed: 0, total: jobs.length, wait: '' };
-
-  if (jobs.length === 0) {
-    bulkTranslate.value.phase = 'done';
-
-    return;
-  }
-
+/* One direction's worth of work, sent in fat slices. Returns how many fields it
+   actually filled, or null when the operator stopped it. */
+const runTranslateJobs = async (jobs, to) => {
   // Fewer, fatter calls: 25 strings per request keeps a whole part well under
   // Gemini's free-tier 15 requests/minute even without the auto-retry below.
   const CHUNK = 25;
   let i = 0;
   let filled = 0;
-  try {
-    while (i < jobs.length) {
-      if (bulkTranslateCancel) { bulkTranslate.value.phase = 'idle'; return; }
 
-      const slice = jobs.slice(i, i + CHUNK);
-      const res = await translateBatch(slice.map(j => ({ text: j.text, kind: j.kind })));
+  while (i < jobs.length) {
+    if (bulkTranslateCancel) return null;
 
-      if (res.rateLimited) {
-        const wait = retrySecondsFrom(res.message, RATE_LIMIT_WAIT_SECONDS);
-        for (let s = wait; s > 0 && !bulkTranslateCancel; s -= 1) {
-          bulkTranslate.value.wait = `AI rate limit reached — retrying in ${s}s`;
-          await sleep(1000);
-        }
-        bulkTranslate.value.wait = '';
-        continue; // same slice
+    const slice = jobs.slice(i, i + CHUNK);
+    const res = await translateBatch(slice.map(j => ({ text: j.text, kind: j.kind })), to);
+
+    if (res.rateLimited) {
+      const wait = retrySecondsFrom(res.message, RATE_LIMIT_WAIT_SECONDS);
+      for (let s = wait; s > 0 && !bulkTranslateCancel; s -= 1) {
+        bulkTranslate.value.wait = `AI rate limit reached — retrying in ${s}s`;
+        await sleep(1000);
       }
+      bulkTranslate.value.wait = '';
+      continue; // same slice
+    }
 
-      slice.forEach((job, k) => {
-        const ar = String(res.translations[k] ?? '').trim();
-        if (ar) { job.apply(ar); filled += 1; }
-        bulkTranslate.value.processed += 1;
-      });
-      i += CHUNK;
-      if (i < jobs.length) await sleep(4500);
+    slice.forEach((job, k) => {
+      const value = String(res.translations[k] ?? '').trim();
+      if (value) { job.apply(value); filled += 1; }
+      bulkTranslate.value.processed += 1;
+    });
+    i += CHUNK;
+    if (i < jobs.length) await sleep(4500);
+  }
+
+  return filled;
+};
+
+/* The sweep, over one direction or both.
+
+   Both is what "fix all translations" means on a package that arrived half in
+   each language: a row with only Arabic gets its English, a row with only
+   English gets its Arabic, and a row with both is left alone unless the
+   overwrite box is ticked. */
+const runBulkTranslate = async (directions = ['ar']) => {
+  if (bulkTranslate.value.phase === 'running') return;
+
+  const batches = directions
+    .map(to => ({ to, jobs: collectTranslateJobs(to) }))
+    .filter(batch => batch.jobs.length > 0);
+
+  const total = batches.reduce((sum, batch) => sum + batch.jobs.length, 0);
+
+  bulkTranslateCancel = false;
+  translateError.value = '';
+  bulkTranslateLabel.value = directions.length > 1 ? 'both directions' : (directions[0] === 'en' ? 'English' : 'Arabic');
+  bulkTranslate.value = { phase: 'running', processed: 0, total, wait: '' };
+
+  if (total === 0) {
+    bulkTranslate.value.phase = 'done';
+
+    return;
+  }
+
+  let filled = 0;
+  try {
+    for (const batch of batches) {
+      const done = await runTranslateJobs(batch.jobs, batch.to);
+      if (done === null) { bulkTranslate.value.phase = 'idle'; return; }
+      filled += done;
     }
 
     if (filled === 0) {
       translateError.value = 'The AI returned nothing usable — check the site logs, or try again.';
     }
 
-    // A fresh Arabic name can change which existing row a facility matches —
-    // refresh the new/already-here badges so they still tell the truth.
+    // A fresh name can change which existing row a facility matches — refresh
+    // the new/already-here badges so they still tell the truth.
     for (const facility of previewData.value.facilities) {
       if (bulkTranslateCancel) break;
       await rematchNow(facility);
@@ -3013,6 +3139,101 @@ const fixRepeatedBranchNames = (facility) => {
 
     branchNameValues(br).forEach(v => claimed.add(v));
   });
+};
+
+/* ---------------- rebuild every branch name from facility + city ----------------
+
+   A package whose branch names are junk — "Branch 1", the facility name repeated,
+   or nothing at all — is faster to rename wholesale than row by row. This throws
+   the packaged names away and builds each one as "<facility> - <city>", in both
+   spellings, which is the shape the directory reads best.
+
+   Branches that end up sharing a name (two in the same city, or several with no
+   city at all) are then numbered 1, 2, 3 so no two rows under one facility answer
+   to the same name — the import matches branches by name, so a tie would quietly
+   fold two rows into one. */
+const facilityNamePair = (facility) => {
+  const en = String(facility?.name?.en || '').trim();
+  const ar = String(facility?.name?.ar || '').trim();
+
+  return { en: en || ar, ar: ar || en };
+};
+
+const rebuildBranchNames = (facility) => {
+  const branches = facility.branches || [];
+  if (!branches.length) return 0;
+
+  const base = facilityNamePair(facility);
+
+  branches.forEach((branch) => {
+    if (!branch.name || typeof branch.name !== 'object') branch.name = { en: '', ar: '' };
+    const city = branchCityNames(branch);
+
+    ['en', 'ar'].forEach((locale) => {
+      branch.name[locale] = [base[locale], city[locale]].filter(Boolean).join(' - ');
+    });
+  });
+
+  // Ties first: rows that came out identical are numbered from 1, so the number
+  // reads as "one of several" rather than as an afterthought on the second one.
+  const groups = new Map();
+  branches.forEach((branch) => {
+    const key = branchNameValues(branch).join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(branch);
+  });
+
+  groups.forEach((rows) => {
+    if (rows.length < 2) return;
+    rows.forEach((branch, index) => {
+      ['en', 'ar'].forEach((locale) => {
+        const value = String(branch.name[locale] || '').trim();
+        if (value) branch.name[locale] = `${value} ${index + 1}`;
+      });
+    });
+  });
+
+  /* And anything that still lands on a branch already on this site which this
+     row is not itself meant to update — bounded, so a package that cannot be
+     settled stops rather than spins. */
+  branches.forEach((branch) => {
+    if (!siteBranchClash(facility, branch)) return;
+
+    const start = {
+      en: String(branch.name.en || '').trim(),
+      ar: String(branch.name.ar || '').trim(),
+    };
+
+    for (let n = 2; n <= 99 && siteBranchClash(facility, branch); n += 1) {
+      ['en', 'ar'].forEach((locale) => {
+        if (start[locale]) branch.name[locale] = `${start[locale]} ${n}`;
+      });
+    }
+  });
+
+  return branches.length;
+};
+
+/* The same over the whole package — one button for a sheet whose branch names
+   are all worth throwing away. */
+const rebuildAllBranchNames = ref({ phase: 'idle', renamed: 0, facilities: 0 });
+
+const runRebuildAllBranchNames = async () => {
+  let renamed = 0;
+  let touched = 0;
+
+  previewData.value.facilities.forEach((facility) => {
+    const count = rebuildBranchNames(facility);
+    if (count) { renamed += count; touched += 1; }
+  });
+
+  rebuildAllBranchNames.value = { phase: 'done', renamed, facilities: touched };
+
+  // Renaming changes which existing rows these branches land on, so the
+  // new/already-here badges have to be re-asked.
+  for (const facility of previewData.value.facilities) {
+    await rematchNow(facility);
+  }
 };
 
 const facilityBranchIssues = (facility) =>

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { normalizePhoneEntries } from '@/lib/branchPhones';
 
-// Schema for translatable name field (optional)
+/* The branch name is asked for in at least one language — the same rule the
+   facility form's branch modal applies, and the one the server enforces. */
 const translatableNameSchema = z.object({
     ar: z.string()
         .max(255, 'Name (Arabic) must be less than 255 characters')
@@ -13,21 +14,30 @@ const translatableNameSchema = z.object({
         .transform(val => val ? String(val).trim() : '')
         .optional()
         .or(z.literal('')),
-});
+}).refine(
+    value => String(value.ar || '').trim() !== '' || String(value.en || '').trim() !== '',
+    { message: 'Branch name is required in at least one language', path: ['ar'] },
+);
 
-// Schema for translatable address field (optional)
+/* The address, unlike the name, is required in BOTH languages: a branch listed
+   in one language only shows up blank on the other side of the directory, and
+   the address is what the AI geocoder reads to place the branch on the map. */
 const translatableAddressSchema = z.object({
     ar: z.string()
+        .min(1, 'Address (Arabic) is required')
         .max(65535, 'Address (Arabic) is too long')
-        .transform(val => val ? String(val).trim() : '')
-        .optional()
-        .or(z.literal('')),
+        .transform(val => String(val).trim()),
     en: z.string()
+        .min(1, 'Address (English) is required')
         .max(65535, 'Address (English) is too long')
-        .transform(val => val ? String(val).trim() : '')
-        .optional()
-        .or(z.literal('')),
-});
+        .transform(val => String(val).trim()),
+}).refine(
+    value => String(value.ar || '').trim() !== '',
+    { message: 'Address (Arabic) is required', path: ['ar'] },
+).refine(
+    value => String(value.en || '').trim() !== '',
+    { message: 'Address (English) is required', path: ['en'] },
+);
 
 export const facilityBranchSchema = z.object({
     name: translatableNameSchema,
@@ -40,8 +50,10 @@ export const facilityBranchSchema = z.object({
     facility_id: z.string()
         .min(1, 'Facility is required')
         .transform(val => String(val)),
-    governorate_id: z.string().optional().or(z.literal('')),
-    city_id: z.string().optional().or(z.literal('')),
+    // A branch without a place on the map is what makes the directory
+    // unusable, so both are asked for here rather than left for later.
+    governorate_id: z.string().min(1, 'Governorate is required'),
+    city_id: z.string().min(1, 'City is required'),
     latitude: z.union([z.string(), z.number()])
         .optional()
         .transform(val => {
@@ -85,8 +97,10 @@ export const facilityBranchUpdateSchema = z.object({
     facility_id: z.string()
         .min(1, 'Facility is required')
         .transform(val => String(val)),
-    governorate_id: z.string().optional().or(z.literal('')),
-    city_id: z.string().optional().or(z.literal('')),
+    // A branch without a place on the map is what makes the directory
+    // unusable, so both are asked for here rather than left for later.
+    governorate_id: z.string().min(1, 'Governorate is required'),
+    city_id: z.string().min(1, 'City is required'),
     latitude: z.union([z.string(), z.number()])
         .optional()
         .transform(val => {
@@ -166,11 +180,17 @@ export const validateFacilityBranchForm = (facilityBranchData, isUpdate = false)
         schema.parse(formData);
         return { isValid: true, errors: null };
     } catch (err) {
-        if (err.errors) {
-            const errors = err.errors.reduce((acc, error) => {
-                // Handle nested path like "name.ar" or "address.en"
-                const path = error.path.join('.');
-                acc[path] = error.message;
+        // zod 4 carries the list on `issues`; `errors` was its zod 3 name and is
+        // gone, which used to turn every failure into one nameless message with
+        // nothing marked on the form.
+        const issues = err?.issues || err?.errors;
+
+        if (Array.isArray(issues)) {
+            const errors = issues.reduce((acc, issue) => {
+                // Nested paths like "name.ar" or "address.en" are kept whole, so
+                // the field that failed is the field that lights up.
+                const path = issue.path.join('.');
+                if (!acc[path]) acc[path] = issue.message;
                 return acc;
             }, {});
             return { isValid: false, errors };

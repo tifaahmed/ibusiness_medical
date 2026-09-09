@@ -97,8 +97,28 @@
           {{ incompleteCounts.no_city }}
         </span>
       </button>
-      <span v-if="filters.no_governorate && filters.no_city" class="text-[11px] text-muted-foreground">
-        missing <strong>both</strong>
+      <!-- "No address" also catches a branch that has only one of the two
+           languages: it cannot be saved again until the missing side is typed,
+           so it is the same job as one with no address at all. -->
+      <button
+        type="button"
+        @click="toggleMissing('no_address')"
+        :aria-pressed="filters.no_address"
+        :class="[
+          'inline-flex items-center gap-1.5 rounded-md border px-2 sm:px-2.5 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer',
+          filters.no_address
+            ? 'border-sky-400 bg-sky-500/30 text-sky-950 dark:text-sky-50'
+            : 'border-border bg-background hover:bg-muted text-foreground',
+        ]"
+        :title="t.facility_branch?.no_address_hint || 'Branches with no address, or missing the Arabic or English one'"
+      >
+        {{ t.facility_branch?.no_address || 'No address' }}
+        <span v-if="incompleteCounts.no_address" class="rounded bg-sky-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+          {{ incompleteCounts.no_address }}
+        </span>
+      </button>
+      <span v-if="activeMissingCount > 1" class="text-[11px] text-muted-foreground">
+        missing <strong>all {{ activeMissingCount }}</strong>
       </span>
     </div>
 
@@ -149,7 +169,7 @@ const props = defineProps({
   // What each switch would find across the whole list, not just this page.
   incompleteCounts: {
     type: Object,
-    default: () => ({ no_governorate: 0, no_city: 0 })
+    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0 })
   }
 });
 
@@ -193,7 +213,8 @@ const getInitialFilters = () => {
       search: props.initialFilters.search || '',
       facility_id: props.initialFilters.facility_id || props.initialFilters.facility_id === 0 ? '0' : '',
       no_governorate: truthy(props.initialFilters.no_governorate),
-      no_city: truthy(props.initialFilters.no_city)
+      no_city: truthy(props.initialFilters.no_city),
+      no_address: truthy(props.initialFilters.no_address)
     };
   }
 
@@ -204,7 +225,8 @@ const getInitialFilters = () => {
       search: urlParams.get('search') || '',
       facility_id: urlParams.get('facility_id') || '',
       no_governorate: truthy(urlParams.get('no_governorate')),
-      no_city: truthy(urlParams.get('no_city'))
+      no_city: truthy(urlParams.get('no_city')),
+      no_address: truthy(urlParams.get('no_address'))
     };
   }
 
@@ -212,7 +234,8 @@ const getInitialFilters = () => {
     search: '',
     facility_id: '',
     no_governorate: false,
-    no_city: false
+    no_city: false,
+    no_address: false
   };
 };
 
@@ -221,7 +244,7 @@ const filters = ref(getInitialFilters());
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
   return !!(filters.value.search || filters.value.facility_id
-    || filters.value.no_governorate || filters.value.no_city);
+    || filters.value.no_governorate || filters.value.no_city || filters.value.no_address);
 });
 
 let searchTimeout = null;
@@ -241,6 +264,12 @@ const handleSearch = (event) => {
 
 // Switched on, the list reloads at once: this is a filter reached for to start
 // fixing rows, not one tuned before applying.
+// Several switches on at once means "missing every one of these", not "any" —
+// worth saying, because it is easy to read the row as an either/or.
+const activeMissingCount = computed(() =>
+  ['no_governorate', 'no_city', 'no_address'].filter(key => filters.value[key]).length
+);
+
 const toggleMissing = (key) => {
   filters.value[key] = !filters.value[key];
   applyFilters();
@@ -251,7 +280,8 @@ const handleReset = () => {
     search: '',
     facility_id: '',
     no_governorate: false,
-    no_city: false
+    no_city: false,
+    no_address: false
   };
   applyFilters();
 };
@@ -275,6 +305,7 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.no_governorate) params.no_governorate = 1;
   if (currentFilters.no_city) params.no_city = 1;
+  if (currentFilters.no_address) params.no_address = 1;
 
   emit('filter-change', currentFilters);
 

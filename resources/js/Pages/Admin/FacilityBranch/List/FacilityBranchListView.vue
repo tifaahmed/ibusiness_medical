@@ -17,7 +17,60 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.facility_branch?.management || 'Facility Branches Management' }}</span>
               </div>
             </div>
-            <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <div class="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 flex-shrink-0">
+              <!-- The two AI sweeps: read the address a branch already has and
+                   fill in what it is missing. Each carries the number of rows
+                   still waiting, so the size of the job is on the button. -->
+              <!-- Not an AI sweep: it renames every branch to "<facility> -
+                   <city>", numbering the ones that would otherwise clash. -->
+              <BranchSweepDialog
+                v-if="canWrite"
+                begin-route="admin.facility-branch.rename.bulk.begin"
+                step-route="admin.facility-branch.rename.bulk.step"
+                icon="rename"
+                :pending="incompleteCounts.duplicate_names || 0"
+                :label="t.facility_branch?.rename_bulk || 'Fix branch names'"
+                :short-label="t.facility_branch?.rename_bulk_short || 'Names'"
+                :hint="t.facility_branch?.rename_bulk_hint || 'Rename every branch to \'facility - city\', numbered so no two branches of one facility share a name'"
+                :title="t.facility_branch?.rename_bulk_title || 'Fix branch names'"
+                :description="t.facility_branch?.rename_bulk_description || 'Names every branch after its facility and city — \'Mytra Labs - Maadi\'. Where a facility has more than one branch in the same city, the second and later ones are numbered. Web addresses (slugs) are left as they are, so existing links keep working.'"
+                :overwrite-label="t.facility_branch?.rename_bulk_careful || 'Only fix duplicates and blanks'"
+                :overwrite-hint="t.facility_branch?.rename_bulk_careful_hint || 'Leaves a name alone when it is filled in and clashes with nothing. Off = every branch gets the standard name.'"
+                checked-mode="missing"
+                unchecked-mode="all"
+                :nothing-to-do="t.facility_branch?.rename_bulk_nothing || 'Nothing to do — there are no branches to rename.'"
+                :finished="t.facility_branch?.rename_bulk_done || 'Branch names fixed.'"
+              />
+              <BranchSweepDialog
+                v-if="canWrite && placeAiEnabled"
+                begin-route="admin.facility-branch.place.bulk.begin"
+                step-route="admin.facility-branch.place.bulk.step"
+                icon="place"
+                :pending="incompleteCounts.no_place || 0"
+                :label="t.facility_branch?.place_bulk || 'Fill governorate & city with AI'"
+                :short-label="t.facility_branch?.place_bulk_short || 'Place'"
+                :hint="t.facility_branch?.place_bulk_hint || 'Read every branch address and fill in the governorate and city it names'"
+                :title="t.facility_branch?.place_bulk_title || 'Fill governorate & city with AI'"
+                :description="t.facility_branch?.place_bulk_description || 'AI reads each branch address and chooses the governorate and city it names, from the ones that exist here. Branches with no address are skipped.'"
+                :overwrite-hint="t.facility_branch?.place_bulk_overwrite_hint || 'Re-reads branches that already have a governorate and city. Off = only the ones missing either.'"
+                :nothing-to-do="t.facility_branch?.place_bulk_nothing || 'Nothing to do — every branch with an address already has a governorate and city.'"
+                :finished="t.facility_branch?.place_bulk_done || 'Governorate and city sweep finished. Check what it chose.'"
+              />
+              <BranchSweepDialog
+                v-if="canWrite && locationAiEnabled"
+                begin-route="admin.facility-branch.location.bulk.begin"
+                step-route="admin.facility-branch.location.bulk.step"
+                icon="location"
+                :pending="incompleteCounts.no_location || 0"
+                :label="t.facility_branch?.location_bulk || 'Fill GPS with AI'"
+                :short-label="t.facility_branch?.location_bulk_short || 'GPS'"
+                :hint="t.facility_branch?.location_bulk_hint || 'Read every branch address and fill in its coordinates and Google Maps link'"
+                :title="t.facility_branch?.location_bulk_title || 'Fill branch GPS with AI'"
+                :description="t.facility_branch?.location_bulk_description || 'AI reads each branch address, works out its latitude and longitude, and builds the Google Maps link from them. Check the pins afterwards — they are read from the written address, not surveyed.'"
+                :overwrite-hint="t.facility_branch?.location_bulk_overwrite_hint || 'Re-reads branches that already have coordinates. Off = only the ones missing coordinates or a map link.'"
+                :nothing-to-do="t.facility_branch?.location_bulk_nothing || 'Nothing to do — every branch with an address already has a location.'"
+                :finished="t.facility_branch?.location_bulk_done || 'GPS sweep finished. Open a pin or two to check them.'"
+              />
               <a
                 v-if="canWrite"
                 :href="exportUrl"
@@ -73,6 +126,7 @@
 import FacilityBranchLayout from "../FacilityBranchLayout.vue";
 import FacilityBranchListFilterContent from "./FacilityBranchListFilterContent.vue";
 import FacilityBranchListTable from "./FacilityBranchListTable.vue";
+import BranchSweepDialog from "./BranchSweepDialog.vue";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
@@ -99,7 +153,8 @@ const props = defineProps({
       search: '',
       facility_id: '',
       no_governorate: false,
-      no_city: false
+      no_city: false,
+      no_address: false
     })
   },
   facilities: {
@@ -108,7 +163,17 @@ const props = defineProps({
   },
   incompleteCounts: {
     type: Object,
-    default: () => ({ no_governorate: 0, no_city: 0 })
+    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_place: 0, no_location: 0, duplicate_names: 0 })
+  },
+  // False when GEMINI_API_KEY is unset on the server — the sweep buttons are
+  // hidden rather than offered and then refused by the routes behind them.
+  placeAiEnabled: {
+    type: Boolean,
+    default: false
+  },
+  locationAiEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 

@@ -9,6 +9,7 @@ use App\Models\Governorate;
 use App\Models\Sales;
 use App\Models\Tag;
 use App\Services\BranchGeocoder;
+use App\Services\BranchPlaceResolver;
 use App\Services\FacilityEnglishBackfiller;
 use App\Services\FacilitySeoGenerator;
 use Inertia\Inertia;
@@ -72,6 +73,7 @@ class AdminFacilityCreateController extends BaseController
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
             'locationAiEnabled' => BranchGeocoder::isConfigured(),
             'englishFixEnabled' => FacilityEnglishBackfiller::isConfigured(),
+            'placeAiEnabled' => BranchPlaceResolver::isConfigured(),
         ]);
     }
 }

@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Backs the "translate to Arabic" buttons on the migration preview screen —
- * both the per-field one and the "Fill Arabic from English" sweep. Called over
- * axios with a flat list of English strings, answers a matching list of Arabic.
+ * Backs the translate buttons on the migration preview screen — the per-field
+ * ones on either side of a name, and the sweeps that fill a whole package.
+ * Called over axios with a flat list of strings and the language wanted back,
+ * answers a matching list of translations.
  *
  * Nothing is written: the preview screen holds the package in the browser and
  * writes the answers back into the inputs itself.
@@ -32,10 +33,13 @@ class AdminFacilityMigrationTranslateController extends BaseController
             'items' => ['required', 'array', 'min:1', 'max:'.MigrationTextTranslator::MAX_ITEMS],
             'items.*.text' => ['required', 'string', 'max:2000'],
             'items.*.kind' => ['nullable', 'in:name,address,text'],
+            // Which side of the pair to fill. Absent means Arabic, which is what
+            // the screen asked for before it could ask the other way round.
+            'to' => ['nullable', 'in:ar,en'],
         ]);
 
         try {
-            $translations = $this->translator->toArabic($validated['items']);
+            $translations = $this->translator->translate($validated['items'], $validated['to'] ?? 'ar');
 
             $payload = ['translations' => $translations];
             // When nothing usable came back, hand the raw model answer to the

@@ -22,7 +22,9 @@
       </div>
       <div data-slot="card-content" class="px-6 space-y-4">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <div data-slot="form-item" class="grid gap-1">
+          <!-- Full width: the name is two boxes of its own, and sharing the
+               line with the next field put three inputs on it. -->
+          <div data-slot="form-item" class="grid gap-1 lg:col-span-2">
             <FormTranslatableInput
               v-model="formName"
               :label="t.common?.name || 'Name'"

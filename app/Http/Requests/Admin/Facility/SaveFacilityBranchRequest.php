@@ -49,8 +49,12 @@ class SaveFacilityBranchRequest extends FormRequest
             'google_location_url' => 'nullable|url|max:2048',
             'name' => 'required|array',
             'name.*' => 'nullable|string|max:255',
-            'address' => 'nullable|array',
-            'address.*' => 'nullable|string|max:500',
+            // Required in BOTH languages: a branch listed in one language only
+            // shows up blank on the other side of the directory, and the
+            // address is what the AI geocoder reads to place the pin.
+            'address' => 'required|array',
+            'address.ar' => 'required|string|max:500',
+            'address.en' => 'required|string|max:500',
             ...$this->phoneRules(),
         ];
     }
@@ -94,6 +98,9 @@ class SaveFacilityBranchRequest extends FormRequest
             'id.exists' => 'The branch being edited no longer exists.',
             'governorate_id.required' => 'Choose the governorate this branch is in.',
             'city_id.required' => 'Choose the city this branch is in.',
+            'address.required' => 'The branch address is required in both Arabic and English.',
+            'address.ar.required' => 'The Arabic branch address is required.',
+            'address.en.required' => 'The English branch address is required.',
             'google_location_url.url' => 'The Google location URL must be a full URL, e.g. https://maps.app.goo.gl/xxxx.',
             'phone.*.max' => 'Each branch phone number must be 20 characters or fewer — put one number per line.',
         ];

@@ -42,15 +42,22 @@ class StoreFacilityBranchRequest extends FormRequest
     {
         return [
             'facility_id' => ['required', 'exists:'.Facility::class.',id'],
-            'governorate_id' => ['nullable', 'exists:'.Governorate::class.',id'],
-            'city_id' => ['nullable', 'exists:'.City::class.',id'],
+            // Required, as they are in the facility form's branch modal: a
+            // branch with no place on the map is what makes the directory
+            // unusable, so it is asked for rather than left to be filled later.
+            'governorate_id' => ['required', 'exists:'.Governorate::class.',id'],
+            'city_id' => ['required', 'exists:'.City::class.',id'],
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'google_location_url' => 'nullable|url|max:2048',
-            'name' => 'nullable|array',
+            'name' => 'required|array',
             'name.*' => 'nullable|string|max:255',
-            'address' => 'nullable|array',
-            'address.*' => 'nullable|string',
+            // Required in BOTH languages: a branch listed in one language only
+            // shows up blank on the other side of the directory, and the
+            // address is what the AI geocoder reads to place the pin.
+            'address' => 'required|array',
+            'address.ar' => 'required|string',
+            'address.en' => 'required|string',
             ...$this->phoneRules(),
         ];
     }
@@ -65,6 +72,13 @@ class StoreFacilityBranchRequest extends FormRequest
         $validator->after(function (Validator $v) {
             if ($v->errors()->has('facility_id')) {
                 return;
+            }
+
+            $names = (array) $this->input('name', []);
+            $filled = array_filter($names, fn ($value) => is_string($value) && trim($value) !== '');
+
+            if ($filled === []) {
+                $v->errors()->add('name', 'Branch name is required in at least one language.');
             }
 
             $duplicates = BranchUniqueness::duplicatesInFacility(
@@ -89,7 +103,9 @@ class StoreFacilityBranchRequest extends FormRequest
         return [
             'facility_id.required' => 'The facility is required.',
             'facility_id.exists' => 'The selected facility is invalid.',
+            'governorate_id.required' => 'Choose the governorate this branch is in.',
             'governorate_id.exists' => 'The selected governorate is invalid.',
+            'city_id.required' => 'Choose the city this branch is in.',
             'city_id.exists' => 'The selected city is invalid.',
             'latitude.numeric' => 'The latitude must be a number.',
             'latitude.between' => 'The latitude must be between -90 and 90.',
@@ -98,8 +114,12 @@ class StoreFacilityBranchRequest extends FormRequest
             'google_location_url.url' => 'The Google location URL must be a valid URL.',
             'google_location_url.max' => 'The Google location URL may not be greater than 2048 characters.',
             'name.array' => 'The name must be an array.',
+            'name.required' => 'The branch name is required.',
             'name.*.string' => 'Each language name must be a string.',
             'address.array' => 'The address must be an array.',
+            'address.required' => 'The branch address is required in both Arabic and English.',
+            'address.ar.required' => 'The Arabic branch address is required.',
+            'address.en.required' => 'The English branch address is required.',
             ...$this->phoneMessages(),
         ];
     }

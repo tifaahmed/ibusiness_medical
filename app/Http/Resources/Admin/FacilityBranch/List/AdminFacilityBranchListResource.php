@@ -18,6 +18,9 @@ class AdminFacilityBranchListResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            // Every translation, so the card can show both and name the one
+            // that is missing — which is what the "No address" filter selects.
+            'address' => $this->resource->getTranslations('address'),
             'phone' => $this->phone,
             'facility' => $this->whenLoaded('facility', function () {
                 return $this->facility ? [
@@ -30,16 +33,19 @@ class AdminFacilityBranchListResource extends JsonResource
                     ] : null,
                 ] : null;
             }),
+            // Every translation, not just the active locale's: the list shows
+            // the Arabic and the English name side by side, so a reader can
+            // spot a place whose second language was never filled in.
             'governorate' => $this->whenLoaded('governorate', function () {
                 return $this->governorate ? [
                     'id' => $this->governorate->id,
-                    'name' => $this->governorate->name,
+                    'name' => $this->governorate->getTranslations('name'),
                 ] : null;
             }),
             'city' => $this->whenLoaded('city', function () {
                 return $this->city ? [
                     'id' => $this->city->id,
-                    'name' => $this->city->name,
+                    'name' => $this->city->getTranslations('name'),
                 ] : null;
             }),
             'latitude' => $this->latitude,

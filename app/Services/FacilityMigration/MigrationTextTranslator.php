@@ -7,14 +7,18 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Translates the English values an operator is editing on the migration preview
- * screen into Egyptian Arabic, so a spreadsheet that only ever filled the
- * English column can have its Arabic side populated before the import runs.
+ * Translates the values an operator is editing on the migration preview screen
+ * between English and Egyptian Arabic, so a spreadsheet that only ever filled
+ * one of the two columns can have the other populated before the import runs.
+ *
+ * Both directions, because packages arrive both ways round: an export from a
+ * site kept in Arabic has no English side, and a supplier's sheet often has no
+ * Arabic one.
  *
  * Stateless and row-agnostic on purpose: it is handed a flat list of strings
- * (each tagged with the kind of field it came from) and returns the Arabic for
- * each, in the same order. The preview screen decides which rows to send and
- * where to write the answers back.
+ * (each tagged with the kind of field it came from) and returns the translation
+ * for each, in the same order. The preview screen decides which rows to send
+ * and where to write the answers back.
  */
 class MigrationTextTranslator
 {
@@ -31,6 +35,9 @@ class MigrationTextTranslator
         return GeminiClient::isConfigured();
     }
 
+    /** The languages a value can be turned into. */
+    public const DIRECTIONS = ['ar', 'en'];
+
     /**
      * @param  list<array{text: string, kind?: string}>  $items
      * @return list<string> Arabic per input index; '' where the model gave nothing usable
@@ -40,6 +47,23 @@ class MigrationTextTranslator
      */
     public function toArabic(array $items): array
     {
+        return $this->translate($items, 'ar');
+    }
+
+    /**
+     * @param  list<array{text: string, kind?: string}>  $items
+     * @param  string  $to  'ar' or 'en' — the language to produce
+     * @return list<string> the translation per input index; '' where the model gave nothing usable
+     *
+     * @throws \App\Services\Ai\RateLimitException on HTTP 429
+     * @throws RuntimeException when the key is missing or the call fails
+     */
+    public function translate(array $items, string $to = 'ar'): array
+    {
+        if (! in_array($to, self::DIRECTIONS, true)) {
+            throw new RuntimeException('Unsupported translation direction.');
+        }
+
         $items = array_values($items);
         if ($items === []) {
             return [];
@@ -49,8 +73,8 @@ class MigrationTextTranslator
         }
 
         $answers = $this->ai->json(
-            $this->systemPrompt(),
-            $this->userPrompt($items),
+            $to === 'en' ? $this->englishSystemPrompt() : $this->systemPrompt(),
+            $this->userPrompt($items, $to),
             4096,
         );
 
@@ -67,6 +91,7 @@ class MigrationTextTranslator
             // Nothing usable came back — record the shape so it can be diagnosed
             // rather than the buttons just silently doing nothing.
             Log::warning('Migration translate: empty result', [
+                'to' => $to,
                 'sent' => count($items),
                 'answer_keys' => is_array($answers) ? array_slice(array_keys($answers), 0, 10) : gettype($answers),
                 'answer_sample' => mb_substr(json_encode($answers, JSON_UNESCAPED_UNICODE), 0, 500),
@@ -103,7 +128,7 @@ class MigrationTextTranslator
         $i = 0;
         foreach ($answers as $key => $value) {
             if (is_array($value)) {
-                $value = $value['arabic'] ?? $value['ar'] ?? $value['text'] ?? $value['value'] ?? '';
+                $value = $value['arabic'] ?? $value['ar'] ?? $value['english'] ?? $value['en'] ?? $value['text'] ?? $value['value'] ?? '';
             }
             $position = is_numeric($key) ? (int) $key : $i;
             $out[$position] = is_scalar($value) ? (string) $value : '';
@@ -139,12 +164,39 @@ class MigrationTextTranslator
         PROMPT;
     }
 
+    private function englishSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+        You localise Arabic data from an Egyptian medical directory into English
+        as it is written for an international audience.
+
+        You are given a numbered list of values, each tagged with the kind of field
+        it is. Return ONLY a JSON object mapping each number (as a string key) to
+        the English string. No other keys, no commentary, no Arabic script in the
+        answer.
+
+        Rules by field type:
+        - name (facility or branch name): translate the descriptor
+          (مستشفى -> Hospital, عيادة -> Clinic, مركز -> Center, معمل -> Lab,
+          صيدلية -> Pharmacy, د. -> Dr.) and transliterate proper nouns in their
+          common English spelling (الإسكندرية -> Alexandria, المعادي -> Maadi).
+          Title Case, no trailing punctuation.
+        - address: a natural English street address. Translate generic words
+          (شارع -> Street, ميدان -> Square, برج -> Tower, الدور -> Floor) and keep
+          building and flat numbers as digits.
+        - text: faithful English prose; keep the meaning and tone, add nothing.
+
+        If a value is already English, return it unchanged. Never invent
+        information that is not in the Arabic source.
+        PROMPT;
+    }
+
     /**
      * @param  list<array{text: string, kind?: string}>  $items
      */
-    private function userPrompt(array $items): string
+    private function userPrompt(array $items, string $to = 'ar'): string
     {
-        $lines = ['Values to translate to Arabic:'];
+        $lines = ['Values to translate to '.($to === 'en' ? 'English' : 'Arabic').':'];
 
         foreach ($items as $index => $item) {
             $kind = in_array($item['kind'] ?? 'text', ['name', 'address', 'text'], true)

@@ -163,7 +163,6 @@
         class="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
-        @click.self="cancelForm"
       >
         <div class="my-8 w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
           <div class="flex items-start gap-3 border-b border-border p-4">
@@ -210,7 +209,7 @@
               type="button"
               class="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               :title="t.common?.close || 'Close (Esc)'"
-              @click="cancelForm"
+              @click="requestClose"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
@@ -228,12 +227,15 @@
               </p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
+                  <!-- Required, in at least one of the two languages — the
+                       save refuses a branch with neither. -->
                   <FormTranslatableInput
                     v-model="form.name"
                     :label="t.facility_branch?.branch_name || 'Branch Name'"
                     :error="errors.name"
                     :placeholder="t.facility_branch?.branch_name_placeholder || 'Enter branch name'"
                     :locales="['ar', 'en']"
+                    required
                   />
                   <!-- Branch names are usually "<facility> - <city>", so the city
                        is one click rather than retyped. One button per language,
@@ -259,6 +261,9 @@
                   </div>
                 </div>
                 <div class="md:col-span-2">
+                  <!-- Required in both languages: an address in one language
+                       only leaves half the directory with nothing to show, and
+                       it is what the AI buttons below read. -->
                   <FormTranslatableInput
                     v-model="form.address"
                     :label="t.common?.address || 'Address'"
@@ -267,6 +272,7 @@
                     :locales="['ar', 'en']"
                     multiline
                     :rows="3"
+                    required
                   />
                 </div>
                 <div>
@@ -292,10 +298,28 @@
                 <div class="md:col-span-2 flex flex-wrap items-center justify-end gap-2">
                   <p v-if="locateHint" class="text-[11px] text-white/70 order-2 sm:order-1">{{ locateHint }}</p>
                   <button
+                    v-if="placeAiEnabled"
+                    type="button"
+                    :disabled="!canResolvePlace || resolvingPlace"
+                    class="order-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                    :title="placeHint || (t.facility_branch?.place_generate_hint || 'Read the address above and choose the governorate and city it names')"
+                    @click="resolvePlace"
+                  >
+                    <svg v-if="resolvingPlace" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path>
+                    </svg>
+                    {{ resolvingPlace
+                      ? (t.facility_branch?.place_generating || 'Reading address…')
+                      : (t.facility_branch?.place_generate || 'Fill governorate & city with AI') }}
+                  </button>
+                  <button
                     v-if="aiEnabled"
                     type="button"
                     :disabled="!canLocate || locating"
-                    class="order-1 sm:order-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                    class="order-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
                     :title="locateHint || (t.facility?.location_generate_hint || 'Read the address above and fill in the coordinates and the Google Maps link')"
                     @click="locate"
                   >
@@ -303,7 +327,7 @@
                       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
                       <circle cx="12" cy="10" r="3"></circle>
                     </svg>
-                    {{ locating ? (t.facility?.location_generating || 'Locating…') : (t.facility?.location_generate || 'Find on map with AI') }}
+                    {{ locateLabel }}
                   </button>
                 </div>
                 <div>
@@ -348,7 +372,7 @@
             <div class="flex gap-3 justify-end border-t border-border p-3">
               <button
                 type="button"
-                @click="cancelForm"
+                @click="requestClose"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
               >
                 {{ t.common?.cancel || 'Cancel' }}
@@ -413,6 +437,11 @@ const props = defineProps({
   },
   // Same gate for the modal's "Fix English with AI" button.
   englishFixEnabled: {
+    type: Boolean,
+    default: false
+  },
+  // And for "Fill governorate & city with AI".
+  placeAiEnabled: {
     type: Boolean,
     default: false
   }
@@ -567,8 +596,31 @@ const optionLabelFor = (options, id) => {
   return match ? match.label : '';
 };
 
+const hasFormCoordinates = computed(() =>
+  String(form.value.latitude ?? '').trim() !== '' && String(form.value.longitude ?? '').trim() !== ''
+);
+
+// The button's own words change with what it is about to do: fill the empty
+// boxes, or replace what is in them.
+const locateLabel = computed(() => {
+  if (locating.value) return t.value.facility?.location_generating || 'Locating…';
+  if (hasFormCoordinates.value) return t.value.facility?.location_replace || 'Replace GPS with AI';
+  return t.value.facility?.location_generate || 'Find GPS on map with AI';
+});
+
 const locate = async () => {
   if (!canLocate.value || locating.value) return;
+
+  /* Filling an empty pair is the whole point of the button, so that happens
+     without ceremony. Coordinates already on the branch may have been checked
+     against the map by hand, which is worth more than a fresh guess — so
+     replacing them is asked about rather than done quietly. */
+  if (hasFormCoordinates.value && !window.confirm(
+    t.value.facility?.location_replace_confirm
+    || 'This branch already has coordinates. Replace them with the AI\'s answer?'
+  )) {
+    return;
+  }
 
   locating.value = true;
   try {
@@ -603,6 +655,70 @@ const locate = async () => {
     useNotification().error(message);
   } finally {
     locating.value = false;
+  }
+};
+
+/* ---- Governorate & city from the address ----------------------------------
+   The address almost always names the place already, and both fields are
+   required to save a branch. The server hands back the ids of rows that exist,
+   so what lands here is always a real governorate and a real city inside it.
+--------------------------------------------------------------------------- */
+const resolvingPlace = ref(false);
+
+const canResolvePlace = computed(() => props.placeAiEnabled && hasAddress.value);
+
+const placeHint = computed(() => {
+  if (!props.placeAiEnabled) return '';
+  if (!hasAddress.value) return t.value.facility?.location_needs_address || 'Enter the branch address first.';
+  return '';
+});
+
+const resolvePlace = async () => {
+  if (!canResolvePlace.value || resolvingPlace.value) return;
+
+  resolvingPlace.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.branch.place'), {
+      address: form.value.address || {},
+      name: form.value.name || {},
+      facility_name: facilityStore.form?.name || {},
+    });
+
+    const place = data?.place;
+    if (!place) throw new Error('empty');
+
+    /* The governorate is set first and on its own tick: the watcher below
+       clears a city that does not belong to the governorate, and it would
+       otherwise wipe the city we are about to set. */
+    if (place.governorate_id) {
+      form.value.governorate_id = place.governorate_id;
+      await nextTick();
+    }
+    if (place.city_id) {
+      form.value.city_id = place.city_id;
+    }
+
+    ['governorate_id', 'city_id'].forEach((field) => {
+      delete errors.value[field];
+    });
+
+    const chosen = [place.governorate_name, place.city_name]
+      .map(name => primaryName(name, locale.value))
+      .filter(Boolean)
+      .join(' — ');
+
+    useNotification().success(
+      (t.value.facility_branch?.place_generated || 'Governorate and city filled in. Check them before saving.')
+      + (chosen ? ` (${chosen})` : '')
+    );
+  } catch (error) {
+    useNotification().error(
+      error?.response?.data?.message
+      || error?.response?.data?.errors?.address?.[0]
+      || (t.value.facility_branch?.place_generate_failed || 'Could not read the place from the address. Please choose it by hand.')
+    );
+  } finally {
+    resolvingPlace.value = false;
   }
 };
 
@@ -760,17 +876,65 @@ const openAddForm = () => {
 const cancelForm = () => {
   showAddForm.value = false;
   editingIndex.value = null;
+  formSnapshot.value = '';
   resetForm();
+};
+
+/* ---- leaving the modal --------------------------------------------------
+
+   Nothing typed here is written until "Add"/"Update" is pressed, so a modal
+   that closed on a stray click outside it threw the work away silently. It now
+   closes only the two deliberate ways — Cancel and the × — and Escape, which
+   the × advertises; all three ask first when there is something to lose.
+------------------------------------------------------------------------- */
+
+// The form as it stood when the modal opened. Empty while it is shut.
+const formSnapshot = ref('');
+
+const formFingerprint = () => JSON.stringify({
+  name: form.value.name || {},
+  address: form.value.address || {},
+  phone: normalizePhoneEntries(form.value.phone),
+  governorate_id: form.value.governorate_id ?? '',
+  city_id: form.value.city_id ?? '',
+  latitude: form.value.latitude ?? '',
+  longitude: form.value.longitude ?? '',
+  google_location_url: form.value.google_location_url ?? '',
+});
+
+const formIsDirty = computed(() =>
+  isFormOpen.value && formSnapshot.value !== '' && formFingerprint() !== formSnapshot.value
+);
+
+const requestClose = () => {
+  if (formIsDirty.value) {
+    const message = t.value?.facility_branch?.confirm_discard
+      || 'This branch has changes that have not been added yet. Leave and lose them?';
+
+    if (!window.confirm(message)) return;
+
+    useNotification().info(
+      t.value?.facility_branch?.discarded
+      || 'Branch changes discarded — nothing was saved.'
+    );
+  }
+
+  cancelForm();
 };
 
 const onKeydown = (event) => {
   if (event.key === 'Escape' && isFormOpen.value) {
-    cancelForm();
+    requestClose();
   }
 };
 
 watch(isFormOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : '';
+
+  // After the opener has filled the boxes — editBranch flips this flag before
+  // it copies the branch in — so the snapshot is the row as it arrived.
+  if (open) nextTick(() => { formSnapshot.value = formFingerprint(); });
+  else formSnapshot.value = '';
 });
 
 onMounted(() => {
@@ -996,6 +1160,18 @@ const handleSubmit = async () => {
     errors.value.city_id = t.value?.city?.required || 'City is required';
   }
   if (errors.value.governorate_id || errors.value.city_id) {
+    return;
+  }
+
+  // The address, unlike the name, is asked for in BOTH languages: a branch
+  // listed in one language only shows up blank on the other side of the
+  // directory, and it is what "Find on map with AI" reads to place the pin.
+  const missingAddress = ['ar', 'en'].filter(
+    lang => String(form.value.address?.[lang] || '').trim() === ''
+  );
+  if (missingAddress.length > 0) {
+    errors.value.address = t.value?.facility_branch?.address_required
+      || `Address is required in both languages (missing: ${missingAddress.map(localeLabel).join(', ')})`;
     return;
   }
 

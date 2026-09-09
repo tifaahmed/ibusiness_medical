@@ -422,7 +422,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
   applyFilters();
 };
 
@@ -476,6 +476,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.sales_presence && currentFilters.sales_presence !== '') {
     params.sales_presence = currentFilters.sales_presence;
+  }
+  if (currentFilters.branches_missing && currentFilters.branches_missing !== '') {
+    params.branches_missing = currentFilters.branches_missing;
   }
   if (currentFilters.governorate_id && currentFilters.governorate_id !== '') {
     params.governorate_id = currentFilters.governorate_id;

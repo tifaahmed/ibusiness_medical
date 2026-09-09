@@ -138,7 +138,11 @@ class FacilityBranchInlineSaveTest extends TestCase
 
         $this->actingAs($this->admin())->postJson(
             route('admin.facility.branch.save', $second->slug),
-            ['name' => ['en' => 'Damietta', 'ar' => 'دمياط'], ...$this->place()],
+            [
+                'name' => ['en' => 'Damietta', 'ar' => 'دمياط'],
+                'address' => ['en' => 'Corniche street', 'ar' => 'شارع الكورنيش'],
+                ...$this->place(),
+            ],
         )->assertOk();
 
         $this->assertDatabaseCount('facility_branches', 2);

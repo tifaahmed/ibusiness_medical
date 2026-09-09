@@ -55,12 +55,15 @@
                    that is a row still to be fixed. -->
               <div class="flex flex-wrap items-center gap-1.5">
                 <span
-                  v-if="governorateName(branch)"
+                  v-if="governorateNames(branch).length"
                   class="inline-flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-500/25 px-2 py-0.5 text-[11px] font-semibold text-emerald-950 dark:text-emerald-100"
                   :title="t.governorate?.label || 'Governorate'"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-                  {{ governorateName(branch) }}
+                  <template v-for="(place, index) in governorateNames(branch)" :key="place.locale">
+                    <span v-if="index" class="opacity-40" aria-hidden="true">·</span>
+                    <span :dir="place.locale === 'ar' ? 'rtl' : 'ltr'" :lang="place.locale">{{ place.value }}</span>
+                  </template>
                 </span>
                 <span
                   v-else
@@ -70,12 +73,15 @@
                 </span>
 
                 <span
-                  v-if="cityName(branch)"
+                  v-if="cityNames(branch).length"
                   class="inline-flex items-center gap-1 rounded-md border border-amber-400/50 bg-amber-500/25 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:text-amber-100"
                   :title="t.city?.label || 'City'"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M18 21V4a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v17"/><path d="M2 21h20"/><path d="M10 9h4"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
-                  {{ cityName(branch) }}
+                  <template v-for="(place, index) in cityNames(branch)" :key="place.locale">
+                    <span v-if="index" class="opacity-40" aria-hidden="true">·</span>
+                    <span :dir="place.locale === 'ar' ? 'rtl' : 'ltr'" :lang="place.locale">{{ place.value }}</span>
+                  </template>
                 </span>
                 <span
                   v-else
@@ -89,14 +95,32 @@
                    a third place chip. Sits with the two chips it belongs with,
                    above the facility type. -->
               <div
-                v-if="getTranslatedName(branch.address)"
-                class="flex items-start gap-1.5 rounded-md border border-white/25 bg-slate-900/35 px-2 py-1 text-xs text-white/90"
+                v-if="addressNames(branch).length"
+                class="flex flex-col gap-1 rounded-md border border-white/25 bg-slate-900/35 px-2 py-1 text-xs text-white/90"
+              >
+                <div v-for="place in addressNames(branch)" :key="place.locale" class="flex items-start gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin h-3 w-3 flex-shrink-0 mt-0.5">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span class="line-clamp-2" :dir="place.locale === 'ar' ? 'rtl' : 'ltr'" :lang="place.locale">{{ place.value }}</span>
+                </div>
+              </div>
+              <!-- Red, like a missing governorate or city: an address the "No
+                   address" filter finds is a row still to be fixed, and the
+                   branch cannot be saved again until it is. -->
+              <div
+                v-if="missingAddressLocales(branch).length"
+                class="flex items-start gap-1.5 rounded-md border border-red-400/60 bg-red-500/30 px-2 py-1 text-[11px] font-semibold text-red-50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin h-3 w-3 flex-shrink-0 mt-0.5">
                   <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
                   <circle cx="12" cy="10" r="3"></circle>
                 </svg>
-                <span class="line-clamp-2">{{ getTranslatedName(branch.address) }}</span>
+                <span>
+                  {{ t.facility_branch?.no_address || 'No address' }}
+                  ({{ missingAddressLocales(branch).map(l => l.toUpperCase()).join(' + ') }})
+                </span>
               </div>
 
               <div class="flex items-center gap-2 min-w-0">
@@ -215,18 +239,45 @@ const getTranslatedName = (name) => {
   return '';
 };
 
-const governorateName = (branch) => getTranslatedName(branch?.governorate?.name);
-const cityName = (branch) => getTranslatedName(branch?.city?.name);
+// A place name in every language it was stored in, the reader's own first.
+// Two entries where the Arabic and the English differ, one where they were
+// typed the same, none at all where the place itself is missing.
+const placeNames = (value) => {
+  if (typeof value === 'string') {
+    return value ? [{ locale: page.props.locale || 'ar', value }] : [];
+  }
+  if (typeof value !== 'object' || value === null) return [];
 
-const getAddress = (branch) => {
-  const governorate = getTranslatedName(branch?.governorate?.name);
-  const city = getTranslatedName(branch?.city?.name);
-
-  if (governorate && city) return `${governorate} - ${city}`;
-  if (governorate) return governorate;
-  if (city) return city;
-  return '';
+  const primary = (page.props.locale || 'ar') === 'en' ? 'en' : 'ar';
+  const names = [];
+  for (const locale of [primary, primary === 'en' ? 'ar' : 'en']) {
+    const text = value[locale];
+    if (text && !names.some((n) => n.value === text)) {
+      names.push({ locale, value: text });
+    }
+  }
+  return names;
 };
+
+const governorateNames = (branch) => placeNames(branch?.governorate?.name);
+const cityNames = (branch) => placeNames(branch?.city?.name);
+
+// The address reads the same way — every language it was written in.
+const addressNames = (branch) => placeNames(branch?.address);
+
+// The languages it was NOT written in, which is what the "No address" filter
+// on this page selects for.
+const missingAddressLocales = (branch) => {
+  const address = branch?.address;
+  const written = (lang) => {
+    if (typeof address === 'string') return address.trim() !== '';
+    if (!address || typeof address !== 'object') return false;
+    return String(address[lang] || '').trim() !== '';
+  };
+
+  return ['ar', 'en'].filter(lang => !written(lang));
+};
+
 
 const getPhonesArray = (phone) => normalizePhoneEntries(phone);
 

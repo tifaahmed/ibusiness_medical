@@ -566,12 +566,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Fill SEO with AI" sweep on the list — browser-stepped begin/step.
         Route::post('/admin/facility/seo/bulk/begin', [AdminFacilitySeoBulkController::class, 'begin'])->name('admin.facility.seo.bulk.begin');
         Route::post('/admin/facility/seo/bulk/step', [AdminFacilitySeoBulkController::class, 'step'])->name('admin.facility.seo.bulk.step');
-        // AI geocoder for the form's branch modal: address in, coordinates and
-        // a Google Maps link out (called via axios, answers JSON).
-        Route::post('/admin/facility/branch/locate', AdminFacilityBranchLocateController::class)->name('admin.facility.branch.locate');
-        // "Fix English with AI" inside the branch modal — translates the boxes as
-        // they stand and answers JSON; nothing is written until the admin saves.
-        Route::post('/admin/facility/branch/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityBranchTranslateController::class)->name('admin.facility.branch.translate');
         // "Fill locations with AI" sweep on the list — browser-stepped begin/step.
         Route::post('/admin/facility/location/bulk/begin', [AdminFacilityLocationBulkController::class, 'begin'])->name('admin.facility.location.bulk.begin');
         Route::post('/admin/facility/location/bulk/step', [AdminFacilityLocationBulkController::class, 'step'])->name('admin.facility.location.bulk.step');
@@ -585,6 +579,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/english/bulk/begin', [AdminFacilityEnglishBulkController::class, 'begin'])->name('admin.facility.english.bulk.begin');
         Route::post('/admin/facility/english/bulk/step', [AdminFacilityEnglishBulkController::class, 'step'])->name('admin.facility.english.bulk.step');
         Route::post('/admin/facility/{facility}/english/fix', AdminFacilityEnglishFixController::class)->name('admin.facility.english.fix');
+        // The same button on the create page, where there is no saved row to
+        // read: it translates the boxes as they stand — facility and the
+        // branches typed into the form — and writes nothing.
+        Route::post('/admin/facility/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityTranslateController::class)->name('admin.facility.translate');
         // Branch add/edit from the facility form's modal — writes the one branch
         // immediately and answers JSON (called via axios).
         Route::post('/admin/facility/{facility}/branch', \App\Http\Controllers\Admin\Facility\Branch\AdminFacilityBranchSaveController::class)->name('admin.facility.branch.save');
@@ -616,7 +614,39 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility-branch/{facilityBranch}/edit', AdminFacilityBranchEditController::class)->name('admin.facility-branch.edit');
         Route::put('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchUpdateController::class)->name('admin.facility-branch.update');
         Route::delete('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchDeleteController::class)->name('admin.facility-branch.destroy');
+        /* The two AI sweeps on the branch list — browser-stepped begin/step, so
+           no single request has to outlive a shared-hosting timeout. One fills
+           the governorate and city a branch's address names; the other its
+           coordinates and map link. Both read the address and neither
+           overwrites a field that already has something in it. */
+        Route::post('/admin/facility-branch/place/bulk/begin', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchPlaceBulkController::class, 'begin'])->name('admin.facility-branch.place.bulk.begin');
+        Route::post('/admin/facility-branch/place/bulk/step', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchPlaceBulkController::class, 'step'])->name('admin.facility-branch.place.bulk.step');
+        Route::post('/admin/facility-branch/location/bulk/begin', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchLocationBulkController::class, 'begin'])->name('admin.facility-branch.location.bulk.begin');
+        Route::post('/admin/facility-branch/location/bulk/step', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchLocationBulkController::class, 'step'])->name('admin.facility-branch.location.bulk.step');
+        /* "Fix branch names" — no AI, but stepped the same way: names every
+           branch "<facility> - <city>", numbered so no two branches of one
+           facility clash. Works a facility at a time, because the numbering
+           can only be decided with the whole facility in hand. */
+        Route::post('/admin/facility-branch/rename/bulk/begin', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchRenameBulkController::class, 'begin'])->name('admin.facility-branch.rename.bulk.begin');
+        Route::post('/admin/facility-branch/rename/bulk/step', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchRenameBulkController::class, 'step'])->name('admin.facility-branch.rename.bulk.step');
     });
+    /* The two AI helpers the branch form uses. They live outside both groups
+       because both forms offer them: the branch modal on the facility page and
+       the standalone branch form, which are reached by different permissions.
+       Neither writes anything — values are handed back for the admin to check
+       and save — so the permission to edit a branch either way is enough. */
+    Route::middleware('permission:manage facilities|manage own facilities|manage facility branches|manage own facility branches')->group(function () {
+        // AI geocoder: address in, coordinates and a Google Maps link out
+        // (called via axios, answers JSON).
+        Route::post('/admin/facility/branch/locate', AdminFacilityBranchLocateController::class)->name('admin.facility.branch.locate');
+        // "Fix English with AI" — translates the boxes as they stand and answers
+        // JSON; nothing is written until the admin saves.
+        Route::post('/admin/facility/branch/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityBranchTranslateController::class)->name('admin.facility.branch.translate');
+        // "Fill governorate & city from the address" — reads the typed address
+        // and picks the two rows it belongs to, from the ones that exist.
+        Route::post('/admin/facility/branch/place', \App\Http\Controllers\Admin\Facility\Place\AdminFacilityBranchPlaceController::class)->name('admin.facility.branch.place');
+    });
+
     Route::middleware('permission:manage facility branches|manage own facility branches|view facility branches')->group(function () {
         Route::get('/admin/facility-branch', AdminFacilityBranchListController::class)->name('admin.facility-branch.list');
         Route::get('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchShowController::class)->name('admin.facility-branch.show');

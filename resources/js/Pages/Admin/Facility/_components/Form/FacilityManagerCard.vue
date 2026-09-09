@@ -112,7 +112,6 @@
         class="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
-        @click.self="cancelForm"
       >
         <div class="my-8 w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
           <div class="flex items-start gap-3 border-b border-border p-4">
@@ -123,7 +122,7 @@
               type="button"
               class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               :title="t.common?.close || 'Close (Esc)'"
-              @click="cancelForm"
+              @click="requestClose"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
@@ -166,7 +165,7 @@
             <div class="flex gap-3 justify-end border-t border-border p-3">
               <button
                 type="button"
-                @click="cancelForm"
+                @click="requestClose"
                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background text-white shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
               >
                 {{ t.common?.cancel || 'Cancel' }}
@@ -190,7 +189,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import axios from 'axios';
 import { FormInput, BranchPhonesInput } from '@/Components/form';
 import { normalizePhoneEntries, phoneTypeLabel } from '@/lib/branchPhones';
@@ -248,8 +247,53 @@ const resetForm = () => {
 const cancelForm = () => {
   showAddForm.value = false;
   editingIndex.value = null;
+  formSnapshot.value = '';
   resetForm();
 };
+
+/* ---- leaving the modal --------------------------------------------------
+
+   Nothing typed here is written until "Add"/"Update" is pressed, so a modal
+   that closed on a stray click outside it threw the work away silently. It now
+   closes only the two deliberate ways — Cancel and the × — and both ask first
+   when there is something to lose. Mirrors the branch modal next door.
+------------------------------------------------------------------------- */
+
+// The form as it stood when the modal opened. Empty while it is shut.
+const formSnapshot = ref('');
+
+const formFingerprint = () => JSON.stringify({
+  name: form.value.name || '',
+  position: form.value.position || '',
+  phones: normalizePhoneEntries(form.value.phones),
+});
+
+const formIsDirty = computed(() =>
+  isFormOpen.value && formSnapshot.value !== '' && formFingerprint() !== formSnapshot.value
+);
+
+const requestClose = () => {
+  if (formIsDirty.value) {
+    const message = t.value?.facility_manager?.confirm_discard
+      || 'This manager has changes that have not been added yet. Leave and lose them?';
+
+    if (!window.confirm(message)) return;
+
+    useNotification().info(
+      t.value?.facility_manager?.discarded
+      || 'Manager changes discarded — nothing was saved.'
+    );
+  }
+
+  cancelForm();
+};
+
+// After the opener has filled the boxes — editManager flips this flag before it
+// copies the manager in — so the snapshot is the row as it arrived.
+watch(isFormOpen, (open) => {
+  if (open) nextTick(() => { formSnapshot.value = formFingerprint(); });
+  else formSnapshot.value = '';
+});
 
 const editManager = (index) => {
   editingIndex.value = index;

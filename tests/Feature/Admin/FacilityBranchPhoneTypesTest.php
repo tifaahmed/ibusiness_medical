@@ -40,6 +40,12 @@ class FacilityBranchPhoneTypesTest extends TestCase
      *
      * @return array{governorate_id: int, city_id: int}
      */
+    /**
+     * Everything a branch needs before its phones are even looked at: the
+     * governorate and city it sits in, and an address in both languages. The
+     * address is numbered per call so two branches of one facility never
+     * collide on it — these tests are about phone numbers, not uniqueness.
+     */
     private function place(): array
     {
         $governorate = Governorate::create(['name' => ['en' => 'Cairo', 'ar' => 'القاهرة']]);
@@ -48,8 +54,17 @@ class FacilityBranchPhoneTypesTest extends TestCase
             'name' => ['en' => 'Maadi', 'ar' => 'المعادي'],
         ]);
 
-        return ['governorate_id' => $governorate->id, 'city_id' => $city->id];
+        $n = ++$this->places;
+
+        return [
+            'governorate_id' => $governorate->id,
+            'city_id' => $city->id,
+            'address' => ['en' => "Road {$n}, Maadi", 'ar' => "طريق {$n}، المعادي"],
+        ];
     }
+
+    /** How many places have been made, so each address is its own. */
+    private int $places = 0;
 
     private function facility(): Facility
     {

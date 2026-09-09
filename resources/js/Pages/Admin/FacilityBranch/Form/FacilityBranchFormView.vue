@@ -10,7 +10,14 @@
         <div class="space-y-3">
           <form class="space-y-3" @submit.prevent="handleSubmit">
             <div class="space-y-3">
-              <FacilityBranchForm :facilities="facilities" :governorates="governorates" :cities="cities" />
+              <FacilityBranchForm
+                :facilities="facilities"
+                :governorates="governorates"
+                :cities="cities"
+                :location-ai-enabled="locationAiEnabled"
+                :english-fix-enabled="englishFixEnabled"
+                :place-ai-enabled="placeAiEnabled"
+              />
             </div>
 
             <!-- Sticky Form Actions -->
@@ -76,6 +83,19 @@ const props = defineProps({
   cities: {
     type: Array,
     default: () => []
+  },
+  // False when GEMINI_API_KEY is unset on the server.
+  locationAiEnabled: {
+    type: Boolean,
+    default: false
+  },
+  englishFixEnabled: {
+    type: Boolean,
+    default: false
+  },
+  placeAiEnabled: {
+    type: Boolean,
+    default: false
   }
 });
 
