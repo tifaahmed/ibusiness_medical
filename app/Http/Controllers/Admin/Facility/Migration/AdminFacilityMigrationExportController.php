@@ -44,6 +44,13 @@ class AdminFacilityMigrationExportController extends BaseController
 
     public function __invoke(Request $request): StreamedResponse
     {
+        // Bundling images means walking the whole media library and writing a
+        // full workbook, easily past a shared-hosting default of 30s once the
+        // site holds a few hundred facilities. An admin triggers this
+        // deliberately and rarely, so it is worth more time than a normal
+        // request rather than failing partway through a multi-minute build.
+        set_time_limit(300);
+
         $includeMedia = ! $request->has('include_media') || $request->boolean('include_media');
         $includeBranches = ! $request->has('include_branches') || $request->boolean('include_branches');
         $includeManagers = ! $request->has('include_managers') || $request->boolean('include_managers');

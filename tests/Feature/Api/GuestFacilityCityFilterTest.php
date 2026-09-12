@@ -15,8 +15,13 @@ use Tests\TestCase;
  *
  * A facility belongs to a place twice over: its head office sits somewhere, and
  * so does every branch. A visitor picking a city means "somewhere I can walk
- * into", so either counts — which is the one thing worth pinning down here,
- * along with the city list the dropdown itself is drawn from.
+ * into", so filtering the GRID counts either one — that is the first thing
+ * pinned down here.
+ *
+ * The city (and governorate) dropdown lists are narrower on purpose: only a
+ * place an actual branch sits in is offered, because a head-office-only city
+ * is a registered address, not somewhere to visit — offering it is a choice
+ * whose only outcome is an empty grid.
  *
  * Read by the Deilar storefront's directory; see `App\Actions\Facilities\
  * ListFacilities` over there.
@@ -131,12 +136,14 @@ class GuestFacilityCityFilterTest extends TestCase
     }
 
     /*
-     * The dropdown is drawn from this list, so a city nobody is listed in is a
-     * choice whose only outcome is an empty grid.
+     * The dropdown is drawn from this list, so a city with nothing to walk
+     * into is a choice whose only outcome is an empty grid — a facility's
+     * head office alone does not count, only an actual branch does.
      */
-    public function test_only_cities_hosting_something_are_offered(): void
+    public function test_only_cities_with_a_branch_are_offered(): void
     {
-        $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
+        $facility = $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
+        $this->branch($facility, $this->cairo, $this->nasrCity);
 
         $names = collect($this->getJson('/api/v1/facilities')->assertOk()->json('cities'))
             ->pluck('name')
@@ -145,10 +152,28 @@ class GuestFacilityCityFilterTest extends TestCase
         $this->assertSame(['Nasr City'], $names);
     }
 
-    public function test_the_city_list_narrows_to_the_chosen_governorate(): void
+    /*
+     * A head office with no branch anywhere is registered, not visitable —
+     * the dropdown should not offer a city that can only return that.
+     */
+    public function test_a_head_office_with_no_branch_does_not_offer_its_city(): void
     {
         $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
-        $this->facility('Dokki Clinic', $this->clinic, $this->giza, $this->dokki);
+
+        $names = collect($this->getJson('/api/v1/facilities')->assertOk()->json('cities'))
+            ->pluck('name')
+            ->all();
+
+        $this->assertSame([], $names);
+    }
+
+    public function test_the_city_list_narrows_to_the_chosen_governorate(): void
+    {
+        $cairoFacility = $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
+        $this->branch($cairoFacility, $this->cairo, $this->nasrCity);
+
+        $gizaFacility = $this->facility('Dokki Clinic', $this->clinic, $this->giza, $this->dokki);
+        $this->branch($gizaFacility, $this->giza, $this->dokki);
 
         $names = collect(
             $this->getJson('/api/v1/facilities?governorate_id='.$this->cairo->id)
@@ -184,7 +209,8 @@ class GuestFacilityCityFilterTest extends TestCase
      */
     public function test_the_city_names_come_back_in_the_requested_locale(): void
     {
-        $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
+        $facility = $this->facility('Nile Clinic', $this->clinic, $this->cairo, $this->nasrCity);
+        $this->branch($facility, $this->cairo, $this->nasrCity);
 
         $names = collect(
             $this->getJson('/api/v1/facilities', ['X-Locale' => 'ar'])
@@ -229,5 +255,15 @@ class GuestFacilityCityFilterTest extends TestCase
         ])->save();
 
         return $facility->refresh();
+    }
+
+    private function branch(Facility $facility, Governorate $governorate, City $city): FacilityBranch
+    {
+        return FacilityBranch::create([
+            'facility_id' => $facility->id,
+            'name' => ['en' => $facility->getTranslation('name', 'en').' Branch', 'ar' => 'فرع'],
+            'governorate_id' => $governorate->id,
+            'city_id' => $city->id,
+        ]);
     }
 }

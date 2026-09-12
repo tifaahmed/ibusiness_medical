@@ -5,6 +5,61 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMemberForm } from '../validation/memberValidation';
 
+// Every field the create/update form actually owns — used to take a clean
+// snapshot of what is about to be sent, without dragging along the
+// useForm() helper's own methods (transform, reset, data, ...).
+const FORM_FIELD_KEYS = [
+    'id', 'slug', 'name', 'email', 'phone', 'password', 'password_confirmation',
+    'avatar', 'avatar_url', 'membership_number', 'national_id', 'registration_date',
+    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'payment_type',
+    'membership_completed_at', 'has_member_payments', 'initial_payment_amount',
+    'initial_payment_type', 'initial_payment_months_paid', 'initial_payment_from_date',
+    'initial_payment_to_date', 'initial_payment_notes', 'job_title', 'company_id',
+    'partner_id', 'sales_id', 'governorate_id', 'city_id', 'address_type', 'address',
+    'street', 'building_number', 'apartment_number', 'floor_number', 'special_mark',
+    'contract_image', 'contract_image_url', 'contract_image_remove', 'gallery_images',
+    'gallery_existing', 'gallery_remove_ids',
+];
+
+// A File isn't worth (or safe) to serialize whole — swap it for a description.
+// Passwords are masked the same way: whether one was typed matters for
+// debugging, the characters typed do not.
+const describeValue = (key, value) => {
+    if (value instanceof File) return `<file: ${value.name}, ${value.size} bytes, ${value.type || 'unknown type'}>`;
+    if (Array.isArray(value)) return value.map((item) => describeValue(key, item));
+    if ((key === 'password' || key === 'password_confirmation') && value) return `<hidden, ${String(value).length} chars>`;
+    return value;
+};
+
+// A plain-object snapshot of the form as it stands right now, safe to
+// JSON.stringify and hand to a programmer alongside whatever the server sent
+// back — the two halves of "what happened" on one screen.
+const snapshotFormFields = (form) => {
+    const snapshot = {};
+    FORM_FIELD_KEYS.forEach((key) => {
+        snapshot[key] = describeValue(key, form[key]);
+    });
+    return snapshot;
+};
+
+// The literal wire payload — every entry actually appended to the FormData
+// that goes over the network, in the order it was appended. This is what a
+// programmer needs when a field silently didn't make it into the request at
+// all, which a snapshot of the form's own state can't show.
+const formDataToLog = (formData) => {
+    const entries = [];
+    for (const [key, value] of formData.entries()) {
+        const isPassword = key === 'password' || key === 'password_confirmation';
+        entries.push({
+            key,
+            value: value instanceof File
+                ? `<file: ${value.name}, ${value.size} bytes, ${value.type || 'unknown type'}>`
+                : (isPassword && value ? `<hidden, ${String(value).length} chars>` : value),
+        });
+    }
+    return entries;
+};
+
 export const useMemberStore = defineStore('member', {
     state: () => ({
         form: useForm({
@@ -55,12 +110,18 @@ export const useMemberStore = defineStore('member', {
         }),
         validationErrors: null,
         members: reactive([]),
-        isLoading: false
+        isLoading: false,
+        // What the last submit actually sent and what the server actually sent
+        // back — for the "Advanced Error Track" tab, so a failure can be
+        // handed to a programmer as a full trace instead of a screenshot of
+        // the field-level messages alone.
+        debugLog: null,
     }),
 
     actions: {
         async initializeForm() {
             // Reset all form fields for new member creation
+            this.debugLog = null;
             this.form.id = null;
             this.form.slug = '';
             this.form.name = '';
@@ -233,6 +294,24 @@ export const useMemberStore = defineStore('member', {
                 if (!validation.isValid) {
                     console.error('Validation errors:', validation.errors);
                     this.validationErrors = validation.errors;
+                    // Nothing was sent — the client-side check stopped it before a
+                    // request existed — but the advanced tab still needs something
+                    // to show, so it records the form as it stood and why it never
+                    // left the browser.
+                    this.debugLog = {
+                        request: {
+                            method: 'POST',
+                            url: route('admin.user.membership.store'),
+                            at: new Date().toISOString(),
+                            fields: snapshotFormFields(this.form),
+                            note: 'Not actually sent — blocked by client-side validation below.',
+                        },
+                        response: {
+                            at: new Date().toISOString(),
+                            errors: validation.errors,
+                            note: 'Client-side validation failure. The server was never reached.',
+                        },
+                    };
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
@@ -318,6 +397,18 @@ export const useMemberStore = defineStore('member', {
                 const storeRoute = route('admin.user.membership.store');
                 console.log('Posting to:', storeRoute);
 
+                // Snapshot of exactly what is going out, before the request is
+                // fired — the "sent to server" half of the advanced error track.
+                this.debugLog = {
+                    request: {
+                        method: 'POST',
+                        url: storeRoute,
+                        at: new Date().toISOString(),
+                        fields: formDataToLog(formData),
+                    },
+                    response: null,
+                };
+
                 router.post(storeRoute, formData, {
                     preserveScroll: true,
                     forceFormData: true,
@@ -340,6 +431,7 @@ export const useMemberStore = defineStore('member', {
                         console.log('Page props:', page.props);
                         console.log('Page component:', page.component);
                         useNotification().success('Member created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.user.membership.list'));
                     },
@@ -348,9 +440,12 @@ export const useMemberStore = defineStore('member', {
                         console.error('Error object:', errors);
                         console.error('Error keys:', Object.keys(errors));
                         console.error('Full error details:', JSON.stringify(errors, null, 2));
-                        
+
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        if (this.debugLog) {
+                            this.debugLog.response = { at: new Date().toISOString(), errors };
+                        }
                         useNotification().error('Failed to create member');
                     },
                     onFinish: () => {
@@ -362,6 +457,13 @@ export const useMemberStore = defineStore('member', {
                 console.error('Error:', error);
                 console.error('Error message:', error.message);
                 console.error('Error stack:', error.stack);
+                if (this.debugLog) {
+                    this.debugLog.response = {
+                        at: new Date().toISOString(),
+                        errors: {},
+                        clientException: `${error.name}: ${error.message}`,
+                    };
+                }
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -400,8 +502,31 @@ export const useMemberStore = defineStore('member', {
                     initial_payment_notes: this.form.initial_payment_notes,
                 },true);
 
+                // Use PUT method for update
+                // The route expects {user} parameter which is the slug
+                const userSlug = this.form.slug || this.form.id;
+                const updateUrl = route('admin.user.membership.update', userSlug);
+
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    // Nothing was sent — the client-side check stopped it before a
+                    // request existed — but the advanced tab still needs something
+                    // to show, so it records the form as it stood and why it never
+                    // left the browser.
+                    this.debugLog = {
+                        request: {
+                            method: 'PUT',
+                            url: updateUrl,
+                            at: new Date().toISOString(),
+                            fields: snapshotFormFields(this.form),
+                            note: 'Not actually sent — blocked by client-side validation below.',
+                        },
+                        response: {
+                            at: new Date().toISOString(),
+                            errors: validation.errors,
+                            note: 'Client-side validation failure. The server was never reached.',
+                        },
+                    };
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
@@ -409,26 +534,45 @@ export const useMemberStore = defineStore('member', {
 
                 this.validationErrors = null;
 
-                // Use PUT method for update
-                // The route expects {user} parameter which is the slug
-                const userSlug = this.form.slug || this.form.id;
-                
-                this.form.put(route('admin.user.membership.update', userSlug), {
+                // Snapshot of exactly what is going out, before the request is
+                // fired — the "sent to server" half of the advanced error track.
+                this.debugLog = {
+                    request: {
+                        method: 'PUT',
+                        url: updateUrl,
+                        at: new Date().toISOString(),
+                        fields: snapshotFormFields(this.form.data()),
+                    },
+                    response: null,
+                };
+
+                this.form.put(updateUrl, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Member updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.user.membership.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        if (this.debugLog) {
+                            this.debugLog.response = { at: new Date().toISOString(), errors };
+                        }
                         useNotification().error('Failed to update member');
                     }
                 });
             } catch (error) {
                 console.error('Error updating member:', error);
+                if (this.debugLog) {
+                    this.debugLog.response = {
+                        at: new Date().toISOString(),
+                        errors: {},
+                        clientException: `${error.name}: ${error.message}`,
+                    };
+                }
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;

@@ -27,11 +27,13 @@ use ZipArchive;
  * inside the archive next to a manifest describing where each one belongs.
  *
  * Archive layout:
+ *   facility-migration.xlsx  the thing an operator actually opens — the same
+ *                            sheets a data-only export writes, plus an Images
+ *                            sheet naming every picture below and where it sits
  *   manifest.json          package metadata, counts, source site
  *   data/facilities.json   the whole dataset (lookups + facilities + relations)
  *   data/media.csv         one row per image, for eyeballing / manual placement
  *   media/{media_id}/...   the image files, mirroring storage/app/public
- *   README-IMPORT.md       step-by-step restore instructions
  */
 class FacilityMigrationExporter
 {
@@ -51,6 +53,9 @@ class FacilityMigrationExporter
     public const DATA_ENTRY = 'data/facilities.json';
 
     public const MANIFEST_ENTRY = 'manifest.json';
+
+    /** The one file in the archive a human is actually meant to open. */
+    public const WORKBOOK_ENTRY = 'facility-migration.xlsx';
 
     public const MEDIA_DIR = 'media';
 
@@ -215,12 +220,20 @@ class FacilityMigrationExporter
                 'data' => self::DATA_ENTRY,
                 'media_csv' => 'data/media.csv',
                 'media_dir' => self::MEDIA_DIR.'/',
+                'workbook' => self::WORKBOOK_ENTRY,
             ],
         ]));
         $zip->addFromString('data/media.csv', $this->mediaCsv());
-        $zip->addFromString('README-IMPORT.md', $this->readme($payload));
+
+        // The other files above exist for the importer; this is for the person
+        // who downloaded the .zip — the same sheets buildSpreadsheet() writes,
+        // plus an Images sheet naming every picture this archive carries.
+        $workbookTmp = $this->defaultDestination('xlsx');
+        (new FacilityMigrationWorkbook)->write($payload, $workbookTmp);
+        $zip->addFile($workbookTmp, self::WORKBOOK_ENTRY);
 
         $zip->close();
+        @unlink($workbookTmp);
 
         return $destination;
     }
@@ -937,115 +950,4 @@ class FacilityMigrationExporter
         }
     }
 
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function readme(array $payload): string
-    {
-        $counts = $payload['counts'];
-        $source = $payload['source']['app_url'] ?? 'unknown';
-        $generated = $payload['generated_at'];
-        $withFiles = $payload['options']['include_media_files'];
-        $author = $payload['exported_by']['name'] ?? 'unknown';
-        $authorEmail = $payload['exported_by']['email'] ?? null;
-        $author = $authorEmail ? "{$author} <{$authorEmail}>" : $author;
-        // Which slice of the site this is. Spelled out, because a package named
-        // "part 2 of 5" says nothing about what put those rows in it.
-        $described = $payload['options']['filters_described'] ?? [];
-        $filterLines = $described === []
-            ? '- No filters — every facility on the source site.'
-            : collect($described)
-                ->map(fn (array $row) => "- {$row['label']}: {$row['value']}")
-                ->implode("\n");
-
-        $imagesSection = $withFiles
-            ? <<<'MD'
-The image files are already inside this archive, under `media/`, laid out as
-`media/{old_media_id}/{file_name}`. The importer copies them into place for you —
-you do **not** need to touch `storage/` by hand.
-MD
-            : <<<'MD'
-This package carries **data only** — no image bytes, and `data/facilities.json`
-names no images either. Importing it therefore leaves whatever pictures the
-other site already holds exactly where they are: it can never clear a facility's
-logo to replace it with a file that is not here.
-
-`data/media.csv` still lists every image the source site holds: which facility it
-belongs to, which collection (`logo`, `image`, `gallery`, …), and the path it had
-on the old host — so the files can be moved across by hand if you want them.
-
-To bring the images over properly, export again with **images included**.
-MD;
-
-        return <<<MD
-# Facility migration package
-
-- Format: `{$payload['format']}` v{$payload['format_version']}
-- Generated: {$generated}
-- Exported by: {$author}
-- Source site: {$source}
-- Facilities: {$counts['facilities']} | Branches: {$counts['branches']} | Managers: {$counts['managers']} | Offers: {$counts['offers']}
-- Tags links: {$counts['tags']} | Media rows described: {$counts['media']} | Images this package restores: {$counts['media_restorable']}
-- Image files bundled: {$counts['media_files_bundled']} (files missing on the source host: {$counts['media_files_missing']})
-
-## Filters this export was built with
-
-{$filterLines}
-
-## What is inside
-
-| Path | What it is |
-| --- | --- |
-| `manifest.json` | Package metadata and counts. Read this first. |
-| `data/facilities.json` | The whole dataset: lookups, facilities, branches, managers, tags, offers, media metadata. |
-| `data/media.csv` | One row per image — owner, collection, filename, target path, sha256. |
-| `media/{id}/{file}` | The image files themselves (mirrors `storage/app/public`). |
-
-Every translatable column (`name`, `description`, `address`, `meta_*`, …) is
-stored as a full locale map, e.g. `{"en": "...", "ar": "..."}` — nothing is
-flattened to a single language.
-
-## Images
-
-{$imagesSection}
-
-## How to restore on the new site
-
-The new site must be running this same codebase (it ships the importer).
-
-**From the admin UI** — Facilities → *Migration* → upload this .zip → pick a mode
-→ Import. Best for smaller packages; large archives can trip PHP's
-`upload_max_filesize` / `post_max_size`.
-
-**From the command line** (recommended for big packages):
-
-```bash
-php artisan facility:migration-import /absolute/path/to/this-package.zip --mode=fresh
-```
-
-Modes:
-
-- `--mode=fresh` — wipes existing facilities, branches and their images first,
-  then imports everything. Use this on a brand-new site.
-- `--mode=merge` — matches by slug and updates in place, inserting whatever is
-  missing. Existing facilities not present in the package are left alone.
-
-Add `--dry-run` to see exactly what would happen without writing anything.
-
-Missing facility types, governorates, cities, sales reps and tags are created
-automatically from the `lookups` block, matched first by slug and then by name
-in any locale — so IDs do not need to line up between the two databases.
-
-## Verifying afterwards
-
-```bash
-php artisan facility:migration-import /path/to/package.zip --dry-run
-php artisan storage:link      # if /storage/... URLs 404
-```
-
-Media rows get **new** ids on the target site; the importer rewrites the file
-paths to match. Do not expect the old `/storage/12/logo.png` URLs to survive —
-the new URLs are generated fresh from the new ids.
-MD;
-    }
 }

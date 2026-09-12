@@ -7,10 +7,12 @@ use App\Http\Resources\Api\V1\Guest\OfferResource;
 use App\Http\Resources\Guest\FacilityCollection;
 use App\Models\City;
 use App\Models\Facility;
+use App\Models\FacilityBranch;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Offer;
 use App\Support\DirectorySearch;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -98,10 +100,20 @@ class PartnersController extends Controller
             ->paginate($request->input('per_page', 12))
             ->withQueryString();
 
-        $governorates = Governorate::all()->map(fn ($g) => [
-            'id' => $g->id,
-            'name' => $g->name,
-        ]);
+        /*
+         * Only governorates an actual branch sits in — a facility's own
+         * head-office address does not count here, unlike the grid filter
+         * above. The two dropdowns are the whole reason a visitor opens
+         * them: an entry that can only ever return the wrong sort of "here"
+         * (a registered address rather than a place to walk into) is worse
+         * than a shorter, honest list.
+         */
+        $governorates = Governorate::whereHas('branches')
+            ->get()
+            ->map(fn ($g) => [
+                'id' => $g->id,
+                'name' => $g->name,
+            ]);
 
         /*
          * Only the types a visitor would actually find under the place they
@@ -135,8 +147,8 @@ class PartnersController extends Controller
         /*
          * The cities a visitor can narrow to. Under a chosen governorate the
          * list is that governorate's hosting cities; without one it is every
-         * city with something on the ground, so the pick stays meaningful
-         * rather than shipping places nobody is listed in.
+         * city an actual branch sits in — a facility's own head-office
+         * address does not count here, same as the governorates above.
          */
         $citiesQuery = City::query();
         if ($governorateId !== null) {
@@ -144,9 +156,7 @@ class PartnersController extends Controller
         }
 
         $cities = $citiesQuery
-            ->where(function ($q) {
-                $q->whereHas('facilities')->orWhereHas('branches');
-            })
+            ->whereHas('branches')
             ->get()
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
@@ -163,10 +173,13 @@ class PartnersController extends Controller
 
         // The offers carousel sits above the grid on every consumer of this
         // endpoint, so it ships in the same response: one request paints the
-        // whole page instead of the grid arriving before the banner.
-        $offers = OfferResource::collection(
-            Offer::with(['offerable'])->orderByDesc('created_at')->get()
-        );
+        // whole page instead of the grid arriving before the banner. It is
+        // narrowed by the same filters as the grid, so a search or a picked
+        // place hides an offer nowhere near it rather than a banner strip
+        // that contradicts the results underneath.
+        $offersQuery = Offer::query()->with(['offerable']);
+        $this->applyOfferFilters($offersQuery, $filters, $locale);
+        $offers = OfferResource::collection($offersQuery->orderByDesc('created_at')->get());
 
         return response()->json([
             'facilities' => (new FacilityCollection($facilities))->toArray($request),
@@ -177,5 +190,71 @@ class PartnersController extends Controller
             'facility_names' => $facilityNames,
             'offers' => $offers,
         ]);
+    }
+
+    /**
+     * Narrow an offers query to whatever the grid itself is narrowed to.
+     *
+     * An offer's `offerable` is a `Facility` or a `FacilityBranch`, so each
+     * filter has to be checked a different way for the two — the same
+     * "itself, or a branch of it" shape the facility grid above uses for
+     * governorate and city, extended to the facility type and the search
+     * term.
+     *
+     * @param  array{search?: ?string, facility_type_id?: mixed, governorate_id?: mixed, city_id?: mixed}  $filters
+     */
+    private function applyOfferFilters(Builder $query, array $filters, string $locale): void
+    {
+        $words = empty($filters['search']) ? [] : DirectorySearch::words($filters['search']);
+        $facilityTypeId = empty($filters['facility_type_id']) ? null : (int) $filters['facility_type_id'];
+        $governorateId = empty($filters['governorate_id']) ? null : (int) $filters['governorate_id'];
+        $cityId = empty($filters['city_id']) ? null : (int) $filters['city_id'];
+
+        if ($words === [] && $facilityTypeId === null && $governorateId === null && $cityId === null) {
+            return;
+        }
+
+        $query->whereHasMorph(
+            'offerable',
+            [Facility::class, FacilityBranch::class],
+            function (Builder $query, string $type) use ($words, $facilityTypeId, $governorateId, $cityId, $locale) {
+                $nameExpr = DirectorySearch::translated('name', $locale);
+
+                foreach ($words as $word) {
+                    $query->where(function (Builder $query) use ($word, $nameExpr) {
+                        $query->whereRaw("{$nameExpr} like ?", ['%'.$word.'%'])
+                            ->orWhere('slug', 'like', '%'.$word.'%');
+                    });
+                }
+
+                $isFacility = $type === Facility::class;
+
+                if ($facilityTypeId !== null) {
+                    $isFacility
+                        ? $query->where('facility_type_id', $facilityTypeId)
+                        : $query->whereHas('facility', fn ($q) => $q->where('facility_type_id', $facilityTypeId));
+                }
+
+                if ($governorateId !== null) {
+                    $query->where(function (Builder $query) use ($governorateId, $isFacility) {
+                        $query->where('governorate_id', $governorateId);
+
+                        $isFacility
+                            ? $query->orWhereHas('branches', fn ($q) => $q->where('governorate_id', $governorateId))
+                            : $query->orWhereHas('facility', fn ($q) => $q->where('governorate_id', $governorateId));
+                    });
+                }
+
+                if ($cityId !== null) {
+                    $query->where(function (Builder $query) use ($cityId, $isFacility) {
+                        $query->where('city_id', $cityId);
+
+                        $isFacility
+                            ? $query->orWhereHas('branches', fn ($q) => $q->where('city_id', $cityId))
+                            : $query->orWhereHas('facility', fn ($q) => $q->where('city_id', $cityId));
+                    });
+                }
+            }
+        );
     }
 }

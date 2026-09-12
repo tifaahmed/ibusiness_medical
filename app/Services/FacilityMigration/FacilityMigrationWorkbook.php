@@ -7,6 +7,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Conditional;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
@@ -28,6 +29,9 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
  *   Branches    tied to their facility by slug (name is only the readable label)
  *   Managers    the same, for the contact people
  *   Offers      tied to the facility or branch that owns them
+ *   Images      only when the payload carries bundled image files — one row
+ *               per picture, naming which facility/offer it belongs to and
+ *               where its bytes sit in the archive alongside this workbook
  *   Package     what this file is and where it came from — read on import
  *   Export Info who exported it and exactly which filters they asked for —
  *               written for people, never read back on import
@@ -64,6 +68,14 @@ class FacilityMigrationWorkbook
      * a header band on the Facilities sheet.
      */
     public const EXPORT_INFO_SHEET = 'Export Info';
+
+    /**
+     * Only present when the payload bundles image files — a data-only export
+     * carries no media rows at all, so the sheet would be empty and, per the
+     * rule every relation here follows, an empty sheet reads as "none exist"
+     * rather than "not asked for".
+     */
+    public const IMAGES_SHEET = 'Images';
 
     /** @var array<string, array{label: string, width: int}> */
     private const FACILITY_COLUMNS = [
@@ -154,6 +166,20 @@ class FacilityMigrationWorkbook
         'updated_at' => ['label' => 'Updated At', 'width' => 22],
     ];
 
+    /** @var array<string, array{label: string, width: int}> */
+    private const IMAGE_COLUMNS = [
+        'index' => ['label' => '#', 'width' => 6],
+        'facility_slug' => ['label' => 'Facility Slug', 'width' => 28],
+        'facility_name' => ['label' => 'Facility Name', 'width' => 30],
+        'owner' => ['label' => 'Belongs To', 'width' => 16],
+        'context' => ['label' => 'Offer / Branch', 'width' => 30],
+        'collection' => ['label' => 'Collection', 'width' => 16],
+        'file_name' => ['label' => 'File Name', 'width' => 28],
+        'mime_type' => ['label' => 'Mime Type', 'width' => 16],
+        'size_bytes' => ['label' => 'Size (bytes)', 'width' => 14],
+        'path' => ['label' => 'Path In Archive', 'width' => 44],
+    ];
+
     /**
      * Write the dataset to $destination and return that path.
      *
@@ -189,6 +215,13 @@ class FacilityMigrationWorkbook
             $offers = $spreadsheet->createSheet();
             $offers->setTitle('Offers');
             $this->fill($offers, self::OFFER_COLUMNS, $this->offerRows($facilities), '059669');
+        }
+
+        $imageRows = $this->imageRows($facilities);
+        if ($imageRows !== []) {
+            $images = $spreadsheet->createSheet();
+            $images->setTitle(self::IMAGES_SHEET);
+            $this->fill($images, self::IMAGE_COLUMNS, $imageRows, 'DB2777');
         }
 
         $lookups = $spreadsheet->createSheet();
@@ -349,6 +382,71 @@ class FacilityMigrationWorkbook
             'old_price' => $offer['old_price'] ?? null,
             'created_at' => $offer['created_at'] ?? null,
             'updated_at' => $offer['updated_at'] ?? null,
+        ];
+    }
+
+    /**
+     * Every image the payload bundles, wherever it hangs — the facility
+     * itself, one of its own offers, or an offer belonging to a branch — as
+     * one flat list. This is what turns a folder of image files into
+     * something a person can actually find their way around: which facility
+     * a picture belongs to, and exactly where its bytes sit in the archive.
+     *
+     * @param  array<int, array<string, mixed>>  $facilities
+     * @return array<int, array<string, mixed>>
+     */
+    private function imageRows(array $facilities): array
+    {
+        $rows = [];
+        foreach ($facilities as $facility) {
+            $facilitySlug = $facility['slug'] ?? null;
+            $facilityName = $this->locale($facility['name'] ?? [], 'en')
+                ?: $this->locale($facility['name'] ?? [], 'ar');
+
+            foreach ($facility['media'] ?? [] as $media) {
+                $rows[] = $this->imageRow($media, $facilitySlug, $facilityName, 'Facility', null);
+            }
+
+            foreach ($facility['offers'] ?? [] as $offer) {
+                foreach ($offer['media'] ?? [] as $media) {
+                    $rows[] = $this->imageRow($media, $facilitySlug, $facilityName, 'Offer', $offer['slug'] ?? null);
+                }
+            }
+
+            foreach ($facility['branches'] ?? [] as $branch) {
+                foreach ($branch['offers'] ?? [] as $offer) {
+                    foreach ($offer['media'] ?? [] as $media) {
+                        $rows[] = $this->imageRow(
+                            $media,
+                            $facilitySlug,
+                            $facilityName,
+                            'Branch Offer',
+                            trim(($branch['slug'] ?? '').' / '.($offer['slug'] ?? ''), ' /')
+                        );
+                    }
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $media
+     * @return array<string, mixed>
+     */
+    private function imageRow(array $media, ?string $facilitySlug, ?string $facilityName, string $owner, ?string $context): array
+    {
+        return [
+            'facility_slug' => $facilitySlug,
+            'facility_name' => $facilityName,
+            'owner' => $owner,
+            'context' => $context,
+            'collection' => $media['collection_name'] ?? null,
+            'file_name' => $media['file_name'] ?? null,
+            'mime_type' => $media['mime_type'] ?? null,
+            'size_bytes' => $media['size'] ?? null,
+            'path' => $media['package_path'] ?? null,
         ];
     }
 
@@ -602,7 +700,7 @@ class FacilityMigrationWorkbook
                 // Everything but the money and map columns is written as text:
                 // a slug like "0100" or a phone number must survive the trip
                 // through Excel without being read as a number and reshaped.
-                if (in_array($key, ['discount_percent', 'price', 'old_price', 'latitude', 'longitude'], true)
+                if (in_array($key, ['discount_percent', 'price', 'old_price', 'latitude', 'longitude', 'size_bytes'], true)
                     && is_numeric($value)) {
                     $sheet->setCellValue($letters[$key].$line, $value + 0);
                 } else {
@@ -610,18 +708,32 @@ class FacilityMigrationWorkbook
                 }
             }
 
-            $sheet->getStyle("A{$line}:{$lastCol}{$line}")->applyFromArray([
-                'fill' => [
-                    'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => $i % 2 === 0 ? 'FFFFFF' : 'F9FAFB'],
-                ],
-                'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
-            ]);
             $line++;
         }
 
         if ($rows !== []) {
+            $lastLine = $line - 1;
+
+            // One style call for the whole body instead of one per row. A site
+            // with hundreds of facilities and thousands of images was pushing
+            // this past PHP's execution time limit — PhpSpreadsheet's style
+            // registry pays a fixed cost on every applyFromArray() call, so a
+            // few thousand of them add up to real seconds, not milliseconds.
+            $sheet->getStyle("A2:{$lastCol}{$lastLine}")->applyFromArray([
+                'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+
+            // The zebra stripe as one conditional-formatting rule over the whole
+            // range rather than a fill colour set row by row.
+            $stripe = new Conditional;
+            $stripe->setConditionType(Conditional::CONDITION_EXPRESSION);
+            $stripe->addCondition('MOD(ROW(),2)=0');
+            $stripe->getStyle()->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('F9FAFB');
+            $sheet->getStyle("A2:{$lastCol}{$lastLine}")->setConditionalStyles([$stripe]);
+
             $sheet->setAutoFilter("A1:{$lastCol}1");
         }
     }

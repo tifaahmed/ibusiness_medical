@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="open && rows.length"
+      v-if="open && (rows.length || debugLog)"
       class="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
@@ -18,7 +18,9 @@
           <div class="min-w-0">
             <h2 class="text-base font-semibold">{{ title }}</h2>
             <p class="text-xs text-muted-foreground">
-              {{ rows.length }} problem(s) stopped the save. Fix them and submit again.
+              {{ rows.length
+                ? `${rows.length} problem(s) stopped the save. Fix them and submit again.`
+                : 'The save failed with no field-level message — see Advanced Error Track.' }}
             </p>
           </div>
           <button
@@ -33,7 +35,29 @@
           </button>
         </div>
 
-        <ul class="max-h-[60vh] divide-y divide-border overflow-y-auto">
+        <!-- Only worth a tab bar once there is somewhere else to go — most
+             callers never pass debugLog, and the dialog should look exactly
+             as it always has for them. -->
+        <div v-if="debugLog" class="flex gap-1 border-b border-border px-3 pt-2">
+          <button
+            type="button"
+            class="rounded-t-md px-3 py-1.5 text-xs font-medium transition"
+            :class="tab === 'errors' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+            @click="tab = 'errors'"
+          >
+            Errors
+          </button>
+          <button
+            type="button"
+            class="rounded-t-md px-3 py-1.5 text-xs font-medium transition"
+            :class="tab === 'advanced' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'"
+            @click="tab = 'advanced'"
+          >
+            Advanced Error Track
+          </button>
+        </div>
+
+        <ul v-if="tab === 'errors'" class="max-h-[60vh] divide-y divide-border overflow-y-auto">
           <li v-for="row in rows" :key="`${row.key}-${row.message}`">
             <button
               type="button"
@@ -46,13 +70,35 @@
           </li>
         </ul>
 
+        <!-- The full trace: exactly what the last submit sent and what the
+             server sent back, so a failure can be handed to a programmer
+             as a complete record instead of a description of the symptom. -->
+        <div v-else class="max-h-[60vh] space-y-3 overflow-y-auto p-3 text-xs">
+          <div>
+            <p class="mb-1 font-semibold text-muted-foreground">
+              Sent to server
+              <span v-if="debugLog?.request" class="font-normal">— {{ debugLog.request.method }} {{ debugLog.request.url }}</span>
+            </p>
+            <p v-if="debugLog?.request?.note" class="mb-1 text-amber-500">{{ debugLog.request.note }}</p>
+            <pre class="max-h-56 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words">{{ formatted(debugLog?.request?.fields) }}</pre>
+          </div>
+          <div>
+            <p class="mb-1 font-semibold text-muted-foreground">Received from server</p>
+            <pre
+              v-if="debugLog?.response"
+              class="max-h-56 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words"
+            >{{ formatted(debugLog.response) }}</pre>
+            <p v-else class="text-muted-foreground">Waiting on a response…</p>
+          </div>
+        </div>
+
         <div class="flex justify-end gap-2 border-t border-border p-3">
           <button
             type="button"
             class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input bg-transparent px-3 text-sm font-medium transition hover:bg-muted"
             @click="copyAll"
           >
-            {{ copied ? 'Copied!' : 'Copy all' }}
+            {{ copied ? 'Copied!' : (tab === 'advanced' ? 'Copy full log' : 'Copy all') }}
           </button>
           <button
             type="button"
@@ -73,7 +119,7 @@
  * fields that may be on a different tab or scrolled out of view, so on their
  * own they are easy to miss.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -83,6 +129,11 @@ const props = defineProps({
   title: { type: String, default: 'Please fix these fields' },
   // Optional key -> human label overrides, e.g. { 'name.ar': 'Name (Arabic)' }.
   labels: { type: Object, default: () => ({}) },
+  // Optional { request: {...}, response: {...} } snapshot of the submit that
+  // failed — what was sent and what came back. Only callers that build this
+  // (the member form, so far) get the second tab; everyone else sees exactly
+  // the dialog they always have.
+  debugLog: { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:open', 'select']);
@@ -124,10 +175,41 @@ const labelFor = (key) => {
   return humanize(parts.join(' '));
 };
 
+const tab = ref('errors');
+
+// Land on whichever tab actually has something to show: a submit that failed
+// with no field-level messages (a raw exception, a network drop) would
+// otherwise open on an empty "Errors" list.
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) tab.value = rows.value.length ? 'errors' : (props.debugLog ? 'advanced' : 'errors');
+  }
+);
+
+const formatted = (value) => {
+  if (value === null || value === undefined) return '(none)';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
 const copied = ref(false);
 
 const copyAll = async () => {
-  const text = rows.value.map((row) => `${labelFor(row.key)}: ${row.message}`).join('\n');
+  const text = tab.value === 'advanced'
+    ? [
+        `Request: ${props.debugLog?.request?.method || ''} ${props.debugLog?.request?.url || ''}`.trim(),
+        `Sent at: ${props.debugLog?.request?.at || ''}`,
+        'Sent to server:',
+        formatted(props.debugLog?.request?.fields),
+        '',
+        'Received from server:',
+        formatted(props.debugLog?.response),
+      ].join('\n')
+    : rows.value.map((row) => `${labelFor(row.key)}: ${row.message}`).join('\n');
   try {
     await navigator.clipboard.writeText(text);
   } catch {

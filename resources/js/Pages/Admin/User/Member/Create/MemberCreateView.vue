@@ -68,6 +68,7 @@
     <ValidationErrorsDialog
       v-model:open="showValidationDialog"
       :errors="memberStore.validationErrors || {}"
+      :debug-log="memberStore.debugLog"
     />
   </MemberLayout>
 </template>
@@ -87,7 +88,12 @@ const t = computed(() => page.props.translations?.admin || {});
 const memberStore = useMemberStore();
 const familyMembers = ref([]);
 const showValidationDialog = ref(false);
-const hasValidationErrors = computed(() => !!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0);
+// Also true on a failed submit that carried no field-level message (a raw
+// exception, a network drop) — the advanced tab still has a full log to show.
+const hasValidationErrors = computed(() =>
+  (!!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0)
+  || !!memberStore.debugLog?.response
+);
 
 onMounted(() => {
   memberStore.initializeForm();

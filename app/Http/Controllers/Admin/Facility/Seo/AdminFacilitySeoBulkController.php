@@ -118,11 +118,11 @@ class AdminFacilitySeoBulkController extends BaseController
                     break;
                 } catch (RuntimeException $e) {
                     $result['seo'] = 'error';
-                    $result['message'] = $e->getMessage();
+                    $result['seo_message'] = $e->getMessage();
                 } catch (Throwable $e) {
                     Log::error('Bulk facility SEO failed', ['slug' => $facility->slug, 'error' => $e->getMessage()]);
                     $result['seo'] = 'error';
-                    $result['message'] = 'Unexpected error — see the log.';
+                    $result['seo_message'] = 'Unexpected error — see the log.';
                 }
             }
 
@@ -133,6 +133,7 @@ class AdminFacilitySeoBulkController extends BaseController
                 } catch (Throwable $e) {
                     Log::error('Bulk facility OG image copy failed', ['slug' => $facility->slug, 'error' => $e->getMessage()]);
                     $result['og'] = 'error';
+                    $result['og_message'] = 'Unexpected error — see the log.';
                 }
             }
 

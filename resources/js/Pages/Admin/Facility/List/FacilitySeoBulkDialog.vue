@@ -82,9 +82,31 @@
             <ul class="divide-y divide-border rounded-md border border-border text-xs">
               <li v-for="row in log" :key="row.slug" class="flex items-center justify-between gap-2 p-2">
                 <span class="truncate">{{ row.slug }}</span>
-                <span class="flex shrink-0 gap-2">
+                <span class="flex shrink-0 items-center gap-2">
                   <span v-if="row.seo !== 'skip'" :class="badgeClass(row.seo)">SEO {{ row.seo }}</span>
+                  <button
+                    v-if="row.seo === 'error' && row.seo_message"
+                    type="button"
+                    class="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="View full error"
+                    @click="openErrorDetail(row.slug, row.seo_message)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path>
+                    </svg>
+                  </button>
                   <span v-if="row.og !== 'skip'" :class="badgeClass(row.og)">image {{ row.og }}</span>
+                  <button
+                    v-if="row.og === 'error' && row.og_message"
+                    type="button"
+                    class="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="View full error"
+                    @click="openErrorDetail(row.slug, row.og_message)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path>
+                    </svg>
+                  </button>
                 </span>
               </li>
             </ul>
@@ -113,6 +135,49 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Separate popup, above the sweep dialog, just showing one row's full
+       error reason — the badge alone has no room for the whole message. -->
+  <Teleport to="body">
+    <div
+      v-if="errorDetail"
+      class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      @click.self="closeErrorDetail"
+    >
+      <div class="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+        <div class="flex items-start gap-3 border-b border-border p-4">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold truncate">{{ errorDetail.slug }}</h2>
+            <p class="text-xs text-muted-foreground">Error reason</p>
+          </div>
+          <button
+            type="button"
+            class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="Close (Esc)"
+            @click="closeErrorDetail"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="max-h-[50vh] overflow-y-auto p-4">
+          <p class="whitespace-pre-wrap break-words text-sm text-destructive">{{ errorDetail.message }}</p>
+        </div>
+        <div class="flex justify-end border-t border-border p-3">
+          <button
+            type="button"
+            class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted"
+            @click="closeErrorDetail"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -134,7 +199,16 @@ const totalUnits = ref(0);
 const log = ref([]);
 const errorMessage = ref("");
 const waitNotice = ref("");
+const errorDetail = ref(null);
 let cancelled = false;
+
+const openErrorDetail = (slug, message) => {
+  errorDetail.value = { slug, message };
+};
+
+const closeErrorDetail = () => {
+  errorDetail.value = null;
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -182,6 +256,7 @@ const resetState = () => {
   log.value = [];
   errorMessage.value = "";
   waitNotice.value = "";
+  errorDetail.value = null;
   cancelled = false;
 };
 

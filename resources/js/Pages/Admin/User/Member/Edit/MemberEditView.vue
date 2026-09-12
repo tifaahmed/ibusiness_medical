@@ -82,6 +82,7 @@
       <ValidationErrorsDialog
         v-model:open="showValidationDialog"
         :errors="memberStore.validationErrors || {}"
+        :debug-log="memberStore.debugLog"
       />
 
       <!-- Password tab — its own form, independent of the profile form above -->
@@ -146,7 +147,12 @@ const props = defineProps({
 
 const addressesCount = computed(() => props.member?.membership?.addresses?.length || 0);
 const showValidationDialog = ref(false);
-const hasValidationErrors = computed(() => !!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0);
+// Also true on a failed submit that carried no field-level message (a raw
+// exception, a network drop) — the advanced tab still has a full log to show.
+const hasValidationErrors = computed(() =>
+  (!!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0)
+  || !!memberStore.debugLog?.response
+);
 
 const tabs = computed(() => [
   { key: 'profile', label: t.value.member?.tab_profile || 'Profile' },

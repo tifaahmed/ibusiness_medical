@@ -75,10 +75,18 @@ class Offer extends Model implements HasMedia
 
     /**
      * Get the parent offerable model (Facility, FacilityBranch, etc.).
+     *
+     * `morphWith` loads what the guest API's offer resource needs to show the
+     * place behind an offer — its type and, for a whole facility, every
+     * branch — without a query per offer for whichever morph type it turns
+     * out to be.
      */
     public function offerable(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo()->morphWith([
+            Facility::class => ['facilityType', 'branches.governorate', 'branches.city'],
+            FacilityBranch::class => ['governorate', 'city', 'facility.facilityType'],
+        ]);
     }
 
     /**
@@ -91,8 +99,6 @@ class Offer extends Model implements HasMedia
 
     /**
      * Get the discount percentage.
-     *
-     * @return float|null
      */
     public function getDiscountPercentageAttribute(): ?float
     {
@@ -105,8 +111,6 @@ class Offer extends Model implements HasMedia
 
     /**
      * Check if the offer has a discount.
-     *
-     * @return bool
      */
     public function hasDiscount(): bool
     {

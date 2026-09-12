@@ -18,8 +18,15 @@ class AdminOfferEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_OFFERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_OFFERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OFFERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_OFFERS;
+    }
 
     /**
      * Show the form for editing the specified offer.
@@ -35,7 +42,7 @@ class AdminOfferEditController extends BaseController
             ->map(function ($facility) {
                 return [
                     'id' => $facility->id,
-                    'name' => $facility->name,
+                    'name' => $facility->getTranslations('name'),
                     'type' => 'App\\Models\\Facility',
                     'facility_type' => $facility->facilityType ? [
                         'id' => $facility->facilityType->id,

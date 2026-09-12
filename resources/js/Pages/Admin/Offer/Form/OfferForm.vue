@@ -442,6 +442,18 @@ const getTranslatedName = (name) => {
   return '';
 };
 
+const getBilingualName = (name) => {
+  if (!name) return '';
+  if (typeof name === 'string') return name;
+  if (typeof name === 'object') {
+    const ar = name['ar'] || '';
+    const en = name['en'] || '';
+    if (ar && en) return `${ar} - ${en}`;
+    return ar || en || Object.values(name)[0] || '';
+  }
+  return '';
+};
+
 const maxSizeLabel = (size) => {
   return (t.value.offer?.max_size || 'Max :size').replace(':size', size);
 };
@@ -572,7 +584,7 @@ const offerableOptions = computed(() => {
   if (formOfferableType.value === 'App\\Models\\Facility') {
     return props.facilities.map(facility => ({
       value: facility.id,
-      label: getTranslatedName(facility.name)
+      label: getBilingualName(facility.name)
     }));
   } else if (formOfferableType.value === 'App\\Models\\FacilityBranch') {
     let branches = props.facilityBranches;
