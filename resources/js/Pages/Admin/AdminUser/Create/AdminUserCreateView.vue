@@ -83,18 +83,21 @@
                   </svg>
                   {{ t.create_and_stay || 'Create and stay' }}
                 </button>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  :title="t.create_and_return_hint || 'Create the admin and go back to the list'"
-                  class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] order-1 sm:order-4 btn-golden"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5v14"></path>
-                  </svg>
-                  {{ t.create_and_return || 'Create and return' }}
-                </button>
+                <div class="relative inline-flex order-1 sm:order-4">
+                  <button
+                    type="submit"
+                    :disabled="form.processing"
+                    :title="t.create_and_return_hint || 'Create the admin and go back to the list'"
+                    class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] btn-golden"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5v14"></path>
+                    </svg>
+                    {{ t.create_and_return || 'Create and return' }}
+                  </button>
+                  <ErrorTrackButton :errors="form.errors || {}" :debug-log="debugLog" />
+                </div>
               </div>
             </div>
           </div>
@@ -105,10 +108,12 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { Link, useForm, usePage } from "@inertiajs/vue3";
 import AdminUserLayout from "../AdminUserLayout.vue";
 import AdminUserForm from "../_components/Form/AdminUserForm.vue";
+import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
+import { buildDebugLog, recordResponse } from "@/utils/errorTrack";
 
 defineProps({
   assignableRoles: { type: Array, required: true },
@@ -132,8 +137,16 @@ const form = useForm({
   after_save: "return",
 });
 
+const debugLog = ref(null);
+
 function submit(afterSave = "return") {
   form.after_save = afterSave;
-  form.post(route("admin.admin-users.store"));
+  const url = route("admin.admin-users.store");
+  debugLog.value = buildDebugLog({ method: "POST", url, fields: form.data() });
+
+  form.post(url, {
+    onSuccess: () => { debugLog.value = null; },
+    onError: (errors) => { recordResponse(debugLog.value, errors); },
+  });
 }
 </script>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const emptyForm = () => ({
     // A map of locale to text — the name is translatable.
@@ -43,12 +44,14 @@ export const useTagStore = defineStore('tag', {
         validationErrors: null,
         tags: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
         initializeForm() {
             this.form = useForm(emptyForm());
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setTags(tags) {
@@ -70,15 +73,20 @@ export const useTagStore = defineStore('tag', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.tag.store'), {
+                const url = route('admin.tag.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Tag created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.tag.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create tag');
                     },
                     onFinish: () => {
@@ -87,6 +95,7 @@ export const useTagStore = defineStore('tag', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -98,16 +107,20 @@ export const useTagStore = defineStore('tag', {
                 this.validationErrors = null;
 
                 const tagId = this.form.id;
+                const url = route('admin.tag.update', tagId);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.tag.update', tagId), {
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Tag updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.tag.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update tag');
                     },
                     onFinish: () => {
@@ -116,6 +129,7 @@ export const useTagStore = defineStore('tag', {
                 });
             } catch (error) {
                 console.error('Error updating tag:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

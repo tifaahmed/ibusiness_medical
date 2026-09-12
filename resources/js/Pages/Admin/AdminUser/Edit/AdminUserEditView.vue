@@ -47,18 +47,21 @@
                 >
                   {{ t.cancel || 'Cancel' }}
                 </Link>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] order-1 sm:order-2 btn-golden"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
-                    <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                    <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
-                    <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
-                  </svg>
-                  {{ t.save_changes || 'Save Changes' }}
-                </button>
+                <div class="relative inline-flex order-1 sm:order-2">
+                  <button
+                    type="submit"
+                    :disabled="form.processing"
+                    class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] btn-golden"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
+                      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
+                      <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
+                    </svg>
+                    {{ t.save_changes || 'Save Changes' }}
+                  </button>
+                  <ErrorTrackButton :errors="form.errors || {}" :debug-log="debugLog" />
+                </div>
               </div>
             </div>
           </div>
@@ -69,10 +72,12 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { Link, useForm, usePage } from "@inertiajs/vue3";
 import AdminUserLayout from "../AdminUserLayout.vue";
 import AdminUserForm from "../_components/Form/AdminUserForm.vue";
+import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
+import { buildDebugLog, recordResponse } from "@/utils/errorTrack";
 
 const props = defineProps({
   admin: { type: Object, required: true },
@@ -95,7 +100,15 @@ const form = useForm({
   email_verified: Boolean(props.admin.email_verified),
 });
 
+const debugLog = ref(null);
+
 function submit() {
-  form.put(route("admin.admin-users.update", props.admin.id));
+  const url = route("admin.admin-users.update", props.admin.id);
+  debugLog.value = buildDebugLog({ method: "PUT", url, fields: form.data() });
+
+  form.put(url, {
+    onSuccess: () => { debugLog.value = null; },
+    onError: (errors) => { recordResponse(debugLog.value, errors); },
+  });
 }
 </script>
