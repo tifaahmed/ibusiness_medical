@@ -616,7 +616,8 @@
             <div class="flex flex-wrap items-center gap-3 text-xs">
               <span class="font-semibold uppercase tracking-wide text-muted-foreground">Translate</span>
               <span class="text-muted-foreground">
-                Fill the empty side of every facility name, branch name and branch address from the language it does have.
+                Fill the empty side of every facility name, branch name and branch address from the language it does
+                have — and fix a side that was typed into the wrong language entirely.
               </span>
               <label class="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" v-model="bulkTranslateOverwrite" />
@@ -2499,6 +2500,15 @@ const localePair = (owner, path) => {
 // The side a translation is read from is always the other one.
 const sourceLocale = (to) => (to === 'en' ? 'ar' : 'en');
 
+// A field holding the wrong script — English text sitting in the Arabic
+// column, or Arabic sitting in the English one — is exactly as broken as an
+// empty one, and the bulk sweep below treats it the same way.
+const hasArabicLetters = (text) => /[؀-ۿݐ-ݿ]/.test(text);
+const hasLatinLetters = (text) => /[A-Za-z]/.test(text);
+const isWrongLanguage = (text, locale) => (
+  locale === 'ar' ? (hasLatinLetters(text) && !hasArabicLetters(text)) : hasArabicLetters(text)
+);
+
 // Read-only — never touch state from here, it runs during render.
 const canTranslate = (owner, path, to = 'ar') =>
   props.aiConfigured && String(owner?.[path]?.[sourceLocale(to)] || '').trim() !== '';
@@ -2576,7 +2586,12 @@ const collectTranslateJobs = (to) => {
     const pair = owner[path];
     const source = String(pair?.[from] || '').trim();
     const target = String(pair?.[to] || '').trim();
-    if (source === '' || (target !== '' && !bulkTranslateOverwrite.value)) return;
+    if (source === '') return;
+    // Empty, or written in the wrong language altogether, needs fixing
+    // regardless of the overwrite box — that box is only for replacing a side
+    // that already holds a correct translation.
+    const broken = target === '' || isWrongLanguage(target, to);
+    if (!broken && !bulkTranslateOverwrite.value) return;
     jobs.push({ text: source, kind, to, apply: (value) => { localePair(owner, path)[to] = value; } });
   };
 
@@ -2631,9 +2646,11 @@ const runTranslateJobs = async (jobs, to) => {
 /* The sweep, over one direction or both.
 
    Both is what "fix all translations" means on a package that arrived half in
-   each language: a row with only Arabic gets its English, a row with only
-   English gets its Arabic, and a row with both is left alone unless the
-   overwrite box is ticked. */
+   each language, or with a field typed into the wrong one: a row with only
+   Arabic gets its English, a row with only English gets its Arabic, a row
+   whose Arabic is actually English (or whose English is actually Arabic) gets
+   that side retranslated, and a row that is correctly bilingual already is
+   left alone unless the overwrite box is ticked. */
 const runBulkTranslate = async (directions = ['ar']) => {
   if (bulkTranslate.value.phase === 'running') return;
 

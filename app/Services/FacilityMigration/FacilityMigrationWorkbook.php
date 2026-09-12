@@ -89,6 +89,8 @@ class FacilityMigrationWorkbook
         'discount_percent' => ['label' => 'Discount %', 'width' => 12],
         'governorate' => ['label' => 'Governorate', 'width' => 20],
         'city' => ['label' => 'City', 'width' => 20],
+        'latitude' => ['label' => 'Latitude', 'width' => 14],
+        'longitude' => ['label' => 'Longitude', 'width' => 14],
         'description' => ['label' => 'Description', 'width' => 40],
         'description_ar' => ['label' => 'Description (AR)', 'width' => 40],
         'meta_title' => ['label' => 'Meta Title', 'width' => 30],
@@ -99,6 +101,7 @@ class FacilityMigrationWorkbook
         'meta_keywords_ar' => ['label' => 'Meta Keywords (AR)', 'width' => 30],
         'canonical_url' => ['label' => 'Canonical URL', 'width' => 34],
         'tags' => ['label' => 'Tags', 'width' => 26],
+        'banner_config' => ['label' => 'Banner Config (JSON)', 'width' => 40],
         'created_at' => ['label' => 'Created At', 'width' => 22],
         'updated_at' => ['label' => 'Updated At', 'width' => 22],
     ];
@@ -256,6 +259,8 @@ class FacilityMigrationWorkbook
                 'discount_percent' => $facility['discount_percent'] ?? null,
                 'governorate' => $this->refLabel($facility['governorate'] ?? null),
                 'city' => $this->refLabel($facility['city'] ?? null),
+                'latitude' => $facility['latitude'] ?? null,
+                'longitude' => $facility['longitude'] ?? null,
                 'description' => $this->locale($facility['description'] ?? [], 'en'),
                 'description_ar' => $this->locale($facility['description'] ?? [], 'ar'),
                 'meta_title' => $this->locale($facility['meta_title'] ?? [], 'en'),
@@ -270,6 +275,9 @@ class FacilityMigrationWorkbook
                     ->map(fn ($tag) => $this->tagLabel($tag))
                     ->filter()
                     ->implode(', '),
+                'banner_config' => ! empty($facility['banner_config'])
+                    ? json_encode($facility['banner_config'], JSON_UNESCAPED_UNICODE)
+                    : null,
                 'created_at' => $facility['created_at'] ?? null,
                 'updated_at' => $facility['updated_at'] ?? null,
             ];

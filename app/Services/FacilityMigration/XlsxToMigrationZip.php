@@ -9,6 +9,15 @@ use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
 /**
  * Converts an xlsx/csv spreadsheet into the migration zip format
  * (manifest.json + data/facilities.json) that FacilityMigrationImporter expects.
+ *
+ * A workbook that came off a full site export also carries an Images sheet —
+ * one row per picture, naming which facility/offer it belongs to and where its
+ * bytes sit alongside the workbook (a `media/{id}/{file}` path). Those rows are
+ * folded back into each facility's `media` array here, the same shape the
+ * exporter would have written into a data/facilities.json, so the importer
+ * never has to know its data ever passed through a spreadsheet at all — it is
+ * FacilityMigrationImporter::locateMediaFile() that resolves that path against
+ * the media/ folder extracted alongside this workbook.
  */
 class XlsxToMigrationZip
 {
@@ -39,10 +48,43 @@ class XlsxToMigrationZip
         $managerRows = $this->parseManagerSheet($spreadsheet);
         $hasOfferSheet = $spreadsheet->getSheetByName('Offers') !== null;
         $offerRows = $this->parseOfferSheet($spreadsheet);
+        $imageRows = $this->parseImageSheet($spreadsheet);
         $package = $this->parsePackageSheet($spreadsheet);
         $sourceLookups = $this->parseLookupSheet($spreadsheet);
 
         $spreadsheet->disconnectWorksheets();
+
+        // Every picture, grouped by the row it belongs to: a facility (keyed by
+        // its own slug/name) or an offer (keyed by the offer's own slug — unique
+        // whether it hangs off the facility directly or off one of its
+        // branches, so one map serves both).
+        $mediaByFacility = [];
+        $mediaByOfferSlug = [];
+        foreach ($imageRows as $image) {
+            $entry = $this->imageMediaRow($image);
+            if ($entry === null) {
+                continue;
+            }
+
+            $owner = mb_strtolower(trim($image['owner'] ?? ''));
+            if ($owner === 'facility') {
+                $key = $this->facilityKey($image);
+                if ($key !== '') {
+                    $mediaByFacility[$key][] = $entry;
+                }
+
+                continue;
+            }
+
+            // "Offer" and "Branch Offer" both name the offer's own slug last in
+            // the context cell ("branchslug / offerslug", or just the offer's
+            // slug when it hangs off the facility directly).
+            $segments = array_filter(array_map('trim', explode('/', (string) ($image['context'] ?? ''))));
+            $offerSlug = mb_strtolower((string) end($segments));
+            if ($offerSlug !== '') {
+                $mediaByOfferSlug[$offerSlug][] = $entry;
+            }
+        }
 
         $branchesByFacility = [];
         foreach ($branchRows as $branch) {
@@ -97,6 +139,8 @@ class XlsxToMigrationZip
             if ($facilityKey === '' && $branchKey === '') {
                 continue;
             }
+            $offerSlug = mb_strtolower(trim($offer['slug'] ?? ''));
+
             $row = [
                 'title' => $this->localeMap($offer['title'] ?? null, $offer['title_ar'] ?? null),
                 'short_description' => $this->localeMap(
@@ -110,6 +154,7 @@ class XlsxToMigrationZip
                 'phone' => $offer['phone'] ?: null,
                 'price' => is_numeric($offer['price'] ?? '') ? (float) $offer['price'] : null,
                 'old_price' => is_numeric($offer['old_price'] ?? '') ? (float) $offer['old_price'] : null,
+                'media' => $offerSlug !== '' ? ($mediaByOfferSlug[$offerSlug] ?? []) : [],
             ] + $this->identity($offer) + $this->timestamps($offer);
 
             if ($branchKey !== '') {
@@ -144,6 +189,10 @@ class XlsxToMigrationZip
                 ],
                 'facility_type' => $this->nameRef($row['facility_type'] ?? null),
                 'branches' => $branchesByFacility[$facilityKey] ?? [],
+                // Present only when the workbook actually carries an Images
+                // sheet — an empty array either way, so a data-only workbook
+                // never asks the importer to clear a picture it never named.
+                'media' => $mediaByFacility[$slugKey] ?? ($mediaByFacility[$nameKey] ?? []),
             ];
 
             // A sheet written without these columns is asking for the rest of
@@ -180,11 +229,20 @@ class XlsxToMigrationZip
                     $facility[$place] = $this->nameRef($row[$place] ?? null);
                 }
             }
+            foreach (['latitude', 'longitude'] as $coordinate) {
+                if (in_array($coordinate, $facilityColumns, true)) {
+                    $facility[$coordinate] = is_numeric($row[$coordinate] ?? null) ? (float) $row[$coordinate] : null;
+                }
+            }
             if (in_array('canonical_url', $facilityColumns, true)) {
                 $facility['canonical_url'] = $row['canonical_url'] ?: null;
             }
             if (in_array('tags', $facilityColumns, true)) {
                 $facility['tags'] = $this->tagList($row['tags'] ?? null);
+            }
+            if (in_array('banner_config', $facilityColumns, true)) {
+                $decoded = json_decode((string) ($row['banner_config'] ?? ''), true);
+                $facility['banner_config'] = is_array($decoded) ? $decoded : null;
             }
             foreach (['created_at', 'updated_at'] as $stamp) {
                 if (in_array($stamp, $facilityColumns, true) && ($row[$stamp] ?? '') !== '') {
@@ -216,6 +274,7 @@ class XlsxToMigrationZip
         // rows by the slugs in it instead of asking somebody to tell same-named
         // branches apart by hand.
         $isSiteExport = ($package['origin'] ?? null) === FacilityMigrationExporter::ORIGIN_SITE_EXPORT;
+        $mediaCount = array_sum(array_map('count', $mediaByFacility)) + array_sum(array_map('count', $mediaByOfferSlug));
 
         $payload = [
             'format' => 'ibusiness-medical/facility-migration',
@@ -223,11 +282,12 @@ class XlsxToMigrationZip
             'origin' => $isSiteExport ? FacilityMigrationExporter::ORIGIN_SITE_EXPORT : null,
             'generated_at' => $package['generated at'] ?? now()->toIso8601String(),
             'options' => [
-                // A workbook never carries image bytes, so the importing site
-                // keeps the pictures it has: no media row is named anywhere in
-                // this payload, and a collection is only ever cleared to be
-                // refilled.
-                'include_media_files' => false,
+                // True only when the workbook actually carries an Images sheet
+                // naming pictures whose bytes sit next to it (a media/ folder
+                // extracted from the same .zip) — otherwise no media row is
+                // named anywhere in this payload, and the importing site keeps
+                // the pictures it already has.
+                'include_media_files' => $mediaCount > 0,
                 'include_branches' => $hasBranchSheet,
                 'include_managers' => $hasManagerSheet,
                 'include_offers' => $hasOfferSheet,
@@ -258,8 +318,8 @@ class XlsxToMigrationZip
                 'branches' => count($branchRows),
                 'managers' => count($managerRows),
                 'offers' => count($offerRows),
-                'media' => 0,
-                'media_restorable' => 0,
+                'media' => $mediaCount,
+                'media_restorable' => $mediaCount,
             ],
         ];
 
@@ -413,6 +473,8 @@ class XlsxToMigrationZip
             'id' => ['id'],
             'governorate' => ['governorate'],
             'city' => ['city'],
+            'latitude' => ['latitude', 'lat'],
+            'longitude' => ['longitude', 'lng', 'long'],
             'description' => ['description'],
             'description_ar' => ['description (ar)', 'description_ar'],
             'meta_title' => ['meta title', 'meta_title'],
@@ -423,6 +485,7 @@ class XlsxToMigrationZip
             'meta_keywords_ar' => ['meta keywords (ar)', 'meta_keywords_ar'],
             'canonical_url' => ['canonical url', 'canonical_url'],
             'tags' => ['tags', 'tag'],
+            'banner_config' => ['banner config (json)', 'banner config', 'banner_config'],
             'created_at' => ['created at', 'created_at'],
             'updated_at' => ['updated at', 'updated_at'],
         ], $present);
@@ -473,6 +536,64 @@ class XlsxToMigrationZip
             'created_at' => ['created at', 'created_at'],
             'updated_at' => ['updated at', 'updated_at'],
         ]);
+    }
+
+    /**
+     * The Images sheet a site export writes when it bundles picture files — one
+     * row per picture, naming which facility/offer it belongs to and where its
+     * bytes sit next to this workbook. Absent entirely from a hand-typed sheet
+     * or a data-only export, which is exactly the case that must leave every
+     * facility's pictures untouched.
+     */
+    private function parseImageSheet($spreadsheet): array
+    {
+        $sheet = $spreadsheet->getSheetByName(FacilityMigrationWorkbook::IMAGES_SHEET);
+        if (! $sheet) {
+            return [];
+        }
+
+        return $this->extractRows($sheet, [
+            'facility_slug' => ['facility slug', 'facility_slug'],
+            'facility_name' => ['facility name', 'facility'],
+            'owner' => ['belongs to', 'owner'],
+            'context' => ['offer / branch', 'context'],
+            'collection' => ['collection'],
+            'file_name' => ['file name', 'file_name'],
+            'mime_type' => ['mime type', 'mime_type'],
+            'size_bytes' => ['size (bytes)', 'size_bytes'],
+            'path' => ['path in archive', 'path'],
+        ]);
+    }
+
+    /**
+     * One Images-sheet row, as the media entry FacilityMigrationImporter reads:
+     * enough to locate the file under the media/ folder extracted alongside
+     * this workbook (source_relative_path — package_path with the leading
+     * "media/" dropped) and to name the collection it is restored into. Null
+     * when the row names no file at all, which a stray blank line can do.
+     *
+     * @param  array<string, string>  $image
+     * @return array<string, mixed>|null
+     */
+    private function imageMediaRow(array $image): ?array
+    {
+        $fileName = trim($image['file_name'] ?? '');
+        $path = trim($image['path'] ?? '');
+        if ($fileName === '' || $path === '') {
+            return null;
+        }
+
+        $mediaDir = FacilityMigrationExporter::MEDIA_DIR.'/';
+        $relative = str_starts_with($path, $mediaDir) ? substr($path, strlen($mediaDir)) : $path;
+
+        return [
+            'collection_name' => trim($image['collection'] ?? '') ?: 'default',
+            'file_name' => $fileName,
+            'mime_type' => trim($image['mime_type'] ?? '') ?: null,
+            'size' => is_numeric($image['size_bytes'] ?? null) ? (int) $image['size_bytes'] : null,
+            'package_path' => $path,
+            'source_relative_path' => $relative,
+        ];
     }
 
     /**

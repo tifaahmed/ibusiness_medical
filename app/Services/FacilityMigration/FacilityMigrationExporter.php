@@ -27,12 +27,13 @@ use ZipArchive;
  * inside the archive next to a manifest describing where each one belongs.
  *
  * Archive layout:
- *   facility-migration.xlsx  the thing an operator actually opens — the same
- *                            sheets a data-only export writes, plus an Images
- *                            sheet naming every picture below and where it sits
- *   manifest.json          package metadata, counts, source site
- *   data/facilities.json   the whole dataset (lookups + facilities + relations)
- *   data/media.csv         one row per image, for eyeballing / manual placement
+ *   facility-migration.xlsx  the only file an operator needs to open — every
+ *                            sheet a data-only export writes, plus an Images
+ *                            sheet naming every picture below and where it
+ *                            sits. The importer reads this workbook straight
+ *                            back (see XlsxToMigrationZip), so there is no
+ *                            separate data file to keep in sync by hand —
+ *                            correcting the workbook is correcting the package.
  *   media/{media_id}/...   the image files, mirroring storage/app/public
  */
 class FacilityMigrationExporter
@@ -206,28 +207,12 @@ class FacilityMigrationExporter
         $payload['counts']['media_files_bundled'] = $this->mediaFilesBundled;
         $payload['counts']['media_files_missing'] = $this->mediaFilesMissing;
 
-        $zip->addFromString(self::DATA_ENTRY, $this->encode($payload));
-        $zip->addFromString(self::MANIFEST_ENTRY, $this->encode([
-            'format' => self::FORMAT,
-            'format_version' => self::FORMAT_VERSION,
-            'origin' => self::ORIGIN_SITE_EXPORT,
-            'generated_at' => $payload['generated_at'],
-            'source' => $payload['source'],
-            'exported_by' => $payload['exported_by'],
-            'options' => $payload['options'],
-            'counts' => $payload['counts'],
-            'entries' => [
-                'data' => self::DATA_ENTRY,
-                'media_csv' => 'data/media.csv',
-                'media_dir' => self::MEDIA_DIR.'/',
-                'workbook' => self::WORKBOOK_ENTRY,
-            ],
-        ]));
-        $zip->addFromString('data/media.csv', $this->mediaCsv());
-
-        // The other files above exist for the importer; this is for the person
-        // who downloaded the .zip — the same sheets buildSpreadsheet() writes,
-        // plus an Images sheet naming every picture this archive carries.
+        // The workbook is the whole dataset — the same sheets buildSpreadsheet()
+        // writes, plus an Images sheet naming every picture this archive
+        // carries — and it is what both the operator and the importer read.
+        // No sidecar JSON travels alongside it: XlsxToMigrationZip parses this
+        // very file back into the same shape, so editing the workbook by hand
+        // before re-importing is enough — there is nothing else to keep in sync.
         $workbookTmp = $this->defaultDestination('xlsx');
         (new FacilityMigrationWorkbook)->write($payload, $workbookTmp);
         $zip->addFile($workbookTmp, self::WORKBOOK_ENTRY);
@@ -775,10 +760,9 @@ class FacilityMigrationExporter
                 'file_available' => $exists,
             ];
 
-            // Named in the dataset only when its bytes are in this archive.
-            // data/media.csv still lists every row, so a data-only package is
-            // as auditable as a full one — it simply does not ask the importer
-            // to restore a file it was never given.
+            // Named in the dataset only when its bytes are in this archive —
+            // a data-only package must never ask the importer to restore a
+            // file it was never given.
             if ($this->bundlingMediaFiles && $exists) {
                 $out[] = $entry;
             }
@@ -847,30 +831,6 @@ class FacilityMigrationExporter
         }
     }
 
-    private function mediaCsv(): string
-    {
-        $handle = fopen('php://temp', 'r+');
-        fputcsv($handle, [
-            'media_id', 'owner_kind', 'owner_slug', 'model_type', 'model_id',
-            'collection', 'file_name', 'mime_type', 'size_bytes',
-            'path_inside_zip', 'restore_to (relative to storage/app/public)',
-            'sha256', 'file_available',
-        ]);
-        foreach ($this->mediaManifest as $e) {
-            fputcsv($handle, [
-                $e['id'], $e['owner_kind'], $e['owner_slug'], $e['model_type'], $e['model_id'],
-                $e['collection_name'], $e['file_name'], $e['mime_type'], $e['size'],
-                $e['package_path'], $e['source_relative_path'],
-                $e['sha256'], $e['file_available'] ? 'yes' : 'MISSING',
-            ]);
-        }
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return $csv;
-    }
-
     /**
      * All locales for a translatable attribute, empty strings dropped.
      *
@@ -928,11 +888,6 @@ class FacilityMigrationExporter
             'slug' => $model->slug ?? null,
             'name' => $this->translations($model, 'name'),
         ];
-    }
-
-    private function encode(array $payload): string
-    {
-        return json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function defaultDestination(string $extension = 'zip'): string

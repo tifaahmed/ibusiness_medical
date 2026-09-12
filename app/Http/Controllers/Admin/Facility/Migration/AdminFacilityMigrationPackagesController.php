@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Services\FacilityMigration\FacilityMigrationExporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
 
@@ -105,19 +106,79 @@ class AdminFacilityMigrationPackagesController extends BaseController
         }
 
         $raw = $zip->getFromName(FacilityMigrationExporter::MANIFEST_ENTRY);
-        $zip->close();
+        if ($raw) {
+            $zip->close();
+            $manifest = json_decode($raw, true);
 
-        $manifest = $raw ? json_decode($raw, true) : null;
-        if (! is_array($manifest)) {
-            return $blank;
+            return is_array($manifest) ? [
+                'generated_at' => $manifest['generated_at'] ?? null,
+                'counts' => $manifest['counts'] ?? null,
+                'options' => $manifest['options'] ?? null,
+                'source' => $manifest['source'] ?? null,
+            ] : $blank;
         }
 
-        return [
-            'generated_at' => $manifest['generated_at'] ?? null,
-            'counts' => $manifest['counts'] ?? null,
-            'options' => $manifest['options'] ?? null,
-            'source' => $manifest['source'] ?? null,
-        ];
+        // A package built with images no longer carries manifest.json — the
+        // workbook next to the media/ folder is the whole dataset, and its
+        // Package sheet is what this list reads instead.
+        $workbook = $zip->getFromName(FacilityMigrationExporter::WORKBOOK_ENTRY);
+        $zip->close();
+
+        return $workbook !== false ? $this->manifestFromWorkbook($workbook) : $blank;
+    }
+
+    /**
+     * The same summary as manifest(), read off a workbook's Package sheet
+     * instead of a JSON sidecar.
+     *
+     * @return array<string, mixed>
+     */
+    private function manifestFromWorkbook(string $bytes): array
+    {
+        $blank = ['generated_at' => null, 'counts' => null, 'options' => null, 'source' => null];
+
+        $tmp = tempnam(sys_get_temp_dir(), 'facility_pkg_').'.xlsx';
+        file_put_contents($tmp, $bytes);
+
+        try {
+            $sheet = IOFactory::load($tmp)->getSheetByName('Package');
+            if (! $sheet) {
+                return $blank;
+            }
+
+            $pairs = [];
+            for ($row = 1, $last = min($sheet->getHighestDataRow(), 60); $row <= $last; $row++) {
+                $label = mb_strtolower(trim((string) $sheet->getCell("A{$row}")->getValue()));
+                $value = trim((string) $sheet->getCell("B{$row}")->getValue());
+                if ($label !== '') {
+                    $pairs[$label] = $value;
+                }
+            }
+
+            return [
+                'generated_at' => $pairs['generated at'] ?? null,
+                'counts' => [
+                    'facilities' => (int) ($pairs['facilities'] ?? 0),
+                    'branches' => (int) ($pairs['branches'] ?? 0),
+                    'managers' => (int) ($pairs['managers'] ?? 0),
+                    'offers' => (int) ($pairs['offers'] ?? 0),
+                ],
+                'options' => [
+                    'include_media_files' => ($pairs['includes images'] ?? '') === 'yes',
+                    'include_branches' => ($pairs['includes branches'] ?? 'yes') === 'yes',
+                    'include_managers' => ($pairs['includes managers'] ?? 'yes') === 'yes',
+                    'include_offers' => ($pairs['includes offers'] ?? 'yes') === 'yes',
+                ],
+                'source' => [
+                    'app_name' => $pairs['source site'] ?? null,
+                    'app_url' => $pairs['source url'] ?? null,
+                ],
+            ];
+        } catch (\Throwable) {
+            return $blank;
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     private function isPackageName(string $name): bool

@@ -475,20 +475,16 @@ class FacilityMigrationImporter
             $zip->addFile($absolute, $entry);
         }
 
-        $zip->addFromString(
-            FacilityMigrationExporter::DATA_ENTRY,
-            json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
-        $zip->addFromString(FacilityMigrationExporter::MANIFEST_ENTRY, json_encode([
-            'format' => FacilityMigrationExporter::FORMAT,
-            'format_version' => FacilityMigrationExporter::FORMAT_VERSION,
-            'origin' => FacilityMigrationExporter::ORIGIN_SITE_EXPORT,
-            'generated_at' => $payload['generated_at'],
-            'source' => $payload['source'],
-            'options' => $payload['options'],
-            'counts' => $payload['counts'],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        // Same rule as a full export: the workbook is the whole dataset, and no
+        // sidecar JSON travels with it — re-opening this package later reads
+        // the workbook straight back (see XlsxToMigrationZip), so correcting a
+        // cell before re-importing is all it takes.
+        $workbookTmp = storage_path('app/facility-migration/'.uniqid('review_workbook_', true).'.xlsx');
+        (new FacilityMigrationWorkbook)->write($payload, $workbookTmp);
+        $zip->addFile($workbookTmp, FacilityMigrationExporter::WORKBOOK_ENTRY);
+
         $zip->close();
+        @unlink($workbookTmp);
 
         return $destination;
     }
@@ -938,15 +934,51 @@ class FacilityMigrationImporter
         }
 
         $dataFile = $extractedTo.'/'.FacilityMigrationExporter::DATA_ENTRY;
-        if (! is_file($dataFile)) {
-            $this->cleanupExtraction($extractedTo, $packagePath);
+        if (is_file($dataFile)) {
+            return [$this->decode(file_get_contents($dataFile)), $extractedTo];
+        }
+
+        // Newer exports carry no data/facilities.json at all — an archive with
+        // images is just the workbook plus the media/ folder next to it, so the
+        // dataset is read the same way a standalone .xlsx upload is: by parsing
+        // the workbook. Only its sheets are converted here; the pictures stay
+        // exactly where the outer zip put them, and locateMediaFile() finds
+        // them there via mediaRoot.
+        $workbookFile = $extractedTo.'/'.FacilityMigrationExporter::WORKBOOK_ENTRY;
+        if (is_file($workbookFile)) {
+            $convertedZip = app(XlsxToMigrationZip::class)->convert($workbookFile);
+            $payload = $this->readDataEntry($convertedZip);
+            $this->deleteDirectory(dirname($convertedZip));
+
+            return [$payload, $extractedTo];
+        }
+
+        $this->cleanupExtraction($extractedTo, $packagePath);
+        throw new RuntimeException(
+            'The archive does not look like a facility migration package — it carries neither '
+            .FacilityMigrationExporter::DATA_ENTRY.' nor '.FacilityMigrationExporter::WORKBOOK_ENTRY.'.'
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readDataEntry(string $zipPath): array
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath) !== true) {
+            throw new RuntimeException("Unable to open the converted package: {$zipPath}.");
+        }
+        $json = $zip->getFromName(FacilityMigrationExporter::DATA_ENTRY);
+        $zip->close();
+
+        if ($json === false) {
             throw new RuntimeException(
-                'The archive does not look like a facility migration package — '
-                .FacilityMigrationExporter::DATA_ENTRY.' is missing.'
+                'The converted workbook package does not carry '.FacilityMigrationExporter::DATA_ENTRY.'.'
             );
         }
 
-        return [$this->decode(file_get_contents($dataFile)), $extractedTo];
+        return $this->decode($json);
     }
 
     /**

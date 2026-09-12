@@ -1091,20 +1091,39 @@ class FacilityMigrationTest extends TestCase
         unlink($logo->getPath());
 
         $package = $this->buildPackage();
+
+        // The package is the workbook plus the media/ folder now — no sidecar
+        // JSON or csv to eyeball instead, so what the Images sheet names is
+        // the only record of what travelled.
         $zip = new \ZipArchive;
         $zip->open($package);
-        $data = json_decode($zip->getFromName('data/facilities.json'), true);
-        $csv = $zip->getFromName('data/media.csv');
+        $workbookBytes = $zip->getFromName(FacilityMigrationExporter::WORKBOOK_ENTRY);
         $zip->close();
 
-        $collections = array_column($data['facilities'][0]['media'], 'collection_name');
-        $this->assertNotContains('logo', $collections);
-        $this->assertContains('image', $collections);
-        $this->assertSame(4, $data['counts']['media']);
-        $this->assertSame(3, $data['counts']['media_restorable']);
-        // Still auditable: the csv lists what the site holds, marked missing.
-        $this->assertStringContainsString('logo.png', $csv);
-        $this->assertStringContainsString('MISSING', $csv);
+        $workbookPath = tempnam(sys_get_temp_dir(), 'facility-workbook').'.xlsx';
+        file_put_contents($workbookPath, $workbookBytes);
+
+        try {
+            $images = \PhpOffice\PhpSpreadsheet\IOFactory::load($workbookPath)->getSheetByName('Images');
+            $collections = collect($images->toArray())
+                ->slice(1) // drop the header row
+                ->pluck(5) // the "Collection" column
+                ->filter()
+                ->values()
+                ->all();
+
+            $this->assertNotContains('logo', $collections);
+            $this->assertContains('image', $collections);
+            // Only the pictures actually bundled are named at all — there is
+            // no separate audit trail for the one whose file went missing.
+            $this->assertCount(3, $collections);
+        } finally {
+            @unlink($workbookPath);
+        }
+
+        $inspection = app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)->inspect($package);
+        $this->assertSame(3, $inspection['counts']['media']);
+        $this->assertSame(3, $inspection['counts']['media_restorable']);
     }
 
     public function test_a_city_named_without_a_governorate_still_lands_in_the_right_one(): void
@@ -1277,30 +1296,38 @@ class FacilityMigrationTest extends TestCase
             'include_media' => true,
             'destination' => storage_path('app/facility-migration/reviewed-test.zip'),
         ]);
+        $importer->endSession($session['token']);
 
+        // The package is the workbook plus the media/ folder now — no sidecar
+        // JSON to decode, so what it actually reimports as is checked by
+        // opening it as a fresh session, exactly as a real re-import would.
         $zip = new \ZipArchive;
         $zip->open($package);
-        $data = json_decode($zip->getFromName('data/facilities.json'), true);
         $entries = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $entries[] = $zip->getNameIndex($i);
         }
         $zip->close();
+        $this->assertCount(3, array_filter($entries, fn ($e) => str_starts_with($e, 'media/')));
 
-        $saved = $data['facilities'][0];
+        $reimport = $importer->beginSession($package, ['mode' => 'merge', 'dry_run' => true]);
+        $this->assertSame(FacilityMigrationExporter::ORIGIN_SITE_EXPORT, $reimport['origin']);
+
+        $saved = json_decode(
+            file_get_contents(storage_path("app/facility-migration/sessions/{$reimport['token']}/facilities/000000.json")),
+            true
+        );
         $this->assertSame('Sunrise Clinic (reviewed)', $saved['name']['en']);
         $this->assertSame('Main Branch renamed', $saved['branches'][0]['name']['en']);
         $this->assertArrayNotHasKey('_existing', $saved);
-        $this->assertSame(FacilityMigrationExporter::ORIGIN_SITE_EXPORT, $data['origin']);
 
         // The dropped image is gone from the data and from the archive alike —
         // a package must never name a picture it does not carry, nor carry one
         // nothing names.
         $this->assertNotContains('logo', array_column($saved['media'], 'collection_name'));
         $this->assertCount(3, $saved['media']);
-        $this->assertCount(3, array_filter($entries, fn ($e) => str_starts_with($e, 'media/')));
 
-        $importer->endSession($session['token']);
+        $importer->endSession($reimport['token']);
     }
 
     public function test_a_saved_review_imports_with_the_edits_that_were_made(): void
