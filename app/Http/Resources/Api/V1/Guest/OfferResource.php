@@ -44,6 +44,18 @@ class OfferResource extends JsonResource
                 'offerable',
                 fn () => $this->offerableFacilityTypeArray()
             ),
+            // The head office's own place — plain ids, not shown, so the
+            // storefront's client-side offer filtering can match an offer
+            // raised on a facility with no branches of its own the same way
+            // `PartnersController::applyOfferFilters()` does upstream.
+            'offerable_governorate_id' => $this->whenLoaded(
+                'offerable',
+                fn () => $this->offerableFacility()?->governorate_id
+            ),
+            'offerable_city_id' => $this->whenLoaded(
+                'offerable',
+                fn () => $this->offerableFacility()?->city_id
+            ),
             'offerable_branches' => $this->whenLoaded(
                 'offerable',
                 fn () => $this->offerableBranches()->map(fn ($branch) => [

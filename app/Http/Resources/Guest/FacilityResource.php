@@ -25,6 +25,13 @@ class FacilityResource extends JsonResource
             'mobile_image' => $this->mobile_image,
             'discount_percent' => $this->discount_percent,
             'banner_config' => $this->resolvedBannerConfig(),
+            // The head office's own place — plain columns, not a relation, so
+            // they ride along unconditionally. Consumers that only show a
+            // branch's place (the storefront's card) can ignore these; the
+            // storefront's own 24h facility cache needs them to match "itself
+            // or a branch" the same way this endpoint's own filters do.
+            'governorate_id' => $this->governorate_id,
+            'city_id' => $this->city_id,
             'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,
