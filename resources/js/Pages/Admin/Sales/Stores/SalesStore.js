@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useSalesStore = defineStore('sales', {
     state: () => ({
@@ -12,6 +13,7 @@ export const useSalesStore = defineStore('sales', {
         validationErrors: null,
         sales: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -21,6 +23,7 @@ export const useSalesStore = defineStore('sales', {
                 image: null,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setSales(sales) {
@@ -51,16 +54,21 @@ export const useSalesStore = defineStore('sales', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.sales.store'), {
+                const url = route('admin.sales.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Sales created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.sales.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create sales');
                     },
                     onFinish: () => {
@@ -69,6 +77,7 @@ export const useSalesStore = defineStore('sales', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -79,16 +88,21 @@ export const useSalesStore = defineStore('sales', {
             try {
                 this.validationErrors = null;
 
-                this.form.put(route('admin.sales.update', this.form.id), {
+                const url = route('admin.sales.update', this.form.id);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
+
+                this.form.put(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Sales updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.sales.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update sales');
                     },
                     onFinish: () => {
@@ -97,6 +111,7 @@ export const useSalesStore = defineStore('sales', {
                 });
             } catch (error) {
                 console.error('Error updating sales:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

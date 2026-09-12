@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateFacilityBranchForm } from '../validation/facilityBranchValidation';
 import { normalizePhoneEntries } from '@/lib/branchPhones';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useFacilityBranchStore = defineStore('facilityBranch', {
     state: () => ({
@@ -21,7 +22,8 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
         }),
         validationErrors: null,
         facilityBranches: reactive([]),
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -38,6 +40,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 google_location_url: '',
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setFacilityBranches(facilityBranches) {
@@ -92,13 +95,15 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 longitude: facilityBranch.longitude ?? '',
                 google_location_url: facilityBranch.google_location_url ?? '',
             });
-            
+
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         async submitForm() {
             this.isLoading = true;
             try {
+                const url = route('admin.facility-branch.store');
                 // Validate with Zod before submitting
                 const validation = validateFacilityBranchForm({
                     name: this.form.name,
@@ -114,28 +119,38 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
 
-                this.form.post(route('admin.facility-branch.store'), {
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Facility branch created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.facility-branch.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create facility branch');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -145,6 +160,8 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
         async updateFacilityBranch() {
             this.isLoading = true;
             try {
+                const facilityBranchSlug = this.form.slug || this.form.id;
+                const url = route('admin.facility-branch.update', facilityBranchSlug);
                 // Validate with Zod before submitting
                 const validation = validateFacilityBranchForm({
                     name: this.form.name,
@@ -160,25 +177,32 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                const facilityBranchSlug = this.form.slug || this.form.id;
-
-                this.form.put(route('admin.facility-branch.update', facilityBranchSlug), {
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Facility branch updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.facility-branch.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update facility branch');
                     },
                     onFinish: () => {
@@ -187,6 +211,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 });
             } catch (error) {
                 console.error('Error updating facility branch:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

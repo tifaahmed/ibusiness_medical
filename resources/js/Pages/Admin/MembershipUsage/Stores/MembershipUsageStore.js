@@ -4,6 +4,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMembershipUsageForm } from '../validation/membershipUsageValidation';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const getT = () => usePage().props.translations?.admin?.membership_usage || {};
 
@@ -22,6 +23,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
         validationErrors: null,
         usages: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -37,6 +39,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
                 gallery_delete: [],
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setUsages(usages) {
@@ -61,6 +64,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
         async submitForm() {
             this.isLoading = true;
             try {
+                const url = route('admin.membership-usage.store');
                 const validation = validateMembershipUsageForm({
                     membership_id: this.form.membership_id,
                     facility_id: this.form.facility_id,
@@ -72,27 +76,37 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
 
-                this.form.post(route('admin.membership-usage.store'), {
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success(getT().created || 'Membership usage created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.membership-usage.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().create_failed || 'Failed to create membership usage');
                     },
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -102,6 +116,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
         async updateUsage() {
             this.isLoading = true;
             try {
+                const url = route('admin.membership-usage.update', this.form.id);
                 const validation = validateMembershipUsageForm({
                     membership_id: this.form.membership_id,
                     facility_id: this.form.facility_id,
@@ -113,22 +128,31 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.membership-usage.update', this.form.id), {
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success(getT().updated || 'Membership usage updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.membership-usage.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().update_failed || 'Failed to update membership usage');
                     },
                     onFinish: () => {
@@ -137,6 +161,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
                 });
             } catch (error) {
                 console.error('Error updating usage:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
                 this.isLoading = false;
             }

@@ -37,17 +37,20 @@
                 >
                   Cancel
                 </Link>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] order-1 sm:order-2 btn-golden"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5v14"></path>
-                  </svg>
-                  Create Role
-                </button>
+                <div class="relative inline-flex order-1 sm:order-2">
+                  <button
+                    type="submit"
+                    :disabled="form.processing"
+                    class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] btn-golden"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5v14"></path>
+                    </svg>
+                    Create Role
+                  </button>
+                  <ErrorTrackButton :errors="form.errors || {}" :debug-log="debugLog" />
+                </div>
               </div>
             </div>
           </div>
@@ -59,8 +62,11 @@
 
 <script setup>
 import { Link, useForm } from "@inertiajs/vue3";
+import { ref } from "vue";
 import RoleLayout from "../RoleLayout.vue";
 import RoleForm from "../_components/Form/RoleForm.vue";
+import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
+import { buildDebugLog, recordResponse } from "@/utils/errorTrack";
 
 defineProps({
   allPermissions: { type: Array, required: true },
@@ -71,7 +77,15 @@ const form = useForm({
   permissions: [],
 });
 
+const debugLog = ref(null);
+
 function submit() {
-  form.post(route("admin.roles.store"));
+  const url = route("admin.roles.store");
+  debugLog.value = buildDebugLog({ method: "POST", url, fields: form.data() });
+
+  form.post(url, {
+    onSuccess: () => { debugLog.value = null; },
+    onError: (errors) => { recordResponse(debugLog.value, errors); },
+  });
 }
 </script>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const emptyForm = () => ({
     // The key the application reads the row by — SiteSettings::get(slug).
@@ -45,12 +46,14 @@ export const useSettingStore = defineStore('setting', {
         validationErrors: null,
         settings: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
         initializeForm() {
             this.form = useForm(emptyForm());
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setSettings(settings) {
@@ -77,18 +80,23 @@ export const useSettingStore = defineStore('setting', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.setting.store'), {
+                const url = route('admin.setting.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     // An image setting posts a file, so the payload has to go
                     // as multipart rather than JSON.
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Setting created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.setting.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create setting');
                     },
                     onFinish: () => {
@@ -97,6 +105,7 @@ export const useSettingStore = defineStore('setting', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -108,21 +117,25 @@ export const useSettingStore = defineStore('setting', {
                 this.validationErrors = null;
 
                 const settingId = this.form.id;
+                const url = route('admin.setting.update', settingId);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
                 // PUT cannot carry a file upload, so the update is posted with
                 // a method override — the same trick the product form uses.
                 this.form
                     .transform((data) => ({ ...data, _method: 'PUT' }))
-                    .post(route('admin.setting.update', settingId), {
+                    .post(url, {
                         preserveScroll: true,
                         forceFormData: true,
                         onSuccess: () => {
                             useNotification().success('Setting updated successfully');
+                            this.debugLog = null;
                             this.initializeForm();
                             router.visit(route('admin.setting.list'));
                         },
                         onError: (errors) => {
                             this.validationErrors = { ...this.validationErrors, ...errors };
+                            recordResponse(this.debugLog, errors);
                             useNotification().error('Failed to update setting');
                         },
                         onFinish: () => {
@@ -131,6 +144,7 @@ export const useSettingStore = defineStore('setting', {
                     });
             } catch (error) {
                 console.error('Error updating setting:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

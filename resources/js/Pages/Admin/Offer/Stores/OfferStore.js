@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateOfferForm } from '../validation/offerValidation';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const getT = () => usePage().props.translations?.admin?.offer || {};
 
@@ -24,7 +25,8 @@ export const useOfferStore = defineStore('offer', {
         }),
         validationErrors: null,
         offers: reactive([]),
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -44,6 +46,7 @@ export const useOfferStore = defineStore('offer', {
                 mobile_thumbnail: null,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setOffers(offers) {
@@ -102,31 +105,42 @@ export const useOfferStore = defineStore('offer', {
                     offerable_id: this.form.offerable_id,
                 }, false, getT().validation || {});
 
+                const createUrl = route('admin.offer.store');
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url: createUrl, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url: createUrl, fields: this.form.data() });
 
-                this.form.post(route('admin.offer.store'), {
+                this.form.post(createUrl, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success(getT().created || 'Offer created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.offer.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().create_failed || 'Failed to create offer');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -136,6 +150,8 @@ export const useOfferStore = defineStore('offer', {
         async updateOffer() {
             this.isLoading = true;
             try {
+                const offerSlug = this.form.slug || this.form.id;
+                const updateUrl = route('admin.offer.update', offerSlug);
                 // Validate with Zod before submitting
                 const validation = validateOfferForm({
                     title: this.form.title,
@@ -150,26 +166,33 @@ export const useOfferStore = defineStore('offer', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url: updateUrl, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'PUT', url: updateUrl, fields: this.form.data() });
 
-                const offerSlug = this.form.slug || this.form.id;
-
-                this.form.transform((data) => ({ ...data, _method: 'PUT' })).post(route('admin.offer.update', offerSlug), {
+                this.form.transform((data) => ({ ...data, _method: 'PUT' })).post(updateUrl, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success(getT().updated || 'Offer updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.offer.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().update_failed || 'Failed to update offer');
                     },
                     onFinish: () => {
@@ -178,6 +201,7 @@ export const useOfferStore = defineStore('offer', {
                 });
             } catch (error) {
                 console.error('Error updating offer:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
                 this.isLoading = false;
             }

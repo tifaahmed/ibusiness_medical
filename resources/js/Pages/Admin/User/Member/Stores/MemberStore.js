@@ -515,7 +515,7 @@ export const useMemberStore = defineStore('member', {
                     // left the browser.
                     this.debugLog = {
                         request: {
-                            method: 'PUT',
+                            method: 'POST (spoofed PUT)',
                             url: updateUrl,
                             at: new Date().toISOString(),
                             fields: snapshotFormFields(this.form),
@@ -538,7 +538,7 @@ export const useMemberStore = defineStore('member', {
                 // fired — the "sent to server" half of the advanced error track.
                 this.debugLog = {
                     request: {
-                        method: 'PUT',
+                        method: 'POST (spoofed PUT)',
                         url: updateUrl,
                         at: new Date().toISOString(),
                         fields: snapshotFormFields(this.form.data()),
@@ -546,24 +546,35 @@ export const useMemberStore = defineStore('member', {
                     response: null,
                 };
 
-                this.form.put(updateUrl, {
-                    preserveScroll: true,
-                    forceFormData: true,
-                    onSuccess: () => {
-                        useNotification().success('Member updated successfully');
-                        this.debugLog = null;
-                        this.initializeForm();
-                        router.visit(route('admin.user.membership.list'));
-                    },
-                    onError: (errors) => {
-                        // Merge server errors with client validation errors
-                        this.validationErrors = { ...this.validationErrors, ...errors };
-                        if (this.debugLog) {
-                            this.debugLog.response = { at: new Date().toISOString(), errors };
+                // A literal PUT with a multipart body is silently dropped by
+                // PHP before Laravel ever sees it — PHP only auto-parses
+                // multipart/form-data into $_POST/$_FILES for POST, not for
+                // PUT/PATCH. That is why every field here can look present in
+                // this snapshot and still come back "required" from the
+                // server: the request that actually reaches PHP is empty.
+                // The fix Inertia itself recommends is to send a real POST
+                // with a spoofed `_method`, exactly like submitForm() above
+                // already does for create.
+                this.form
+                    .transform((data) => ({ ...data, _method: 'put' }))
+                    .post(updateUrl, {
+                        preserveScroll: true,
+                        forceFormData: true,
+                        onSuccess: () => {
+                            useNotification().success('Member updated successfully');
+                            this.debugLog = null;
+                            this.initializeForm();
+                            router.visit(route('admin.user.membership.list'));
+                        },
+                        onError: (errors) => {
+                            // Merge server errors with client validation errors
+                            this.validationErrors = { ...this.validationErrors, ...errors };
+                            if (this.debugLog) {
+                                this.debugLog.response = { at: new Date().toISOString(), errors };
+                            }
+                            useNotification().error('Failed to update member');
                         }
-                        useNotification().error('Failed to update member');
-                    }
-                });
+                    });
             } catch (error) {
                 console.error('Error updating member:', error);
                 if (this.debugLog) {

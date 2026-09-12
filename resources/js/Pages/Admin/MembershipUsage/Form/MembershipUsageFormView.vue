@@ -27,19 +27,22 @@
                   >
                     {{ t.cancel || 'Cancel' }}
                   </Link>
-                  <button
-                    type="submit"
-                    :disabled="usageStore.form.processing"
-                    data-slot="button"
-                    class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] order-1 sm:order-2 btn-golden"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
-                      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
-                      <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
-                    </svg>
-                    {{ isEditMode ? (t.update_button || 'Update Usage') : (t.create_button || 'Create Usage') }}
-                  </button>
+                  <div class="relative inline-flex order-1 sm:order-2">
+                    <button
+                      type="submit"
+                      :disabled="usageStore.form.processing"
+                      data-slot="button"
+                      class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 min-w-[140px] btn-golden"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2">
+                        <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                        <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
+                        <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
+                      </svg>
+                      {{ isEditMode ? (t.update_button || 'Update Usage') : (t.create_button || 'Create Usage') }}
+                    </button>
+                    <ErrorTrackButton :errors="usageStore.validationErrors || {}" :debug-log="usageStore.debugLog" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -55,6 +58,7 @@ import { Link, usePage } from "@inertiajs/vue3";
 import MembershipUsageLayout from "../MembershipUsageLayout.vue";
 import { useMembershipUsageStore } from "../Stores/MembershipUsageStore";
 import MembershipUsageForm from "./MembershipUsageForm.vue";
+import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
 import { computed, watch } from "vue";
 
 const props = defineProps({

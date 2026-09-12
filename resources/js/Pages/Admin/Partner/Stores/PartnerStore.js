@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const usePartnerStore = defineStore('partner', {
     state: () => ({
@@ -17,6 +18,7 @@ export const usePartnerStore = defineStore('partner', {
         validationErrors: null,
         partners: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -31,6 +33,7 @@ export const usePartnerStore = defineStore('partner', {
                 deleted_gallery_ids: [],
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setPartners(partners) {
@@ -56,16 +59,21 @@ export const usePartnerStore = defineStore('partner', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.partner.store'), {
+                const url = route('admin.partner.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Partner created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.partner.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create partner');
                     },
                     onFinish: () => {
@@ -74,6 +82,7 @@ export const usePartnerStore = defineStore('partner', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -84,16 +93,21 @@ export const usePartnerStore = defineStore('partner', {
             try {
                 this.validationErrors = null;
 
-                this.form.put(route('admin.partner.update', this.form.id), {
+                const url = route('admin.partner.update', this.form.id);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
+
+                this.form.put(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Partner updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.partner.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update partner');
                     },
                     onFinish: () => {
@@ -102,6 +116,7 @@ export const usePartnerStore = defineStore('partner', {
                 });
             } catch (error) {
                 console.error('Error updating partner:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

@@ -611,6 +611,7 @@
       v-model:open="showValidationDialog"
       :errors="productStore.validationErrors || {}"
       :labels="errorLabels"
+      :debug-log="productStore.debugLog"
       @select="goToErrorField"
     />
   </div>

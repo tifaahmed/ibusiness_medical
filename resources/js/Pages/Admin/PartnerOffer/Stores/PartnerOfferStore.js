@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const usePartnerOfferStore = defineStore('partnerOffer', {
     state: () => ({
@@ -24,6 +25,7 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
         validationErrors: null,
         offers: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -45,6 +47,7 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
                 deleted_gallery_ids: [],
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setOffers(offers) {
@@ -77,16 +80,21 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.partner-offer.store'), {
+                const url = route('admin.partner-offer.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Partner offer created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.partner-offer.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create partner offer');
                     },
                     onFinish: () => {
@@ -95,6 +103,7 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -105,16 +114,21 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
             try {
                 this.validationErrors = null;
 
-                this.form.transform((data) => ({ ...data, _method: 'PUT' })).post(route('admin.partner-offer.update', this.form.id), {
+                const url = route('admin.partner-offer.update', this.form.id);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
+
+                this.form.transform((data) => ({ ...data, _method: 'PUT' })).post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Partner offer updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.partner-offer.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update partner offer');
                     },
                     onFinish: () => {
@@ -123,6 +137,7 @@ export const usePartnerOfferStore = defineStore('partnerOffer', {
                 });
             } catch (error) {
                 console.error('Error updating partner offer:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

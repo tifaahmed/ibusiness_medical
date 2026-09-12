@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useFaqStore = defineStore('faq', {
     state: () => ({
@@ -14,6 +15,7 @@ export const useFaqStore = defineStore('faq', {
         validationErrors: null,
         faqs: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -25,6 +27,7 @@ export const useFaqStore = defineStore('faq', {
                 sort_order: 0,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setFaqs(faqs) {
@@ -57,15 +60,20 @@ export const useFaqStore = defineStore('faq', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.faq.store'), {
+                const url = route('admin.faq.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('FAQ created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.faq.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create FAQ');
                     },
                     onFinish: () => {
@@ -74,6 +82,7 @@ export const useFaqStore = defineStore('faq', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -84,15 +93,20 @@ export const useFaqStore = defineStore('faq', {
             try {
                 this.validationErrors = null;
 
-                this.form.put(route('admin.faq.update', this.form.id), {
+                const url = route('admin.faq.update', this.form.id);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
+
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('FAQ updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.faq.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update FAQ');
                     },
                     onFinish: () => {
@@ -101,6 +115,7 @@ export const useFaqStore = defineStore('faq', {
                 });
             } catch (error) {
                 console.error('Error updating FAQ:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

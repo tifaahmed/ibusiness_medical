@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const emptyForm = () => ({
     category_id: '',
@@ -29,12 +30,14 @@ export const useServiceStore = defineStore('service', {
         validationErrors: null,
         services: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
         initializeForm() {
             this.form = useForm(emptyForm());
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setServices(services) {
@@ -73,16 +76,21 @@ export const useServiceStore = defineStore('service', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.service.store'), {
+                const url = route('admin.service.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Service created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.service.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create service');
                     },
                     onFinish: () => {
@@ -91,6 +99,7 @@ export const useServiceStore = defineStore('service', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -102,17 +111,21 @@ export const useServiceStore = defineStore('service', {
                 this.validationErrors = null;
 
                 const serviceSlug = this.form.slug || this.form.id;
+                const url = route('admin.service.update', serviceSlug);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.service.update', serviceSlug), {
+                this.form.put(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Service updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.service.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update service');
                     },
                     onFinish: () => {
@@ -121,6 +134,7 @@ export const useServiceStore = defineStore('service', {
                 });
             } catch (error) {
                 console.error('Error updating service:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

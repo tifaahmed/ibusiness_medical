@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const emptyForm = () => ({
     name: {},
@@ -18,12 +19,14 @@ export const useServiceTypeStore = defineStore('serviceType', {
         validationErrors: null,
         serviceTypes: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
         initializeForm() {
             this.form = useForm(emptyForm());
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setServiceTypes(serviceTypes) {
@@ -53,16 +56,21 @@ export const useServiceTypeStore = defineStore('serviceType', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.service-type.store'), {
+                const url = route('admin.service-type.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Service category created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.service-type.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create service category');
                     },
                     onFinish: () => {
@@ -71,6 +79,7 @@ export const useServiceTypeStore = defineStore('serviceType', {
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -82,17 +91,21 @@ export const useServiceTypeStore = defineStore('serviceType', {
                 this.validationErrors = null;
 
                 const serviceTypeId = this.form.id;
+                const url = route('admin.service-type.update', serviceTypeId);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.service-type.update', serviceTypeId), {
+                this.form.put(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Service category updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.service-type.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update service category');
                     },
                     onFinish: () => {
@@ -101,6 +114,7 @@ export const useServiceTypeStore = defineStore('serviceType', {
                 });
             } catch (error) {
                 console.error('Error updating service category:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

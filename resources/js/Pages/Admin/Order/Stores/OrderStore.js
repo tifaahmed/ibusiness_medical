@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 /**
  * A number the form can hold without fighting the user.
@@ -86,6 +87,7 @@ export const useOrderStore = defineStore('order', {
         validationErrors: null,
         isLoading: false,
         orderCode: null,
+        debugLog: null,
         /* Receipts ride along with the save rather than going to their own
            endpoint: the files the admin has picked but not yet saved, and the
            ones already on the order. There is no removal list — the collection
@@ -179,6 +181,7 @@ export const useOrderStore = defineStore('order', {
                 products: (order.products || []).map(lineFromOrder),
             });
             this.validationErrors = null;
+            this.debugLog = null;
             this.newReceipts = [];
             this.orderReceipts = order.receipts || [];
         },
@@ -280,35 +283,41 @@ export const useOrderStore = defineStore('order', {
             this.isLoading = true;
             this.validationErrors = null;
 
+            const url = route('admin.order.update', this.orderCode);
+            const transformed = {
+                ...this.form.data(),
+                total_paid: num(this.form.total_paid) ?? 0,
+                total_amount: num(this.form.total_amount) ?? 0,
+                total_amount_before_discount: num(this.form.total_amount_before_discount),
+                delivery_cost: num(this.form.delivery_cost) ?? 0,
+                delivery_price: num(this.form.delivery_price) ?? 0,
+                products: this.form.products.map((line) => ({
+                    ...line,
+                    quantity: num(line.quantity) ?? 1,
+                    old_price: num(line.old_price),
+                    new_price: num(line.new_price),
+                    cost_price: num(line.cost_price),
+                    profit_price: num(line.profit_price),
+                })),
+                /* Sent only when touched, so an edit that never went near
+                   the receipts cannot be read by the server as "receipts
+                   changed" — the same sometimes-array contract as lines. */
+                ...(this.newReceipts.length ? { receipts: this.newReceipts } : {}),
+            };
+            this.debugLog = buildDebugLog({ method: 'PUT', url, fields: transformed });
+
             this.form
-                .transform((data) => ({
-                    ...data,
-                    total_paid: num(data.total_paid) ?? 0,
-                    total_amount: num(data.total_amount) ?? 0,
-                    total_amount_before_discount: num(data.total_amount_before_discount),
-                    delivery_cost: num(data.delivery_cost) ?? 0,
-                    delivery_price: num(data.delivery_price) ?? 0,
-                    products: data.products.map((line) => ({
-                        ...line,
-                        quantity: num(line.quantity) ?? 1,
-                        old_price: num(line.old_price),
-                        new_price: num(line.new_price),
-                        cost_price: num(line.cost_price),
-                        profit_price: num(line.profit_price),
-                    })),
-                    /* Sent only when touched, so an edit that never went near
-                       the receipts cannot be read by the server as "receipts
-                       changed" — the same sometimes-array contract as lines. */
-                    ...(this.newReceipts.length ? { receipts: this.newReceipts } : {}),
-                }))
-                .put(route('admin.order.update', this.orderCode), {
+                .transform(() => transformed)
+                .put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Order updated successfully');
+                        this.debugLog = null;
                         this.newReceipts = [];
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update order');
                         // AGENTS.md: front-end failures are reported, not swallowed.
                         reportClientError('Order update rejected', errors, this.orderCode);

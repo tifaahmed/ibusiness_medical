@@ -113,6 +113,7 @@ class PartnersController extends Controller
             ->map(fn ($g) => [
                 'id' => $g->id,
                 'name' => $g->name,
+                'facility_count' => $this->facilityCountForGovernorate($g->id),
             ]);
 
         /*
@@ -142,6 +143,7 @@ class PartnersController extends Controller
         $facilityTypes = $facilityTypesQuery->get()->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
+            'facility_count' => $this->facilityCountForType($t->id, $governorateId, $cityId),
         ]);
 
         /*
@@ -163,6 +165,7 @@ class PartnersController extends Controller
             ->map(fn (City $city) => [
                 'id' => $city->id,
                 'name' => $city->name,
+                'facility_count' => $this->facilityCountForCity($city->id),
             ]);
 
         $locale = App::getLocale();
@@ -190,6 +193,54 @@ class PartnersController extends Controller
             'facility_names' => $facilityNames,
             'offers' => $offers,
         ]);
+    }
+
+    /**
+     * How many facilities a governorate dropdown entry actually stands for —
+     * itself or a branch, the same either-counts rule the grid filters by,
+     * so the number matches what picking it is about to return.
+     */
+    private function facilityCountForGovernorate(int $governorateId): int
+    {
+        return Facility::where(function ($q) use ($governorateId) {
+            $q->where('governorate_id', $governorateId)
+                ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
+        })->count();
+    }
+
+    /** Same idea as {@see facilityCountForGovernorate()}, for one city. */
+    private function facilityCountForCity(int $cityId): int
+    {
+        return Facility::where(function ($q) use ($cityId) {
+            $q->where('city_id', $cityId)
+                ->orWhereHas('branches', fn ($b) => $b->where('city_id', $cityId));
+        })->count();
+    }
+
+    /**
+     * How many facilities of one type are on offer — narrowed to whichever
+     * of governorate/city is currently chosen, the same "city wins" rule
+     * that narrows which types are even listed. Unnarrowed, it is every
+     * facility of that type.
+     */
+    private function facilityCountForType(int $facilityTypeId, ?int $governorateId, ?int $cityId): int
+    {
+        return Facility::where('facility_type_id', $facilityTypeId)
+            ->when(
+                $cityId !== null,
+                fn ($q) => $q->where(function ($qq) use ($cityId) {
+                    $qq->where('city_id', $cityId)
+                        ->orWhereHas('branches', fn ($b) => $b->where('city_id', $cityId));
+                }),
+            )
+            ->when(
+                $cityId === null && $governorateId !== null,
+                fn ($q) => $q->where(function ($qq) use ($governorateId) {
+                    $qq->where('governorate_id', $governorateId)
+                        ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
+                }),
+            )
+            ->count();
     }
 
     /**

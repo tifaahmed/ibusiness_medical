@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useContractStore = defineStore('contract', {
     state: () => ({
@@ -16,7 +17,8 @@ export const useContractStore = defineStore('contract', {
         }),
         validationErrors: null,
         contracts: reactive([]),
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -30,6 +32,7 @@ export const useContractStore = defineStore('contract', {
                 image: null,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setContracts(contracts) {
@@ -62,6 +65,7 @@ export const useContractStore = defineStore('contract', {
             });
 
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         async submitForm() {
@@ -69,20 +73,26 @@ export const useContractStore = defineStore('contract', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.contract.store'), {
+                const url = route('admin.contract.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Contract created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.contract.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create contract');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -95,16 +105,20 @@ export const useContractStore = defineStore('contract', {
                 this.validationErrors = null;
 
                 const contractSlug = this.form.slug || this.form.id;
+                const url = route('admin.contract.update', contractSlug);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.contract.update', contractSlug), {
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Contract updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.contract.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update contract');
                     },
                     onFinish: () => {
@@ -113,6 +127,7 @@ export const useContractStore = defineStore('contract', {
                 });
             } catch (error) {
                 console.error('Error updating contract:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

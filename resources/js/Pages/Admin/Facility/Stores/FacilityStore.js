@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useFacilityStore = defineStore('facility', {
     state: () => ({
@@ -31,7 +32,8 @@ export const useFacilityStore = defineStore('facility', {
         }),
         validationErrors: null,
         facilities: reactive([]),
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -60,6 +62,7 @@ export const useFacilityStore = defineStore('facility', {
                 contract_delete: false,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         // Fields that only carry a single request's worth of intent (new uploads,
@@ -123,11 +126,13 @@ export const useFacilityStore = defineStore('facility', {
             });
 
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         async submitForm(branches = [], managers = []) {
             this.isLoading = true;
             try {
+                const url = route('admin.facility.store');
                 const errors = {};
                 const nameAr = this.form.name?.ar?.toString().trim() || '';
                 const nameEn = this.form.name?.en?.toString().trim() || '';
@@ -140,6 +145,12 @@ export const useFacilityStore = defineStore('facility', {
 
                 if (Object.keys(errors).length > 0) {
                     this.validationErrors = errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
@@ -169,23 +180,27 @@ export const useFacilityStore = defineStore('facility', {
                         phones: manager.phones || null,
                     }))
                 };
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: formData });
 
-                this.form.transform(() => formData).post(route('admin.facility.store'), {
+                this.form.transform(() => formData).post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Facility created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.facility.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create facility');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -196,6 +211,8 @@ export const useFacilityStore = defineStore('facility', {
             const stay = Boolean(options.stay);
             this.isLoading = true;
             try {
+                const facilitySlug = this.form.slug || this.form.id;
+                const url = route('admin.facility.update', facilitySlug);
                 const errors = {};
                 const nameAr = this.form.name?.ar?.toString().trim() || '';
                 const nameEn = this.form.name?.en?.toString().trim() || '';
@@ -208,6 +225,12 @@ export const useFacilityStore = defineStore('facility', {
 
                 if (Object.keys(errors).length > 0) {
                     this.validationErrors = errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
@@ -215,8 +238,6 @@ export const useFacilityStore = defineStore('facility', {
 
                 this.validationErrors = null;
 
-                const facilitySlug = this.form.slug || this.form.id;
-                
                 // Prepare form data with branches
                 const formData = {
                     ...this.form.data(),
@@ -243,13 +264,15 @@ export const useFacilityStore = defineStore('facility', {
                 if (stay) {
                     formData.stay = 1;
                 }
-                
-                this.form.transform(() => ({ ...formData, _method: 'PUT' })).post(route('admin.facility.update', facilitySlug), {
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: formData });
+
+                this.form.transform(() => ({ ...formData, _method: 'PUT' })).post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {
                         useNotification().success('Facility updated successfully');
                         this.validationErrors = null;
+                        this.debugLog = null;
                         if (stay) {
                             // Staying on the edit page: the redirect back to edit re-hydrates
                             // the form through setFacility(), so only the one-shot upload and
@@ -264,11 +287,13 @@ export const useFacilityStore = defineStore('facility', {
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update facility');
                     }
                 });
             } catch (error) {
                 console.error('Error updating facility:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;

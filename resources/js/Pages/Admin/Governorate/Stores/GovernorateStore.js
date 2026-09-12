@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateGovernorateForm } from '../validation/governorateValidation';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useGovernorateStore = defineStore('governorate', {
     state: () => ({
@@ -12,7 +13,8 @@ export const useGovernorateStore = defineStore('governorate', {
         }),
         validationErrors: null,
         governorates: reactive([]),
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -21,6 +23,7 @@ export const useGovernorateStore = defineStore('governorate', {
                 name: {},
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setGovernorates(governorates) {
@@ -57,6 +60,7 @@ export const useGovernorateStore = defineStore('governorate', {
         async submitForm() {
             this.isLoading = true;
             try {
+                const url = route('admin.governorate.store');
                 // Validate with Zod before submitting
                 const validation = validateGovernorateForm({
                     name: this.form.name,
@@ -64,28 +68,38 @@ export const useGovernorateStore = defineStore('governorate', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
 
-                this.form.post(route('admin.governorate.store'), {
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Governorate created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.governorate.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create governorate');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -95,6 +109,8 @@ export const useGovernorateStore = defineStore('governorate', {
         async updateGovernorate() {
             this.isLoading = true;
             try {
+                const governorateSlug = this.form.slug || this.form.id;
+                const url = route('admin.governorate.update', governorateSlug);
                 // Validate with Zod before submitting
                 const validation = validateGovernorateForm({
                     name: this.form.name,
@@ -102,14 +118,18 @@ export const useGovernorateStore = defineStore('governorate', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
-
-                const governorateSlug = this.form.slug || this.form.id;
 
                 const formData = {
                     ...this.form.data(),
@@ -118,22 +138,26 @@ export const useGovernorateStore = defineStore('governorate', {
                         name: c.name || {},
                     })),
                 };
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: formData });
 
-                this.form.transform(() => formData).put(route('admin.governorate.update', governorateSlug), {
+                this.form.transform(() => formData).put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Governorate updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.governorate.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to update governorate');
                     }
                 });
             } catch (error) {
                 console.error('Error updating governorate:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;

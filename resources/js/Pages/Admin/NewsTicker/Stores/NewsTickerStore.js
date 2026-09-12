@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useNewsTickerStore = defineStore('newsTicker', {
     state: () => ({
@@ -17,6 +18,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
         validationErrors: null,
         newsTickers: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -31,6 +33,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
                 sort_order: 0,
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setNewsTickers(newsTickers) {
@@ -66,15 +69,20 @@ export const useNewsTickerStore = defineStore('newsTicker', {
             try {
                 this.validationErrors = null;
 
-                this.form.post(route('admin.news-ticker.store'), {
+                const url = route('admin.news-ticker.store');
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
+
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('News Ticker created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.news-ticker.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = errors;
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(errors.error || 'Failed to create news ticker');
                     },
                     onFinish: () => {
@@ -83,6 +91,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
                 });
             } catch (error) {
                 this.isLoading = false;
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             }
         },
@@ -92,14 +101,19 @@ export const useNewsTickerStore = defineStore('newsTicker', {
             try {
                 this.validationErrors = null;
 
-                this.form.put(route('admin.news-ticker.update', this.form.id), {
+                const url = route('admin.news-ticker.update', this.form.id);
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
+
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('News Ticker updated successfully');
+                        this.debugLog = null;
                         router.visit(route('admin.news-ticker.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = errors;
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(errors.error || 'Failed to update news ticker');
                     },
                     onFinish: () => {
@@ -108,6 +122,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
                 });
             } catch (error) {
                 this.isLoading = false;
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
             }
         },

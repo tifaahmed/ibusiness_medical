@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateProductForm } from '../validation/productValidation';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 export const useProductStore = defineStore('product', {
     state: () => ({
@@ -42,7 +43,8 @@ export const useProductStore = defineStore('product', {
             editor_gallery_paths: [],
         }),
         validationErrors: null,
-        isLoading: false
+        isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -77,6 +79,7 @@ export const useProductStore = defineStore('product', {
                 editor_gallery_paths: [],
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setProduct(product) {
@@ -141,11 +144,13 @@ export const useProductStore = defineStore('product', {
             });
 
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         async submitForm() {
             this.isLoading = true;
             try {
+                const url = route('admin.product.store');
                 const validation = validateProductForm({
                     name: this.form.name,
                     short_subject: this.form.short_subject,
@@ -159,28 +164,38 @@ export const useProductStore = defineStore('product', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
 
-                this.form.post(route('admin.product.store'), {
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Product created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.product.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error('Failed to create product');
                     },
                     onFinish: () => { this.isLoading = false; }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }
@@ -191,6 +206,7 @@ export const useProductStore = defineStore('product', {
         async updateForm(slug, afterSave = 'return') {
             this.isLoading = true;
             try {
+                const url = route('admin.product.update', slug);
                 const validation = validateProductForm({
                     name: this.form.name,
                     short_subject: this.form.short_subject,
@@ -204,29 +220,39 @@ export const useProductStore = defineStore('product', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error('Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
                 // POST + method spoofing: a real PUT body is not parsed by PHP,
                 // so uploaded files would be dropped.
                 this.form.transform((data) => ({ ...data, _method: 'PUT', after_save: afterSave }))
-                    .post(route('admin.product.update', slug), {
+                    .post(url, {
                         preserveScroll: true,
                         onSuccess: () => {
                             useNotification().success('Product updated successfully');
+                            this.debugLog = null;
                         },
                         onError: (errors) => {
                             this.validationErrors = { ...this.validationErrors, ...errors };
+                            recordResponse(this.debugLog, errors);
                             useNotification().error('Failed to update product');
                         },
                         onFinish: () => { this.isLoading = false; }
                     });
             } catch (error) {
                 console.error('Error updating product:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error('An unexpected error occurred');
                 this.isLoading = false;
             }

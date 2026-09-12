@@ -4,6 +4,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMemberPaymentForm } from '../validation/memberPaymentValidation';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 
 const getT = () => usePage().props.translations?.admin?.member_payment || {};
 
@@ -21,6 +22,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
         validationErrors: null,
         payments: reactive([]),
         isLoading: false,
+        debugLog: null,
     }),
 
     actions: {
@@ -35,6 +37,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
                 notes: '',
             });
             this.validationErrors = null;
+            this.debugLog = null;
         },
 
         setPayments(payments) {
@@ -58,6 +61,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
         async submitForm() {
             this.isLoading = true;
             try {
+                const url = route('admin.member-payment.store');
                 const validation = validateMemberPaymentForm({
                     membership_id: this.form.membership_id,
                     amount: this.form.amount,
@@ -70,27 +74,37 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'POST', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'POST', url, fields: this.form.data() });
 
-                this.form.post(route('admin.member-payment.store'), {
+                this.form.post(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success(getT().created || 'Payment created successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.member-payment.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().create_failed || 'Failed to create payment');
                     },
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -100,6 +114,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
         async updatePayment() {
             this.isLoading = true;
             try {
+                const url = route('admin.member-payment.update', this.form.id);
                 const validation = validateMemberPaymentForm({
                     membership_id: this.form.membership_id,
                     amount: this.form.amount,
@@ -112,22 +127,31 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
 
                 if (!validation.isValid) {
                     this.validationErrors = validation.errors;
+                    this.debugLog = buildDebugLog({
+                        method: 'PUT', url, fields: this.form.data(),
+                        note: 'Not actually sent — blocked by client-side validation below.',
+                        responseErrors: validation.errors,
+                        responseNote: 'Client-side validation failure. The server was never reached.',
+                    });
                     useNotification().error(getT().validation_error || 'Please fix the validation errors');
                     this.isLoading = false;
                     return;
                 }
 
                 this.validationErrors = null;
+                this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(route('admin.member-payment.update', this.form.id), {
+                this.form.put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success(getT().updated || 'Payment updated successfully');
+                        this.debugLog = null;
                         this.initializeForm();
                         router.visit(route('admin.member-payment.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
+                        recordResponse(this.debugLog, errors);
                         useNotification().error(getT().update_failed || 'Failed to update payment');
                     },
                     onFinish: () => {
@@ -136,6 +160,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
                 });
             } catch (error) {
                 console.error('Error updating payment:', error);
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
                 useNotification().error(getT().unexpected_error || 'An unexpected error occurred');
                 this.isLoading = false;
             }
