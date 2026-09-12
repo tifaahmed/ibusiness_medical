@@ -171,17 +171,6 @@
                     >
                       {{ member.membership?.is_visible ? (t.visibility_visible || 'Visible') : (t.visibility_hidden || 'Hidden') }}
                     </span>
-                    <span
-                      data-slot="badge"
-                      :class="[
-                        'relative inline-flex items-center rounded-md border-transparent px-1.5 py-0.5 h-auto w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive overflow-hidden font-roboto-slab font-medium tracking-[0.025em] gap-1.5 transition-[all] duration-300 ease-[ease] text-xs',
-                        member.membership?.is_paid
-                          ? 'bg-green-600 text-white'
-                          : 'bg-red-500 text-white'
-                      ]"
-                    >
-                      {{ member.membership?.is_paid ? (t.payment_paid || 'Paid') : (t.payment_unpaid || 'Unpaid') }}
-                    </span>
                   </div>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center hidden md:table-cell">

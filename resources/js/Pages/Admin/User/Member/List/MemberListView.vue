@@ -149,7 +149,7 @@
                       {{ chunkSize ? (t.export_menu?.download_zip || 'Download ZIP') : (t.export_menu?.download_excel || 'Download Excel') }}
                     </a>
                     <a
-                      v-if="canManagePayments"
+                      v-if="false && canManagePayments"
                       :href="exportToPayUrl"
                       @click="exportMenuOpen = false"
                       class="block w-full text-center border border-input bg-background text-foreground rounded-md px-3 py-2 text-xs font-semibold hover:bg-muted"
@@ -373,7 +373,6 @@ const exportColumnOptions = [
   { key: 'membership_number', label: 'Membership No.' },
   { key: 'national_id', label: 'National ID' },
   { key: 'status', label: 'Status' },
-  { key: 'payment', label: 'Payment' },
   { key: 'visibility', label: 'Visibility' },
   { key: 'job_title', label: 'Job Title' },
   { key: 'company', label: 'Company' },
@@ -382,20 +381,11 @@ const exportColumnOptions = [
   { key: 'governorate', label: 'Governorate' },
   { key: 'city', label: 'City' },
   { key: 'registration_date', label: 'Reg. Date' },
-  { key: 'expiration_date', label: 'Exp. Date' },
   { key: 'created_at', label: 'Created At' },
   { key: 'updated_at', label: 'Updated At' },
   { key: 'family_members', label: 'Family Members' },
   { key: 'last_active_history', label: 'Last Activation' },
   { key: 'creator', label: 'Created By' },
-  { key: 'payment_type', label: 'Payment Type' },
-  { key: 'total_amount', label: 'Amount Paid' },
-  { key: 'total_months_paid', label: 'Total Months Paid' },
-  { key: 'covered_until', label: 'Covered Until' },
-  { key: 'days_since_reg', label: 'Days Since Reg.' },
-  { key: 'days_covered', label: 'Days Covered' },
-  { key: 'outstanding_days', label: 'Outstanding Days' },
-  { key: 'payment_status', label: 'Payment Status' },
 ];
 const allColumnKeys = exportColumnOptions.map(c => c.key);
 const selectedColumns = ref([...allColumnKeys]);

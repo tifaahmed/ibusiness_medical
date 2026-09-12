@@ -76,16 +76,32 @@ class StoreMembershipRequest extends FormRequest
             'membership_number' => 'nullable|string|unique:'.Membership::class.',membership_number',
             'national_id' => 'required|string|digits:14',
             'registration_date' => 'required|date',
-            'expiration_date' => ['required', 'date', $this->expirationDateRule()],
+            // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
+            'expiration_date' => ['nullable', 'date', $this->expirationDateRule()],
             'is_active' => 'nullable|boolean',
             'is_visible' => 'nullable|boolean',
             'is_paid' => ['nullable', 'boolean'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
-            'initial_payment_amount' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->boolean('is_paid') && $this->input('initial_payment_type') !== 'free')],
+            // Payment card hidden from the create/edit UI — the admin can no longer
+            // fill these in here, so the conditional Rule::requiredIf(...) that used
+            // to force them when marking a membership paid is commented out below.
+            'initial_payment_amount' => [
+                'nullable', 'numeric', 'min:0',
+                // Rule::requiredIf($this->boolean('is_paid') && $this->input('initial_payment_type') !== 'free'),
+            ],
             'initial_payment_type' => ['nullable', 'string', Rule::in(['commission', 'profit', 'free'])],
-            'initial_payment_months_paid' => ['nullable', 'integer', 'min:1', Rule::requiredIf($this->boolean('is_paid'))],
-            'initial_payment_from_date' => ['nullable', 'date', Rule::requiredIf($this->boolean('is_paid'))],
-            'initial_payment_to_date' => ['nullable', 'date', 'after_or_equal:initial_payment_from_date', Rule::requiredIf($this->boolean('is_paid'))],
+            'initial_payment_months_paid' => [
+                'nullable', 'integer', 'min:1',
+                // Rule::requiredIf($this->boolean('is_paid')),
+            ],
+            'initial_payment_from_date' => [
+                'nullable', 'date',
+                // Rule::requiredIf($this->boolean('is_paid')),
+            ],
+            'initial_payment_to_date' => [
+                'nullable', 'date', 'after_or_equal:initial_payment_from_date',
+                // Rule::requiredIf($this->boolean('is_paid')),
+            ],
             'initial_payment_notes' => ['nullable', 'string', 'max:1000'],
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
             'job_title' => ['nullable', 'array'],
@@ -139,10 +155,12 @@ class StoreMembershipRequest extends FormRequest
             'sales_id.required' => 'Sales is required for a paid monthly membership.',
             'governorate_id.required' => 'The governorate field is required.',
             'city_id.required' => 'The city field is required.',
-            'initial_payment_amount.required' => 'Payment amount is required for a paid membership.',
-            'initial_payment_months_paid.required' => 'Months paid is required for a paid membership.',
-            'initial_payment_from_date.required' => 'Payment from date is required for a paid membership.',
-            'initial_payment_to_date.required' => 'Payment to date is required for a paid membership.',
+            // Initial-payment card hidden from the UI — its "required" rules are
+            // commented out above, so these messages no longer fire.
+            // 'initial_payment_amount.required' => 'Payment amount is required for a paid membership.',
+            // 'initial_payment_months_paid.required' => 'Months paid is required for a paid membership.',
+            // 'initial_payment_from_date.required' => 'Payment from date is required for a paid membership.',
+            // 'initial_payment_to_date.required' => 'Payment to date is required for a paid membership.',
             'password.required' => 'The password field is required.',
             'password.confirmed' => 'The password confirmation does not match.',
             'membership_number.unique' => 'This membership number is already in use.',

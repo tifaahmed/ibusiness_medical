@@ -46,10 +46,12 @@ export const memberSchema = z.object({
             const selectedDate = new Date(date);
             return !isNaN(selectedDate.getTime());
         }, 'Please enter a valid registration date'),
+    // Expiration Date field hidden from the create UI — no longer required from the admin.
     expiration_date: z.string()
-        .min(1, 'Expiration date is required')
+        .optional()
+        .or(z.literal(''))
         .refine((date) => {
-            if (!date) return false;
+            if (!date) return true;
             const selectedDate = new Date(date);
             return !isNaN(selectedDate.getTime());
         }, 'Please enter a valid expiration date'),
@@ -122,26 +124,30 @@ export const memberSchema = z.object({
     if (!data.sales_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Sales is required for a paid monthly membership', path: ['sales_id'] });
     }
-}).superRefine((data, ctx) => {
-    // A paid membership requires its initial payment card to be filled in,
-    // mirroring the standalone member-payment create form's requirements.
-    if (!data.is_paid) return;
-    if (data.initial_payment_type !== 'free') {
-        const amount = parseFloat(data.initial_payment_amount);
-        if (data.initial_payment_amount === '' || isNaN(amount) || amount < 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Payment amount is required', path: ['initial_payment_amount'] });
-        }
-    }
-    const months = parseInt(data.initial_payment_months_paid);
-    if (isNaN(months) || months < 1) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Months paid must be at least 1', path: ['initial_payment_months_paid'] });
-    }
-    if (!data.initial_payment_from_date) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'From date is required', path: ['initial_payment_from_date'] });
-    }
-    if (!data.initial_payment_to_date) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'To date is required', path: ['initial_payment_to_date'] });
-    }
+// The initial-payment card is hidden from the create UI, so its
+// requirements are commented out below — the admin has no inputs to
+// satisfy them with.
+// }).superRefine((data, ctx) => {
+//     // A paid membership requires its initial payment card to be filled in,
+//     // mirroring the standalone member-payment create form's requirements.
+//     if (!data.is_paid) return;
+//     if (data.initial_payment_type !== 'free') {
+//         const amount = parseFloat(data.initial_payment_amount);
+//         if (data.initial_payment_amount === '' || isNaN(amount) || amount < 0) {
+//             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Payment amount is required', path: ['initial_payment_amount'] });
+//         }
+//     }
+//     const months = parseInt(data.initial_payment_months_paid);
+//     if (isNaN(months) || months < 1) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Months paid must be at least 1', path: ['initial_payment_months_paid'] });
+//     }
+//     if (!data.initial_payment_from_date) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'From date is required', path: ['initial_payment_from_date'] });
+//     }
+//     if (!data.initial_payment_to_date) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'To date is required', path: ['initial_payment_to_date'] });
+//     }
+// });
 });
 
 // Schema for update (password optional) - created independently to avoid extend() on refined schema
@@ -264,28 +270,32 @@ export const memberUpdateSchema = z.object({
     if (!data.sales_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Sales is required for a paid monthly membership', path: ['sales_id'] });
     }
-}).superRefine((data, ctx) => {
-    // The first member-payment row is required when the admin marks a
-    // never-paid membership as paid — mirrors the edit form's Payment card,
-    // which appears under these same conditions.
-    const requiresInitialPayment = data.is_paid && !data.has_member_payments;
-    if (!requiresInitialPayment) return;
-    if (data.initial_payment_type !== 'free') {
-        const amount = parseFloat(data.initial_payment_amount);
-        if (data.initial_payment_amount === '' || isNaN(amount) || amount < 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Payment amount is required', path: ['initial_payment_amount'] });
-        }
-    }
-    const months = parseInt(data.initial_payment_months_paid);
-    if (isNaN(months) || months < 1) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Months paid must be at least 1', path: ['initial_payment_months_paid'] });
-    }
-    if (!data.initial_payment_from_date) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'From date is required', path: ['initial_payment_from_date'] });
-    }
-    if (!data.initial_payment_to_date) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'To date is required', path: ['initial_payment_to_date'] });
-    }
+// The initial-payment card is hidden from the edit UI, so its
+// requirements are commented out below — the admin has no inputs to
+// satisfy them with.
+// }).superRefine((data, ctx) => {
+//     // The first member-payment row is required when the admin marks a
+//     // never-paid membership as paid — mirrors the edit form's Payment card,
+//     // which appears under these same conditions.
+//     const requiresInitialPayment = data.is_paid && !data.has_member_payments;
+//     if (!requiresInitialPayment) return;
+//     if (data.initial_payment_type !== 'free') {
+//         const amount = parseFloat(data.initial_payment_amount);
+//         if (data.initial_payment_amount === '' || isNaN(amount) || amount < 0) {
+//             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Payment amount is required', path: ['initial_payment_amount'] });
+//         }
+//     }
+//     const months = parseInt(data.initial_payment_months_paid);
+//     if (isNaN(months) || months < 1) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Months paid must be at least 1', path: ['initial_payment_months_paid'] });
+//     }
+//     if (!data.initial_payment_from_date) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'From date is required', path: ['initial_payment_from_date'] });
+//     }
+//     if (!data.initial_payment_to_date) {
+//         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'To date is required', path: ['initial_payment_to_date'] });
+//     }
+// });
 });
 
 export const validateMemberForm = (memberData, isUpdate = false) => {

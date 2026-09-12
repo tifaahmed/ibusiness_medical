@@ -152,8 +152,10 @@ class UpdateMembershipRequest extends FormRequest
             'membership_number' => $membershipNumberRule,
             'national_id' => 'required|string|digits:14',
             'registration_date' => 'nullable|date',
+            // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
             'expiration_date' => [
-                'required',
+                // 'required',
+                'nullable',
                 'date',
                 function ($attribute, $value, $fail) {
                     $registrationDate = $this->input('registration_date');
@@ -190,11 +192,26 @@ class UpdateMembershipRequest extends FormRequest
             'apartment_number' => ['nullable', 'string', 'max:50'],
             'floor_number' => ['nullable', 'string', 'max:50'],
             'special_mark' => ['nullable', 'string', 'max:500'],
-            'initial_payment_amount' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->requiresInitialPayment($editingMembership) && $this->input('initial_payment_type') !== 'free')],
+            // Payment card hidden from the create/edit UI — the admin can no longer
+            // fill these in here, so the conditional Rule::requiredIf(...) that used
+            // to force them when marking a membership paid is commented out below.
+            'initial_payment_amount' => [
+                'nullable', 'numeric', 'min:0',
+                // Rule::requiredIf($this->requiresInitialPayment($editingMembership) && $this->input('initial_payment_type') !== 'free'),
+            ],
             'initial_payment_type' => ['nullable', 'string', Rule::in(['commission', 'profit', 'free'])],
-            'initial_payment_months_paid' => ['nullable', 'integer', 'min:1', Rule::requiredIf($this->requiresInitialPayment($editingMembership))],
-            'initial_payment_from_date' => ['nullable', 'date', Rule::requiredIf($this->requiresInitialPayment($editingMembership))],
-            'initial_payment_to_date' => ['nullable', 'date', 'after_or_equal:initial_payment_from_date', Rule::requiredIf($this->requiresInitialPayment($editingMembership))],
+            'initial_payment_months_paid' => [
+                'nullable', 'integer', 'min:1',
+                // Rule::requiredIf($this->requiresInitialPayment($editingMembership)),
+            ],
+            'initial_payment_from_date' => [
+                'nullable', 'date',
+                // Rule::requiredIf($this->requiresInitialPayment($editingMembership)),
+            ],
+            'initial_payment_to_date' => [
+                'nullable', 'date', 'after_or_equal:initial_payment_from_date',
+                // Rule::requiredIf($this->requiresInitialPayment($editingMembership)),
+            ],
             'initial_payment_notes' => ['nullable', 'string', 'max:1000'],
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
             'contract_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,avif|max:5120',
@@ -223,10 +240,12 @@ class UpdateMembershipRequest extends FormRequest
             'sales_id.required' => 'Sales is required for a paid monthly membership.',
             'governorate_id.required' => 'The governorate field is required.',
             'city_id.required' => 'The city field is required.',
-            'initial_payment_amount.required' => 'Payment amount is required for the first payment.',
-            'initial_payment_months_paid.required' => 'Months paid is required for the first payment.',
-            'initial_payment_from_date.required' => 'Payment from date is required for the first payment.',
-            'initial_payment_to_date.required' => 'Payment to date is required for the first payment.',
+            // Initial-payment card hidden from the UI — its "required" rules are
+            // commented out above, so these messages no longer fire.
+            // 'initial_payment_amount.required' => 'Payment amount is required for the first payment.',
+            // 'initial_payment_months_paid.required' => 'Months paid is required for the first payment.',
+            // 'initial_payment_from_date.required' => 'Payment from date is required for the first payment.',
+            // 'initial_payment_to_date.required' => 'Payment to date is required for the first payment.',
             'password.confirmed' => 'The password confirmation does not match.',
             'membership_number.required' => 'The membership number field is required.',
             'membership_number.unique' => 'This membership number is already in use.',

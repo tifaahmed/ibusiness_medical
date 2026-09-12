@@ -94,7 +94,7 @@
               <dt class="text-muted-foreground">{{ t.member?.duplicate_registration || 'Registration' }}</dt>
               <dd class="text-foreground">{{ duplicateMember.membership.registration_date }}</dd>
             </div>
-            <div v-if="duplicateMember.membership?.expiration_date">
+            <div v-if="false && duplicateMember.membership?.expiration_date">
               <dt class="text-muted-foreground">{{ t.member?.duplicate_expiration || 'Expiration' }}</dt>
               <dd class="text-foreground">{{ duplicateMember.membership.expiration_date }}</dd>
             </div>
@@ -242,6 +242,7 @@
               required
             />
             <FormDateInput
+              v-if="false"
               v-model="memberStore.form.expiration_date"
               :label="t.member?.expiration_date || 'Expiration Date'"
               :error="memberStore.validationErrors?.expiration_date"
@@ -302,7 +303,7 @@
                 {{ t.member?.paid_membership_help || 'Check if this membership has been paid for.' }}
               </p>
             </div>
-            <div v-if="memberStore.form.is_paid">
+            <div v-if="false && memberStore.form.is_paid">
               <FormSelect
                 v-model="memberStore.form.payment_type"
                 :label="t.member?.payment_type || 'Payment Type'"
@@ -318,8 +319,8 @@
       </div>
     </div>
 
-    <!-- Payment Card — only when creating a new, paid membership -->
-    <div v-if="showInitialPaymentCard" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
+    <!-- Payment Card — hidden per admin request; only when creating a new, paid membership -->
+    <div v-if="false && showInitialPaymentCard" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
       <div class="py-2 px-6">
         <div class="title-golden leading-none font-semibold">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">

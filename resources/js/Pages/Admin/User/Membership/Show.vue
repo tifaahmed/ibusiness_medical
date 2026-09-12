@@ -80,10 +80,6 @@
                     <p class="text-sm font-medium mt-0.5 text-white">{{ formatDateTime(membership.registration_date) }}</p>
                   </div>
                   <div>
-                    <label class="text-xs font-medium text-muted-foreground">{{ t.member?.expiration_date || 'Expiration Date' }}</label>
-                    <p class="text-sm font-medium mt-0.5 text-white">{{ formatDateTime(membership.expiration_date) }}</p>
-                  </div>
-                  <div>
                     <label class="text-xs font-medium text-muted-foreground">{{ t.member?.job_title || 'Job Title' }}</label>
                     <p class="text-sm font-medium mt-0.5 text-white">{{ membership.job_title || '—' }}</p>
                   </div>
@@ -147,21 +143,6 @@
                         ]"
                       >
                         {{ membership.is_visible ? (t.member?.visible || 'Visible') : (t.member?.hidden || 'Hidden') }}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <label class="text-xs font-medium text-muted-foreground">{{ t.member?.payment || 'Payment' }}</label>
-                    <p class="mt-0.5">
-                      <span
-                        :class="[
-                          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                          membership.is_paid
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        ]"
-                      >
-                        {{ membership.is_paid ? (t.member?.paid || 'Paid') : (t.member?.unpaid || 'Unpaid') }}
                       </span>
                     </p>
                   </div>
@@ -454,14 +435,6 @@
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history w-3 h-3"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
             </Link>
-            <!-- Payments -->
-            <Link
-              :href="route('admin.member-payment.create')"
-              class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 text-violet-500 hover:!bg-violet-500/10 hover:!text-violet-500"
-              :title="t.member_list?.table?.action_payments || 'Payments'"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wallet w-3 h-3"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
-            </Link>
             <!-- Edit -->
             <Link
               v-if="user.slug"
@@ -546,7 +519,8 @@
         </div>
       </div>
 
-      <!-- Payments Section -->
+      <!-- Payments Section — hidden per admin request -->
+      <template v-if="false">
       <div v-for="membership in user.memberships" :key="'payments-' + membership.id" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4">
         <h3 class="text-base font-semibold text-white flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
@@ -576,6 +550,7 @@
         </div>
         <div v-else class="text-sm text-muted-foreground">{{ t.member?.no_payments || 'No payments recorded for this membership.' }}</div>
       </div>
+      </template>
 
       <!-- Membership Card Modal -->
     <Modal :show="showCardModal" max-width="xl" @close="showCardModal = false">

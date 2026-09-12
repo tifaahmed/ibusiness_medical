@@ -49,6 +49,13 @@
         <div class="flex justify-end gap-2 border-t border-border p-3">
           <button
             type="button"
+            class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input bg-transparent px-3 text-sm font-medium transition hover:bg-muted"
+            @click="copyAll"
+          >
+            {{ copied ? 'Copied!' : 'Copy all' }}
+          </button>
+          <button
+            type="button"
             class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition hover:bg-primary/90"
             @click="close"
           >
@@ -66,7 +73,7 @@
  * fields that may be on a different tab or scrolled out of view, so on their
  * own they are easy to miss.
  */
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -115,6 +122,27 @@ const labelFor = (key) => {
   }
 
   return humanize(parts.join(' '));
+};
+
+const copied = ref(false);
+
+const copyAll = async () => {
+  const text = rows.value.map((row) => `${labelFor(row.key)}: ${row.message}`).join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard API unavailable/blocked — fall back to a manual selection copy.
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+  copied.value = true;
+  setTimeout(() => { copied.value = false; }, 1500);
 };
 
 const close = () => emit('update:open', false);

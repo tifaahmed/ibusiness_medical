@@ -142,10 +142,10 @@
                   <th v-if="cols.dates" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center">
                     {{ t.column_dates || 'Member Dates' }}
                   </th>
-                  <th v-if="cols.amount_paid" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
+                  <th v-if="false" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
                     {{ t.column_amount_paid || 'Amount Paid' }}
                   </th>
-                  <th v-if="cols.days_covered" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
+                  <th v-if="false" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
                     <button
                       type="button"
                       data-slot="button"
@@ -173,7 +173,7 @@
                       </svg>
                     </button>
                   </th>
-                  <th v-if="cols.outstanding_days" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
+                  <th v-if="false" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-24 text-center">
                     <button
                       type="button"
                       data-slot="button"
@@ -277,17 +277,6 @@
                     >
                       {{ member.membership?.is_visible ? (t.visibility_visible || 'Visible') : (t.visibility_hidden || 'Hidden') }}
                     </span>
-                    <span
-                      data-slot="badge"
-                      :class="[
-                        'relative inline-flex items-center rounded-md border-transparent px-1.5 py-0.5 h-auto w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive overflow-hidden font-roboto-slab font-medium tracking-[0.025em] gap-1.5 transition-[all] duration-300 ease-[ease] text-xs',
-                        member.membership?.is_paid
-                          ? 'bg-green-600 text-white'
-                          : 'bg-red-500 text-white'
-                      ]"
-                    >
-                      {{ member.membership?.is_paid ? (t.payment_paid || 'Paid') : (t.payment_unpaid || 'Unpaid') }}
-                    </span>
                   </div>
                 </td>
                 <td v-if="cols.partner" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
@@ -384,23 +373,19 @@
                       {{ formatDate(member.membership.registration_date) }}
                     </span>
                     <span v-else class="text-xs text-muted-foreground">—</span>
-                    <span v-if="member.membership?.expiration_date" class="text-[10px] text-muted-foreground">
-                      {{ formatDate(member.membership.expiration_date) }}
-                    </span>
-                    <span v-else class="text-[10px] text-muted-foreground">—</span>
                   </div>
                 </td>
-                <td v-if="cols.amount_paid" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                <td v-if="false" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <span class="text-foreground text-xs sm:text-sm font-semibold">
                     {{ Number(member.membership?.total_amount || 0).toFixed(2) }}
                   </span>
                 </td>
-                <td v-if="cols.days_covered" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                <td v-if="false" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <span class="text-foreground text-xs sm:text-sm font-medium">
                     {{ Number(member.membership?.days_covered || 0).toLocaleString() }}
                   </span>
                 </td>
-                <td v-if="cols.outstanding_days" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
+                <td v-if="false" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <span :class="['text-xs sm:text-sm font-medium', outstandingDaysClass(member.membership)]">
                     {{ Number(member.membership?.outstanding_days || 0).toLocaleString() }}
                   </span>
@@ -474,7 +459,7 @@
                       </svg>
                     </Link>
                     <Link
-                      v-if="canWritePayments"
+                      v-if="false && canWritePayments"
                       :href="route('admin.member-payment.create')"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-violet-500 hover:!bg-violet-500/10 hover:!text-violet-500"
                       :title="t.action_payments || 'Payments'"
@@ -685,9 +670,6 @@ const columnOptions = [
   { key: 'sales', label: 'Sales' },
   { key: 'source', label: 'Source' },
   { key: 'card', label: 'Card' },
-  { key: 'amount_paid', label: 'Amount Paid' },
-  { key: 'days_covered', label: 'Days Covered' },
-  { key: 'outstanding_days', label: 'Outstanding Days' },
   { key: 'created', label: 'Created Date' },
   { key: 'updated', label: 'Updated Date' },
   { key: 'registration_date', label: 'Registration Date' },

@@ -166,8 +166,8 @@
         </div>
       </div>
 
-      <!-- Payment Filter Buttons -->
-      <div :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
+      <!-- Payment Filter Buttons — hidden per admin request -->
+      <div v-if="false" :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
         <div class="flex flex-col gap-1.5 sm:gap-2 w-full">
           <label
             data-slot="label"
@@ -537,8 +537,8 @@
         />
       </div>
 
-      <!-- Expiration date from -->
-      <div :class="['min-w-0', showAdvanced ? '' : 'hidden sm:block']">
+      <!-- Expiration date from/to — hidden per admin request -->
+      <div v-if="false" :class="['min-w-0', showAdvanced ? '' : 'hidden sm:block']">
         <label
           data-slot="label"
           class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
@@ -555,8 +555,7 @@
         />
       </div>
 
-      <!-- Expiration date to -->
-      <div :class="['min-w-0', showAdvanced ? '' : 'hidden sm:block']">
+      <div v-if="false" :class="['min-w-0', showAdvanced ? '' : 'hidden sm:block']">
         <label
           data-slot="label"
           class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"

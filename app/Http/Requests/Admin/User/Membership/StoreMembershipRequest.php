@@ -33,7 +33,9 @@ class StoreMembershipRequest extends FormRequest
             'membership_number' => 'required|string|unique:'.Membership::class.',membership_number',
             'national_id' => 'required|string|digits:14',
             'registration_date' => 'required|date',
-            'expiration_date' => 'required|date|after:registration_date',
+            // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
+            // 'expiration_date' => 'required|date|after:registration_date',
+            'expiration_date' => 'nullable|date|after:registration_date',
             'is_active' => ['nullable', 'boolean'],
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],

@@ -49,32 +49,44 @@
               >
                 {{ t.common?.cancel || 'Cancel' }}
               </Link>
-              <button
-                type="submit"
-                :disabled="memberStore.form.processing"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 min-w-[140px]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                  <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
-                  <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
-                </svg>
-                {{ t.member?.update || 'Update Member' }}
-              </button>
+              <div class="relative inline-flex">
+                <button
+                  type="submit"
+                  :disabled="memberStore.form.processing"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 min-w-[140px]"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                    <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
+                    <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
+                  </svg>
+                  {{ t.member?.update || 'Update Member' }}
+                </button>
+                <!-- Shows only when a submit failed validation — the per-field
+                     messages can be scrolled out of view, so this opens a full list. -->
+                <button
+                  v-if="hasValidationErrors"
+                  type="button"
+                  title="View all validation errors"
+                  @click="showValidationDialog = true"
+                  class="absolute -top-1.5 -end-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-card"
+                >
+                  i
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </form>
 
+      <ValidationErrorsDialog
+        v-model:open="showValidationDialog"
+        :errors="memberStore.validationErrors || {}"
+      />
+
       <!-- Password tab — its own form, independent of the profile form above -->
       <div v-show="activeTab === 'password'">
         <ChangePasswordCard :user-slug="member?.slug" />
-      </div>
-
-      <!-- Payments tab — read-only list; recording and editing happen in the
-           member-payment module, which this links straight into. -->
-      <div v-show="activeTab === 'payments'">
-        <MemberPaymentsCard :membership="member?.membership" />
       </div>
 
       <!-- Addresses tab — multiple addresses per member, each with a type
@@ -97,13 +109,15 @@ import { Link, usePage } from "@inertiajs/vue3";
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
-import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberPaymentsCard, MemberAddressesCard } from "../_components/Form";
+import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberAddressesCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
+import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import { onMounted, computed, ref, watch } from "vue";
 
 // Tabs live in the URL (?tab=...) so a switch is linkable and
 // refresh/back keeps the tab the admin was working in.
-const TAB_KEYS = ['profile', 'password', 'payments', 'addresses'];
+// 'payments' kept out of the visible tab list per admin request (payment UI hidden here).
+const TAB_KEYS = ['profile', 'password', 'addresses'];
 
 const initialTab = new URLSearchParams(window.location.search).get('tab');
 const activeTab = ref(TAB_KEYS.includes(initialTab) ? initialTab : 'profile');
@@ -130,18 +144,13 @@ const props = defineProps({
   },
 });
 
-const paymentsCount = computed(() => props.member?.membership?.member_payments?.length || 0);
 const addressesCount = computed(() => props.member?.membership?.addresses?.length || 0);
+const showValidationDialog = ref(false);
+const hasValidationErrors = computed(() => !!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0);
 
 const tabs = computed(() => [
   { key: 'profile', label: t.value.member?.tab_profile || 'Profile' },
   { key: 'password', label: t.value.member?.tab_password || 'Password' },
-  {
-    key: 'payments',
-    label: paymentsCount.value
-      ? `${t.value.member?.payments || 'Payments'} (${paymentsCount.value})`
-      : (t.value.member?.payments || 'Payments'),
-  },
   {
     key: 'addresses',
     label: addressesCount.value

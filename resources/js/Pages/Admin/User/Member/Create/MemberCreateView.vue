@@ -34,23 +34,41 @@
               >
                 {{ t.common?.cancel || 'Cancel' }}
               </Link>
-              <button
-                type="submit"
-                :disabled="memberStore.form.processing"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 min-w-[140px]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                  <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
-                  <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
-                </svg>
-                {{ t.member?.create || 'Create Member' }}
-              </button>
+              <div class="relative inline-flex">
+                <button
+                  type="submit"
+                  :disabled="memberStore.form.processing"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 min-w-[140px]"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                    <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
+                    <path d="M7 3v4a1 1 0 0 0 1 1h7"></path>
+                  </svg>
+                  {{ t.member?.create || 'Create Member' }}
+                </button>
+                <!-- Shows only when a submit failed validation — the per-field
+                     messages can be scrolled out of view, so this opens a full list. -->
+                <button
+                  v-if="hasValidationErrors"
+                  type="button"
+                  title="View all validation errors"
+                  @click="showValidationDialog = true"
+                  class="absolute -top-1.5 -end-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-card"
+                >
+                  i
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </form>
     </div>
+
+    <ValidationErrorsDialog
+      v-model:open="showValidationDialog"
+      :errors="memberStore.validationErrors || {}"
+    />
   </MemberLayout>
 </template>
 
@@ -60,6 +78,7 @@ import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
 import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCreateCard } from "../_components/Form";
+import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import { onMounted, ref, computed } from "vue";
 
 const page = usePage();
@@ -67,6 +86,8 @@ const t = computed(() => page.props.translations?.admin || {});
 
 const memberStore = useMemberStore();
 const familyMembers = ref([]);
+const showValidationDialog = ref(false);
+const hasValidationErrors = computed(() => !!memberStore.validationErrors && Object.keys(memberStore.validationErrors).length > 0);
 
 onMounted(() => {
   memberStore.initializeForm();
