@@ -95,6 +95,7 @@ class AdminFacilityBranchPlaceBulkController extends BaseController
                 'state' => 'skip',
                 'confidence' => null,
                 'detail' => null,
+                'address' => $this->addressText($branch),
             ];
 
             if (! $overwrite && ! $this->needsPlace($branch)) {

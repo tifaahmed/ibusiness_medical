@@ -78,6 +78,20 @@ trait SweepsFacilityBranches
     }
 
     /**
+     * The address as written, for the dialog row — so what the AI read sits
+     * right under what it chose, and a wrong pick is obvious at a glance.
+     */
+    protected function addressText(FacilityBranch $branch): ?string
+    {
+        $locale = app()->getLocale();
+
+        return $branch->getTranslation('address', $locale)
+            ?: $branch->getTranslation('address', 'ar')
+            ?: $branch->getTranslation('address', 'en')
+            ?: null;
+    }
+
+    /**
      * What the dialog shows for a row: the facility, then the branch.
      */
     protected function label(FacilityBranch $branch): string

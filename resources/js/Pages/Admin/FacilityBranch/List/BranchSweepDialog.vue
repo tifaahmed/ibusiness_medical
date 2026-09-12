@@ -86,10 +86,22 @@
                   >{{ row.detail }}</a>
                   <span v-else-if="row.detail" class="block truncate text-[11px] text-muted-foreground">{{ row.detail }}</span>
                   <span v-else-if="row.message" class="block truncate text-[11px] text-muted-foreground">{{ row.message }}</span>
+                  <span v-if="row.address" class="block truncate text-[11px] italic text-muted-foreground/70">{{ row.address }}</span>
                 </span>
                 <span class="flex shrink-0 items-center gap-2">
                   <span v-if="row.confidence && row.state === 'ok'" :class="confidenceClass(row.confidence)">{{ row.confidence }}</span>
                   <span :class="badgeClass(row.state)">{{ stateLabel(row.state) }}</span>
+                  <button
+                    v-if="row.state === 'error' && (row.message || row.detail)"
+                    type="button"
+                    class="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    :title="t.common?.details || 'View full error'"
+                    @click="openErrorDetail(row)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path>
+                    </svg>
+                  </button>
                 </span>
               </li>
             </ul>
@@ -112,6 +124,49 @@
             @click="start"
           >
             {{ t.facility_branch?.sweep_start || 'Start' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Separate popup, above the sweep dialog, just showing one row's full
+       error reason — the inline text is truncated so it can't be read there. -->
+  <Teleport to="body">
+    <div
+      v-if="errorDetailRow"
+      class="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      @click.self="closeErrorDetail"
+    >
+      <div class="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+        <div class="flex items-start gap-3 border-b border-border p-4">
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold truncate">{{ errorDetailRow.label }}</h2>
+            <p class="text-xs text-muted-foreground">{{ t.facility_branch?.sweep_error_title || 'Error reason' }}</p>
+          </div>
+          <button
+            type="button"
+            class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            :title="t.common?.close || 'Close (Esc)'"
+            @click="closeErrorDetail"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="max-h-[50vh] overflow-y-auto p-4">
+          <p class="whitespace-pre-wrap break-words text-sm text-destructive">{{ errorDetailRow.message || errorDetailRow.detail }}</p>
+        </div>
+        <div class="flex justify-end border-t border-border p-3">
+          <button
+            type="button"
+            class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted"
+            @click="closeErrorDetail"
+          >
+            {{ t.common?.close || 'Close' }}
           </button>
         </div>
       </div>
@@ -176,7 +231,16 @@ const skippedNoAddress = ref(0);
 const log = ref([]);
 const errorMessage = ref('');
 const waitNotice = ref('');
+const errorDetailRow = ref(null);
 let cancelled = false;
+
+const openErrorDetail = (row) => {
+  errorDetailRow.value = row;
+};
+
+const closeErrorDetail = () => {
+  errorDetailRow.value = null;
+};
 
 const mode = computed(() => (overwrite.value ? props.checkedMode : props.uncheckedMode));
 
@@ -266,6 +330,7 @@ const resetState = () => {
   log.value = [];
   errorMessage.value = '';
   waitNotice.value = '';
+  errorDetailRow.value = null;
   cancelled = false;
 };
 
