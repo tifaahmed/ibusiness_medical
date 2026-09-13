@@ -59,8 +59,8 @@ export const validateFacilityForm = (facilityData, isUpdate = false) => {
         schema.parse(formData);
         return { isValid: true, errors: null };
     } catch (err) {
-        if (err.errors) {
-            const errors = err.errors.reduce((acc, error) => {
+        if (err.issues) {
+            const errors = err.issues.reduce((acc, error) => {
                 const path = error.path.join('.');
                 acc[path] = error.message;
                 return acc;

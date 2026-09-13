@@ -15,7 +15,7 @@
             <label class="block text-xs font-medium mb-1">{{ t.partner || 'Partner' }}</label>
             <Select
               v-model="partnerId"
-              :options="partners.map(p => ({ value: p.value ?? p, label: `${ p.title }` }))"
+              :options="partners.map(p => ({ value: p.id, label: `${ p.title }` }))"
               :placeholder="t.none || '— no partner —'"
             />
             <p class="mt-1 text-[11px] text-muted-foreground">

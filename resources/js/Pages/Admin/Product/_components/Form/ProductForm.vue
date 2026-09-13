@@ -105,7 +105,7 @@
           <label class="text-sm font-medium">Product Type</label>
           <Select
             v-model="productStore.form.product_type_id"
-            :options="productTypes.map(pt => ({ value: pt.value ?? pt, label: `${ getTranslatedName(pt.name) }` }))"
+            :options="productTypes.map(pt => ({ value: pt.id ?? pt.value ?? pt, label: `${ getTranslatedName(pt.name) }` }))"
             placeholder="— None —"
           />
           <p v-if="fieldError('product_type_id')" class="text-xs text-destructive">{{ fieldError('product_type_id') }}</p>

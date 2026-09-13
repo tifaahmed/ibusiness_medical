@@ -108,7 +108,7 @@
             />
             <Select
               v-model="form.partner_id"
-              :options="partners.map(p => ({ value: p.value ?? p, label: `${ p.title }` }))"
+              :options="partners.map(p => ({ value: p.id, label: `${ p.title }` }))"
               placeholder="— no partner —"
             />
             <p v-if="partnerLocked" class="mt-1 text-[11px] text-muted-foreground">

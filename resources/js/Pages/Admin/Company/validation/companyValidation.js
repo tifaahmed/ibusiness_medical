@@ -16,8 +16,8 @@ export const validateCompanyForm = (data, isUpdate = false) => {
         companySchema.parse({ name: { ar: nameValue.ar?.toString() || '', en: nameValue.en?.toString() || '' } });
         return { isValid: true, errors: null };
     } catch (err) {
-        if (err.errors) {
-            const errors = err.errors.reduce((acc, e) => { acc[e.path.join('.')] = e.message; return acc; }, {});
+        if (err.issues) {
+            const errors = err.issues.reduce((acc, e) => { acc[e.path.join('.')] = e.message; return acc; }, {});
             return { isValid: false, errors };
         }
         return { isValid: false, errors: { general: 'Validation failed' } };

@@ -43,10 +43,13 @@ export const validateCareerForm = (careerData) => {
         return { isValid: true, errors: null };
     } catch (err) {
         console.error('Validation error:', err);
-        const errors = err.errors.reduce((acc, error) => {
-            acc[error.path[0]] = error.message;
-            return acc;
-        }, {});
-        return { isValid: false, errors };
+        if (err.issues) {
+            const errors = err.issues.reduce((acc, error) => {
+                acc[error.path[0]] = error.message;
+                return acc;
+            }, {});
+            return { isValid: false, errors };
+        }
+        return { isValid: false, errors: { general: 'Validation failed' } };
     }
 };
