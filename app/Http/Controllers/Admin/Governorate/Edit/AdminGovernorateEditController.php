@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Governorate\Edit\AdminGovernorateEditResource;
 use App\Models\Governorate;
+use App\Services\GovernorateEnglishBackfiller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -37,6 +38,7 @@ class AdminGovernorateEditController extends BaseController
 
         $result = [
             'governorate' => $resourceData,
+            'englishFixEnabled' => GovernorateEnglishBackfiller::isConfigured(),
         ];
 
         return Inertia::render('Admin/Governorate/Edit/GovernorateEditView', $result);

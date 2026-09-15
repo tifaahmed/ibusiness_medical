@@ -660,6 +660,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage governorates|manage own governorates')->group(function () {
         Route::get('/admin/governorate/create', AdminGovernorateCreateController::class)->name('admin.governorate.create');
         Route::post('/admin/governorate', AdminGovernorateStoreController::class)->name('admin.governorate.store');
+        // "Fix English with AI" — one governorate (button on the form) and the
+        // browser-stepped sweep on the list.
+        Route::post('/admin/governorate/english/bulk/begin', [\App\Http\Controllers\Admin\Governorate\English\AdminGovernorateEnglishBulkController::class, 'begin'])->name('admin.governorate.english.bulk.begin');
+        Route::post('/admin/governorate/english/bulk/step', [\App\Http\Controllers\Admin\Governorate\English\AdminGovernorateEnglishBulkController::class, 'step'])->name('admin.governorate.english.bulk.step');
+        Route::post('/admin/governorate/{governorate}/english/fix', \App\Http\Controllers\Admin\Governorate\English\AdminGovernorateEnglishFixController::class)->name('admin.governorate.english.fix');
+        // The same button on the create page, where there is no saved row to
+        // read: it translates the name as typed and writes nothing.
+        Route::post('/admin/governorate/translate', \App\Http\Controllers\Admin\Governorate\English\AdminGovernorateTranslateController::class)->name('admin.governorate.translate');
         Route::get('/admin/governorate/{governorate}/edit', AdminGovernorateEditController::class)->name('admin.governorate.edit');
         Route::put('/admin/governorate/{governorate}', AdminGovernorateUpdateController::class)->name('admin.governorate.update');
         Route::delete('/admin/governorate/{governorate}', AdminGovernorateDeleteController::class)->name('admin.governorate.destroy');
