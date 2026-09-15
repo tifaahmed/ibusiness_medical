@@ -117,7 +117,10 @@ class ContactMessageController extends Controller
         $contactMessage->load(['sales', 'logs.admin']);
 
         return Inertia::render('Admin/ContactMessages/Show', [
-            'message' => new ContactMessageResource($contactMessage),
+            /* resolve(), not the resource itself: a single JsonResource serialises
+               as { data: {...} }, but Show.vue reads the enquiry's fields straight
+               off `message` — without this the page renders with every field blank. */
+            'message' => (new ContactMessageResource($contactMessage))->resolve($request),
             'statuses' => array_values(ContactStatusEnum::getOptions()),
             'salesOptions' => Sales::query()
                 ->orderBy('id')
