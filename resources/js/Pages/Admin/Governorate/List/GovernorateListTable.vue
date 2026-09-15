@@ -6,7 +6,7 @@
           <table data-slot="table" class="w-full caption-bottom text-sm min-w-full">
             <thead data-slot="table-header" class="[&_tr]:border-b [&_tr]:border-border">
               <tr data-slot="table-row" class="hover:bg-muted/50 data-[state=selected]:bg-muted border-b border-border transition-colors">
-                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[300px]">
+                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[200px]">
                   <button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 has-[>svg]:px-3 h-auto p-0 font-semibold hover:bg-transparent">
                     {{ t.governorate?.details || 'Governorate Details' }}
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-down h-4 w-4">
@@ -16,6 +16,12 @@
                       <path d="M7 4v16"></path>
                     </svg>
                   </button>
+                </th>
+                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[160px]">
+                  {{ t.common?.arabic_name || 'Arabic Name' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[160px]">
+                  {{ t.common?.english_name || 'English Name' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-10 px-2 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-32 text-center">
                   {{ t.common?.facilities || 'Facilities' }}
@@ -52,6 +58,12 @@
                       </div>
                     </div>
                   </div>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-normal [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                  <span dir="rtl" class="text-sm text-foreground break-words">{{ getArabicName(governorate.name) || '—' }}</span>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle whitespace-normal [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]">
+                  <span class="text-sm text-foreground break-words">{{ getEnglishName(governorate.name) || '—' }}</span>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex justify-center">
@@ -187,6 +199,16 @@ const getTranslatedName = (name) => {
     return name[locale] || name['ar'] || name['en'] || Object.values(name)[0] || '';
   }
   return '';
+};
+
+const getArabicName = (name) => {
+  if (!name || typeof name !== 'object') return '';
+  return name['ar'] || '';
+};
+
+const getEnglishName = (name) => {
+  if (!name || typeof name !== 'object') return '';
+  return name['en'] || '';
 };
 
 const getEditRoute = (slug) => {

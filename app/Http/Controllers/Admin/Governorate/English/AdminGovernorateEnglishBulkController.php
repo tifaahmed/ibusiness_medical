@@ -41,6 +41,7 @@ class AdminGovernorateEnglishBulkController extends BaseController
     public function begin(Request $request): JsonResponse
     {
         $slugs = Governorate::query()
+            ->with('cities')
             ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->get()
             ->filter(fn (Governorate $governorate) => $this->backfiller->hasWork($governorate))
@@ -62,6 +63,7 @@ class AdminGovernorateEnglishBulkController extends BaseController
         ]);
 
         $governorates = Governorate::query()
+            ->with('cities')
             ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->whereIn('slug', $validated['slugs'])
             ->get();

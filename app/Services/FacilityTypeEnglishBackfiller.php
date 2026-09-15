@@ -58,7 +58,7 @@ class FacilityTypeEnglishBackfiller
 
         $applied = [];
 
-        DB::transaction(function () use ($facilityType, $value, &$applied) {
+        DB::transaction(function () use ($facilityType, $value, $en, &$applied) {
             $applied[] = ['field' => 'name', 'from' => $en, 'to' => $value];
             $facilityType->setTranslation('name', 'en', $value);
 

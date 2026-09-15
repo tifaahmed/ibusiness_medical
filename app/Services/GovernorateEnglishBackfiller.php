@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Fills / repairs the English (`en`) translation of a governorate's `name`
- * with Gemini, using the Arabic value as the source of truth.
+ * — and the names of its cities — with Gemini, using the Arabic value as the
+ * source of truth for each.
  *
  * A value is treated as needing a fix when the Arabic side has content and the
  * English side is blank, still holds Arabic characters (pasted into the wrong
@@ -26,60 +27,99 @@ class GovernorateEnglishBackfiller
     }
 
     /**
-     * Does this governorate have an English name to fix?
+     * Does this governorate (or any of its cities) have an English name to fix?
      */
     public function hasWork(Governorate $governorate): bool
     {
-        return $this->needsFix(
-            (string) ($governorate->getTranslation('name', 'en') ?? ''),
-            (string) ($governorate->getTranslation('name', 'ar') ?? ''),
-        );
+        return $this->pending($governorate) !== [];
     }
 
     /**
-     * Generate and save corrected English for the name, when it needs one.
+     * Generate and save corrected English for the governorate name and every
+     * pending city name.
      *
-     * @return array{applied: list<array{field: string, from: string, to: string}>, errors: list<string>}
+     * @return array{applied: list<array{model: string, id: int, field: string, from: string, to: string}>, errors: list<string>}
      */
     public function fix(Governorate $governorate): array
     {
-        $ar = (string) ($governorate->getTranslation('name', 'ar') ?? '');
-        $en = (string) ($governorate->getTranslation('name', 'en') ?? '');
+        $pending = $this->pending($governorate);
 
-        if (! $this->needsFix($en, $ar)) {
+        if ($pending === []) {
             return ['applied' => [], 'errors' => []];
         }
 
-        $value = $this->translate($ar);
-
-        if ($value === null) {
-            return ['applied' => [], 'errors' => ['Could not produce English for the name.']];
-        }
+        $answers = $this->ai->json(
+            $this->systemPrompt(),
+            $this->userPrompt($governorate, $pending),
+            512 + (count($pending) * 64),
+        );
 
         $applied = [];
+        $errors = [];
 
-        DB::transaction(function () use ($governorate, $value, &$applied) {
-            $applied[] = ['field' => 'name', 'from' => $en, 'to' => $value];
-            $governorate->setTranslation('name', 'en', $value);
+        DB::transaction(function () use ($governorate, $pending, $answers, &$applied, &$errors) {
+            $cities = $governorate->cities->keyBy('id');
 
-            // Saving regenerates the slug from the (Arabic) name, which
-            // Str::slug() can collapse to "" + a "-1" suffix. The Arabic name
-            // is untouched here, so pin the original slug back.
-            $originalSlug = $governorate->getOriginal('slug');
-            $governorate->save();
+            /** @var array<int, \Illuminate\Database\Eloquent\Model> $touched */
+            $touched = [];
 
-            if ($governorate->slug !== $originalSlug && filled($originalSlug)) {
-                $governorate->slug = $originalSlug;
-                $governorate->saveQuietly();
+            foreach ($pending as $index => $row) {
+                $value = data_get($answers, (string) $index);
+                $value = is_scalar($value) ? trim((string) $value) : '';
+
+                if ($value === '' || $this->looksArabic($value)) {
+                    $errors[] = "Could not produce English for {$row['model']} #{$row['id']} {$row['field']}.";
+
+                    continue;
+                }
+
+                $model = $row['model'] === 'governorate'
+                    ? $governorate
+                    : $cities->get($row['id']);
+
+                if ($model === null) {
+                    continue;
+                }
+
+                $from = (string) ($model->getTranslation($row['field'], 'en') ?? '');
+                $model->setTranslation($row['field'], 'en', $value);
+
+                $key = spl_object_id($model);
+                $touched[$key] ??= $model;
+
+                $applied[] = [
+                    'model' => $row['model'],
+                    'id' => $row['id'],
+                    'field' => $row['field'],
+                    'from' => $from,
+                    'to' => $value,
+                ];
+            }
+
+            // One save per model. Saving regenerates the slug from the
+            // (Arabic) name, which Str::slug() can collapse to "" + a "-1"
+            // suffix. The Arabic name is untouched here, so pin the original
+            // slug back.
+            foreach ($touched as $model) {
+                $originalSlug = $model->getOriginal('slug');
+                $model->save();
+
+                if ($model->slug !== $originalSlug && filled($originalSlug)) {
+                    $model->slug = $originalSlug;
+                    $model->saveQuietly();
+                }
             }
         });
 
-        Log::info('Governorate English backfill applied', [
-            'governorate_id' => $governorate->id,
-            'governorate_slug' => $governorate->slug,
-        ]);
+        if ($applied !== []) {
+            Log::info('Governorate English backfill applied', [
+                'governorate_id' => $governorate->id,
+                'governorate_slug' => $governorate->slug,
+                'fields' => array_map(fn ($a) => "{$a['model']}#{$a['id']}.{$a['field']}", $applied),
+            ]);
+        }
 
-        return ['applied' => $applied, 'errors' => []];
+        return ['applied' => $applied, 'errors' => $errors];
     }
 
     /**
@@ -88,23 +128,6 @@ class GovernorateEnglishBackfiller
      * the open form for the admin to check before saving.
      */
     public function translateName(string $ar): ?string
-    {
-        return $this->translate($ar);
-    }
-
-    public function needsFix(?string $en, ?string $ar): bool
-    {
-        $ar = trim((string) $ar);
-        $en = trim((string) $en);
-
-        if ($ar === '') {
-            return false;
-        }
-
-        return $en === '' || $this->looksArabic($en) || $en === $ar;
-    }
-
-    private function translate(string $ar): ?string
     {
         $ar = trim($ar);
         if ($ar === '') {
@@ -121,6 +144,46 @@ class GovernorateEnglishBackfiller
         }
 
         return $value;
+    }
+
+    public function needsFix(?string $en, ?string $ar): bool
+    {
+        $ar = trim((string) $ar);
+        $en = trim((string) $en);
+
+        if ($ar === '') {
+            return false;
+        }
+
+        return $en === '' || $this->looksArabic($en) || $en === $ar;
+    }
+
+    /**
+     * Every field on the governorate + its cities that needs an English fix.
+     *
+     * @return list<array{model: string, id: int, field: string, ar: string}>
+     */
+    private function pending(Governorate $governorate): array
+    {
+        $rows = [];
+
+        $ar = (string) ($governorate->getTranslation('name', 'ar') ?? '');
+        $en = (string) ($governorate->getTranslation('name', 'en') ?? '');
+
+        if ($this->needsFix($en, $ar)) {
+            $rows[] = ['model' => 'governorate', 'id' => $governorate->id, 'field' => 'name', 'ar' => $ar];
+        }
+
+        foreach ($governorate->cities as $city) {
+            $ar = (string) ($city->getTranslation('name', 'ar') ?? '');
+            $en = (string) ($city->getTranslation('name', 'en') ?? '');
+
+            if ($this->needsFix($en, $ar)) {
+                $rows[] = ['model' => 'city', 'id' => $city->id, 'field' => 'name', 'ar' => $ar];
+            }
+        }
+
+        return $rows;
     }
 
     private function looksArabic(string $value): bool
@@ -141,7 +204,33 @@ class GovernorateEnglishBackfiller
         (e.g. القاهرة → "Cairo", الجيزة → "Giza", الإسكندرية → "Alexandria").
         Title Case. No trailing punctuation.
 
+        city name: the common English name of this Egyptian city or district,
+        transliterated or translated the way it is normally written in English
+        (e.g. المعادي → "Maadi", مدينة نصر → "Nasr City", الجيزة → "Giza").
+        Title Case. No trailing punctuation.
+
         Never leave a value in Arabic.
         PROMPT;
+    }
+
+    /**
+     * @param  list<array{model: string, id: int, field: string, ar: string}>  $pending
+     */
+    private function userPrompt(Governorate $governorate, array $pending): string
+    {
+        $lines = [];
+        $lines[] = 'Governorate (for context): '
+            .($governorate->getTranslation('name', 'en')
+                ?: $governorate->getTranslation('name', 'ar')
+                ?: '—');
+        $lines[] = '';
+        $lines[] = 'Fields to translate:';
+
+        foreach ($pending as $index => $row) {
+            $kind = $row['model'] === 'governorate' ? 'governorate name' : 'city name';
+            $lines[] = "{$index}. [{$kind}] Arabic: {$row['ar']}";
+        }
+
+        return implode("\n", $lines);
     }
 }

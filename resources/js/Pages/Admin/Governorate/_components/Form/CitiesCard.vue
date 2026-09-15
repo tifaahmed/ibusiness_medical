@@ -66,9 +66,12 @@
           class="p-3 bg-accent/30 rounded-lg border border-border hover:bg-accent/50 transition-colors flex items-center justify-between gap-3"
         >
           <div class="flex-1 min-w-0">
-            <h4 class="font-medium text-white truncate" :title="getTranslatedName(city.name)">
-              {{ getTranslatedName(city.name) || (t.city?.unnamed || 'Unnamed City') }}
+            <h4 class="font-medium text-white truncate" :title="getArabicName(city.name) || getTranslatedName(city.name)">
+              {{ getArabicName(city.name) || getTranslatedName(city.name) || (t.city?.unnamed || 'Unnamed City') }}
             </h4>
+            <p v-if="getEnglishName(city.name)" class="text-xs text-white/60 truncate mt-0.5" :title="getEnglishName(city.name)">
+              {{ getEnglishName(city.name) }}
+            </p>
             <p v-if="city.slug" class="text-xs text-white/60 font-mono mt-0.5 truncate">{{ city.slug }}</p>
           </div>
           <div class="flex gap-1 flex-shrink-0">
@@ -161,6 +164,16 @@ const getTranslatedName = (name) => {
     return name[locale.value] || name['ar'] || name['en'] || Object.values(name)[0] || '';
   }
   return '';
+};
+
+const getArabicName = (name) => {
+  if (!name || typeof name !== 'object') return '';
+  return name['ar'] || '';
+};
+
+const getEnglishName = (name) => {
+  if (!name || typeof name !== 'object') return '';
+  return name['en'] || '';
 };
 
 const normalizeName = (value) => {

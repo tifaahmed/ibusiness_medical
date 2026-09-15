@@ -25,7 +25,7 @@
           <div class="min-w-0">
             <h2 class="text-base font-semibold">Fix English with AI</h2>
             <p class="text-xs text-muted-foreground">
-              AI fills or repairs the English name of every governorate that is empty,
+              AI fills or repairs the English name of every governorate and city that is empty,
               holds Arabic text, or just copies the Arabic. Arabic values are never changed. Applied immediately.
             </p>
           </div>
@@ -43,7 +43,7 @@
 
         <div class="max-h-[60vh] overflow-y-auto p-4 space-y-3">
           <p v-if="phase === 'idle'" class="text-sm text-muted-foreground">
-            This scans every governorate you can manage and fixes the ones with dirty English data.
+            This scans every governorate (and its cities) you can manage and fixes the ones with dirty English data.
           </p>
 
           <template v-else>

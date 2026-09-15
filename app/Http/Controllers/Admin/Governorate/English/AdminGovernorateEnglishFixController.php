@@ -13,8 +13,8 @@ use RuntimeException;
 
 /**
  * Backs the "Fix English with AI" button on the admin governorate edit form.
- * Called over axios; fills or repairs the English name of this one
- * governorate from its Arabic value, then answers JSON.
+ * Called over axios; fills or repairs the English name of this governorate
+ * and its cities from their Arabic values, then answers JSON.
  */
 class AdminGovernorateEnglishFixController extends BaseController
 {
@@ -34,7 +34,7 @@ class AdminGovernorateEnglishFixController extends BaseController
 
     public function __invoke(Request $request, string $governorate): JsonResponse
     {
-        $model = Governorate::where('slug', $governorate)->firstOrFail();
+        $model = Governorate::with('cities')->where('slug', $governorate)->firstOrFail();
 
         $this->assertOwns($model);
 

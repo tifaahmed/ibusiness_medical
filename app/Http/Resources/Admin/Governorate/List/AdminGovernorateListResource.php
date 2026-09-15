@@ -16,7 +16,7 @@ class AdminGovernorateListResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            'name' => $this->getTranslations('name'),
             'slug' => $this->slug,
             'facilities_count' => $this->facilities_count ?? $this->facilities()->count(),
             'cities_count' => $this->whenCounted('cities', $this->cities_count ?? $this->cities()->count()),
