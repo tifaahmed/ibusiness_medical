@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\FacilityType\Create;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Services\FacilityTypeEnglishBackfiller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -11,7 +12,9 @@ class AdminFacilityTypeCreateController extends BaseController
 {
     public function __invoke(): Response
     {
-        return Inertia::render('Admin/FacilityType/Create/FacilityTypeCreateView');
+        return Inertia::render('Admin/FacilityType/Create/FacilityTypeCreateView', [
+            'englishFixEnabled' => FacilityTypeEnglishBackfiller::isConfigured(),
+        ]);
     }
 }
 

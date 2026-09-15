@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\FacilityType\Edit\AdminFacilityTypeEditResource;
 use App\Models\FacilityType;
+use App\Services\FacilityTypeEnglishBackfiller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,6 +29,7 @@ class AdminFacilityTypeEditController extends BaseController
 
         $result = [
             'facilityType' => (new AdminFacilityTypeEditResource($facilityType))->toArray($request),
+            'englishFixEnabled' => FacilityTypeEnglishBackfiller::isConfigured(),
         ];
 
         return Inertia::render('Admin/FacilityType/Edit/FacilityTypeEditView', $result);

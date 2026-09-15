@@ -18,20 +18,9 @@ class PermissionsNotMutuallyExclusive implements ValidationRule
         if (!is_array($value)) {
             return;
         }
-        $byResource = [];
-        foreach ($value as $perm) {
-            if (!is_string($perm)) {
-                continue;
-            }
-            $resource = UserPermissionEnum::resourceFor($perm);
-            if ($resource === null) {
-                continue;
-            }
-            $byResource[$resource][] = $perm;
-        }
-        foreach ($byResource as $resource => $perms) {
-            if (count(array_unique($perms)) > 1) {
-                $fail("Cannot grant both \"manage {$resource}\" and \"manage own {$resource}\". Pick one.");
+        foreach (UserPermissionEnum::pairs() as [$full, $own]) {
+            if (in_array($full, $value, true) && in_array($own, $value, true)) {
+                $fail("Cannot grant both \"{$full}\" and \"{$own}\". Pick one.");
                 return;
             }
         }

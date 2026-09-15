@@ -392,21 +392,4 @@ enum UserPermissionEnum
         ];
     }
 
-    /**
-     * Return the resource label (e.g. "partners") if the given permission has
-     * a paired full/own counterpart, or null otherwise. Used by validators to
-     * reject roles that hold both `manage X` and `manage own X` at once.
-     */
-    public static function resourceFor(string $permission): ?string
-    {
-        foreach (self::pairs() as [$full, $own]) {
-            if ($permission === $full || $permission === $own) {
-                $resource = trim(str_replace(['view own ', 'create own ', 'manage own ', 'view ', 'create ', 'manage '], '', $full));
-
-                return $resource;
-            }
-        }
-
-        return null;
-    }
 }

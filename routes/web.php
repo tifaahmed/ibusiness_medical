@@ -79,6 +79,9 @@ use App\Http\Controllers\Admin\FacilityBranch\Update\AdminFacilityBranchUpdateCo
 use App\Http\Controllers\Admin\FacilityType\Create\AdminFacilityTypeCreateController;
 use App\Http\Controllers\Admin\FacilityType\Delete\AdminFacilityTypeDeleteController;
 use App\Http\Controllers\Admin\FacilityType\Edit\AdminFacilityTypeEditController;
+use App\Http\Controllers\Admin\FacilityType\English\AdminFacilityTypeEnglishBulkController;
+use App\Http\Controllers\Admin\FacilityType\English\AdminFacilityTypeEnglishFixController;
+use App\Http\Controllers\Admin\FacilityType\English\AdminFacilityTypeTranslateController;
 use App\Http\Controllers\Admin\FacilityType\List\AdminFacilityTypeListController;
 use App\Http\Controllers\Admin\FacilityType\Show\AdminFacilityTypeShowController;
 use App\Http\Controllers\Admin\FacilityType\Store\AdminFacilityTypeStoreController;
@@ -672,6 +675,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage facilities|manage own facilities')->group(function () {
         Route::get('/admin/facility-type/create', AdminFacilityTypeCreateController::class)->name('admin.facility-type.create');
         Route::post('/admin/facility-type', AdminFacilityTypeStoreController::class)->name('admin.facility-type.store');
+        // "Fix English with AI" — one facility type (button on the form) and
+        // the browser-stepped sweep on the list.
+        Route::post('/admin/facility-type/english/bulk/begin', [AdminFacilityTypeEnglishBulkController::class, 'begin'])->name('admin.facility-type.english.bulk.begin');
+        Route::post('/admin/facility-type/english/bulk/step', [AdminFacilityTypeEnglishBulkController::class, 'step'])->name('admin.facility-type.english.bulk.step');
+        Route::post('/admin/facility-type/{facilityType}/english/fix', AdminFacilityTypeEnglishFixController::class)->name('admin.facility-type.english.fix');
+        // The same button on the create page, where there is no saved row to
+        // read: it translates the name as typed and writes nothing.
+        Route::post('/admin/facility-type/translate', AdminFacilityTypeTranslateController::class)->name('admin.facility-type.translate');
         Route::get('/admin/facility-type/{facilityType}/edit', AdminFacilityTypeEditController::class)->name('admin.facility-type.edit');
         Route::put('/admin/facility-type/{facilityType}', AdminFacilityTypeUpdateController::class)->name('admin.facility-type.update');
         Route::delete('/admin/facility-type/{facilityType}', AdminFacilityTypeDeleteController::class)->name('admin.facility-type.destroy');
