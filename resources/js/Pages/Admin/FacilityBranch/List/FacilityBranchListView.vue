@@ -71,6 +71,28 @@
                 :nothing-to-do="t.facility_branch?.location_bulk_nothing || 'Nothing to do — every branch with an address already has a location.'"
                 :finished="t.facility_branch?.location_bulk_done || 'GPS sweep finished. Open a pin or two to check them.'"
               />
+              <div class="inline-flex items-center rounded-md border border-border bg-background p-0.5 flex-shrink-0" role="group">
+                <button
+                  type="button"
+                  @click="viewMode = 'list'"
+                  :aria-pressed="viewMode === 'list'"
+                  class="inline-flex items-center gap-1.5 rounded-[5px] px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer"
+                  :class="viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  <span class="hidden sm:inline">{{ t.common?.list || 'List' }}</span>
+                </button>
+                <button
+                  type="button"
+                  @click="viewMode = 'map'"
+                  :aria-pressed="viewMode === 'map'"
+                  class="inline-flex items-center gap-1.5 rounded-[5px] px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer"
+                  :class="viewMode === 'map' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <span class="hidden sm:inline">{{ t.facility_branch?.map_view || 'Map' }}</span>
+                </button>
+              </div>
               <a
                 v-if="canWrite"
                 :href="exportUrl"
@@ -108,7 +130,15 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityBranchListFilterContent :initial-filters="filters" :facilities="facilities" :incomplete-counts="incompleteCounts" @filter-change="handleFilterChange" />
+            <FacilityBranchListFilterContent
+              :initial-filters="filters"
+              :facilities="facilities"
+              :governorates="governorates"
+              :cities="cities"
+              :facility-types="facilityTypes"
+              :incomplete-counts="incompleteCounts"
+              @filter-change="handleFilterChange"
+            />
           </div>
         </div>
 
@@ -116,7 +146,8 @@
 
       <!-- Table Card - Scrollable on mobile, full height on desktop -->
       <div class="flex-1 min-h-0 lg:min-h-fit w-full max-w-full px-2 sm:px-3 md:px-4 lg:px-6 pb-2 sm:pb-3 md:pb-4 lg:pb-6 overflow-hidden lg:overflow-visible">
-        <FacilityBranchListTable :facility-branches="facilityBranches" @delete="handleDelete" />
+        <FacilityBranchListTable v-if="viewMode === 'list'" :facility-branches="facilityBranches" @delete="handleDelete" />
+        <FacilityBranchMapView v-else :filters="filters" />
       </div>
     </div>
   </FacilityBranchLayout>
@@ -126,6 +157,7 @@
 import FacilityBranchLayout from "../FacilityBranchLayout.vue";
 import FacilityBranchListFilterContent from "./FacilityBranchListFilterContent.vue";
 import FacilityBranchListTable from "./FacilityBranchListTable.vue";
+import FacilityBranchMapView from "./FacilityBranchMapView.vue";
 import BranchSweepDialog from "./BranchSweepDialog.vue";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
 import { Link, usePage } from "@inertiajs/vue3";
@@ -152,12 +184,27 @@ const props = defineProps({
     default: () => ({
       search: '',
       facility_id: '',
+      governorate_id: '',
+      city_id: '',
+      facility_type_id: '',
       no_governorate: false,
       no_city: false,
       no_address: false
     })
   },
   facilities: {
+    type: Array,
+    default: () => []
+  },
+  governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  facilityTypes: {
     type: Array,
     default: () => []
   },
@@ -188,6 +235,8 @@ const filters = ref(props.filters || {
   search: '',
   facility_id: ''
 });
+
+const viewMode = ref('list');
 
 const handleDelete = (facilityBranchSlug) => {
   facilityBranchStore.confirmDelete(facilityBranchSlug);

@@ -660,6 +660,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
     Route::middleware('permission:manage facility branches|manage own facility branches|view facility branches')->group(function () {
         Route::get('/admin/facility-branch', AdminFacilityBranchListController::class)->name('admin.facility-branch.list');
+        // Map view's data feed. Must come before /{facilityBranch} so the
+        // static segment is not swallowed by the wildcard.
+        Route::get('/admin/facility-branch/map-data', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchMapDataController::class)->name('admin.facility-branch.map-data');
         Route::get('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchShowController::class)->name('admin.facility-branch.show');
         Route::get('/admin/facility-branch/{facilityBranch}/logs', AdminFacilityBranchLogsController::class)->name('admin.facility-branch.logs');
     });

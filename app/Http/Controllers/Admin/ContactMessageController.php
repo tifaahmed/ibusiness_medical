@@ -403,6 +403,7 @@ class ContactMessageController extends Controller
                     'in_progress' => ['bg' => 'FEF3C7', 'fg' => 'B45309'],
                     'resolved' => ['bg' => 'D1FAE5', 'fg' => '047857'],
                     'closed' => ['bg' => 'F3F4F6', 'fg' => '6B7280'],
+                    'rejected' => ['bg' => 'FEE2E2', 'fg' => 'B91C1C'],
                     default => null,
                 };
                 if ($statusColors !== null) {

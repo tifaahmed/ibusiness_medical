@@ -29,20 +29,21 @@ enum ContactSourceEnum: string
      */
     public static function getOptions(): array
     {
-        return [
-            self::CONTACT_FORM->value => ['value' => self::CONTACT_FORM->value, 'label' => 'Contact form'],
-            self::CARD_POPUP->value => ['value' => self::CARD_POPUP->value, 'label' => 'Card popup'],
-            self::JOIN_REQUEST->value => ['value' => self::JOIN_REQUEST->value, 'label' => 'Join request'],
-        ];
+        return collect(self::cases())
+            ->mapWithKeys(fn (self $case) => [$case->value => ['value' => $case->value, 'label' => $case->label()]])
+            ->all();
     }
 
     public static function getLabel(string $value): ?string
     {
-        return self::getOptions()[$value]['label'] ?? null;
+        return self::tryFrom($value)?->label();
     }
 
+    /**
+     * Translated for whoever is reading now, same as the status pipeline.
+     */
     public function label(): string
     {
-        return self::getLabel($this->value) ?? $this->value;
+        return __('admin.contact_messages.'.$this->value);
     }
 }

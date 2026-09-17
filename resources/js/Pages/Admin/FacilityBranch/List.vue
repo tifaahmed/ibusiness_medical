@@ -3,6 +3,9 @@
     :facilityBranches="facilityBranches"
     :filters="filters"
     :facilities="facilities"
+    :governorates="governorates"
+    :cities="cities"
+    :facility-types="facilityTypes"
     :incomplete-counts="incompleteCounts"
     :place-ai-enabled="placeAiEnabled"
     :location-ai-enabled="locationAiEnabled"
@@ -22,6 +25,9 @@ const props = defineProps({
     default: () => ({
       search: '',
       facility_id: '',
+      governorate_id: '',
+      city_id: '',
+      facility_type_id: '',
       no_governorate: false,
       no_city: false,
       no_address: false
@@ -41,6 +47,18 @@ const props = defineProps({
     default: false
   },
   facilities: {
+    type: Array,
+    default: () => []
+  },
+  governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  facilityTypes: {
     type: Array,
     default: () => []
   }

@@ -56,6 +56,63 @@
         />
       </div>
 
+      <!-- Facility Type Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="facility_type_id"
+        >
+          {{ t.facility_type?.label || 'Facility Type' }}
+        </label>
+        <Select
+          :key="`facility-type-${locale}`"
+          id="facility_type_id"
+          v-model="filters.facility_type_id"
+          :options="facilityTypeOptions"
+          :placeholder="t.facility_type?.all || 'All Facility Types'"
+          @change="handleFilterChange"
+        />
+      </div>
+
+      <!-- Governorate Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="governorate_id"
+        >
+          {{ t.governorate?.label || 'Governorate' }}
+        </label>
+        <Select
+          :key="`governorate-${locale}`"
+          id="governorate_id"
+          v-model="filters.governorate_id"
+          :options="governorateOptions"
+          :placeholder="t.governorate?.all || 'All Governorates'"
+          @change="handleGovernorateChange"
+        />
+      </div>
+
+      <!-- City Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="city_id"
+        >
+          {{ t.city?.label || 'City' }}
+        </label>
+        <Select
+          :key="`city-${locale}-${filters.governorate_id}`"
+          id="city_id"
+          v-model="filters.city_id"
+          :options="cityOptions"
+          :placeholder="t.city?.all || 'All Cities'"
+          @change="handleFilterChange"
+        />
+      </div>
+
     </div>
 
     <!-- The rows nobody can place on a map. A branch with no governorate or
@@ -166,6 +223,18 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  governorates: {
+    type: Array,
+    default: () => []
+  },
+  cities: {
+    type: Array,
+    default: () => []
+  },
+  facilityTypes: {
+    type: Array,
+    default: () => []
+  },
   // What each switch would find across the whole list, not just this page.
   incompleteCounts: {
     type: Object,
@@ -200,6 +269,35 @@ const facilityOptions = computed(() => {
   }));
 });
 
+const facilityTypeOptions = computed(() => {
+  const currentLocale = page.props.locale || 'ar';
+  return props.facilityTypes.map(facilityType => ({
+    value: facilityType.id,
+    label: getTranslatedName(facilityType.name, currentLocale)
+  }));
+});
+
+const governorateOptions = computed(() => {
+  const currentLocale = page.props.locale || 'ar';
+  return props.governorates.map(governorate => ({
+    value: governorate.id,
+    label: getTranslatedName(governorate.name, currentLocale)
+  }));
+});
+
+// Narrowed to the chosen governorate, same as everywhere else on the site a
+// city picker follows a governorate one — otherwise a city id could be sent
+// alongside a governorate it does not belong to.
+const cityOptions = computed(() => {
+  const currentLocale = page.props.locale || 'ar';
+  return props.cities
+    .filter(city => !filters.value.governorate_id || String(city.governorate_id) === String(filters.value.governorate_id))
+    .map(city => ({
+      value: city.id,
+      label: getTranslatedName(city.name, currentLocale)
+    }));
+});
+
 const emit = defineEmits(['filter-change']);
 
 // The switches arrive as a query string or as a server prop, so "1" and true
@@ -212,6 +310,9 @@ const getInitialFilters = () => {
     return {
       search: props.initialFilters.search || '',
       facility_id: props.initialFilters.facility_id || props.initialFilters.facility_id === 0 ? '0' : '',
+      governorate_id: props.initialFilters.governorate_id || '',
+      city_id: props.initialFilters.city_id || '',
+      facility_type_id: props.initialFilters.facility_type_id || '',
       no_governorate: truthy(props.initialFilters.no_governorate),
       no_city: truthy(props.initialFilters.no_city),
       no_address: truthy(props.initialFilters.no_address)
@@ -224,6 +325,9 @@ const getInitialFilters = () => {
     return {
       search: urlParams.get('search') || '',
       facility_id: urlParams.get('facility_id') || '',
+      governorate_id: urlParams.get('governorate_id') || '',
+      city_id: urlParams.get('city_id') || '',
+      facility_type_id: urlParams.get('facility_type_id') || '',
       no_governorate: truthy(urlParams.get('no_governorate')),
       no_city: truthy(urlParams.get('no_city')),
       no_address: truthy(urlParams.get('no_address'))
@@ -233,6 +337,9 @@ const getInitialFilters = () => {
   return {
     search: '',
     facility_id: '',
+    governorate_id: '',
+    city_id: '',
+    facility_type_id: '',
     no_governorate: false,
     no_city: false,
     no_address: false
@@ -244,6 +351,7 @@ const filters = ref(getInitialFilters());
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
   return !!(filters.value.search || filters.value.facility_id
+    || filters.value.governorate_id || filters.value.city_id || filters.value.facility_type_id
     || filters.value.no_governorate || filters.value.no_city || filters.value.no_address);
 });
 
@@ -279,6 +387,9 @@ const handleReset = () => {
   filters.value = {
     search: '',
     facility_id: '',
+    governorate_id: '',
+    city_id: '',
+    facility_type_id: '',
     no_governorate: false,
     no_city: false,
     no_address: false
@@ -293,6 +404,14 @@ const handleFilterChange = () => {
   }, 0);
 };
 
+// A city belongs to one governorate: switching the governorate away from the
+// one a chosen city sits in would send a combination that finds nothing, so
+// the city resets along with it.
+const handleGovernorateChange = () => {
+  filters.value.city_id = '';
+  handleFilterChange();
+};
+
 const applyFilters = (filterValues = null) => {
   const currentFilters = filterValues || filters.value;
 
@@ -302,6 +421,15 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.facility_id && currentFilters.facility_id !== '') {
     params.facility_id = currentFilters.facility_id;
+  }
+  if (currentFilters.governorate_id && currentFilters.governorate_id !== '') {
+    params.governorate_id = currentFilters.governorate_id;
+  }
+  if (currentFilters.city_id && currentFilters.city_id !== '') {
+    params.city_id = currentFilters.city_id;
+  }
+  if (currentFilters.facility_type_id && currentFilters.facility_type_id !== '') {
+    params.facility_type_id = currentFilters.facility_type_id;
   }
   if (currentFilters.no_governorate) params.no_governorate = 1;
   if (currentFilters.no_city) params.no_city = 1;

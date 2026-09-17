@@ -382,6 +382,7 @@ const STATUS_COLORS = {
   in_progress: 'text-amber-400',
   resolved: 'text-emerald-400',
   closed: 'text-muted-foreground',
+  rejected: 'text-red-400',
 };
 
 const statCards = computed(() => [
@@ -401,6 +402,7 @@ const statusBadgeClass = (status) => {
     in_progress: `${base} bg-amber-500/20 text-amber-300 ring-amber-500/30`,
     resolved: `${base} bg-emerald-500/20 text-emerald-300 ring-emerald-500/30`,
     closed: `${base} bg-muted text-muted-foreground ring-border`,
+    rejected: `${base} bg-red-500/20 text-red-300 ring-red-500/30`,
   };
   return map[status] || map.new;
 };

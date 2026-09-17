@@ -89,6 +89,32 @@
                 >
                   {{ t.city?.none || 'No city' }}
                 </span>
+
+                <a
+                  v-if="branch.google_location_url"
+                  :href="branch.google_location_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 rounded-md border border-sky-400/50 bg-sky-500/25 px-2 py-0.5 text-[11px] font-semibold text-sky-950 hover:bg-sky-500/40 transition-colors dark:text-sky-100"
+                  :title="t.facility_branch?.view_on_maps || 'Open in Google Maps'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  {{ t.facility_branch?.view_on_maps || 'Open in Google Maps' }}
+                </a>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 rounded-md border border-red-400/60 bg-red-500/30 px-2 py-0.5 text-[11px] font-semibold text-red-50"
+                  :title="t.facility_branch?.no_location || 'No GPS location'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  {{ t.facility_branch?.no_location || 'No GPS' }}
+                </span>
               </div>
               <!-- The typed address: free text somebody wrote, not a row picked
                    from a table — a quiet ground of its own so it never reads as
@@ -155,6 +181,7 @@
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.common?.per_page || 'Per page' }}</p>
               <PerPageSelect
                 :model-value="facilityBranches.meta?.per_page || 15"
+                :choices="[10, 15, 25, 50, 100, 200, 300, 500, 1000]"
                 @update:model-value="handlePerPageChange"
               />
             </div>

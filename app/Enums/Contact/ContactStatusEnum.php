@@ -19,6 +19,15 @@ enum ContactStatusEnum: string
     case CLOSED = 'closed';
 
     /**
+     * An enquiry sales looked at and will not pursue — a facility that fails
+     * the join-request check, a card-popup number that turns out bogus. Its
+     * own end state, not a flavour of `closed`: the pipeline should still say
+     * why an enquiry stopped moving, and "we said no" is a different answer
+     * from "we finished".
+     */
+    case REJECTED = 'rejected';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
@@ -31,21 +40,22 @@ enum ContactStatusEnum: string
      */
     public static function getOptions(): array
     {
-        return [
-            self::NEW->value => ['value' => self::NEW->value, 'label' => 'New'],
-            self::IN_PROGRESS->value => ['value' => self::IN_PROGRESS->value, 'label' => 'In progress'],
-            self::RESOLVED->value => ['value' => self::RESOLVED->value, 'label' => 'Resolved'],
-            self::CLOSED->value => ['value' => self::CLOSED->value, 'label' => 'Closed'],
-        ];
+        return collect(self::cases())
+            ->mapWithKeys(fn (self $case) => [$case->value => ['value' => $case->value, 'label' => $case->label()]])
+            ->all();
     }
 
     public static function getLabel(string $value): ?string
     {
-        return self::getOptions()[$value]['label'] ?? null;
+        return self::tryFrom($value)?->label();
     }
 
+    /**
+     * Translated for whoever is reading now, not whoever wrote it — a status
+     * is stored as its value precisely so the label can move with the locale.
+     */
     public function label(): string
     {
-        return self::getLabel($this->value) ?? $this->value;
+        return __('admin.contact_messages.'.$this->value);
     }
 }

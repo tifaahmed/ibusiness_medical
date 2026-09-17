@@ -28,21 +28,21 @@ enum ContactLogActionEnum: string
      */
     public static function getOptions(): array
     {
-        return [
-            self::RECEIVED->value => ['value' => self::RECEIVED->value, 'label' => 'Received'],
-            self::STATUS_CHANGED->value => ['value' => self::STATUS_CHANGED->value, 'label' => 'Status changed'],
-            self::SALES_ASSIGNED->value => ['value' => self::SALES_ASSIGNED->value, 'label' => 'Salesperson assigned'],
-            self::NOTE_UPDATED->value => ['value' => self::NOTE_UPDATED->value, 'label' => 'Note updated'],
-        ];
+        return collect(self::cases())
+            ->mapWithKeys(fn (self $case) => [$case->value => ['value' => $case->value, 'label' => $case->label()]])
+            ->all();
     }
 
     public static function getLabel(string $value): ?string
     {
-        return self::getOptions()[$value]['label'] ?? null;
+        return self::tryFrom($value)?->label();
     }
 
+    /**
+     * Translated for whoever is reading the activity trail now.
+     */
     public function label(): string
     {
-        return self::getLabel($this->value) ?? $this->value;
+        return __('admin.contact_messages.log_actions.'.$this->value);
     }
 }

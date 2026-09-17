@@ -6,8 +6,11 @@ use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\FacilityBranch\List\AdminFacilityBranchListCollection;
+use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityType;
+use App\Models\Governorate;
 use App\Services\BranchGeocoder;
 use App\Services\BranchPlaceResolver;
 use Illuminate\Http\Request;
@@ -50,6 +53,11 @@ class AdminFacilityBranchListController extends BaseController
             ->when(! empty($filters['facility_id']), function ($q) use ($filters) {
                 $q->where('facility_id', $filters['facility_id']);
             })
+            ->when(! empty($filters['governorate_id']), fn ($q) => $q->where('governorate_id', $filters['governorate_id']))
+            ->when(! empty($filters['city_id']), fn ($q) => $q->where('city_id', $filters['city_id']))
+            ->when(! empty($filters['facility_type_id']), function ($q) use ($filters) {
+                $q->whereHas('facility', fn ($q2) => $q2->where('facility_type_id', $filters['facility_type_id']));
+            })
             // The rows nobody can place on a map, and the ones a migration
             // package cannot be imported over until somebody fills them in.
             ->when($filters['no_governorate'], fn ($q) => $q->whereNull('governorate_id'))
@@ -64,6 +72,22 @@ class AdminFacilityBranchListController extends BaseController
                 'name' => $facility->name,
             ];
         });
+
+        $governorates = Governorate::orderBy('id')->get()->map(fn ($governorate) => [
+            'id' => $governorate->id,
+            'name' => $governorate->name,
+        ]);
+
+        $cities = City::orderBy('id')->get()->map(fn ($city) => [
+            'id' => $city->id,
+            'governorate_id' => $city->governorate_id,
+            'name' => $city->name,
+        ]);
+
+        $facilityTypes = FacilityType::orderBy('id')->get()->map(fn ($facilityType) => [
+            'id' => $facilityType->id,
+            'name' => $facilityType->name,
+        ]);
 
         // What each "missing" filter would find, counted over everything the
         // reader is allowed to see rather than the page in front of them — the
@@ -87,6 +111,9 @@ class AdminFacilityBranchListController extends BaseController
             'facilityBranches' => new AdminFacilityBranchListCollection($facilityBranches)->toArray($request),
             'filters' => $filters,
             'facilities' => $facilities,
+            'governorates' => $governorates,
+            'cities' => $cities,
+            'facilityTypes' => $facilityTypes,
             'incompleteCounts' => [
                 'no_governorate' => (int) ($incomplete->no_governorate ?? 0),
                 'no_city' => (int) ($incomplete->no_city ?? 0),
@@ -110,6 +137,9 @@ class AdminFacilityBranchListController extends BaseController
         return [
             'search' => $request->input('search', ''),
             'facility_id' => $request->input('facility_id'),
+            'governorate_id' => $request->input('governorate_id'),
+            'city_id' => $request->input('city_id'),
+            'facility_type_id' => $request->input('facility_type_id'),
             'no_governorate' => $request->boolean('no_governorate'),
             'no_city' => $request->boolean('no_city'),
             'no_address' => $request->boolean('no_address'),
