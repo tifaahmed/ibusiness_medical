@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Product\Edit\AdminProductEditResource;
 use App\Models\Product;
 use App\Models\ProductType;
+use App\Models\Store;
 use App\Models\Tag;
 use App\Services\ProductEnglishBackfiller;
 use App\Services\ProductSeoGenerator;
@@ -46,9 +47,15 @@ class AdminProductEditController extends BaseController
 
         $tags = Tag::forPicker();
 
+        $stores = Store::query()->orderBy('id')->get()->map(fn (Store $store) => [
+            'id' => $store->id,
+            'name' => $store->title,
+        ]);
+
         $result = [
             'product' => (new AdminProductEditResource($product))->toArray($request),
             'productTypes' => $productTypes,
+            'stores' => $stores,
             'tags' => $tags,
             'seoAiEnabled' => ProductSeoGenerator::isConfigured(),
             'englishFixEnabled' => ProductEnglishBackfiller::isConfigured(),

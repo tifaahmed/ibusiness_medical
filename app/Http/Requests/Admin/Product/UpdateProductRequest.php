@@ -26,6 +26,7 @@ class UpdateProductRequest extends FormRequest
             'cost_price' => 'nullable|numeric|min:0',
             'profit_price' => 'nullable|numeric|min:0',
             'product_type_id' => 'nullable|exists:product_types,id',
+            'store_id' => 'nullable|exists:stores,id',
             /*
              * The three storefront switches. Nullable because a multipart form
              * that leaves one out means "unchanged"; the actions below coerce

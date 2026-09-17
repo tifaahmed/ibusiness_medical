@@ -213,6 +213,49 @@
         </div>
       </div>
 
+      <!-- A "normal" offer percent is a whole number typed by hand (10, 20,
+           50); anything with a fraction (5.5, 50.1) is worth a second look,
+           so it gets its own switch rather than living inside a text search. -->
+      <div class="w-full sm:w-auto">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+        >
+          {{ t.facility?.discount_format || 'Offer percent' }}
+        </label>
+        <div class="flex flex-wrap items-center gap-1.5 h-auto sm:h-8 md:h-9">
+          <button
+            type="button"
+            @click="toggleDiscountFormat('round')"
+            :aria-pressed="filters.discount_format === 'round'"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
+              filters.discount_format === 'round'
+                ? 'border-emerald-400 bg-emerald-500/30 text-emerald-950 dark:text-emerald-50'
+                : 'border-border bg-background hover:bg-muted text-foreground',
+            ]"
+          >
+            {{ t.facility?.discount_round || 'Whole numbers' }}
+          </button>
+          <button
+            type="button"
+            @click="toggleDiscountFormat('decimal')"
+            :aria-pressed="filters.discount_format === 'decimal'"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
+              filters.discount_format === 'decimal'
+                ? 'border-red-400 bg-red-500/30 text-red-50'
+                : 'border-border bg-background hover:bg-muted text-foreground',
+            ]"
+          >
+            {{ t.facility?.discount_decimal || 'Has decimals' }}
+            <span v-if="incompleteCounts.discount_decimal" class="rounded bg-red-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+              {{ incompleteCounts.discount_decimal }}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div class="w-full sm:w-auto">
         <label
           data-slot="label"
@@ -288,6 +331,7 @@ const props = defineProps({
       city_id: '',
       created_from: '',
       created_to: '',
+      discount_format: '',
     })
   },
   facilityTypes: {
@@ -310,7 +354,7 @@ const props = defineProps({
   // How many facilities each switch would find, across the whole list.
   incompleteCounts: {
     type: Object,
-    default: () => ({ governorate: 0, city: 0, either: 0 })
+    default: () => ({ governorate: 0, city: 0, either: 0, discount_decimal: 0 })
   }
 });
 
@@ -380,6 +424,7 @@ const getInitialFilters = () => {
       city_id: props.initialFilters.city_id || '',
       created_from: props.initialFilters.created_from || '',
       created_to: props.initialFilters.created_to || '',
+      discount_format: props.initialFilters.discount_format || '',
     };
   }
   if (typeof window !== 'undefined') {
@@ -394,16 +439,17 @@ const getInitialFilters = () => {
       city_id: urlParams.get('city_id') || '',
       created_from: urlParams.get('created_from') || '',
       created_to: urlParams.get('created_to') || '',
+      discount_format: urlParams.get('discount_format') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
 });
 
 let searchTimeout = null;
@@ -422,7 +468,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
   applyFilters();
 };
 
@@ -433,6 +479,11 @@ const handleReset = () => {
    the same branch list, and "either" is the one that asks both. */
 const toggleBranchesMissing = (value) => {
   filters.value.branches_missing = filters.value.branches_missing === value ? '' : value;
+  applyFilters();
+};
+
+const toggleDiscountFormat = (value) => {
+  filters.value.discount_format = filters.value.discount_format === value ? '' : value;
   applyFilters();
 };
 
@@ -491,6 +542,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.created_to && currentFilters.created_to !== '') {
     params.created_to = currentFilters.created_to;
+  }
+  if (currentFilters.discount_format && currentFilters.discount_format !== '') {
+    params.discount_format = currentFilters.discount_format;
   }
 
   emit('filter-change', currentFilters);

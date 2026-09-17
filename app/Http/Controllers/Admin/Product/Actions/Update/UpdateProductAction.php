@@ -32,6 +32,7 @@ class UpdateProductAction
                 'cost_price' => $validated['cost_price'] ?? null,
                 'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                'store_id' => $validated['store_id'] ?? null,
                 // Absent means the form never asked: keep what the product already says.
                 'is_visible' => Product::normalizeFlag($validated, 'is_visible', $product->is_visible),
                 'is_accessible' => Product::normalizeFlag($validated, 'is_accessible', $product->is_accessible),

@@ -226,6 +226,13 @@ use App\Http\Controllers\Admin\Setting\List\AdminSettingListController;
 use App\Http\Controllers\Admin\Setting\Show\AdminSettingShowController;
 use App\Http\Controllers\Admin\Setting\Store\AdminSettingStoreController;
 use App\Http\Controllers\Admin\Setting\Update\AdminSettingUpdateController;
+use App\Http\Controllers\Admin\Store\Create\AdminStoreCreateController;
+use App\Http\Controllers\Admin\Store\Delete\AdminStoreDeleteController;
+use App\Http\Controllers\Admin\Store\Edit\AdminStoreEditController;
+use App\Http\Controllers\Admin\Store\List\AdminStoreListController;
+use App\Http\Controllers\Admin\Store\Show\AdminStoreShowController;
+use App\Http\Controllers\Admin\Store\Store\AdminStoreStoreController;
+use App\Http\Controllers\Admin\Store\Update\AdminStoreUpdateController;
 use App\Http\Controllers\Admin\Tag\Create\AdminTagCreateController;
 use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
 use App\Http\Controllers\Admin\Tag\Edit\AdminTagEditController;
@@ -322,6 +329,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // is kept alongside it so the admins who could already work the inbox
     // before it had a permission of its own do not lose it.
     Route::middleware('permission:manage contact messages|manage memberships')->group(function () {
+        Route::get('/admin/contact-messages/export', [AdminContactMessageController::class, 'export'])->name('admin.contact-messages.export');
         Route::put('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'update'])->name('admin.contact-messages.update');
         Route::delete('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('admin.contact-messages.destroy');
         Route::post('/admin/contact-messages/bulk-update', [AdminContactMessageController::class, 'bulkUpdate'])->name('admin.contact-messages.bulk-update');
@@ -736,6 +744,20 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage products|manage own products|view products')->group(function () {
         Route::get('/admin/product', AdminProductListController::class)->name('admin.product.list');
         Route::get('/admin/product/{product}', AdminProductShowController::class)->name('admin.product.show');
+    });
+
+    // ---- Store (manage stores OR own): the shop a product is catalogued under,
+    // with its own branches (address, GPS, phones) ----
+    Route::middleware('permission:manage stores|manage own stores')->group(function () {
+        Route::get('/admin/store/create', AdminStoreCreateController::class)->name('admin.store.create');
+        Route::post('/admin/store', AdminStoreStoreController::class)->name('admin.store.store');
+        Route::get('/admin/store/{store}/edit', AdminStoreEditController::class)->name('admin.store.edit');
+        Route::put('/admin/store/{store}', AdminStoreUpdateController::class)->name('admin.store.update');
+        Route::delete('/admin/store/{store}', AdminStoreDeleteController::class)->name('admin.store.destroy');
+    });
+    Route::middleware('permission:manage stores|manage own stores|view stores')->group(function () {
+        Route::get('/admin/store', AdminStoreListController::class)->name('admin.store.list');
+        Route::get('/admin/store/{store}', AdminStoreShowController::class)->name('admin.store.show');
     });
 
     // ---- Order (manage orders OR own) ----

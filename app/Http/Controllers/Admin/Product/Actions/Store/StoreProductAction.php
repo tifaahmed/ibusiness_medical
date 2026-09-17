@@ -32,6 +32,7 @@ class StoreProductAction
                 'cost_price' => $validated['cost_price'] ?? null,
                 'profit_price' => $validated['profit_price'] ?? null,
                 'product_type_id' => $validated['product_type_id'] ?? null,
+                'store_id' => $validated['store_id'] ?? null,
                 // A new product is listed, openable and sellable unless said otherwise.
                 'is_visible' => Product::normalizeFlag($validated, 'is_visible', true),
                 'is_accessible' => Product::normalizeFlag($validated, 'is_accessible', true),

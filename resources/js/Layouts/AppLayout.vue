@@ -379,18 +379,27 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarDropdown
-                    v-if="canAny('manage product types', 'manage own product types', 'view product types', 'manage products', 'manage own products', 'view products', 'manage orders', 'manage own orders', 'view orders')"
+                    v-if="canAny('manage product types', 'manage own product types', 'view product types', 'manage products', 'manage own products', 'view products', 'manage orders', 'manage own orders', 'view orders', 'manage stores', 'manage own stores', 'view stores')"
                     :label="t.sidebar?.products || 'Products'"
                     :is-collapsed="sidebarCollapsed"
-                    :active="route().current('admin.product-type.*') || route().current('admin.product.*') || route().current('admin.order.*')"
+                    :active="route().current('admin.product-type.*') || route().current('admin.product.*') || route().current('admin.order.*') || route().current('admin.store.*')"
                     icon-animation="animate-icon-breathe"
-                    :auto-open="['/admin/product-type', '/admin/product', '/admin/order']"
+                    :auto-open="['/admin/product-type', '/admin/product', '/admin/order', '/admin/store']"
                 >
                     <template #icon>
                         <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                     </template>
+
+                    <SidebarSubLink
+                        v-if="canAny('manage stores', 'manage own stores', 'view stores')"
+                        :href="route('admin.store.list')"
+                        :active="route().current('admin.store.*')"
+                        @click="closeSidebar"
+                    >
+                        {{ t.sidebar?.stores || 'Stores' }}
+                    </SidebarSubLink>
 
                     <SidebarSubLink
                         v-if="canAny('manage product types', 'manage own product types', 'view product types')"

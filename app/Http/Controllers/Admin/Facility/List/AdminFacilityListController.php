@@ -97,6 +97,11 @@ class AdminFacilityListController extends BaseController
             ->when(! empty($filters['created_to']), function ($q) use ($filters) {
                 $q->whereDate('created_at', '<=', $filters['created_to']);
             })
+            // A "normal" offer is a whole percentage — 10, 20, 50 — typed by
+            // hand. Anything with a fraction (5.5, 50.1) got there some other
+            // way and is worth a second look.
+            ->when($filters['discount_format'] === 'round', fn ($q) => $q->whereNotNull('discount_percent')->whereRaw('discount_percent = FLOOR(discount_percent)'))
+            ->when($filters['discount_format'] === 'decimal', fn ($q) => $q->whereNotNull('discount_percent')->whereRaw('discount_percent != FLOOR(discount_percent)'))
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
@@ -141,6 +146,11 @@ class AdminFacilityListController extends BaseController
             'either' => $this->countWithBranchesMissing(
                 fn ($bq) => $bq->whereNull('governorate_id')->orWhereNull('city_id')
             ),
+            'discount_decimal' => Facility::query()
+                ->tap(fn ($q) => $this->applyCreatorScope($q))
+                ->whereNotNull('discount_percent')
+                ->whereRaw('discount_percent != FLOOR(discount_percent)')
+                ->count(),
         ];
 
         return Inertia::render('Admin/Facility/List', [
@@ -180,6 +190,9 @@ class AdminFacilityListController extends BaseController
             ? $branchesMissing
             : '';
 
+        $discountFormat = $request->input('discount_format');
+        $discountFormat = in_array($discountFormat, ['round', 'decimal'], true) ? $discountFormat : '';
+
         return [
             'search' => $request->input('search', ''),
             'facility_type_id' => $request->input('facility_type_id'),
@@ -190,6 +203,7 @@ class AdminFacilityListController extends BaseController
             'city_id' => $request->input('city_id'),
             'created_from' => $request->input('created_from'),
             'created_to' => $request->input('created_to'),
+            'discount_format' => $discountFormat,
         ];
     }
 }

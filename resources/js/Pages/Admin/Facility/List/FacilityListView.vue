@@ -25,15 +25,114 @@
               </div>
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <a
-                v-if="canWrite"
-                :href="exportUrl"
-                class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
-                title="Export facilities to XLSX"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span class="hidden sm:inline">Export</span>
-              </a>
+              <div class="flex-shrink-0">
+                <button
+                  v-if="canWrite"
+                  ref="exportTriggerRef"
+                  type="button"
+                  @click="toggleExportMenu"
+                  class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
+                  title="Export facilities to XLSX"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span class="hidden sm:inline">Export</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 opacity-70">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+              <Teleport to="body">
+                <div
+                  v-if="exportMenuOpen"
+                  ref="exportMenuRef"
+                  :style="exportMenuStyle"
+                  class="fixed z-[1000] w-96 rounded-md border border-border bg-popover text-popover-foreground shadow-2xl p-3 space-y-3"
+                >
+                  <div>
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">Include</div>
+                    <div class="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        @click="includeBranches = false"
+                        :class="includeBranches ? 'border-border bg-background text-foreground' : 'border-primary bg-primary text-primary-foreground'"
+                        class="text-xs px-2 py-1.5 rounded border font-medium transition-colors"
+                      >
+                        Facilities only
+                      </button>
+                      <button
+                        type="button"
+                        @click="includeBranches = true"
+                        :class="includeBranches ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'"
+                        class="text-xs px-2 py-1.5 rounded border font-medium transition-colors"
+                      >
+                        + Branches &amp; managers
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">Split into files of</div>
+                    <div class="grid grid-cols-5 gap-1 mb-1.5">
+                      <button
+                        v-for="opt in [0, 100, 200, 300, 500]"
+                        :key="opt"
+                        type="button"
+                        @click="chunkSize = opt"
+                        :class="chunkSize === opt ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'"
+                        class="text-[11px] px-1 py-1.5 rounded border font-medium transition-colors"
+                      >
+                        {{ opt === 0 ? 'None' : opt }}
+                      </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[11px] text-muted-foreground whitespace-nowrap">Custom:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        v-model.number="chunkSize"
+                        placeholder="rows / file"
+                        class="flex-1 h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                      <span class="text-[11px] font-semibold uppercase text-muted-foreground">Columns</span>
+                      <button
+                        type="button"
+                        @click="toggleAllColumns"
+                        class="text-[10px] text-muted-foreground hover:text-foreground underline"
+                      >
+                        {{ allColumnsSelected ? 'Deselect all' : 'Select all' }}
+                      </button>
+                    </div>
+                    <div class="max-h-56 overflow-y-auto grid grid-cols-2 gap-x-2 gap-y-0.5">
+                      <label
+                        v-for="col in exportColumnOptions"
+                        :key="col.key"
+                        class="flex items-center gap-1.5 py-0.5 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          :value="col.key"
+                          v-model="selectedColumns"
+                          class="h-3 w-3 rounded border-border accent-primary"
+                        />
+                        <span class="text-[11px] text-foreground truncate">{{ col.label }}</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="pt-2 border-t border-border">
+                    <a
+                      :href="exportComputedUrl"
+                      @click="exportMenuOpen = false"
+                      class="block w-full text-center bg-primary text-primary-foreground rounded-md px-3 py-2 text-xs font-semibold hover:bg-primary/90"
+                    >
+                      {{ chunkSize ? 'Download ZIP' : 'Download Excel' }}
+                    </a>
+                  </div>
+                </div>
+              </Teleport>
 
               <FacilityEnglishBulkDialog v-if="canWrite" />
               <FacilitySeoBulkDialog v-if="canWrite" />
@@ -173,7 +272,79 @@ const handleFilterChange = (newFilters) => {
   filters.value = newFilters;
 };
 
-const exportUrl = computed(() => {
+// ---- Export menu (branches/managers toggle, optional split, columns) ----
+const chunkSize = ref(0);
+const includeBranches = ref(true);
+const exportMenuOpen = ref(false);
+const exportTriggerRef = ref(null);
+const exportMenuRef = ref(null);
+const exportMenuStyle = ref({});
+
+const exportColumnOptions = [
+  { key: 'index', label: '#' },
+  { key: 'name_en', label: 'Name' },
+  { key: 'name_ar', label: 'Name (AR)' },
+  { key: 'slug', label: 'Slug' },
+  { key: 'facility_type', label: 'Facility type' },
+  { key: 'sales_rep', label: 'Sales rep' },
+  { key: 'discount_percent', label: 'Discount %' },
+  { key: 'branches_count', label: 'Branches' },
+  { key: 'managers_count', label: 'Managers' },
+  { key: 'created_at', label: 'Created at' },
+  { key: 'updated_at', label: 'Updated at' },
+  { key: 'creator', label: 'Creator' },
+];
+const allColumnKeys = exportColumnOptions.map(c => c.key);
+const selectedColumns = ref([...allColumnKeys]);
+const allColumnsSelected = computed(() => selectedColumns.value.length === allColumnKeys.length);
+const toggleAllColumns = () => {
+  selectedColumns.value = allColumnsSelected.value ? [] : [...allColumnKeys];
+};
+
+const EXPORT_MARGIN = 8;
+const EXPORT_POPOVER_W = 384; // w-96
+
+const positionExportMenu = () => {
+  const r = exportTriggerRef.value?.getBoundingClientRect();
+  if (!r) return;
+  const right = Math.max(
+    EXPORT_MARGIN,
+    Math.min(window.innerWidth - r.right, window.innerWidth - EXPORT_POPOVER_W - EXPORT_MARGIN)
+  );
+  exportMenuStyle.value = {
+    top: `${r.bottom + 6}px`,
+    right: `${right}px`,
+  };
+};
+
+const toggleExportMenu = () => {
+  exportMenuOpen.value = !exportMenuOpen.value;
+  if (exportMenuOpen.value) {
+    requestAnimationFrame(positionExportMenu);
+  }
+};
+
+const handleExportClickOutside = (e) => {
+  if (!exportMenuOpen.value) return;
+  if (exportTriggerRef.value?.contains(e.target)) return;
+  if (exportMenuRef.value?.contains(e.target)) return;
+  exportMenuOpen.value = false;
+};
+const closeExportOnScrollOrResize = () => {
+  if (exportMenuOpen.value) positionExportMenu();
+};
+onMounted(() => {
+  document.addEventListener('click', handleExportClickOutside);
+  window.addEventListener('resize', closeExportOnScrollOrResize);
+  window.addEventListener('scroll', closeExportOnScrollOrResize, true);
+});
+onUnmounted(() => {
+  document.removeEventListener('click', handleExportClickOutside);
+  window.removeEventListener('resize', closeExportOnScrollOrResize);
+  window.removeEventListener('scroll', closeExportOnScrollOrResize, true);
+});
+
+const exportComputedUrl = computed(() => {
   const params = new URLSearchParams();
   const f = filters.value || {};
   if (f.search) params.set('search', f.search);
@@ -185,8 +356,13 @@ const exportUrl = computed(() => {
   if (f.city_id) params.set('city_id', f.city_id);
   if (f.created_from) params.set('created_from', f.created_from);
   if (f.created_to) params.set('created_to', f.created_to);
-  params.set('include_branches', '1');
-  params.set('include_managers', '1');
+  if (f.discount_format) params.set('discount_format', f.discount_format);
+  params.set('include_branches', includeBranches.value ? '1' : '0');
+  params.set('include_managers', includeBranches.value ? '1' : '0');
+  if (selectedColumns.value.length < allColumnKeys.length) {
+    params.set('columns', selectedColumns.value.join(','));
+  }
+  if (chunkSize.value > 0) params.set('chunk_size', chunkSize.value);
   const qs = params.toString();
   return route('admin.facility.export') + (qs ? '?' + qs : '');
 });

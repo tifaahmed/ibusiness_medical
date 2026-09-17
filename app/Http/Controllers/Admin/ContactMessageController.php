@@ -6,6 +6,7 @@ use App\Actions\Contact\UpdateContactMessageAction;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Enums\Contact\ContactStatusEnum;
 use App\Enums\User\UserPermissionEnum;
+use App\Http\Controllers\Concerns\ExportsContactMessageColumns;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContactMessageResource;
 use App\Models\ContactMessage;
@@ -13,9 +14,21 @@ use App\Models\Sales;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 /**
  * The enquiry inbox: this site's own contact form, and the three public forms
@@ -28,6 +41,13 @@ use Inertia\Response;
  */
 class ContactMessageController extends Controller
 {
+    use ExportsContactMessageColumns;
+
+    // Upper bound is a safety net so a typo can't kick off a giant in-memory build.
+    private const MIN_CHUNK_SIZE = 1;
+
+    private const MAX_CHUNK_SIZE = 10000;
+
     public function __construct(private readonly UpdateContactMessageAction $updateContactMessage) {}
 
     /**
@@ -106,6 +126,314 @@ class ContactMessageController extends Controller
                 'direction' => $sortDirection,
             ],
         ]);
+    }
+
+    /**
+     * Export the enquiries the current filters match to XLSX — same
+     * status/source/search as the index list, but unpaginated. Mirrors the
+     * membership export: an optional column subset (`columns`, comma list)
+     * and an optional split into a ZIP of several XLSX files (`chunk_size`).
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        // The XLSX/ZIP download returns a StreamedResponse instead of an
+        // Inertia page, so HandleInertiaRequests::share() never runs and the
+        // app locale stays at config('app.locale'). Re-resolve it from the
+        // session — same logic as the Inertia middleware — so the exported
+        // file matches the admin's active language.
+        $locale = Session::get('locale', config('app.locale'));
+        if (! in_array($locale, ['en', 'ar'], true)) {
+            $locale = config('app.locale');
+        }
+        App::setLocale($locale);
+
+        $filters = [
+            'search' => $request->input('search', ''),
+            'status' => ($request->filled('status') && $request->status !== 'all') ? $request->string('status')->toString() : null,
+            'source' => ($request->filled('source') && $request->source !== 'all') ? $request->string('source')->toString() : null,
+        ];
+
+        $rawColumns = $request->input('columns', '');
+        $selectedColumns = $rawColumns !== ''
+            ? array_values(array_intersect(array_map('trim', explode(',', $rawColumns)), array_keys($this->contactMessageColumnDefinitions())))
+            : [];
+
+        $rawChunk = (int) $request->input('chunk_size', 0);
+        $chunkSize = ($rawChunk >= self::MIN_CHUNK_SIZE && $rawChunk <= self::MAX_CHUNK_SIZE) ? $rawChunk : 0;
+
+        $query = ContactMessage::query()->with('sales');
+
+        if ($filters['status'] !== null) {
+            $query->status($filters['status']);
+        }
+
+        if ($filters['source'] !== null) {
+            $query->source($filters['source']);
+        }
+
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('commercial_register', 'like', "%{$search}%")
+                    ->orWhere('subject', 'like', "%{$search}%")
+                    ->orWhere('message', 'like', "%{$search}%");
+            });
+        }
+
+        $messages = $query->orderBy('created_at', 'desc')->get();
+
+        $statusLabel = $filters['status'] !== null
+            ? ContactStatusEnum::from($filters['status'])->label()
+            : __('admin.contact_message_export.status_all');
+        $sourceLabel = $filters['source'] !== null
+            ? ContactSourceEnum::from($filters['source'])->label()
+            : __('admin.contact_message_export.source_all');
+
+        $timestamp = now()->format('Y-m-d_His');
+
+        // Single-file export — keep the existing behavior.
+        if ($chunkSize === 0 || $messages->count() <= $chunkSize) {
+            $spreadsheet = $this->buildExportSpreadsheet($messages, $filters, $statusLabel, $sourceLabel, null, $selectedColumns);
+            $filename = 'contact_messages_export_' . $timestamp . '.xlsx';
+
+            return $this->streamXlsx($spreadsheet, $filename);
+        }
+
+        // Split mode: build one XLSX per chunk and bundle into a ZIP.
+        $chunks = $messages->chunk($chunkSize)->values();
+        $totalParts = $chunks->count();
+        $tmpDir = sys_get_temp_dir() . '/contact_messages_export_' . uniqid('', true);
+        mkdir($tmpDir, 0700, true);
+
+        $partFiles = [];
+        foreach ($chunks as $i => $chunk) {
+            $partNumber = $i + 1;
+            $partLabel = __('admin.contact_message_export.part_label', ['current' => $partNumber, 'total' => $totalParts]);
+            $partSpreadsheet = $this->buildExportSpreadsheet($chunk, $filters, $statusLabel, $sourceLabel, $partLabel, $selectedColumns);
+            $partFilename = sprintf('contact_messages_part_%02d_of_%02d.xlsx', $partNumber, $totalParts);
+            $partPath = $tmpDir . '/' . $partFilename;
+            (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
+            $partSpreadsheet->disconnectWorksheets();
+            unset($partSpreadsheet);
+            $partFiles[] = ['path' => $partPath, 'name' => $partFilename];
+        }
+
+        $zipName = sprintf('contact_messages_export_%s_split_%d.zip', $timestamp, $chunkSize);
+        $zipPath = $tmpDir . '/' . $zipName;
+        $zip = new ZipArchive();
+        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        foreach ($partFiles as $part) {
+            $zip->addFile($part['path'], $part['name']);
+        }
+        $zip->close();
+
+        return response()->stream(function () use ($zipPath, $tmpDir) {
+            readfile($zipPath);
+            foreach (glob($tmpDir . '/*') as $f) {
+                @unlink($f);
+            }
+            @rmdir($tmpDir);
+        }, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => "attachment; filename=\"{$zipName}\"",
+            'Content-Length' => filesize($zipPath),
+            'Cache-Control' => 'no-store, no-cache',
+        ]);
+    }
+
+    private function streamXlsx(Spreadsheet $spreadsheet, string $filename): StreamedResponse
+    {
+        return response()->stream(function () use ($spreadsheet) {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'no-store, no-cache',
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, ContactMessage>  $messages
+     */
+    private function buildExportSpreadsheet(Collection $messages, array $filters, string $statusLabel, string $sourceLabel, ?string $partLabel, array $selectedColumns): Spreadsheet
+    {
+        $isRtl = app()->getLocale() === 'ar';
+
+        $allDefs = $this->contactMessageColumnDefinitions();
+        if (! empty($selectedColumns)) {
+            $allDefs = array_intersect_key($allDefs, array_flip($selectedColumns));
+        }
+        $keys = array_keys($allDefs);
+
+        $letters = [];
+        foreach ($keys as $i => $key) {
+            $letters[$key] = Coordinate::stringFromColumnIndex($i + 1);
+        }
+        $firstCol = reset($letters) ?: 'A';
+        $lastCol = end($letters) ?: 'A';
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(__('admin.contact_message_export.sheet_title'));
+        if ($isRtl) {
+            $sheet->setRightToLeft(true);
+        }
+
+        // ------ Title block ------
+        $exportTitle = __('admin.contact_message_export.title');
+        $title = $partLabel ? "{$exportTitle} — {$partLabel}" : $exportTitle;
+        $sheet->setCellValue('A1', $title);
+        $sheet->mergeCells("A1:{$lastCol}1");
+        $sheet->getRowDimension(1)->setRowHeight(36);
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B8860B']],
+        ]);
+
+        $sheet->setCellValue('A2', __('admin.contact_message_export.generated_at'));
+        $sheet->setCellValue('B2', now()->translatedFormat('D, d M Y H:i'));
+        $sheet->setCellValue('A3', __('admin.contact_message_export.total_rows'));
+        $sheet->setCellValue('B3', $messages->count());
+        $sheet->getStyle('A2:A3')->getFont()->setBold(true);
+        $sheet->getStyle('A2:B3')->applyFromArray([
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFF8E7']],
+        ]);
+
+        // ------ Filter block ------
+        $sheet->setCellValue('A5', __('admin.contact_message_export.filters_applied'));
+        $sheet->mergeCells("A5:{$lastCol}5");
+        $sheet->getRowDimension(5)->setRowHeight(24);
+        $sheet->getStyle('A5')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4F46E5']],
+        ]);
+        $none = __('admin.contact_message_export.value_none');
+        $filterRows = [
+            [__('admin.contact_message_export.filter_search'), $filters['search'] !== '' ? $filters['search'] : $none],
+            [__('admin.contact_message_export.filter_status'), $statusLabel],
+            [__('admin.contact_message_export.filter_source'), $sourceLabel],
+        ];
+        $row = 6;
+        foreach ($filterRows as [$label, $value]) {
+            $sheet->setCellValue("A{$row}", $label);
+            $sheet->setCellValue("B{$row}", $value);
+            $row++;
+        }
+        $filterEnd = $row - 1;
+        $sheet->getStyle("A6:A{$filterEnd}")->getFont()->setBold(true);
+        $sheet->getStyle("A6:B{$filterEnd}")->applyFromArray([
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+        ]);
+
+        // ------ Messages table ------
+        $headerRow = $row + 2;
+        $sheet->setCellValue("A{$headerRow}", __('admin.contact_message_export.messages_section'));
+        $sheet->mergeCells("A{$headerRow}:{$lastCol}{$headerRow}");
+        $sheet->getRowDimension($headerRow)->setRowHeight(28);
+        $sheet->getStyle("A{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '111827']],
+        ]);
+
+        $columnHeaderRow = $headerRow + 1;
+        foreach ($keys as $key) {
+            $sheet->setCellValue("{$letters[$key]}{$columnHeaderRow}", $allDefs[$key]['label']);
+        }
+        $sheet->getRowDimension($columnHeaderRow)->setRowHeight(26);
+        $sheet->getStyle("{$firstCol}{$columnHeaderRow}:{$lastCol}{$columnHeaderRow}")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '1F2937']]],
+        ]);
+
+        // ------ Data rows ------
+        $dataStart = $columnHeaderRow + 1;
+        $dataRow = $dataStart;
+        $rowIndex = 0;
+        foreach ($messages as $message) {
+            $rowIndex++;
+
+            $values = [
+                'id'                  => (string) $message->id,
+                'name'                => (string) ($message->name ?? ''),
+                'email'               => (string) ($message->email ?? ''),
+                'phone'               => (string) ($message->phone ?? ''),
+                'commercial_register' => (string) ($message->commercial_register ?? ''),
+                'source'              => (string) ($message->source?->label() ?? ''),
+                'status'              => (string) ($message->status?->label() ?? ''),
+                'sales_name'          => (string) ($message->sales?->name ?? ''),
+                'subject'             => (string) ($message->subject ?? ''),
+                'message'             => (string) ($message->message ?? ''),
+                'admin_notes'         => (string) ($message->admin_notes ?? ''),
+                'created_at'          => $message->created_at?->format('Y-m-d H:i:s') ?? '',
+                'read_at'             => $message->read_at?->format('Y-m-d H:i:s') ?? '',
+                'replied_at'          => $message->replied_at?->format('Y-m-d H:i:s') ?? '',
+            ];
+
+            foreach ($keys as $key) {
+                $sheet->setCellValueExplicit("{$letters[$key]}{$dataRow}", $values[$key], DataType::TYPE_STRING);
+            }
+
+            $stripe = ($rowIndex % 2 === 0) ? 'F9FAFB' : 'FFFFFF';
+            $sheet->getStyle("{$firstCol}{$dataRow}:{$lastCol}{$dataRow}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+            foreach ($keys as $key) {
+                if (! empty($allDefs[$key]['align'])) {
+                    $sheet->getStyle("{$letters[$key]}{$dataRow}")->getAlignment()->setHorizontal($allDefs[$key]['align']);
+                }
+            }
+
+            if (isset($letters['status'])) {
+                $statusColors = match ($message->status?->value) {
+                    'new' => ['bg' => 'DBEAFE', 'fg' => '1D4ED8'],
+                    'in_progress' => ['bg' => 'FEF3C7', 'fg' => 'B45309'],
+                    'resolved' => ['bg' => 'D1FAE5', 'fg' => '047857'],
+                    'closed' => ['bg' => 'F3F4F6', 'fg' => '6B7280'],
+                    default => null,
+                };
+                if ($statusColors !== null) {
+                    $sheet->getStyle("{$letters['status']}{$dataRow}")->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['rgb' => $statusColors['fg']]],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $statusColors['bg']]],
+                    ]);
+                }
+            }
+
+            $sheet->getRowDimension($dataRow)->setRowHeight(22);
+            $dataRow++;
+        }
+
+        foreach ($keys as $key) {
+            $sheet->getColumnDimension($letters[$key])->setWidth($allDefs[$key]['width']);
+        }
+
+        // ------ Footer ------
+        $footerRow = ($dataRow > $dataStart ? $dataRow : $dataStart) + 1;
+        $sheet->setCellValue("A{$footerRow}", __('admin.contact_message_export.footer', ['count' => $messages->count()]));
+        $sheet->mergeCells("A{$footerRow}:{$lastCol}{$footerRow}");
+        $sheet->getStyle("A{$footerRow}")->applyFromArray([
+            'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet->setSelectedCells('A1');
+
+        return $spreadsheet;
     }
 
     public function show(Request $request, ContactMessage $contactMessage): Response

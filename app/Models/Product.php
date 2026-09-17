@@ -53,6 +53,7 @@ class Product extends Model implements HasMedia
         'cost_price',
         'profit_price',
         'product_type_id',
+        'store_id',
         'is_visible',
         'is_accessible',
         'is_purchasable',
@@ -154,6 +155,14 @@ class Product extends Model implements HasMedia
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /**
+     * The store this product is sold under.
+     */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 
     /**

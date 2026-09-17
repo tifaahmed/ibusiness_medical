@@ -35,6 +35,7 @@
             <div class="space-y-2 sm:space-y-3 md:space-y-4">
               <ProductForm
                 :product-types="productTypes"
+                :stores="stores"
                 :tags="tags"
                 :slug="product.slug"
                 :ai-enabled="seoAiEnabled"
@@ -113,6 +114,7 @@ import { useNotification } from "@/composables/useNotification";
 const props = defineProps({
   product: { type: Object, required: true },
   productTypes: { type: Array, default: () => [] },
+  stores: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
   seoAiEnabled: { type: Boolean, default: false },
   englishFixEnabled: { type: Boolean, default: false },

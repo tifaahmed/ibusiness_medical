@@ -16,6 +16,7 @@ export const useProductStore = defineStore('product', {
             cost_price: '',
             profit_price: '',
             product_type_id: '',
+            store_id: '',
             // The three storefront switches. A new product is live everywhere.
             is_visible: true,
             is_accessible: true,
@@ -58,6 +59,7 @@ export const useProductStore = defineStore('product', {
                 cost_price: '',
                 profit_price: '',
                 product_type_id: '',
+                store_id: '',
                 // The three storefront switches. A new product is live everywhere.
                 is_visible: true,
                 is_accessible: true,
@@ -118,6 +120,7 @@ export const useProductStore = defineStore('product', {
                 cost_price: product.cost_price || '',
                 profit_price: product.profit_price || '',
                 product_type_id: product.product_type_id || '',
+                store_id: product.store_id || '',
                 /*
                  * `?? true` and not `||`: a switched-off flag arrives as
                  * false, and `false || true` would turn every hidden product

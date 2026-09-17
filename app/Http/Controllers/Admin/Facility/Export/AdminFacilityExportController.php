@@ -11,6 +11,8 @@ use App\Models\Sales;
 use App\Support\PhoneNumbers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -48,6 +50,11 @@ class AdminFacilityExportController extends BaseController
 
         $rawChunk = (int) $request->input('chunk_size', 0);
         $chunkSize = ($rawChunk >= self::MIN_CHUNK_SIZE && $rawChunk <= self::MAX_CHUNK_SIZE) ? $rawChunk : 0;
+
+        $rawColumns = $request->input('columns', '');
+        $selectedColumns = $rawColumns !== ''
+            ? array_values(array_intersect(array_map('trim', explode(',', $rawColumns)), array_keys($this->facilityColumnDefinitions())))
+            : [];
 
         $facilities = Facility::query()
             ->with(['facilityType', 'sales', 'creator:id,name,email'])
@@ -92,7 +99,7 @@ class AdminFacilityExportController extends BaseController
         $timestamp = now()->format('Y-m-d_His');
 
         if ($chunkSize === 0 || $facilities->count() <= $chunkSize) {
-            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers);
+            $spreadsheet = $this->buildSpreadsheet($facilities, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers, null, $selectedColumns);
             $filename = ($includeBranches ? 'facilities_with_branches_' : 'facilities_export_').$timestamp.'.xlsx';
 
             return $this->streamXlsx($spreadsheet, $filename);
@@ -107,7 +114,7 @@ class AdminFacilityExportController extends BaseController
         foreach ($chunks as $i => $chunk) {
             $partNumber = $i + 1;
             $partLabel = "Part {$partNumber} of {$totalParts}";
-            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers, $partLabel);
+            $partSpreadsheet = $this->buildSpreadsheet($chunk, $typeName, $govName, $cityName, $salesName, $filters, $includeBranches, $includeManagers, $partLabel, $selectedColumns);
             $partFilename = sprintf(
                 '%sfacilities_part_%02d_of_%02d.xlsx',
                 $includeBranches ? 'with_branches_' : '',
@@ -162,6 +169,29 @@ class AdminFacilityExportController extends BaseController
         ]);
     }
 
+    /**
+     * Column key => display + width used when building the main Facilities
+     * sheet. A single source so the export and its column-picker checkboxes
+     * on the list screen never drift apart.
+     */
+    private function facilityColumnDefinitions(): array
+    {
+        return [
+            'index' => ['label' => '#', 'width' => 8, 'align' => Alignment::HORIZONTAL_CENTER],
+            'name_en' => ['label' => 'Name', 'width' => 36],
+            'name_ar' => ['label' => 'Name (AR)', 'width' => 36],
+            'slug' => ['label' => 'Slug', 'width' => 30],
+            'facility_type' => ['label' => 'Facility type', 'width' => 22],
+            'sales_rep' => ['label' => 'Sales rep', 'width' => 26],
+            'discount_percent' => ['label' => 'Discount %', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
+            'branches_count' => ['label' => 'Branches', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
+            'managers_count' => ['label' => 'Managers', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
+            'created_at' => ['label' => 'Created at', 'width' => 22, 'align' => Alignment::HORIZONTAL_CENTER],
+            'updated_at' => ['label' => 'Updated at', 'width' => 22, 'align' => Alignment::HORIZONTAL_CENTER],
+            'creator' => ['label' => 'Creator', 'width' => 32],
+        ];
+    }
+
     private function buildSpreadsheet(
         Collection $facilities,
         string $typeName,
@@ -171,8 +201,22 @@ class AdminFacilityExportController extends BaseController
         array $filters,
         bool $includeBranches,
         bool $includeManagers,
-        ?string $partLabel = null
+        ?string $partLabel = null,
+        array $selectedColumns = []
     ): Spreadsheet {
+        $allDefs = $this->facilityColumnDefinitions();
+        if (! empty($selectedColumns)) {
+            $allDefs = array_intersect_key($allDefs, array_flip($selectedColumns));
+        }
+        $colKeys = array_keys($allDefs);
+
+        $letters = [];
+        foreach ($colKeys as $i => $key) {
+            $letters[$key] = Coordinate::stringFromColumnIndex($i + 1);
+        }
+        $firstCol = reset($letters) ?: 'A';
+        $lastCol = end($letters) ?: 'A';
+
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Facilities');
@@ -180,7 +224,7 @@ class AdminFacilityExportController extends BaseController
         // ------ Title block ------
         $title = $partLabel ? "FACILITIES EXPORT — {$partLabel}" : 'FACILITIES EXPORT';
         $sheet->setCellValue('A1', $title);
-        $sheet->mergeCells('A1:L1');
+        $sheet->mergeCells("A1:{$lastCol}1");
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -198,7 +242,7 @@ class AdminFacilityExportController extends BaseController
 
         // ------ Filter block ------
         $sheet->setCellValue('A5', 'FILTERS APPLIED');
-        $sheet->mergeCells('A5:L5');
+        $sheet->mergeCells("A5:{$lastCol}5");
         $sheet->getRowDimension(5)->setRowHeight(24);
         $sheet->getStyle('A5')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
@@ -230,7 +274,7 @@ class AdminFacilityExportController extends BaseController
         // ------ Facilities table ------
         $headerRow = $row + 2;
         $sheet->setCellValue("A{$headerRow}", 'FACILITIES');
-        $sheet->mergeCells("A{$headerRow}:L{$headerRow}");
+        $sheet->mergeCells("A{$headerRow}:{$lastCol}{$headerRow}");
         $sheet->getRowDimension($headerRow)->setRowHeight(28);
         $sheet->getStyle("A{$headerRow}")->applyFromArray([
             'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
@@ -239,17 +283,11 @@ class AdminFacilityExportController extends BaseController
         ]);
 
         $columnHeaderRow = $headerRow + 1;
-        $columns = [
-            'A' => '#', 'B' => 'Name', 'C' => 'Name (AR)', 'D' => 'Slug',
-            'E' => 'Facility type', 'F' => 'Sales rep', 'G' => 'Discount %',
-            'H' => 'Branches', 'I' => 'Managers', 'J' => 'Created at', 'K' => 'Updated at',
-            'L' => 'Creator',
-        ];
-        foreach ($columns as $col => $label) {
-            $sheet->setCellValue("{$col}{$columnHeaderRow}", $label);
+        foreach ($colKeys as $key) {
+            $sheet->setCellValue("{$letters[$key]}{$columnHeaderRow}", $allDefs[$key]['label']);
         }
         $sheet->getRowDimension($columnHeaderRow)->setRowHeight(26);
-        $sheet->getStyle("A{$columnHeaderRow}:L{$columnHeaderRow}")->applyFromArray([
+        $sheet->getStyle("{$firstCol}{$columnHeaderRow}:{$lastCol}{$columnHeaderRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '374151']],
@@ -261,55 +299,55 @@ class AdminFacilityExportController extends BaseController
         $rowIndex = 0;
         foreach ($facilities as $facility) {
             $rowIndex++;
-            $nameEn = (string) ($facility->getTranslation('name', 'en') ?: '');
-            $nameAr = (string) ($facility->getTranslation('name', 'ar') ?: '');
-            $typeLabel = (string) ($facility->facilityType?->getTranslation('name', 'en') ?: '');
 
             $creator = $facility->creator;
             $creatorCell = $creator
                 ? trim($creator->name.($creator->email ? " <{$creator->email}>" : ''))
                 : '';
 
-            $sheet->setCellValue("A{$dataRow}", $rowIndex);
-            $sheet->setCellValue("B{$dataRow}", $nameEn);
-            $sheet->setCellValue("C{$dataRow}", $nameAr);
-            $sheet->setCellValue("D{$dataRow}", (string) $facility->slug);
-            $sheet->setCellValue("E{$dataRow}", $typeLabel);
-            $sheet->setCellValue("F{$dataRow}", $facility->sales?->displayName() ?? '');
-            // Blank rather than 0: no discount and a nought-percent discount are
-            // not the same thing to whoever reads this.
-            $sheet->setCellValue("G{$dataRow}", $facility->discount_percent === null
-                ? ''
-                : (float) $facility->discount_percent);
-            $sheet->setCellValue("H{$dataRow}", $facility->branches_count ?? 0);
-            $sheet->setCellValue("I{$dataRow}", $facility->managers_count ?? 0);
-            $sheet->setCellValue("J{$dataRow}", $facility->created_at?->format('d M Y H:i') ?? '');
-            $sheet->setCellValue("K{$dataRow}", $facility->updated_at?->format('d M Y H:i') ?? '');
-            $sheet->setCellValue("L{$dataRow}", $creatorCell);
+            $values = [
+                'index' => (string) $rowIndex,
+                'name_en' => (string) ($facility->getTranslation('name', 'en') ?: ''),
+                'name_ar' => (string) ($facility->getTranslation('name', 'ar') ?: ''),
+                'slug' => (string) $facility->slug,
+                'facility_type' => (string) ($facility->facilityType?->getTranslation('name', 'en') ?: ''),
+                'sales_rep' => (string) ($facility->sales?->displayName() ?? ''),
+                // Blank rather than 0: no discount and a nought-percent discount
+                // are not the same thing to whoever reads this.
+                'discount_percent' => $facility->discount_percent === null ? '' : (string) (float) $facility->discount_percent,
+                'branches_count' => (string) ($facility->branches_count ?? 0),
+                'managers_count' => (string) ($facility->managers_count ?? 0),
+                'created_at' => (string) ($facility->created_at?->format('d M Y H:i') ?? ''),
+                'updated_at' => (string) ($facility->updated_at?->format('d M Y H:i') ?? ''),
+                'creator' => (string) $creatorCell,
+            ];
+
+            foreach ($colKeys as $key) {
+                $sheet->setCellValueExplicit("{$letters[$key]}{$dataRow}", $values[$key], DataType::TYPE_STRING);
+            }
 
             $stripe = ($rowIndex % 2 === 0) ? 'F9FAFB' : 'FFFFFF';
-            $sheet->getStyle("A{$dataRow}:L{$dataRow}")->applyFromArray([
+            $sheet->getStyle("{$firstCol}{$dataRow}:{$lastCol}{$dataRow}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $stripe]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
             ]);
-            $sheet->getStyle("A{$dataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("G{$dataRow}:L{$dataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            foreach ($colKeys as $key) {
+                if (! empty($allDefs[$key]['align'])) {
+                    $sheet->getStyle("{$letters[$key]}{$dataRow}")->getAlignment()->setHorizontal($allDefs[$key]['align']);
+                }
+            }
             $sheet->getRowDimension($dataRow)->setRowHeight(22);
             $dataRow++;
         }
 
-        $widths = [
-            'A' => 8, 'B' => 36, 'C' => 36, 'D' => 30, 'E' => 22,
-            'F' => 26, 'G' => 12, 'H' => 12, 'I' => 12, 'J' => 22, 'K' => 22, 'L' => 32,
-        ];
-        foreach ($widths as $col => $width) {
-            $sheet->getColumnDimension($col)->setWidth($width);
+        foreach ($colKeys as $key) {
+            $sheet->getColumnDimension($letters[$key])->setWidth($allDefs[$key]['width']);
         }
 
         $footerRow = ($dataRow > $dataStart ? $dataRow : $dataStart) + 1;
         $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$facilities->count().' facility(ies) exported');
-        $sheet->mergeCells("A{$footerRow}:L{$footerRow}");
+        $sheet->mergeCells("A{$footerRow}:{$lastCol}{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],

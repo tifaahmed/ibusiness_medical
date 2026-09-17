@@ -112,6 +112,17 @@
             <p v-else class="text-[11px] text-muted-foreground">Groups the product under a category — used for menus and filtering.</p>
         </div>
 
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Store</label>
+          <Select
+            v-model="productStore.form.store_id"
+            :options="stores.map(s => ({ value: s.id ?? s.value ?? s, label: `${ getTranslatedName(s.name) }` }))"
+            placeholder="— None —"
+          />
+          <p v-if="fieldError('store_id')" class="text-xs text-destructive">{{ fieldError('store_id') }}</p>
+          <p v-else class="text-[11px] text-muted-foreground">The store this product is sold under.</p>
+        </div>
+
         <!--
           Storefront availability. Three switches rather than one status because
           they answer different questions and get used in combination: listed
@@ -633,6 +644,7 @@ import { useNotification } from "@/composables/useNotification";
 
 const props = defineProps({
   productTypes: { type: Array, default: () => [] },
+  stores: { type: Array, default: () => [] },
   tags: { type: Array, default: () => [] },
   existingLargeImage: { type: String, default: null },
   existingSmallImage: { type: String, default: null },
@@ -672,7 +684,7 @@ const activeTab = ref('general');
 // Which tab owns which field — drives the tab error badges and the jump from
 // a row of the validation dialog.
 const TAB_FIELDS = {
-  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'is_visible', 'is_accessible', 'is_purchasable', 'admin_note', 'tag_ids'],
+  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'store_id', 'is_visible', 'is_accessible', 'is_purchasable', 'admin_note', 'tag_ids'],
   media: ['large_image', 'small_image', 'gallery', 'banner_config', 'editor_gallery_paths'],
   seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'],
 };
@@ -702,6 +714,7 @@ const errorLabels = {
   cost_price: 'Cost price',
   profit_price: 'Profit price',
   product_type_id: 'Product type',
+  store_id: 'Store',
   is_visible: 'Visible in the shop',
   is_accessible: 'Product page can be opened',
   is_purchasable: 'Can be bought',

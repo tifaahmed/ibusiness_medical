@@ -42,6 +42,7 @@ class AdminProductEditResource extends JsonResource
             'og_image' => $this->getFirstMediaUrl('og_image'),
             'gallery' => $this->gallery,
             'product_type_id' => $this->product_type_id,
+            'store_id' => $this->store_id,
             'is_visible' => (bool) $this->is_visible,
             'is_accessible' => (bool) $this->is_accessible,
             'is_purchasable' => (bool) $this->is_purchasable,
