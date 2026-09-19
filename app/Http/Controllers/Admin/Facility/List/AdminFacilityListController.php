@@ -65,6 +65,9 @@ class AdminFacilityListController extends BaseController
             // name a rep that exists.
             ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
             ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
+            // Facilities nobody is registered to manage.
+            ->when($filters['managers_presence'] === 'without', fn ($q) => $q->whereDoesntHave('managers'))
+            ->when($filters['managers_presence'] === 'with', fn ($q) => $q->whereHas('managers'))
             ->when(isset($filters['governorate_id']) && $filters['governorate_id'] !== '' && $filters['governorate_id'] !== null, function ($q) use ($filters) {
                 $q->whereHas('branches', function ($bq) use ($filters) {
                     $bq->where('governorate_id', (int) $filters['governorate_id']);
@@ -146,6 +149,10 @@ class AdminFacilityListController extends BaseController
             'either' => $this->countWithBranchesMissing(
                 fn ($bq) => $bq->whereNull('governorate_id')->orWhereNull('city_id')
             ),
+            'without_managers' => Facility::query()
+                ->tap(fn ($q) => $this->applyCreatorScope($q))
+                ->whereDoesntHave('managers')
+                ->count(),
             'discount_decimal' => Facility::query()
                 ->tap(fn ($q) => $this->applyCreatorScope($q))
                 ->whereNotNull('discount_percent')
@@ -185,6 +192,9 @@ class AdminFacilityListController extends BaseController
         $salesPresence = $request->input('sales_presence');
         $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : '';
 
+        $managersPresence = $request->input('managers_presence');
+        $managersPresence = in_array($managersPresence, ['with', 'without'], true) ? $managersPresence : '';
+
         $branchesMissing = $request->input('branches_missing');
         $branchesMissing = in_array($branchesMissing, ['governorate', 'city', 'either', 'both'], true)
             ? $branchesMissing
@@ -198,6 +208,7 @@ class AdminFacilityListController extends BaseController
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
             'sales_presence' => $salesPresence,
+            'managers_presence' => $managersPresence,
             'branches_missing' => $branchesMissing,
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
