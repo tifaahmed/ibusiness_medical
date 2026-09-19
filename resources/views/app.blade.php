@@ -84,7 +84,7 @@
         <meta http-equiv="X-Content-Type-Options" content="nosniff">
         <!-- X-Frame-Options should be set via HTTP headers, not meta tags -->
         <meta http-equiv="X-XSS-Protection" content="1; mode=block">
-        <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+        <meta http-equiv="Permissions-Policy" content="geolocation=(self), microphone=(), camera=()">
         
         <!-- Verification Meta Tags (Add your verification codes when available) -->
         <!-- <meta name="google-site-verification" content="YOUR_GOOGLE_VERIFICATION_CODE"> -->

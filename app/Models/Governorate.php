@@ -36,6 +36,23 @@ class Governorate extends Model
         'created_by',
     ];
 
+    /**
+     * The border is a large GeoJSON blob; keep it out of every list/JSON
+     * payload. The branch map fetches it on its own.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'boundary',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'boundary' => 'array',
+        ];
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

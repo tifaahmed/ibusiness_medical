@@ -3,6 +3,7 @@
 return [
     // Common
     'common' => [
+        'remove_colors' => 'Remove colors and backgrounds',
         'search' => 'Search',
         'list' => 'List',
         'reset_filters' => 'Reset Filters',
@@ -359,6 +360,15 @@ return [
 
     // Facility
     'facility' => [
+        'description_enhance' => 'Enhance with AI',
+        'description_enhancing' => 'Enhancing…',
+        'description_enhance_hint' => 'Rewrite the description with short icon headings and bullet points, keeping every fact',
+        'description_enhance_needs_text' => 'Write a description first.',
+        'description_enhanced' => 'Description reorganised. Read it over before saving.',
+        'description_enhance_failed' => 'Could not enhance the description. Please try again.',
+        'branches_map' => 'Branches map',
+        'branches_map_empty' => 'None of the branches has GPS coordinates yet.',
+        'branches_map_missing' => ':count branch(es) without coordinates are not shown.',
         'phone_fix' => 'Fix phones',
         'phone_fix_title' => 'Fix phone numbers',
         'phone_fix_hint' => 'Find branch numbers that are not 11-digit mobiles, 10-digit landlines or hotlines, and correct them',
@@ -561,6 +571,21 @@ return [
 
     // Facility Branch
     'facility_branch' => [
+        'edit_facility' => 'Edit the facility',
+        'no_gps' => 'No GPS location',
+        'no_gps_hint' => 'Branches with no latitude or longitude, so no pin on the map',
+        'fix_languages_all_hint' => 'Fix the Arabic and English of the facility and its branches when either has a problem',
+        'fix_languages_all_done' => 'Fixed :count field(s). Reloading…',
+        'fix_languages' => 'Fix languages with AI',
+        'fix_languages_hint' => 'If the Arabic or the English is empty, in the wrong language or badly written, fix both',
+        'fix_languages_fixing' => 'Fixing languages…',
+        'fix_languages_needs_text' => 'Fill in the name or address first.',
+        'fix_languages_done' => 'Arabic and English fixed. Check them before saving.',
+        'fix_languages_nothing' => 'Both languages already look right.',
+        'fix_languages_failed' => 'Could not fix the languages. Please try again.',
+        'map_no_point' => 'Enter the latitude and longitude, or use "Find GPS on map with AI", to see the pin here.',
+        'save_and_stay' => 'Save and stay',
+        'save_and_stay_hint' => 'Save and keep editing',
         'title' => 'Facility Branches',
         'management' => 'Facility Branches Management',
         'label' => 'Branch',

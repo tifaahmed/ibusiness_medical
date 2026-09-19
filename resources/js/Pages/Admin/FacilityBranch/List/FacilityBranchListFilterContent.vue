@@ -174,6 +174,23 @@
           {{ incompleteCounts.no_address }}
         </span>
       </button>
+      <button
+        type="button"
+        @click="toggleMissing('no_gps')"
+        :aria-pressed="filters.no_gps"
+        :class="[
+          'inline-flex items-center gap-1.5 rounded-md border px-2 sm:px-2.5 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer',
+          filters.no_gps
+            ? 'border-rose-400 bg-rose-500/30 text-rose-950 dark:text-rose-50'
+            : 'border-border bg-background hover:bg-muted text-foreground',
+        ]"
+        :title="t.facility_branch?.no_gps_hint || 'Branches with no latitude or longitude, so no pin on the map'"
+      >
+        {{ t.facility_branch?.no_gps || 'No GPS location' }}
+        <span v-if="incompleteCounts.no_gps" class="rounded bg-rose-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+          {{ incompleteCounts.no_gps }}
+        </span>
+      </button>
       <span v-if="activeMissingCount > 1" class="text-[11px] text-muted-foreground">
         missing <strong>all {{ activeMissingCount }}</strong>
       </span>
@@ -238,7 +255,7 @@ const props = defineProps({
   // What each switch would find across the whole list, not just this page.
   incompleteCounts: {
     type: Object,
-    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0 })
+    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_gps: 0 })
   }
 });
 
@@ -259,13 +276,16 @@ const getTranslatedName = (name, currentLocale = null) => {
   return '';
 };
 
+// "Cairo (25)": the number of branches sits inside each option's label.
+const withCount = (label, item) => `${label} (${item.branches_count ?? 0})`;
+
 // Convert facilities to options for select - make it reactive to locale changes
 const facilityOptions = computed(() => {
   // Access locale directly in computed to ensure reactivity
   const currentLocale = page.props.locale || 'ar';
   return props.facilities.map(facility => ({
     value: facility.id,
-    label: getTranslatedName(facility.name, currentLocale)
+    label: withCount(getTranslatedName(facility.name, currentLocale), facility)
   }));
 });
 
@@ -273,7 +293,7 @@ const facilityTypeOptions = computed(() => {
   const currentLocale = page.props.locale || 'ar';
   return props.facilityTypes.map(facilityType => ({
     value: facilityType.id,
-    label: getTranslatedName(facilityType.name, currentLocale)
+    label: withCount(getTranslatedName(facilityType.name, currentLocale), facilityType)
   }));
 });
 
@@ -281,7 +301,7 @@ const governorateOptions = computed(() => {
   const currentLocale = page.props.locale || 'ar';
   return props.governorates.map(governorate => ({
     value: governorate.id,
-    label: getTranslatedName(governorate.name, currentLocale)
+    label: withCount(getTranslatedName(governorate.name, currentLocale), governorate)
   }));
 });
 
@@ -294,7 +314,7 @@ const cityOptions = computed(() => {
     .filter(city => !filters.value.governorate_id || String(city.governorate_id) === String(filters.value.governorate_id))
     .map(city => ({
       value: city.id,
-      label: getTranslatedName(city.name, currentLocale)
+      label: withCount(getTranslatedName(city.name, currentLocale), city)
     }));
 });
 
@@ -315,7 +335,8 @@ const getInitialFilters = () => {
       facility_type_id: props.initialFilters.facility_type_id || '',
       no_governorate: truthy(props.initialFilters.no_governorate),
       no_city: truthy(props.initialFilters.no_city),
-      no_address: truthy(props.initialFilters.no_address)
+      no_address: truthy(props.initialFilters.no_address),
+      no_gps: truthy(props.initialFilters.no_gps)
     };
   }
 
@@ -330,7 +351,8 @@ const getInitialFilters = () => {
       facility_type_id: urlParams.get('facility_type_id') || '',
       no_governorate: truthy(urlParams.get('no_governorate')),
       no_city: truthy(urlParams.get('no_city')),
-      no_address: truthy(urlParams.get('no_address'))
+      no_address: truthy(urlParams.get('no_address')),
+      no_gps: truthy(urlParams.get('no_gps'))
     };
   }
 
@@ -342,7 +364,8 @@ const getInitialFilters = () => {
     facility_type_id: '',
     no_governorate: false,
     no_city: false,
-    no_address: false
+    no_address: false,
+    no_gps: false
   };
 };
 
@@ -352,7 +375,7 @@ const filters = ref(getInitialFilters());
 const hasActiveFilters = computed(() => {
   return !!(filters.value.search || filters.value.facility_id
     || filters.value.governorate_id || filters.value.city_id || filters.value.facility_type_id
-    || filters.value.no_governorate || filters.value.no_city || filters.value.no_address);
+    || filters.value.no_governorate || filters.value.no_city || filters.value.no_address || filters.value.no_gps);
 });
 
 let searchTimeout = null;
@@ -375,7 +398,7 @@ const handleSearch = (event) => {
 // Several switches on at once means "missing every one of these", not "any" —
 // worth saying, because it is easy to read the row as an either/or.
 const activeMissingCount = computed(() =>
-  ['no_governorate', 'no_city', 'no_address'].filter(key => filters.value[key]).length
+  ['no_governorate', 'no_city', 'no_address', 'no_gps'].filter(key => filters.value[key]).length
 );
 
 const toggleMissing = (key) => {
@@ -392,7 +415,8 @@ const handleReset = () => {
     facility_type_id: '',
     no_governorate: false,
     no_city: false,
-    no_address: false
+    no_address: false,
+    no_gps: false
   };
   applyFilters();
 };
@@ -434,6 +458,9 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.no_governorate) params.no_governorate = 1;
   if (currentFilters.no_city) params.no_city = 1;
   if (currentFilters.no_address) params.no_address = 1;
+  if (currentFilters.no_gps) params.no_gps = 1;
+  // Keep the list/map choice (?view=map) across a filter change.
+  if (new URLSearchParams(window.location.search).get('view') === 'map') params.view = 'map';
 
   emit('filter-change', currentFilters);
 

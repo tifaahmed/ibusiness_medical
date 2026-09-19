@@ -12,9 +12,10 @@ use Illuminate\Http\Request;
 use RuntimeException;
 
 /**
- * Backs the "Fix English fields with AI" button on the admin facility form.
- * Called over axios; corrects and saves the English translations of this one
- * facility and its branches, then answers JSON.
+ * Backs the "Fix languages with AI" button on the admin facility form.
+ * Called over axios; corrects and saves BOTH the Arabic and the English of this
+ * one facility and its branches (name, description, branch name and address)
+ * whenever either side has a problem, then answers JSON.
  */
 class AdminFacilityEnglishFixController extends BaseController
 {
@@ -43,7 +44,7 @@ class AdminFacilityEnglishFixController extends BaseController
         $this->assertOwns($model);
 
         try {
-            $result = $this->backfiller->fix($model);
+            $result = $this->backfiller->fixBoth($model);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

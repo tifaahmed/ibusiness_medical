@@ -35,7 +35,7 @@
             <button
               type="button"
               :disabled="!englishFixEnabled || englishFixRunning"
-              :title="englishFixEnabled ? 'Translate / fix empty or Arabic English fields' : englishFixDisabledReason"
+              :title="englishFixEnabled ? (t.facility_branch?.fix_languages_all_hint || 'Fix the Arabic and English of the facility and its branches when either has a problem') : englishFixDisabledReason"
               class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2"
               @click="fixEnglish"
             >
@@ -45,7 +45,7 @@
               <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
               </svg>
-              {{ englishFixRunning ? 'Fixing English…' : 'Fix English fields with AI' }}
+              {{ englishFixRunning ? (t.facility_branch?.fix_languages_fixing || 'Fixing languages…') : (t.facility_branch?.fix_languages || 'Fix languages with AI') }}
             </button>
           </div>
 
@@ -56,6 +56,7 @@
               <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :facility-slug="facility.slug" :ai-enabled="locationAiEnabled" :english-fix-enabled="englishFixEnabled" :place-ai-enabled="placeAiEnabled" />
               <FacilityManagerCard v-model="managers" :facility-slug="facility.slug" />
+              <FacilityBranchesMap :branches="branches" />
             </div>
 
             <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled
@@ -132,6 +133,7 @@ import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useFacilityStore } from "../Stores/FacilityStore";
 import { FacilityForm, FacilityBranchCard, FacilitySeoCard, FacilityManagerCard } from "../_components/Form";
+import FacilityBranchesMap from "../_components/Form/FacilityBranchesMap.vue";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
 import { useNotification } from "@/composables/useNotification";
@@ -205,9 +207,11 @@ const fixEnglish = async () => {
     const applied = data?.applied?.length || 0;
 
     if (applied === 0) {
-      useNotification().info('No English fields needed fixing.');
+      useNotification().info(t.value.facility_branch?.fix_languages_nothing || 'Both languages already look right.');
     } else {
-      useNotification().success(`Fixed ${applied} English field(s). Reloading…`);
+      useNotification().success(
+        (t.value.facility_branch?.fix_languages_all_done || 'Fixed :count field(s). Reloading…').replace(':count', applied)
+      );
       router.reload({ only: ['facility'] });
     }
 
@@ -215,13 +219,31 @@ const fixEnglish = async () => {
       englishFixMessage.value = data.errors.join(' ');
     }
   } catch (error) {
-    useNotification().error(error?.response?.data?.message || 'Could not fix the English fields. Please try again.');
+    useNotification().error(error?.response?.data?.message || t.value.facility_branch?.fix_languages_failed || 'Could not fix the languages. Please try again.');
   } finally {
     englishFixRunning.value = false;
   }
 };
 
-const activeTab = ref('details');
+// The open tab lives in the URL (?tab=seo), so a reload or a shared link lands
+// on the same tab. "details" is the default and keeps the address clean.
+const TAB_KEYS = ['details', 'seo'];
+const tabFromUrl = () => {
+  const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+  return TAB_KEYS.includes(tab) ? tab : 'details';
+};
+const activeTab = ref(tabFromUrl());
+
+watch(activeTab, (tab) => {
+  const url = new URL(window.location.href);
+  if (tab === 'details') {
+    url.searchParams.delete('tab');
+  } else {
+    url.searchParams.set('tab', tab);
+  }
+  // Keep Inertia's own history state; only the address changes, nothing reloads.
+  window.history.replaceState(window.history.state, '', url);
+});
 
 // Server-side errors can land on a tab the admin isn't looking at, so flag it.
 const SEO_ERROR_KEYS = ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'];
@@ -255,7 +277,7 @@ watch(() => props.facility, (newFacility) => {
 }, { immediate: true, deep: true });
 
 const handleSubmit = (options = {}) => {
-  facilityStore.updateFacility(branches.value, managers.value, options);
+  facilityStore.updateFacility(branches.value, managers.value, { ...options, tab: activeTab.value });
 };
 </script>
 

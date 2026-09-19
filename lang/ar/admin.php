@@ -3,6 +3,7 @@
 return [
     // Common
     'common' => [
+        'remove_colors' => 'إزالة الألوان والخلفيات',
         'search' => 'بحث',
         'list' => 'قائمة',
         'reset_filters' => 'إعادة تعيين الفلاتر',
@@ -359,6 +360,15 @@ return [
 
     // Facility
     'facility' => [
+        'description_enhance' => 'تحسين بالذكاء الاصطناعي',
+        'description_enhancing' => 'جارٍ التحسين…',
+        'description_enhance_hint' => 'إعادة كتابة الوصف بعناوين قصيرة مع أيقونات ونقاط مختصرة مع الحفاظ على كل المعلومات',
+        'description_enhance_needs_text' => 'اكتب الوصف أولًا.',
+        'description_enhanced' => 'تم تنظيم الوصف. راجعه قبل الحفظ.',
+        'description_enhance_failed' => 'تعذّر تحسين الوصف. حاول مرة أخرى.',
+        'branches_map' => 'خريطة الفروع',
+        'branches_map_empty' => 'لا يوجد أي فرع له إحداثيات GPS بعد.',
+        'branches_map_missing' => 'لا يتم عرض :count فرع بدون إحداثيات.',
         'phone_fix' => 'إصلاح الأرقام',
         'phone_fix_title' => 'إصلاح أرقام الهاتف',
         'phone_fix_hint' => 'ابحث عن أرقام الفروع التي ليست موبايل من 11 رقمًا أو أرضي من 8 أرقام وصححها',
@@ -561,6 +571,21 @@ return [
 
     // Facility Branch
     'facility_branch' => [
+        'edit_facility' => 'تعديل المنشأة',
+        'no_gps' => 'بدون موقع GPS',
+        'no_gps_hint' => 'فروع بدون خط عرض أو خط طول، فلا تظهر على الخريطة',
+        'fix_languages_all_hint' => 'إصلاح العربي والإنجليزي للمنشأة وفروعها إذا كان أي منهما به مشكلة',
+        'fix_languages_all_done' => 'تم إصلاح :count حقل. جارٍ إعادة التحميل…',
+        'fix_languages' => 'إصلاح اللغات بالذكاء الاصطناعي',
+        'fix_languages_hint' => 'إذا كان العربي أو الإنجليزي فارغًا أو بلغة خاطئة أو مكتوبًا بشكل سيئ، يتم إصلاح اللغتين معًا',
+        'fix_languages_fixing' => 'جارٍ إصلاح اللغات…',
+        'fix_languages_needs_text' => 'اكتب الاسم أو العنوان أولًا.',
+        'fix_languages_done' => 'تم إصلاح العربي والإنجليزي. راجعهما قبل الحفظ.',
+        'fix_languages_nothing' => 'اللغتان تبدوان سليمتين بالفعل.',
+        'fix_languages_failed' => 'تعذّر إصلاح اللغات. حاول مرة أخرى.',
+        'map_no_point' => 'أدخل خط العرض وخط الطول، أو استخدم زر "تحديد الموقع بالذكاء الاصطناعي"، لتظهر الدبوس هنا.',
+        'save_and_stay' => 'حفظ والبقاء',
+        'save_and_stay_hint' => 'احفظ واستمر في التعديل',
         'title' => 'فروع المنشآت',
         'management' => 'إدارة فروع المنشآت',
         'label' => 'الفرع',

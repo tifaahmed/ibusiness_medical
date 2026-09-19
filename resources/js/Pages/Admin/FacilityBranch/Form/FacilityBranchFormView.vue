@@ -33,7 +33,19 @@
                   >
                     {{ t.common?.cancel || 'Cancel' }}
                   </Link>
-                  <div class="relative inline-flex order-1 sm:order-2">
+                  <!-- Edit only: save, then keep editing this branch. -->
+                  <button
+                    v-if="isEditMode"
+                    type="button"
+                    :disabled="facilityBranchStore.form.processing"
+                    :title="t.facility_branch?.save_and_stay_hint || 'Save and keep editing'"
+                    data-slot="button"
+                    class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs hover:bg-muted h-9 px-4 py-2 order-1 sm:order-2"
+                    @click="handleSubmit(true)"
+                  >
+                    {{ t.facility_branch?.save_and_stay || 'Save and stay' }}
+                  </button>
+                  <div class="relative inline-flex order-1 sm:order-3">
                     <button
                       type="submit"
                       :disabled="facilityBranchStore.form.processing"
@@ -124,9 +136,9 @@ watch(() => props.facilityBranch, (newFacilityBranch) => {
   }
 }, { deep: true });
 
-const handleSubmit = () => {
+const handleSubmit = (stay = false) => {
   if (isEditMode.value) {
-    facilityBranchStore.updateFacilityBranch();
+    facilityBranchStore.updateFacilityBranch(stay === true);
   } else {
     facilityBranchStore.submitForm();
   }

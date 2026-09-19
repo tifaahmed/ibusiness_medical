@@ -74,7 +74,30 @@
               :label="t.facility?.description || 'Description'"
               :error="facilityStore.validationErrors?.description"
               :locales="['ar', 'en']"
-            />
+              clear-colors-button
+            >
+              <template #label-actions>
+                <button
+                  type="button"
+                  :disabled="enhancing || !hasDescription"
+                  class="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                  :title="hasDescription
+                    ? (t.facility?.description_enhance_hint || 'Rewrite the description with short icon headings and bullet points, keeping every fact')
+                    : (t.facility?.description_enhance_needs_text || 'Write a description first.')"
+                  @click="enhanceDescription"
+                >
+                  <svg v-if="enhancing" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+                  </svg>
+                  {{ enhancing
+                    ? (t.facility?.description_enhancing || 'Enhancing…')
+                    : (t.facility?.description_enhance || 'Enhance with AI') }}
+                </button>
+              </template>
+            </FormTranslatableQuillEditor>
           </div>
         </div>
       </div>
@@ -596,6 +619,7 @@ import { useFacilityStore } from "../../Stores/FacilityStore";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from '@inertiajs/vue3';
+import { useNotification } from '@/composables/useNotification';
 import { bilingualLabel, nameIn } from '@/lib/lookupNames';
 
 const props = defineProps({
@@ -663,6 +687,45 @@ const formDescription = computed({
     form.value.description = value;
   }
 });
+
+/* ---- Enhance the description with AI --------------------------------------
+   Same facts, better layout: short icon headings and bullet points. The server
+   answers with the rewritten HTML per language and nothing is saved until the
+   admin saves the form.
+--------------------------------------------------------------------------- */
+const enhancing = ref(false);
+
+const textOf = (html) => String(html || '').replace(/<[^>]*>/g, '').trim();
+const hasDescription = computed(() =>
+  ['ar', 'en'].some(locale => textOf(formDescription.value[locale]) !== '' || String(formDescription.value[locale] || '').includes('<img'))
+);
+
+const enhanceDescription = async () => {
+  if (enhancing.value || !hasDescription.value) return;
+
+  enhancing.value = true;
+  try {
+    const { data } = await axios.post(route('admin.facility.description.enhance'), {
+      description: { ar: formDescription.value.ar || '', en: formDescription.value.en || '' },
+      name: { ar: nameIn(form.value.name, 'ar'), en: nameIn(form.value.name, 'en') },
+    });
+
+    const values = data?.values || {};
+    if (!values.ar && !values.en) throw new Error('empty');
+
+    formDescription.value = { ...formDescription.value, ...values };
+    useNotification().success(
+      t.value.facility?.description_enhanced || 'Description reorganised. Read it over before saving.'
+    );
+  } catch (error) {
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value.facility?.description_enhance_failed || 'Could not enhance the description. Please try again.')
+    );
+  } finally {
+    enhancing.value = false;
+  }
+};
 
 const DEFAULT_BANNER = {
   enabled: false,

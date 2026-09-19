@@ -33,7 +33,8 @@
  * The one place the app talks to Quill. Everything else uses this component's
  * props/events, so swapping the underlying editor is a change confined here.
  */
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 import EditorImageResizer from './EditorImageResizer.vue';
@@ -57,6 +58,12 @@ const props = defineProps({
   imageUploader: {
     type: Function,
     default: null
+  },
+  // Adds a toolbar button that strips every text colour and background from the
+  // whole content, so pasted text falls back to the default colour.
+  clearColorsButton: {
+    type: Boolean,
+    default: false
   },
   // Click an image to get drag handles and size presets.
   resizableImages: {
@@ -85,6 +92,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue']);
+const page = usePage();
+const clearColorsLabel = computed(() => page.props.translations?.admin?.common?.remove_colors || 'Remove colors and backgrounds');
 const editor = ref(null);
 const surface = ref(null);
 let quill = null;
@@ -96,9 +105,54 @@ const revision = ref(0);
 
 const pushContent = () => emit('update:modelValue', quill.root.innerHTML);
 
+/**
+ * Loads HTML into the editor through Quill's own converter. Assigning it to
+ * `quill.root.innerHTML` instead makes Quill discard anything it has no format
+ * for — a plain <ul><li> list came out as an empty paragraph, so an AI-enhanced
+ * description lost every bullet and kept only its heading. Silent: the value
+ * the parent holds is left exactly as given until the admin edits.
+ */
+const loadHtml = (html) => {
+  quill.setContents(quill.clipboard.convert({ html: html || '', text: '\n' }), 'silent');
+};
+
 const applyDirection = (direction) => {
   if (!quill) return;
   quill.root.setAttribute('dir', direction === 'rtl' ? 'rtl' : 'ltr');
+};
+
+// --- Remove colours -------------------------------------------------------
+
+/**
+ * Strips text colour and background from the whole content, leaving bold,
+ * links, lists and the rest alone. Pasted text often carries its own colours
+ * (dark text that vanishes on the dark theme, highlighter backgrounds), so this
+ * puts everything back on the default colour.
+ */
+const clearColors = () => {
+  if (!quill) return;
+
+  // The formats Quill knows about, through the document model...
+  quill.formatText(0, quill.getLength(), { color: false, background: false }, 'user');
+
+  // ...then whatever else came in with the markup: inline styles Quill has no
+  // format for, <font color>, and <mark> highlights.
+  quill.root.querySelectorAll('mark').forEach((mark) => mark.replaceWith(...mark.childNodes));
+  quill.root.querySelectorAll('[style], font').forEach((el) => {
+    el.style?.removeProperty('color');
+    el.style?.removeProperty('background');
+    el.style?.removeProperty('background-color');
+    el.style?.removeProperty('-webkit-text-fill-color');
+    if (el.getAttribute('style') === '') el.removeAttribute('style');
+    if (el.tagName === 'FONT') {
+      el.removeAttribute('color');
+      el.removeAttribute('bgcolor');
+      if (el.attributes.length === 0) el.replaceWith(...el.childNodes);
+    }
+  });
+
+  quill.update('user');
+  pushContent();
 };
 
 // --- Image uploads --------------------------------------------------------
@@ -215,9 +269,10 @@ const clearImageSelectionOnOutsideClick = (event) => {
  * without that Quill would inline the file as base64 straight into the column.
  */
 const toolbarContainer = () => {
-  if (!props.imageUploader) return props.toolbar;
+  const base = props.clearColorsButton ? [...props.toolbar, ['clear-colors']] : props.toolbar;
+  if (!props.imageUploader) return base;
 
-  const groups = props.toolbar.map((group) => (Array.isArray(group) ? [...group] : group));
+  const groups = base.map((group) => (Array.isArray(group) ? [...group] : group));
   if (groups.some((group) => Array.isArray(group) && group.includes('image'))) return groups;
 
   const linkGroup = groups.find((group) => Array.isArray(group) && group.includes('link'));
@@ -233,7 +288,10 @@ onMounted(() => {
   const modules = {
     toolbar: {
       container: toolbarContainer(),
-      handlers: props.imageUploader ? { image: pickAndUploadImage } : {}
+      handlers: {
+        ...(props.imageUploader ? { image: pickAndUploadImage } : {}),
+        ...(props.clearColorsButton ? { 'clear-colors': clearColors } : {}),
+      }
     }
   };
 
@@ -253,6 +311,17 @@ onMounted(() => {
 
   applyDirection(props.direction);
 
+  if (props.clearColorsButton) {
+    // Quill has no icon for a custom button; a "no paint" glyph, tinted by the
+    // same toolbar rules as the built-in ones.
+    const button = editor.value.parentNode.querySelector('.ql-clear-colors');
+    if (button) {
+      button.setAttribute('title', clearColorsLabel.value);
+      button.setAttribute('aria-label', clearColorsLabel.value);
+      button.innerHTML = '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M3 15l6-11 6 11z" fill="none" stroke-width="1.5" stroke-linejoin="round"/><line class="ql-stroke" x1="2" y1="2" x2="16" y2="16" stroke-width="1.5"/></svg>';
+    }
+  }
+
   quill.on('text-change', () => {
     // The selected image may have just been deleted or moved.
     if (activeImage.value && !quill.root.contains(activeImage.value)) {
@@ -267,7 +336,7 @@ onMounted(() => {
   document.addEventListener('mousedown', clearImageSelectionOnOutsideClick);
 
   if (props.modelValue) {
-    quill.root.innerHTML = props.modelValue;
+    loadHtml(props.modelValue);
   }
 });
 
@@ -277,7 +346,7 @@ onBeforeUnmount(() => {
 
 watch(() => props.modelValue, (newValue) => {
   if (newValue !== quill.root.innerHTML) {
-    quill.root.innerHTML = newValue;
+    loadHtml(newValue);
     activeImage.value = null;
   }
 });

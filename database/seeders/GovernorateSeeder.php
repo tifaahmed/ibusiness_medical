@@ -59,5 +59,7 @@ class GovernorateSeeder extends Seeder
         }
 
         $this->command->info(count($this->governorates) . ' governorates seeded.');
+
+        $this->call(GovernorateBoundarySeeder::class);
     }
 }

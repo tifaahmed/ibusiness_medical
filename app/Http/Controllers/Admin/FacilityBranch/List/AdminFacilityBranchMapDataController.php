@@ -61,6 +61,8 @@ class AdminFacilityBranchMapDataController extends BaseController
             })
             ->when($request->boolean('no_governorate'), fn ($q) => $q->whereNull('governorate_id'))
             ->when($request->boolean('no_city'), fn ($q) => $q->whereNull('city_id'))
+            // Every branch on this map has coordinates, so "no GPS" leaves it empty — by design.
+            ->when($request->boolean('no_gps'), fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->paginate($request->input('per_page', 15));
 

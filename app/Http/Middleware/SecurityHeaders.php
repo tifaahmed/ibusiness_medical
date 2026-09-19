@@ -24,7 +24,7 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin', false);
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none', false);
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin', false);
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()', false);
+        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self), payment=(), usb=()', false);
 
         // HSTS only over HTTPS — sending it over plain HTTP is ignored by browsers
         // and pinning the header before a certificate exists locks users out.

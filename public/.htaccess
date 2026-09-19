@@ -67,7 +67,7 @@ AddHandler application/x-httpd-alt-php84___lsphp .php
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set X-Permitted-Cross-Domain-Policies "none"
     Header always set Cross-Origin-Opener-Policy "same-origin"
-    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=()"
 
     # HSTS — sent only over HTTPS, so it cannot lock anyone out before the
     # certificate is issued. Add "preload" only when you are sure.

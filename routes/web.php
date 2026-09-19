@@ -594,6 +594,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // read: it translates the boxes as they stand — facility and the
         // branches typed into the form — and writes nothing.
         Route::post('/admin/facility/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityTranslateController::class)->name('admin.facility.translate');
+        // "Enhance with AI" on the description: same text, laid out with short
+        // icon headings and bullets. Works on the open form, writes nothing.
+        Route::post('/admin/facility/description/enhance', \App\Http\Controllers\Admin\Facility\Description\AdminFacilityDescriptionEnhanceController::class)->name('admin.facility.description.enhance');
         // Branch add/edit from the facility form's modal — writes the one branch
         // immediately and answers JSON (called via axios).
         Route::post('/admin/facility/{facility}/branch', \App\Http\Controllers\Admin\Facility\Branch\AdminFacilityBranchSaveController::class)->name('admin.facility.branch.save');
@@ -653,6 +656,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Fix English with AI" — translates the boxes as they stand and answers
         // JSON; nothing is written until the admin saves.
         Route::post('/admin/facility/branch/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityBranchTranslateController::class)->name('admin.facility.branch.translate');
+        // "Fix languages with AI" on the branch form: a problem on either side
+        // has both the Arabic and the English fixed together.
+        Route::post('/admin/facility/branch/fix-languages', \App\Http\Controllers\Admin\FacilityBranch\Languages\AdminFacilityBranchFixLanguagesController::class)->name('admin.facility.branch.fix-languages');
         // "Fill governorate & city from the address" — reads the typed address
         // and picks the two rows it belongs to, from the ones that exist.
         Route::post('/admin/facility/branch/place', \App\Http\Controllers\Admin\Facility\Place\AdminFacilityBranchPlaceController::class)->name('admin.facility.branch.place');
@@ -663,6 +669,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // Map view's data feed. Must come before /{facilityBranch} so the
         // static segment is not swallowed by the wildcard.
         Route::get('/admin/facility-branch/map-data', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchMapDataController::class)->name('admin.facility-branch.map-data');
+        // Border of a governorate, drawn on the map when filtering by governorate.
+        Route::get('/admin/facility-branch/governorate-boundary/{governorate}', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchGovernorateBoundaryController::class)->name('admin.facility-branch.governorate-boundary');
+        Route::get('/admin/facility-branch/city-boundary/{city}', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchCityBoundaryController::class)->name('admin.facility-branch.city-boundary');
         Route::get('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchShowController::class)->name('admin.facility-branch.show');
         Route::get('/admin/facility-branch/{facilityBranch}/logs', AdminFacilityBranchLogsController::class)->name('admin.facility-branch.logs');
     });

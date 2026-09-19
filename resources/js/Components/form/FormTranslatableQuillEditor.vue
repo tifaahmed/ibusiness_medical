@@ -1,9 +1,13 @@
 <template>
   <div>
-    <label class="block text-sm font-medium text-white mb-1">
-      {{ label }}
-      <span v-if="required" class="text-destructive">*</span>
-    </label>
+    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+      <label class="block text-sm font-medium text-white">
+        {{ label }}
+        <span v-if="required" class="text-destructive">*</span>
+      </label>
+      <!-- Buttons that act on the whole field, beside its label. -->
+      <slot name="label-actions" />
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div v-for="locale in locales" :key="locale">
         <label :for="`${id}-${locale}`" class="block text-xs font-medium text-muted-foreground mb-1">
@@ -16,6 +20,7 @@
           :error="getLocaleError(locale)"
           :direction="rtlLocales.includes(locale) ? 'rtl' : 'ltr'"
           :image-uploader="imageUploader"
+          :clear-colors-button="clearColorsButton"
           @update:model-value="updateLocaleValue(locale, $event)"
         />
       </div>
@@ -43,6 +48,11 @@ const props = defineProps({
   rtlLocales: {
     type: Array,
     default: () => ['ar']
+  },
+  // Shows a "remove colours" button on each locale's editor.
+  clearColorsButton: {
+    type: Boolean,
+    default: false
   },
   // async (File) => url, passed straight to each locale's editor.
   imageUploader: {

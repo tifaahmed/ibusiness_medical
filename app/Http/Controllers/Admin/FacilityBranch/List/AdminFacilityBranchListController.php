@@ -63,30 +63,59 @@ class AdminFacilityBranchListController extends BaseController
             ->when($filters['no_governorate'], fn ($q) => $q->whereNull('governorate_id'))
             ->when($filters['no_city'], fn ($q) => $q->whereNull('city_id'))
             ->when($filters['no_address'], fn ($q) => $q->tap(self::missingAddress(...)))
+            // No pin on the map: either coordinate is missing.
+            ->when($filters['no_gps'], fn ($q) => $q->where(fn ($w) => $w->whereNull('latitude')->orWhereNull('longitude')))
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
-        $facilities = Facility::all()->map(function ($facility) {
-            return [
-                'id' => $facility->id,
-                'name' => $facility->name,
-            ];
-        });
+        // Branches per option, shown next to each name in the filter selects.
+        // Counted over everything the reader is allowed to see, not the page in
+        // front of them, and not narrowed by the other filters.
+        $branchCountBy = fn (string $column) => FacilityBranch::query()
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->whereNotNull($column)
+            ->selectRaw($column.' AS k, COUNT(*) AS c')
+            ->groupBy($column)
+            ->pluck('c', 'k');
+
+        $perFacility = $branchCountBy('facility_id');
+        $perGovernorate = $branchCountBy('governorate_id');
+        $perCity = $branchCountBy('city_id');
+
+        $facilities = Facility::all();
+        $facilityTypeOfFacility = $facilities->pluck('facility_type_id', 'id');
+        $perFacilityType = $perFacility->reduce(function (array $carry, $count, $facilityId) use ($facilityTypeOfFacility) {
+            $typeId = $facilityTypeOfFacility[$facilityId] ?? null;
+            if ($typeId !== null) {
+                $carry[$typeId] = ($carry[$typeId] ?? 0) + (int) $count;
+            }
+
+            return $carry;
+        }, []);
+
+        $facilities = $facilities->map(fn ($facility) => [
+            'id' => $facility->id,
+            'name' => $facility->name,
+            'branches_count' => (int) ($perFacility[$facility->id] ?? 0),
+        ]);
 
         $governorates = Governorate::orderBy('id')->get()->map(fn ($governorate) => [
             'id' => $governorate->id,
             'name' => $governorate->name,
+            'branches_count' => (int) ($perGovernorate[$governorate->id] ?? 0),
         ]);
 
         $cities = City::orderBy('id')->get()->map(fn ($city) => [
             'id' => $city->id,
             'governorate_id' => $city->governorate_id,
             'name' => $city->name,
+            'branches_count' => (int) ($perCity[$city->id] ?? 0),
         ]);
 
         $facilityTypes = FacilityType::orderBy('id')->get()->map(fn ($facilityType) => [
             'id' => $facilityType->id,
             'name' => $facilityType->name,
+            'branches_count' => (int) ($perFacilityType[$facilityType->id] ?? 0),
         ]);
 
         // What each "missing" filter would find, counted over everything the
@@ -98,6 +127,7 @@ class AdminFacilityBranchListController extends BaseController
                 'SUM(governorate_id IS NULL) AS no_governorate,'
                 .' SUM(city_id IS NULL) AS no_city,'
                 .' SUM('.self::MISSING_ADDRESS_SQL.') AS no_address,'
+                .' SUM(latitude IS NULL OR longitude IS NULL) AS no_gps,'
                 // What each AI sweep would actually queue: a row it can help
                 // with is one that has an address to read AND is missing the
                 // thing being filled. Without the address there is nothing to
@@ -118,6 +148,7 @@ class AdminFacilityBranchListController extends BaseController
                 'no_governorate' => (int) ($incomplete->no_governorate ?? 0),
                 'no_city' => (int) ($incomplete->no_city ?? 0),
                 'no_address' => (int) ($incomplete->no_address ?? 0),
+                'no_gps' => (int) ($incomplete->no_gps ?? 0),
                 'no_place' => (int) ($incomplete->no_place ?? 0),
                 'no_location' => (int) ($incomplete->no_location ?? 0),
                 'duplicate_names' => $this->duplicateNameCount(),
@@ -143,6 +174,7 @@ class AdminFacilityBranchListController extends BaseController
             'no_governorate' => $request->boolean('no_governorate'),
             'no_city' => $request->boolean('no_city'),
             'no_address' => $request->boolean('no_address'),
+            'no_gps' => $request->boolean('no_gps'),
         ];
     }
 

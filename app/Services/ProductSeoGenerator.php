@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Services\Ai\GeminiClient;
+use App\Support\SiteSettings;
 use RuntimeException;
 
 /**
@@ -46,8 +47,8 @@ class ProductSeoGenerator
 
     private function systemPrompt(): string
     {
-        return <<<'PROMPT'
-        You are an SEO copywriter for ASH Health Care, an Egyptian medical discount-card
+        return str_replace('{brand}', $this->brandName(), <<<'PROMPT'
+        You are an SEO copywriter for {brand}, an Egyptian medical discount-card
         network that also runs an online shop of medical and health products.
 
         You write metadata for the public page of a single product. Write for real
@@ -70,7 +71,17 @@ class ProductSeoGenerator
         - The Arabic must be natural Modern Standard Arabic as used in Egypt, not a
           word-for-word translation of the English.
         - Use only the facts supplied below.
-        PROMPT;
+        - The brand is called "{brand}" — never write it any other way (never "ASH").
+        PROMPT);
+    }
+
+    /**
+     * The name of this site as set in the admin settings ("Deilar"), so the AI
+     * writes the brand the way the project is actually called.
+     */
+    private function brandName(): string
+    {
+        return (string) (SiteSettings::get('deilar_name', config('app.name')) ?: config('app.name'));
     }
 
     private function userPrompt(array $context): string

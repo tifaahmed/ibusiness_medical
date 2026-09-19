@@ -30,12 +30,13 @@ const props = defineProps({
       facility_type_id: '',
       no_governorate: false,
       no_city: false,
-      no_address: false
+      no_address: false,
+      no_gps: false
     })
   },
   incompleteCounts: {
     type: Object,
-    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_place: 0, no_location: 0, duplicate_names: 0 })
+    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_gps: 0, no_place: 0, no_location: 0, duplicate_names: 0 })
   },
   // False when GEMINI_API_KEY is unset on the server.
   placeAiEnabled: {

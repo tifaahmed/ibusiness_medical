@@ -26,6 +26,23 @@ class City extends Model
         'slug',
     ];
 
+    /**
+     * The border is a large GeoJSON blob; keep it out of every list/JSON
+     * payload. The branch map fetches it on its own.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'boundary',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'boundary' => 'array',
+        ];
+    }
+
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()

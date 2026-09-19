@@ -263,6 +263,8 @@ export const useFacilityStore = defineStore('facility', {
                 
                 if (stay) {
                     formData.stay = 1;
+                    // Lets the server send the admin back to the tab they were on.
+                    if (options.tab) formData.tab = options.tab;
                 }
                 this.debugLog = buildDebugLog({ method: 'PUT', url, fields: formData });
 

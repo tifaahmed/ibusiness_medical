@@ -55,6 +55,13 @@ class AdminFacilityBranchUpdateController extends BaseController
                 'user_agent' => $request->userAgent(),
             ]);
 
+            // "Save and stay" sends `stay`: back to this branch's edit form
+            // instead of the list.
+            if ($request->boolean('stay')) {
+                return redirect()->route('admin.facility-branch.edit', $updatedFacilityBranch->slug)
+                    ->with('success', 'Facility branch updated successfully.');
+            }
+
             return redirect()->route('admin.facility-branch.list')
                 ->with('success', 'Facility branch updated successfully.');
         } catch (\Exception $e) {

@@ -5,8 +5,9 @@
       <div class="flex-shrink-0 space-y-2 sm:space-y-3 md:space-y-4 p-2 sm:p-3 md:p-4 lg:p-6 pb-2 sm:pb-3 md:pb-4 lg:pb-4 w-full max-w-full overflow-hidden">
         <!-- Header Card with Actions and Filters -->
         <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-2 sm:gap-3 md:gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm overflow-hidden w-full max-w-full">
-          <div data-slot="card-header" class="flex flex-row items-center justify-between py-2 px-3 sm:px-4 md:px-6 w-full overflow-hidden gap-2 sm:gap-4">
-            <div data-slot="card-title" class="leading-none font-semibold min-w-0 flex-1">
+          <!-- Two rows: title on top, action buttons wrapping below, so none get clipped -->
+          <div data-slot="card-header" class="flex flex-col items-stretch py-2 px-3 sm:px-4 md:px-6 w-full overflow-hidden gap-2 sm:gap-3">
+            <div data-slot="card-title" class="leading-none font-semibold min-w-0 w-full">
               <div class="title-golden min-w-0 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-branch title-icon sm:w-6 sm:h-6 flex-shrink-0">
                   <line x1="6" x2="6" y1="3" y2="15"></line>
@@ -17,7 +18,7 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.facility_branch?.management || 'Facility Branches Management' }}</span>
               </div>
             </div>
-            <div class="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 flex-shrink-0">
+            <div class="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2 w-full min-w-0">
               <!-- The two AI sweeps: read the address a branch already has and
                    fill in what it is missing. Each carries the number of rows
                    still waiting, so the size of the job is on the button. -->
@@ -162,7 +163,7 @@ import BranchSweepDialog from "./BranchSweepDialog.vue";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
 
 const { canManage } = usePermissions();
@@ -189,7 +190,8 @@ const props = defineProps({
       facility_type_id: '',
       no_governorate: false,
       no_city: false,
-      no_address: false
+      no_address: false,
+      no_gps: false
     })
   },
   facilities: {
@@ -210,7 +212,7 @@ const props = defineProps({
   },
   incompleteCounts: {
     type: Object,
-    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_place: 0, no_location: 0, duplicate_names: 0 })
+    default: () => ({ no_governorate: 0, no_city: 0, no_address: 0, no_gps: 0, no_place: 0, no_location: 0, duplicate_names: 0 })
   },
   // False when GEMINI_API_KEY is unset on the server — the sweep buttons are
   // hidden rather than offered and then refused by the routes behind them.
@@ -236,7 +238,21 @@ const filters = ref(props.filters || {
   facility_id: ''
 });
 
-const viewMode = ref('list');
+// List or map, kept in the URL (?view=map) so a reload or a shared link opens the same view.
+const viewMode = ref(
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'map' ? 'map' : 'list'
+);
+
+watch(viewMode, (mode) => {
+  const url = new URL(window.location.href);
+  if (mode === 'map') {
+    url.searchParams.set('view', 'map');
+  } else {
+    url.searchParams.delete('view');
+  }
+  // Keep Inertia's own history state; only the address changes, nothing reloads.
+  window.history.replaceState(window.history.state, '', url);
+});
 
 const handleDelete = (facilityBranchSlug) => {
   facilityBranchStore.confirmDelete(facilityBranchSlug);

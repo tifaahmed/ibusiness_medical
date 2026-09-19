@@ -45,6 +45,7 @@ class AdminFacilityBranchEditController extends BaseController
             ->map(function ($facility) {
                 return [
                     'id' => $facility->id,
+                    'slug' => $facility->slug,
                     // Both spellings: the form builds the branch name in each
                     // language, and hands the facility name to the AI as context.
                     'name' => $facility->getTranslations('name'),

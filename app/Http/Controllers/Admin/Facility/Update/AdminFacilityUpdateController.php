@@ -56,8 +56,12 @@ class AdminFacilityUpdateController extends BaseController
             ]);
 
             // "Save & Stay" returns to the edit form; otherwise go back to the list.
+            // The open tab (?tab=seo) rides along so the address bar keeps it.
+            $tab = in_array($request->input('tab'), ['details', 'seo'], true) && $request->input('tab') !== 'details'
+                ? ['tab' => $request->input('tab')]
+                : [];
             $redirectTo = $request->boolean('stay')
-                ? route('admin.facility.edit', ['facility' => $updatedFacility->slug])
+                ? route('admin.facility.edit', ['facility' => $updatedFacility->slug] + $tab)
                 : route('admin.facility.list');
 
             return redirect()->to($redirectTo)

@@ -29,6 +29,15 @@
             <div class="text-xs sm:text-sm font-medium text-foreground truncate">{{ getTranslatedName(branch.name) || '-' }}</div>
             <div class="text-[11px] text-muted-foreground truncate">{{ getTranslatedName(branch.facility?.name) }}</div>
           </div>
+          <Link
+            v-if="canWrite"
+            :href="editUrl(branch)"
+            class="flex-shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md border border-border bg-background hover:bg-muted text-foreground"
+            :title="t.common?.edit || 'Edit'"
+            @click.stop
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </Link>
         </div>
 
         <div v-if="!loading && branches.length === 0" class="p-4 text-center text-xs text-muted-foreground">
@@ -94,8 +103,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { usePermissions } from '@/composables/usePermissions';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
@@ -110,6 +120,11 @@ const props = defineProps({
 const page = usePage();
 const t = ref(page.props.translations?.admin || {});
 watch(() => page.props.translations, (v) => { t.value = v?.admin || {}; });
+
+// Editing is a write: hidden from read-only accounts, refused by the route either way.
+const { canManage } = usePermissions();
+const canWrite = computed(() => canManage('manage facility branches', 'manage own facility branches'));
+const editUrl = (branch) => route('admin.facility-branch.edit', branch.slug);
 
 const getTranslatedName = (name) => {
   if (typeof name === 'string') return name;
@@ -132,6 +147,14 @@ const mapEl = ref(null);
 let map = null;
 let myLocationMarker = null;
 const markersById = new Map();
+
+// The outlines of the place filters: governorate in amber, city in blue, both
+// drawn when both are chosen. Not interactive, so clicks and hovers still
+// reach the pins underneath them.
+const boundaries = {
+  governorate: { layer: null, routeName: 'admin.facility-branch.governorate-boundary', filterKey: 'governorate_id', style: { color: '#d97706', weight: 3, opacity: 0.95, fillColor: '#f59e0b', fillOpacity: 0.08 }, cache: new Map() },
+  city: { layer: null, routeName: 'admin.facility-branch.city-boundary', filterKey: 'city_id', style: { color: '#2563eb', weight: 3, opacity: 0.95, fillColor: '#3b82f6', fillOpacity: 0.12 }, cache: new Map() },
+};
 
 // A plain map pin, drawn as SVG so it needs no image asset. Red once hovered,
 // the same brand-amber pin everywhere else.
@@ -184,11 +207,15 @@ const popupHtml = (branch) => {
   const link = branch.google_location_url
     ? `<a href="${branch.google_location_url}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${t.value.facility_branch?.view_on_maps || 'Open in Google Maps'}</a>`
     : '';
+  const edit = canWrite.value
+    ? `<a href="${editUrl(branch)}" data-branch-edit style="display:inline-block;padding:3px 10px;border:1px solid #d1d5db;border-radius:6px;color:#111827;text-decoration:none;font-weight:500;">${t.value.common?.edit || 'Edit'}</a>`
+    : '';
   return `<div style="min-width:180px;font-size:12px;line-height:1.4;">
     <div style="font-weight:600;">${name}</div>
     ${facility ? `<div style="color:#6b7280;">${facility}</div>` : ''}
     ${address ? `<div style="margin-top:4px;">${address}</div>` : ''}
     ${link ? `<div style="margin-top:4px;">${link}</div>` : ''}
+    ${edit ? `<div style="margin-top:8px;">${edit}</div>` : ''}
   </div>`;
 };
 
@@ -210,8 +237,53 @@ const renderMarkers = () => {
     points.push([branch.latitude, branch.longitude]);
   });
 
-  if (points.length > 0) {
+  // With a place outlined, frame its border rather than just the pins.
+  if (!fitBoundaries() && points.length > 0) {
     map.fitBounds(points, { padding: [30, 30], maxZoom: 14 });
+  }
+};
+
+// Frame the smallest outline drawn (the city, else the governorate).
+// Returns false when nothing is outlined.
+const fitBoundaries = () => {
+  const layer = boundaries.city.layer || boundaries.governorate.layer;
+  if (!layer) return false;
+  map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+  return true;
+};
+
+const clearBoundary = (kind) => {
+  const entry = boundaries[kind];
+  if (entry.layer) {
+    map.removeLayer(entry.layer);
+    entry.layer = null;
+  }
+};
+
+const drawBoundary = async (kind, id) => {
+  if (!map) return;
+  const entry = boundaries[kind];
+  clearBoundary(kind);
+  if (!id) return;
+
+  try {
+    if (!entry.cache.has(id)) {
+      const { data } = await axios.get(route(entry.routeName, id));
+      entry.cache.set(id, data.geometry || null);
+    }
+    const geometry = entry.cache.get(id);
+
+    // The filter may have changed while the request was in flight.
+    if (!map || String(props.filters?.[entry.filterKey] || '') !== String(id)) return;
+    clearBoundary(kind);
+    if (!geometry) return;
+
+    entry.layer = L.geoJSON(geometry, { interactive: false, style: entry.style }).addTo(map);
+    // The city sits on top of its governorate, never under it.
+    if (kind === 'governorate') entry.layer.bringToBack();
+    fitBoundaries();
+  } catch (error) {
+    console.error(`Failed to load ${kind} boundary:`, error);
   }
 };
 
@@ -225,6 +297,7 @@ const filterParams = () => {
   if (f.facility_type_id) params.facility_type_id = f.facility_type_id;
   if (f.no_governorate) params.no_governorate = 1;
   if (f.no_city) params.no_city = 1;
+  if (f.no_gps) params.no_gps = 1;
   return params;
 };
 
@@ -281,7 +354,17 @@ const locateMe = () => {
   );
 };
 
+// Popup HTML is plain markup, so its Edit link is routed through Inertia here
+// instead of reloading the whole page.
+const handlePopupClick = (event) => {
+  const link = event.target.closest?.('a[data-branch-edit]');
+  if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return;
+  event.preventDefault();
+  router.visit(link.getAttribute('href'));
+};
+
 onMounted(() => {
+  mapEl.value.addEventListener('click', handlePopupClick);
   map = L.map(mapEl.value, { zoomControl: true }).setView([26.8206, 30.8025], 6);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -290,6 +373,8 @@ onMounted(() => {
   }).addTo(map);
 
   fetchBranches();
+  drawBoundary('governorate', props.filters?.governorate_id);
+  drawBoundary('city', props.filters?.city_id);
   // Best-effort, silent: a denial here should not interrupt the map.
   if ('geolocation' in navigator) {
     navigator.geolocation.getCurrentPosition(
@@ -304,6 +389,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  mapEl.value?.removeEventListener('click', handlePopupClick);
   if (map) {
     map.remove();
     map = null;
@@ -314,6 +400,9 @@ watch(() => props.filters, () => {
   currentPage.value = 1;
   fetchBranches();
 }, { deep: true });
+
+watch(() => props.filters?.governorate_id, (id) => drawBoundary('governorate', id));
+watch(() => props.filters?.city_id, (id) => drawBoundary('city', id));
 </script>
 
 <style>

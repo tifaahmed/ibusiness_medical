@@ -34,7 +34,7 @@
               'inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none',
               translateHint ? '' : 'ml-auto'
             ]"
-            :title="translateHint || (t.facility?.english_fix_branch_hint || 'Translate the Arabic name and address into the English boxes')"
+            :title="translateHint || (t.facility_branch?.fix_languages_hint || 'If the Arabic or the English is empty, in the wrong language or badly written, fix both')"
             @click="fixEnglish"
           >
             <svg v-if="translating" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
@@ -44,8 +44,8 @@
               <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
             </svg>
             {{ translating
-              ? (t.facility?.english_fixing || 'Fixing English…')
-              : (t.facility?.english_fix_branch || 'Fix English with AI') }}
+              ? (t.facility_branch?.fix_languages_fixing || 'Fixing languages…')
+              : (t.facility_branch?.fix_languages || 'Fix languages with AI') }}
           </button>
         </div>
       </div>
@@ -61,6 +61,15 @@
               :placeholder="t.facility?.all || 'Select a facility'"
               required
             />
+            <!-- Straight to the parent facility's own edit page. -->
+            <Link
+              v-if="parentFacilityEditUrl"
+              :href="parentFacilityEditUrl"
+              class="mt-1 inline-flex h-8 w-fit items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              {{ t.facility_branch?.edit_facility || 'Edit the facility' }}
+            </Link>
           </div>
         </div>
 
@@ -211,6 +220,12 @@
           </div>
         </div>
 
+        <!-- Row 4a: where those coordinates land -->
+        <FacilityBranchLocationMap
+          :latitude="facilityBranchStore.form.latitude"
+          :longitude="facilityBranchStore.form.longitude"
+        />
+
         <!-- Row 4b: Google Location URL -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <div data-slot="form-item" class="grid gap-1">
@@ -243,9 +258,11 @@
 <script setup>
 import { FormTranslatableInput, FormSelect, FormInput, BranchPhonesInput } from "@/Components/form";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
+import FacilityBranchLocationMap from "./FacilityBranchLocationMap.vue";
 import { computed, nextTick, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { usePage } from "@inertiajs/vue3";
+import { Link, usePage } from "@inertiajs/vue3";
+import { usePermissions } from "@/composables/usePermissions";
 import { useNotification } from "@/composables/useNotification";
 import { bilingualLabel, nameIn, primaryName } from "@/lib/lookupNames";
 
@@ -300,6 +317,14 @@ const facilityOptions = computed(() => {
       label: `${name} ${branchesLabel}`
     };
   });
+});
+
+// The parent facility's edit page — only for accounts that may edit facilities.
+const { canManage } = usePermissions();
+const parentFacilityEditUrl = computed(() => {
+  if (!canManage('manage facilities', 'manage own facilities')) return null;
+  const facility = props.facilities.find(f => String(f.id) === String(form.value.facility_id));
+  return facility?.slug ? route('admin.facility.edit', facility.slug) : null;
 });
 
 // Get selected facility details
@@ -548,19 +573,20 @@ const resolvePlace = async () => {
   }
 };
 
-/* ---- Fix English with AI --------------------------------------------------
-   The Arabic side is the source the AI translates from, so there is nothing to
-   do until one of the two Arabic boxes has something in it.
+/* ---- Fix languages with AI ------------------------------------------------
+   A problem on either side — a box empty, the wrong language in it, the two
+   swapped, or one copied into the other — has BOTH languages fixed together, so
+   name and address end up consistent. There is nothing to do until at least one
+   of the four boxes has something in it.
 --------------------------------------------------------------------------- */
 const translating = ref(false);
 const showTranslateHint = ref(false);
 
+const typed = (value) => String(value || '').trim() !== '';
+
 const canTranslate = computed(() =>
   props.englishFixEnabled
-  && (
-    String(form.value.name?.ar || '').trim() !== ''
-    || String(form.value.address?.ar || '').trim() !== ''
-  )
+  && ['name', 'address'].some(field => typed(form.value[field]?.ar) || typed(form.value[field]?.en))
 );
 
 const translateHint = computed(() => {
@@ -570,8 +596,8 @@ const translateHint = computed(() => {
   }
   if (translating.value) return '';
   if (!canTranslate.value) {
-    return t.value.facility?.english_fix_needs_arabic
-      || 'Fill in the Arabic name or address first.';
+    return t.value.facility_branch?.fix_languages_needs_text
+      || 'Fill in the name or address first.';
   }
   return '';
 });
@@ -595,34 +621,43 @@ const fixEnglish = async () => {
 
   translating.value = true;
   try {
-    const { data } = await axios.post(route('admin.facility.branch.translate'), {
-      name: { ar: form.value.name?.ar || '' },
-      address: { ar: form.value.address?.ar || '' },
+    const { data } = await axios.post(route('admin.facility.branch.fix-languages'), {
+      name: { ar: form.value.name?.ar || '', en: form.value.name?.en || '' },
+      address: { ar: form.value.address?.ar || '', en: form.value.address?.en || '' },
       facility_name: primaryName(selectedFacilityName.value, locale.value) || null,
       governorate: selectedOptionLabel(governorateOptions.value, form.value.governorate_id) || null,
       city: selectedOptionLabel(cityOptions.value, form.value.city_id) || null,
     });
 
     const values = data?.values || {};
-    const filled = [];
+    const fixed = [];
 
     ['name', 'address'].forEach((field) => {
-      if (!values[field]) return;
-      form.value[field] = { ...(form.value[field] || {}), en: values[field] };
+      const pair = values[field];
+      if (!pair?.ar || !pair?.en) return;
+      form.value[field] = { ...(form.value[field] || {}), ar: pair.ar, en: pair.en };
       clearErrors(field);
-      filled.push(field);
+      fixed.push(field);
     });
 
-    if (filled.length === 0) throw new Error('empty');
+    if (fixed.length === 0) {
+      // Not a failure: both languages already read correctly.
+      useNotification().success(
+        data?.message
+        || t.value.facility_branch?.fix_languages_nothing
+        || 'Both languages already look right.'
+      );
+      return;
+    }
 
     useNotification().success(
-      t.value.facility?.english_fix_branch_done
-      || 'English filled in. Check it before saving.'
+      t.value.facility_branch?.fix_languages_done
+      || 'Arabic and English fixed. Check them before saving.'
     );
   } catch (error) {
     useNotification().error(
       error?.response?.data?.message
-      || (t.value.facility?.english_fix_failed || 'Could not fix the English fields. Please try again.')
+      || (t.value.facility_branch?.fix_languages_failed || 'Could not fix the languages. Please try again.')
     );
   } finally {
     translating.value = false;

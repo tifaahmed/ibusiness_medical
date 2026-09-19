@@ -157,7 +157,9 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
             }
         },
 
-        async updateFacilityBranch() {
+        // `stay` keeps the admin on the edit form after saving (the server
+        // redirects back to it) instead of returning to the list.
+        async updateFacilityBranch(stay = false) {
             this.isLoading = true;
             try {
                 const facilityBranchSlug = this.form.slug || this.form.id;
@@ -191,11 +193,12 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                 this.validationErrors = null;
                 this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(url, {
+                this.form.transform((data) => (stay ? { ...data, stay: true } : data)).put(url, {
                     preserveScroll: true,
                     onSuccess: () => {
                         useNotification().success('Facility branch updated successfully');
                         this.debugLog = null;
+                        if (stay) return;
                         this.initializeForm();
                         router.visit(route('admin.facility-branch.list'));
                     },
