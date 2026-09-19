@@ -643,6 +643,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
            can only be decided with the whole facility in hand. */
         Route::post('/admin/facility-branch/rename/bulk/begin', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchRenameBulkController::class, 'begin'])->name('admin.facility-branch.rename.bulk.begin');
         Route::post('/admin/facility-branch/rename/bulk/step', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchRenameBulkController::class, 'step'])->name('admin.facility-branch.rename.bulk.step');
+        /* "Fix translations with AI" — fixes the Arabic and English of every
+           branch's name and address that is missing, in the wrong language or a
+           copy of the other side. Stepped like the sweeps above; it only ever
+           writes what is wrong, so there is no "redo everything" mode. */
+        Route::post('/admin/facility-branch/translate/bulk/begin', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchTranslateBulkController::class, 'begin'])->name('admin.facility-branch.translate.bulk.begin');
+        Route::post('/admin/facility-branch/translate/bulk/step', [\App\Http\Controllers\Admin\FacilityBranch\Bulk\AdminFacilityBranchTranslateBulkController::class, 'step'])->name('admin.facility-branch.translate.bulk.step');
     });
     /* The two AI helpers the branch form uses. They live outside both groups
        because both forms offer them: the branch modal on the facility page and
@@ -695,7 +701,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage governorates|manage own governorates|view governorates')->group(function () {
         Route::get('/admin/governorate', AdminGovernorateListController::class)->name('admin.governorate.list');
         // Facilities-in-this-governorate popup on the list (axios, answers JSON).
+        // Every governorate's border for the list's map view. A literal path: it has to sit above the `{governorate}` show route.
+        Route::get('/admin/governorate/borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateBordersController::class)->name('admin.governorate.borders');
         Route::get('/admin/governorate/{governorate}/facilities', AdminGovernorateFacilitiesController::class)->name('admin.governorate.facilities');
+        // The selected governorate's cities and their borders, for the map view (`{governorate}` is the id).
+        Route::get('/admin/governorate/{governorate}/city-borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateCityBordersController::class)->name('admin.governorate.city-borders');
         Route::get('/admin/governorate/{governorate}', AdminGovernorateShowController::class)->name('admin.governorate.show');
     });
 

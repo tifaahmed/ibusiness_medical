@@ -10,6 +10,9 @@
     <svg v-if="icon === 'place'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path>
     </svg>
+    <svg v-else-if="icon === 'translate'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m5 8 6 6"></path><path d="m4 14 6-6 2-3"></path><path d="M2 5h12"></path><path d="M7 2h1"></path><path d="m22 22-5-10-5 10"></path><path d="M14 18h6"></path>
+    </svg>
     <svg v-else-if="icon === 'rename'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path>
     </svg>
@@ -50,7 +53,8 @@
 
         <div class="max-h-[60vh] overflow-y-auto p-4 space-y-4">
           <div v-if="phase === 'idle'" class="space-y-3">
-            <label class="flex items-start gap-2 text-sm">
+            <p v-if="hideOverwrite" class="text-xs text-muted-foreground">{{ idleNote }}</p>
+            <label v-else class="flex items-start gap-2 text-sm">
               <input type="checkbox" v-model="overwrite" class="mt-0.5" />
               <span>
                 {{ overwriteLabel || t.facility_branch?.sweep_overwrite || 'Redo every branch' }}
@@ -182,7 +186,7 @@
  * slice at a time until it is done — so no single request has to outlive a
  * shared-hosting timeout, and the progress bar means something.
  *
- * All three sweeps on this page (place, GPS, rename) are this component with
+ * All the sweeps on this page (place, GPS, rename, translate) are this component with
  * different routes and wording: they answer the same shape, so the row
  * rendering and the rate-limit handling are shared rather than written three
  * times. The rename sweep calls no AI, so its rate-limit path simply never runs.
@@ -195,7 +199,7 @@ const props = defineProps({
   // Route names for the two halves of the sweep.
   beginRoute: { type: String, required: true },
   stepRoute: { type: String, required: true },
-  // 'place' or 'location' — picks the button's icon.
+  // 'place', 'location', 'rename' or 'translate' — picks the button's icon.
   icon: { type: String, default: 'place' },
   label: { type: String, required: true },
   shortLabel: { type: String, required: true },
@@ -208,6 +212,9 @@ const props = defineProps({
      'missing' and opt into 'all'; the rename sweep is the other way round — its
      whole point is to restyle every branch, so its checkbox is the careful
      choice rather than the thorough one. */
+  // For a sweep that only ever fixes what is wrong: there is nothing to redo, so no checkbox.
+  hideOverwrite: { type: Boolean, default: false },
+  idleNote: { type: String, default: '' },
   checkedMode: { type: String, default: 'all' },
   uncheckedMode: { type: String, default: 'missing' },
   nothingToDo: { type: String, default: 'Nothing to do.' },

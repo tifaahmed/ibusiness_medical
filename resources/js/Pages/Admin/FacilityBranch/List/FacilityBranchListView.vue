@@ -72,6 +72,24 @@
                 :nothing-to-do="t.facility_branch?.location_bulk_nothing || 'Nothing to do — every branch with an address already has a location.'"
                 :finished="t.facility_branch?.location_bulk_done || 'GPS sweep finished. Open a pin or two to check them.'"
               />
+              <!-- Fixes the Arabic and English of every name and address that is
+                   missing, in the wrong language or a copy of the other side. -->
+              <BranchSweepDialog
+                v-if="canWrite && translateAiEnabled"
+                begin-route="admin.facility-branch.translate.bulk.begin"
+                step-route="admin.facility-branch.translate.bulk.step"
+                icon="translate"
+                hide-overwrite
+                :pending="incompleteCounts.no_translation || 0"
+                :label="t.facility_branch?.translate_bulk || 'Fix translations with AI'"
+                :short-label="t.facility_branch?.translate_bulk_short || 'Translate'"
+                :hint="t.facility_branch?.translate_bulk_hint || 'Fill in or correct the Arabic and English of every branch name and address that is missing or in the wrong language'"
+                :title="t.facility_branch?.translate_bulk_title || 'Fix branch translations with AI'"
+                :description="t.facility_branch?.translate_bulk_description || 'AI fixes the Arabic and English of each branch name and address that is empty, written in the wrong language, or the same text copied into both. Translations that are already right are left alone, and web addresses (slugs) do not change.'"
+                :idle-note="t.facility_branch?.translate_bulk_note || 'Only branches with a missing or wrong name or address are processed. Nothing that is already right is rewritten.'"
+                :nothing-to-do="t.facility_branch?.translate_bulk_nothing || 'Nothing to do — every branch name and address already has a correct Arabic and English version.'"
+                :finished="t.facility_branch?.translate_bulk_done || 'Translation sweep finished. Check a few of the rows it fixed.'"
+              />
               <div class="inline-flex items-center rounded-md border border-border bg-background p-0.5 flex-shrink-0" role="group">
                 <button
                   type="button"
@@ -221,6 +239,10 @@ const props = defineProps({
     default: false
   },
   locationAiEnabled: {
+    type: Boolean,
+    default: false
+  },
+  translateAiEnabled: {
     type: Boolean,
     default: false
   }

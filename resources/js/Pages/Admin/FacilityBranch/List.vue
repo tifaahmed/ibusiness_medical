@@ -9,6 +9,7 @@
     :incomplete-counts="incompleteCounts"
     :place-ai-enabled="placeAiEnabled"
     :location-ai-enabled="locationAiEnabled"
+    :translate-ai-enabled="translateAiEnabled"
   />
 </template>
 
@@ -44,6 +45,10 @@ const props = defineProps({
     default: false
   },
   locationAiEnabled: {
+    type: Boolean,
+    default: false
+  },
+  translateAiEnabled: {
     type: Boolean,
     default: false
   },

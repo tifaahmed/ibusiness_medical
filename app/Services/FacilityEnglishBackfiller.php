@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Facility;
+use App\Models\FacilityBranch;
 use App\Services\Ai\GeminiClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -252,17 +253,128 @@ class FacilityEnglishBackfiller
         }
 
         foreach ($facility->branches as $branch) {
-            $place = collect([
-                $branch->city?->getTranslation('name', 'en') ?: $branch->city?->getTranslation('name', 'ar'),
-                $branch->governorate?->getTranslation('name', 'en') ?: $branch->governorate?->getTranslation('name', 'ar'),
-            ])->filter()->implode(', ');
-
-            foreach (self::BRANCH_FIELDS as $field) {
-                $consider('branch', $branch, $field, $place);
-            }
+            array_push($rows, ...$this->branchFieldRows($branch));
         }
 
         return $rows;
+    }
+
+    /**
+     * The name and address of one branch, each only when a language is wrong.
+     *
+     * The single place the branch rule lives, so name and address can never be
+     * judged differently: a field needs fixing when it is empty on either side,
+     * in the wrong language, or a verbatim copy — see {@see languagesNeedFix()}.
+     * A field with nothing in either language is left out: there is nothing to
+     * translate from.
+     *
+     * @return list<array{model: string, id: int, field: string, ar: string, en: string, context: string}>
+     */
+    private function branchFieldRows(FacilityBranch $branch): array
+    {
+        $place = collect([
+            $branch->city?->getTranslation('name', 'en') ?: $branch->city?->getTranslation('name', 'ar'),
+            $branch->governorate?->getTranslation('name', 'en') ?: $branch->governorate?->getTranslation('name', 'ar'),
+        ])->filter()->implode(', ');
+
+        $rows = [];
+
+        foreach (self::BRANCH_FIELDS as $field) {
+            $ar = trim((string) ($branch->getTranslation($field, 'ar', false) ?? ''));
+            $en = trim((string) ($branch->getTranslation($field, 'en', false) ?? ''));
+
+            if (($ar === '' && $en === '') || ! $this->languagesNeedFix($ar, $en)) {
+                continue;
+            }
+
+            $rows[] = ['model' => 'branch', 'id' => $branch->id, 'field' => $field, 'ar' => $ar, 'en' => $en, 'context' => $place];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Does this branch have a name or address with a language to fix? Reads only
+     * the branch's own columns, so it is cheap enough to run over the whole list.
+     */
+    public function branchNeedsTranslation(FacilityBranch $branch): bool
+    {
+        return $this->branchFieldRows($branch) !== [];
+    }
+
+    /**
+     * Fix the Arabic AND English of one branch's name and address, and save it.
+     *
+     * The branch-list sweep's unit of work, where {@see fixBoth()} is the
+     * facility's. Only a pair that is right on both sides is written; a field
+     * the model could not fix is reported and left exactly as it was. Saved
+     * quietly, so the slug — which is derived from the name — does not move and
+     * no link to the branch breaks.
+     *
+     * @return array{applied: list<array{field: string, from: string, to: string, from_ar: string, to_ar: string}>, errors: list<string>}
+     */
+    public function fixBranch(FacilityBranch $branch): array
+    {
+        $pending = $this->branchFieldRows($branch);
+
+        if ($pending === []) {
+            return ['applied' => [], 'errors' => []];
+        }
+
+        $lines = [
+            'Facility (for context): '.($branch->facility?->getTranslation('name', 'en') ?: $branch->facility?->getTranslation('name', 'ar') ?: '—'),
+            'Facility type: '.($branch->facility?->facilityType?->getTranslation('name', 'en') ?: $branch->facility?->facilityType?->getTranslation('name', 'ar') ?: '—'),
+            '',
+            'Fields to fix:',
+        ];
+
+        foreach ($pending as $index => $row) {
+            $place = $row['context'] !== '' ? " (location: {$row['context']})" : '';
+            $lines[] = "{$index}. [branch {$row['field']}]{$place} Arabic box: ".json_encode($row['ar'], JSON_UNESCAPED_UNICODE)
+                .' | English box: '.json_encode($row['en'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $answers = $this->ai->json($this->bothLanguagesPrompt(), implode("\n", $lines), 1024);
+
+        $applied = [];
+        $errors = [];
+
+        foreach ($pending as $index => $row) {
+            $ar = data_get($answers, "{$index}.ar");
+            $en = data_get($answers, "{$index}.en");
+            $ar = is_scalar($ar) ? trim((string) $ar) : '';
+            $en = is_scalar($en) ? trim((string) $en) : '';
+
+            // Only a pair that is right on both sides is used.
+            if ($ar === '' || $en === '' || ! $this->looksArabic($ar) || $this->looksArabic($en)) {
+                $errors[] = "Could not fix the {$row['field']}.";
+
+                continue;
+            }
+
+            $branch->setTranslation($row['field'], 'ar', $ar);
+            $branch->setTranslation($row['field'], 'en', $en);
+
+            $applied[] = [
+                'field' => $row['field'],
+                'from' => $row['en'],
+                'to' => $en,
+                'from_ar' => $row['ar'],
+                'to_ar' => $ar,
+            ];
+        }
+
+        if ($applied !== []) {
+            $branch->saveQuietly();
+
+            Log::info('Branch bilingual fix applied', [
+                'branch_id' => $branch->id,
+                'facility_id' => $branch->facility_id,
+                'fields' => array_column($applied, 'field'),
+            ]);
+        }
+
+        return ['applied' => $applied, 'errors' => $errors];
     }
 
     /**

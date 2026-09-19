@@ -363,6 +363,18 @@ class CitySeeder extends Seeder
             ['السويس', 'Suez'],
             ['عتاقة', 'Ataqa'],
         ],
+        // The 2020 geoBoundaries districts of Matrouh. El Negeila (a newer markaz)
+        // has no district of its own in that data, so it is left out rather than
+        // given somebody else's border.
+        'marsa-matrouh' => [
+            ['مرسى مطروح', 'Marsa Matrouh'],
+            ['العلمين', 'El Alamein'],
+            ['الضبعة', 'El Dabaa'],
+            ['سيدي براني', 'Sidi Barrani'],
+            ['السلوم', 'Salloum'],
+            ['سيوة', 'Siwa'],
+            ['الحمام', 'El Hamam'],
+        ],
     ];
 
     public function run(): void

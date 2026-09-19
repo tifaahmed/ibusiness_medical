@@ -17,6 +17,28 @@
             </div>
             <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <GovernorateEnglishBulkDialog v-if="canWrite" />
+              <div class="inline-flex items-center rounded-md border border-border bg-background p-0.5 flex-shrink-0" role="group">
+                <button
+                  type="button"
+                  @click="viewMode = 'list'"
+                  :aria-pressed="viewMode === 'list'"
+                  class="inline-flex items-center gap-1.5 rounded-[5px] px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer"
+                  :class="viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  <span class="hidden sm:inline">{{ t.common?.list || 'List' }}</span>
+                </button>
+                <button
+                  type="button"
+                  @click="viewMode = 'map'"
+                  :aria-pressed="viewMode === 'map'"
+                  class="inline-flex items-center gap-1.5 rounded-[5px] px-2 sm:px-3 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer"
+                  :class="viewMode === 'map' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                  <span class="hidden sm:inline">{{ t.governorate?.map_view || 'Map' }}</span>
+                </button>
+              </div>
               <Link
                 v-if="canWrite"
                 :href="route('admin.governorate.create')"
@@ -35,7 +57,7 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <GovernorateListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+            <GovernorateListFilterContent v-if="viewMode === 'list'" :initial-filters="filters" @filter-change="handleFilterChange" />
           </div>
         </div>
 
@@ -43,7 +65,8 @@
 
       <!-- Table Card - Scrollable on mobile, full height on desktop -->
       <div class="flex-1 min-h-0 lg:flex-none w-full max-w-full px-2 sm:px-3 md:px-4 lg:px-6 pb-2 sm:pb-3 md:pb-4 lg:pb-6 overflow-hidden lg:overflow-visible">
-        <GovernorateListTable :governorates="governorates" @delete="handleDelete" />
+        <GovernorateListTable v-if="viewMode === 'list'" :governorates="governorates" @delete="handleDelete" />
+        <GovernorateMapView v-else />
       </div>
     </div>
   </GovernorateLayout>
@@ -54,10 +77,11 @@ import GovernorateLayout from "../GovernorateLayout.vue";
 import GovernorateListFilterContent from "./GovernorateListFilterContent.vue";
 import GovernorateListTable from "./GovernorateListTable.vue";
 import GovernorateEnglishBulkDialog from "./GovernorateEnglishBulkDialog.vue";
+import GovernorateMapView from "./GovernorateMapView.vue";
 import { useGovernorateStore } from "../Stores/GovernorateStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
 
 const { canManage } = usePermissions();
@@ -91,6 +115,22 @@ const governorates = computed(() => props.governorates);
 
 const filters = ref(props.filters || {
   search: ''
+});
+
+// List or map, kept in the URL (?view=map) so a reload or a shared link opens the same view.
+const viewMode = ref(
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'map' ? 'map' : 'list'
+);
+
+watch(viewMode, (mode) => {
+  const url = new URL(window.location.href);
+  if (mode === 'map') {
+    url.searchParams.set('view', 'map');
+  } else {
+    url.searchParams.delete('view');
+  }
+  // Keep Inertia's own history state; only the address changes, nothing reloads.
+  window.history.replaceState(window.history.state, '', url);
 });
 
 const handleDelete = (governorateSlug) => {

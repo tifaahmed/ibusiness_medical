@@ -13,6 +13,7 @@ use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Services\BranchGeocoder;
 use App\Services\BranchPlaceResolver;
+use App\Services\FacilityEnglishBackfiller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -152,11 +153,13 @@ class AdminFacilityBranchListController extends BaseController
                 'no_place' => (int) ($incomplete->no_place ?? 0),
                 'no_location' => (int) ($incomplete->no_location ?? 0),
                 'duplicate_names' => $this->duplicateNameCount(),
+                'no_translation' => $this->translationBacklogCount(),
             ],
             // False when GEMINI_API_KEY is unset: the sweep buttons are hidden
             // rather than offered and then refused by the routes behind them.
             'placeAiEnabled' => BranchPlaceResolver::isConfigured(),
             'locationAiEnabled' => BranchGeocoder::isConfigured(),
+            'translateAiEnabled' => FacilityEnglishBackfiller::isConfigured(),
         ]);
     }
 
@@ -204,6 +207,28 @@ class AdminFacilityBranchListController extends BaseController
     private static function missingAddress($query): void
     {
         $query->whereRaw(self::MISSING_ADDRESS_SQL);
+    }
+
+    /**
+     * How many branches have a name or address that is missing, in the wrong
+     * language or a copy of the other side — the size of the "Fix translations"
+     * job. The rule is PHP, not SQL (it looks at which script a value is written
+     * in), so this reads the two columns of everything the reader may see and
+     * asks the same check the sweep uses. Skipped when the sweep is hidden.
+     */
+    private function translationBacklogCount(): int
+    {
+        if (! FacilityEnglishBackfiller::isConfigured()) {
+            return 0;
+        }
+
+        $backfiller = app(FacilityEnglishBackfiller::class);
+
+        return FacilityBranch::query()
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->get(['id', 'name', 'address'])
+            ->filter(fn (FacilityBranch $branch) => $backfiller->branchNeedsTranslation($branch))
+            ->count();
     }
 
     /**
