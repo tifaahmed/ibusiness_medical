@@ -351,7 +351,7 @@ const exportComputedUrl = computed(() => {
   if (f.facility_type_id) params.set('facility_type_id', f.facility_type_id);
   if (f.sales_id) params.set('sales_id', f.sales_id);
   if (f.sales_presence) params.set('sales_presence', f.sales_presence);
-  if (f.manager_presence) params.set('manager_presence', f.manager_presence);
+  if (f.managers_presence) params.set('managers_presence', f.managers_presence);
   if (f.branches_missing) params.set('branches_missing', f.branches_missing);
   if (f.governorate_id) params.set('governorate_id', f.governorate_id);
   if (f.city_id) params.set('city_id', f.city_id);

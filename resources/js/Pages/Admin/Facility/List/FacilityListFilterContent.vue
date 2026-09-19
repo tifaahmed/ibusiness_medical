@@ -1,8 +1,8 @@
 <template>
   <div class="w-full min-w-0 overflow-x-hidden space-y-2">
-    <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 w-full">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 sm:gap-3 w-full">
       <!-- Search -->
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0 sm:min-w-[14rem]">
         <label
           data-slot="label"
           class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
@@ -119,7 +119,7 @@
     </div>
 
     <!-- Created Date Range - New Row -->
-    <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 w-full">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 sm:gap-3 w-full">
       <!-- Sales rep, present or missing -->
       <div class="w-full sm:w-auto">
         <label
@@ -150,32 +150,35 @@
         </div>
       </div>
 
-      <!-- Manager, present or missing -->
+      <!-- Managers, present or missing -->
       <div class="w-full sm:w-auto">
         <label
           data-slot="label"
           class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
         >
-          {{ t.facility?.manager_assignment || 'Manager' }}
+          {{ t.facility?.managers_assignment || 'Managers' }}
         </label>
         <div class="flex items-center gap-3 h-7 sm:h-8 md:h-9">
           <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
             <input
               type="checkbox"
               class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.manager_presence === 'with'"
-              @change="toggleManagerPresence('with')"
+              :checked="filters.managers_presence === 'with'"
+              @change="toggleManagersPresence('with')"
             />
-            <span>{{ t.facility?.with_manager || 'Has manager' }}</span>
+            <span>{{ t.facility?.with_managers || 'Has managers' }}</span>
           </label>
           <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
             <input
               type="checkbox"
               class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.manager_presence === 'without'"
-              @change="toggleManagerPresence('without')"
+              :checked="filters.managers_presence === 'without'"
+              @change="toggleManagersPresence('without')"
             />
-            <span>{{ t.facility?.without_manager || 'No manager' }}</span>
+            <span>{{ t.facility?.without_managers || 'No managers' }}</span>
+            <span v-if="incompleteCounts.without_managers" class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+              {{ incompleteCounts.without_managers }}
+            </span>
           </label>
         </div>
       </div>
@@ -355,8 +358,7 @@ const props = defineProps({
       search: '',
       facility_type_id: '',
       sales_id: '',
-      sales_presence: '',
-      manager_presence: '',
+      sales_presence: '', managers_presence: '',
       branches_missing: '',
       governorate_id: '',
       city_id: '',
@@ -450,7 +452,7 @@ const getInitialFilters = () => {
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
       sales_id: props.initialFilters.sales_id || '',
       sales_presence: props.initialFilters.sales_presence || '',
-      manager_presence: props.initialFilters.manager_presence || '',
+      managers_presence: props.initialFilters.managers_presence || '',
       branches_missing: props.initialFilters.branches_missing || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
@@ -466,7 +468,7 @@ const getInitialFilters = () => {
       facility_type_id: urlParams.get('facility_type_id') || '',
       sales_id: urlParams.get('sales_id') || '',
       sales_presence: urlParams.get('sales_presence') || '',
-      manager_presence: urlParams.get('manager_presence') || '',
+      managers_presence: urlParams.get('managers_presence') || '',
       branches_missing: urlParams.get('branches_missing') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
@@ -475,14 +477,14 @@ const getInitialFilters = () => {
       discount_format: urlParams.get('discount_format') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', manager_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.manager_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.managers_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
 });
 
 let searchTimeout = null;
@@ -501,7 +503,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', manager_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
   applyFilters();
 };
 
@@ -531,8 +533,8 @@ const toggleSalesPresence = (value) => {
   applyFilters();
 };
 
-const toggleManagerPresence = (value) => {
-  filters.value.manager_presence = filters.value.manager_presence === value ? '' : value;
+const toggleManagersPresence = (value) => {
+  filters.value.managers_presence = filters.value.managers_presence === value ? '' : value;
   applyFilters();
 };
 
@@ -566,8 +568,8 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.sales_presence && currentFilters.sales_presence !== '') {
     params.sales_presence = currentFilters.sales_presence;
   }
-  if (currentFilters.manager_presence && currentFilters.manager_presence !== '') {
-    params.manager_presence = currentFilters.manager_presence;
+  if (currentFilters.managers_presence && currentFilters.managers_presence !== '') {
+    params.managers_presence = currentFilters.managers_presence;
   }
   if (currentFilters.branches_missing && currentFilters.branches_missing !== '') {
     params.branches_missing = currentFilters.branches_missing;

@@ -55,7 +55,7 @@ class FacilityManagerPresenceFilterTest extends TestCase
     private function listedNames(?string $presence): array
     {
         $response = $this->actingAs($this->admin())->get(
-            route('admin.facility.list', $presence === null ? [] : ['manager_presence' => $presence])
+            route('admin.facility.list', $presence === null ? [] : ['managers_presence' => $presence])
         );
         $response->assertOk();
 

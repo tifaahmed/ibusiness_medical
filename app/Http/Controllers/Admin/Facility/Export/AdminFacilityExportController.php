@@ -36,8 +36,8 @@ class AdminFacilityExportController extends BaseController
             'sales_presence' => in_array($request->input('sales_presence'), ['with', 'without'], true)
                 ? $request->input('sales_presence')
                 : null,
-            'manager_presence' => in_array($request->input('manager_presence'), ['with', 'without'], true)
-                ? $request->input('manager_presence')
+            'managers_presence' => in_array($request->input('managers_presence'), ['with', 'without'], true)
+                ? $request->input('managers_presence')
                 : null,
             'governorate_id' => $request->filled('governorate_id') ? (int) $request->input('governorate_id') : null,
             'city_id' => $request->filled('city_id') ? (int) $request->input('city_id') : null,
@@ -76,8 +76,8 @@ class AdminFacilityExportController extends BaseController
             ->when($filters['sales_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sales_id']))
             ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
             ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
-            ->when($filters['manager_presence'] === 'with', fn ($q) => $q->has('managers'))
-            ->when($filters['manager_presence'] === 'without', fn ($q) => $q->doesntHave('managers'))
+            ->when($filters['managers_presence'] === 'with', fn ($q) => $q->whereHas('managers'))
+            ->when($filters['managers_presence'] === 'without', fn ($q) => $q->whereDoesntHave('managers'))
             ->when($filters['governorate_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('governorate_id', $filters['governorate_id'])))
             ->when($filters['city_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('city_id', $filters['city_id'])))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
