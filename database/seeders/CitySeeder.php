@@ -24,6 +24,15 @@ class CitySeeder extends Seeder
             ['وسط المدينة', 'Downtown Alexandria'],
             ['العجمي', 'El Agamy'],
             ['كرموز', 'Karmouz'],
+            ['الجمرك', 'Gomrok'],
+            ['الدخيلة', 'Dekheila'],
+            ['باب شرق', 'Bab Sharq'],
+            ['حي شرق', 'Sharq District'],
+            ['حي وسط', 'Wasat District'],
+            ['حي غرب', 'Gharb District'],
+            ['برج العرب الجديدة', 'New Borg El Arab'],
+            ['اللبان', 'El Labban'],
+            ['مينا البصل', 'Mina El Basal'],
         ],
         'assiut' => [
             ['أسيوط', 'Assiut'],
@@ -37,6 +46,7 @@ class CitySeeder extends Seeder
             ['الغنايم', 'El Ghanayem'],
             ['صدفا', 'Sidfa'],
             ['البداري', 'El Badari'],
+            ['أسيوط الجديدة', 'New Assiut'],
         ],
         'aswan' => [
             ['أسوان', 'Aswan'],
@@ -47,6 +57,7 @@ class CitySeeder extends Seeder
             ['كلابشة', 'Kalabsha'],
             ['أبو سمبل', 'Abu Simbel'],
             ['السباعية', 'El Sebaiya'],
+            ['أسوان الجديدة', 'New Aswan'],
         ],
         'beheira' => [
             ['دمنهور', 'Damanhour'],
@@ -64,6 +75,7 @@ class CitySeeder extends Seeder
             ['وادي النطرون', 'Wadi El Natrun'],
             ['النوبارية الجديدة', 'New Nubaria'],
             ['بدر', 'Badr'],
+            ['الرحمانية', 'El Rahmaniya'],
         ],
         'beni-suef' => [
             ['بني سويف', 'Beni Suef'],
@@ -96,8 +108,6 @@ class CitySeeder extends Seeder
             ['المقطم', 'El Mokattam'],
             ['الرحاب', 'El Rehab'],
             ['التجمع الخامس', 'Fifth Settlement'],
-            ['العبور', 'El Obour'],
-            ['العاشر من رمضان', '10th of Ramadan'],
             ['بدر', 'Badr City'],
             ['المنيل', 'El Manial'],
             ['السيدة زينب', 'El Sayeda Zeinab'],
@@ -114,6 +124,16 @@ class CitySeeder extends Seeder
             ['الساحل', 'El Sahel'],
             ['روض الفرج', 'Rod El Farag'],
             ['الشرابية', 'El Sharabiya'],
+            ['العاصمة الإدارية الجديدة', 'New Administrative Capital'],
+            ['الأميرية', 'El Amiriya'],
+            ['الظاهر', 'El Zahir'],
+            ['عابدين', 'Abdeen'],
+            ['الجمالية', 'El Gamaliya'],
+            ['البساتين', 'El Basatin'],
+            ['طرة', 'Tura'],
+            ['المعصرة', 'El Maasara'],
+            ['النزهة', 'El Nozha'],
+            ['15 مايو', '15th of May'],
         ],
         'dakahlia' => [
             ['المنصورة', 'Mansoura'],
@@ -134,6 +154,8 @@ class CitySeeder extends Seeder
             ['منية النصر', 'Minyat El Nasr'],
             ['المطرية', 'El Matariya Dakahlia'],
             ['محلة دمنة', 'Mahallat Damana'],
+            ['الجمالية', 'El Gamaliya'],
+            ['المنصورة الجديدة', 'New Mansoura'],
         ],
         'damietta' => [
             ['دمياط', 'Damietta'],
@@ -145,6 +167,8 @@ class CitySeeder extends Seeder
             ['رأس البر', 'Ras El Bar'],
             ['الروضة', 'El Rawda'],
             ['ميت أبو غالب', 'Mit Abu Ghalib'],
+            ['عزبة البرج', 'Ezbet El Borg'],
+            ['السرو', 'El Sarw'],
         ],
         'fayoum' => [
             ['الفيوم', 'Fayoum'],
@@ -179,6 +203,7 @@ class CitySeeder extends Seeder
             ['المهندسين', 'El Mohandessin'],
             ['العجوزة', 'El Agouza'],
             ['بين السرايات', 'Bein El Sarayat'],
+            ['حدائق أكتوبر', 'Hadayek October'],
         ],
         'ismailia' => [
             ['الإسماعيلية', 'Ismailia'],
@@ -189,6 +214,7 @@ class CitySeeder extends Seeder
             ['أبو صوير', 'Abu Suweir'],
             ['القصاصين الجديدة', 'New Qasaseen'],
             ['نفيشة', 'Nefisha'],
+            ['القصاصين', 'El Qassasin'],
         ],
         'kafr-el-sheikh' => [
             ['كفر الشيخ', 'Kafr El Sheikh'],
@@ -202,6 +228,7 @@ class CitySeeder extends Seeder
             ['قلين', 'Qellin'],
             ['الحامول', 'El Hamoul'],
             ['بلطيم', 'Baltim'],
+            ['سيدي غازي', 'Sidi Ghazi'],
         ],
         'luxor' => [
             ['الأقصر', 'Luxor'],
@@ -211,6 +238,7 @@ class CitySeeder extends Seeder
             ['البياضية', 'El Bayadeya'],
             ['القرنة', 'El Qarna'],
             ['الزينية', 'El Zinia'],
+            ['طيبة الجديدة', 'New Thebes'],
         ],
         'menofia' => [
             ['شبين الكوم', 'Shibin El Kom'],
@@ -222,6 +250,7 @@ class CitySeeder extends Seeder
             ['الباجور', 'El Bagour'],
             ['السادات', 'El Sadat'],
             ['سرس الليان', 'Sars El Layan'],
+            ['الشهداء', 'El Shohada'],
         ],
         'minya' => [
             ['المنيا', 'Minya'],
@@ -259,6 +288,11 @@ class CitySeeder extends Seeder
             ['العرب', 'El Arab'],
             ['الضواحي', 'El Dawahy'],
             ['الزهور', 'El Zohour'],
+            ['حي العرب', 'El Arab District'],
+            ['حي المناخ', 'El Manakh District'],
+            ['حي الشرق', 'El Sharq District'],
+            ['حي الضواحي', 'El Dawahi District'],
+            ['حي الجنوب', 'El Ganoub District'],
         ],
         'qalyubia' => [
             ['بنها', 'Banha'],
@@ -283,6 +317,7 @@ class CitySeeder extends Seeder
             ['أبو تشت', 'Abu Tesht'],
             ['نجع حمادي', 'Nag Hammadi'],
             ['قفط', 'Qift'],
+            ['الوقف', 'El Waqf'],
         ],
         'red-sea' => [
             ['الغردقة', 'Hurghada'],
@@ -331,6 +366,7 @@ class CitySeeder extends Seeder
             ['البلينا', 'El Baliana'],
             ['جهينة', 'Juhayna'],
             ['أولاد طوق شرق', 'Awlad Toq Sharq'],
+            ['العسيرات', 'El Usayrat'],
         ],
         'south-sinai' => [
             ['شرم الشيخ', 'Sharm El Sheikh'],
@@ -350,8 +386,9 @@ class CitySeeder extends Seeder
             ['فيصل', 'Faisal'],
             ['الجناين', 'El Ganayen'],
             ['عين الصخنة', 'Ain Sokhna'],
+            ['عين السخنة', 'Ain Sokhna'],
         ],
-        'suez-gharbia' => [
+        'gharbia' => [
             ['طنطا', 'Tanta'],
             ['المحلة الكبرى', 'El Mahalla El Kubra'],
             ['كفر الزيات', 'Kafr El Zayat'],
@@ -360,8 +397,16 @@ class CitySeeder extends Seeder
             ['بسيون', 'Basyoun'],
             ['قطور', 'Qotor'],
             ['السنطة', 'El Santa'],
-            ['السويس', 'Suez'],
-            ['عتاقة', 'Ataqa'],
+        ],
+        'marsa-matrouh' => [
+            ['الحمام', 'El Hamam'],
+            ['العلمين', 'El Alamein'],
+            ['الضبعة', 'El Dabaa'],
+            ['سيدي براني', 'Sidi Barrani'],
+            ['السلوم', 'Salloum'],
+            ['سيوة', 'Siwa'],
+            ['النجيلة', 'El Negaila'],
+            ['العلمين الجديدة', 'New Alamein'],
         ],
     ];
 

@@ -12,8 +12,7 @@ class GovernorateBoundarySeeder extends Seeder
      * database/data/egypt-governorate-boundaries.json.
      *
      * Source: geoBoundaries gbOpen EGY ADM1 (simplified, from OpenStreetMap,
-     * ODbL), coordinates rounded to 4 decimals (~11 m). `suez-gharbia` takes
-     * the Gharbia border. Governorates missing from the file (e.g. Helwan) are
+     * ODbL), coordinates rounded to 4 decimals (~11 m). Governorates missing from the file (e.g. Helwan) are
      * left without a border. Safe to re-run.
      */
     public function run(): void
