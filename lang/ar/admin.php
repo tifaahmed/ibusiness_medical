@@ -364,8 +364,9 @@ return [
         'description_enhancing' => 'جارٍ التحسين…',
         'description_enhance_hint' => 'إعادة كتابة الوصف بعناوين قصيرة مع أيقونات ونقاط مختصرة مع الحفاظ على كل المعلومات',
         'description_enhance_needs_text' => 'اكتب الوصف أولًا.',
-        'description_enhanced' => 'تم تنظيم الوصف. راجعه قبل الحفظ.',
+        'description_enhanced' => 'تم تنظيم الوصف بالعربية والإنجليزية. راجعه قبل الحفظ.',
         'description_enhance_failed' => 'تعذّر تحسين الوصف. حاول مرة أخرى.',
+        'description_enhance_partial' => 'تم تحسين جزء من الوصف فقط: بقي (:locales) كما هو. حاول مرة أخرى.',
         'branches_map' => 'خريطة الفروع',
         'branches_map_empty' => 'لا يوجد أي فرع له إحداثيات GPS بعد.',
         'branches_map_missing' => 'لا يتم عرض :count فرع بدون إحداثيات.',
@@ -571,6 +572,8 @@ return [
 
     // Facility Branch
     'facility_branch' => [
+        'no_governorate' => 'بدون محافظة',
+        'no_city' => 'بدون مدينة',
         'edit_facility' => 'تعديل المنشأة',
         'no_gps' => 'بدون موقع GPS',
         'no_gps_hint' => 'فروع بدون خط عرض أو خط طول، فلا تظهر على الخريطة',

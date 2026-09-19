@@ -364,8 +364,9 @@ return [
         'description_enhancing' => 'Enhancing…',
         'description_enhance_hint' => 'Rewrite the description with short icon headings and bullet points, keeping every fact',
         'description_enhance_needs_text' => 'Write a description first.',
-        'description_enhanced' => 'Description reorganised. Read it over before saving.',
+        'description_enhanced' => 'Description reorganised in Arabic and English. Read it over before saving.',
         'description_enhance_failed' => 'Could not enhance the description. Please try again.',
+        'description_enhance_partial' => 'Only part of the description was enhanced: :locales was left as it was. Try again.',
         'branches_map' => 'Branches map',
         'branches_map_empty' => 'None of the branches has GPS coordinates yet.',
         'branches_map_missing' => ':count branch(es) without coordinates are not shown.',
@@ -571,6 +572,8 @@ return [
 
     // Facility Branch
     'facility_branch' => [
+        'no_governorate' => 'No governorate',
+        'no_city' => 'No city',
         'edit_facility' => 'Edit the facility',
         'no_gps' => 'No GPS location',
         'no_gps_hint' => 'Branches with no latitude or longitude, so no pin on the map',

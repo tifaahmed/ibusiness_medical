@@ -714,9 +714,19 @@ const enhanceDescription = async () => {
     if (!values.ar && !values.en) throw new Error('empty');
 
     formDescription.value = { ...formDescription.value, ...values };
-    useNotification().success(
-      t.value.facility?.description_enhanced || 'Description reorganised. Read it over before saving.'
-    );
+
+    // Both languages are meant to move together; say so when one did not.
+    const skipped = ['ar', 'en'].filter(locale => !values[locale]);
+    if (skipped.length) {
+      useNotification().warning(
+        (t.value.facility?.description_enhance_partial || 'Only part of the description was enhanced: :locales was left as it was. Try again.')
+          .replace(':locales', skipped.map(locale => locale.toUpperCase()).join(', '))
+      );
+    } else {
+      useNotification().success(
+        t.value.facility?.description_enhanced || 'Description reorganised in Arabic and English. Read it over before saving.'
+      );
+    }
   } catch (error) {
     useNotification().error(
       error?.response?.data?.message

@@ -200,21 +200,42 @@ const focusBranch = (branch) => {
   markersById.get(branch.id)?.openPopup();
 };
 
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Governorate in amber and city in blue, the colours of their outlines on this
+// map. A branch with neither is flagged in red rather than left blank: it is
+// the one that still needs fixing.
+const placeTag = (label, color) => `<span style="display:inline-block;padding:1px 8px;border-radius:9999px;border:1px solid ${color.border};background:${color.bg};color:${color.text};font-size:11px;font-weight:500;">${escapeHtml(label)}</span>`;
+const TAG_GOVERNORATE = { border: '#f59e0b', bg: '#fef3c7', text: '#92400e' };
+const TAG_CITY = { border: '#3b82f6', bg: '#dbeafe', text: '#1e40af' };
+const TAG_MISSING = { border: '#f87171', bg: '#fee2e2', text: '#991b1b' };
+
 const popupHtml = (branch) => {
-  const name = getTranslatedName(branch.name) || '-';
-  const facility = getTranslatedName(branch.facility?.name);
-  const address = getTranslatedName(branch.address);
+  const name = escapeHtml(getTranslatedName(branch.name) || '-');
+  const facility = escapeHtml(getTranslatedName(branch.facility?.name));
+  const address = escapeHtml(getTranslatedName(branch.address));
+  const governorate = getTranslatedName(branch.governorate);
+  const city = getTranslatedName(branch.city);
+  const tags = [
+    governorate
+      ? placeTag(governorate, TAG_GOVERNORATE)
+      : placeTag(t.value.facility_branch?.no_governorate || 'No governorate', TAG_MISSING),
+    city
+      ? placeTag(city, TAG_CITY)
+      : placeTag(t.value.facility_branch?.no_city || 'No city', TAG_MISSING),
+  ].join('');
   const link = branch.google_location_url
-    ? `<a href="${branch.google_location_url}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${t.value.facility_branch?.view_on_maps || 'Open in Google Maps'}</a>`
+    ? `<a href="${escapeHtml(branch.google_location_url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${escapeHtml(t.value.facility_branch?.view_on_maps || 'Open in Google Maps')}</a>`
     : '';
   const edit = canWrite.value
-    ? `<a href="${editUrl(branch)}" data-branch-edit style="display:inline-block;padding:3px 10px;border:1px solid #d1d5db;border-radius:6px;color:#111827;text-decoration:none;font-weight:500;">${t.value.common?.edit || 'Edit'}</a>`
+    ? `<a href="${escapeHtml(editUrl(branch))}" data-branch-edit style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;background:#d97706;color:#fff;text-decoration:none;font-weight:600;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>${escapeHtml(t.value.common?.edit || 'Edit')}</a>`
     : '';
-  return `<div style="min-width:180px;font-size:12px;line-height:1.4;">
+  return `<div style="min-width:200px;font-size:12px;line-height:1.4;">
     <div style="font-weight:600;">${name}</div>
     ${facility ? `<div style="color:#6b7280;">${facility}</div>` : ''}
-    ${address ? `<div style="margin-top:4px;">${address}</div>` : ''}
-    ${link ? `<div style="margin-top:4px;">${link}</div>` : ''}
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${tags}</div>
+    ${address ? `<div style="margin-top:6px;">${address}</div>` : ''}
+    ${link ? `<div style="margin-top:6px;">${link}</div>` : ''}
     ${edit ? `<div style="margin-top:8px;">${edit}</div>` : ''}
   </div>`;
 };

@@ -31,7 +31,8 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
+import { usePermissions } from '@/composables/usePermissions';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -39,7 +40,14 @@ import L from 'leaflet';
 // form — so an edit to a branch's coordinates moves its pin before saving.
 const props = defineProps({
   branches: { type: Array, default: () => [] },
+  // The place lists the form already holds, to turn a branch's ids into names.
+  governorates: { type: Array, default: () => [] },
+  cities: { type: Array, default: () => [] },
 });
+
+// Editing is a write: hidden from read-only accounts, refused by the route either way.
+const { canManage } = usePermissions();
+const canWrite = computed(() => canManage('manage facility branches', 'manage own facility branches'));
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -80,15 +88,52 @@ const pin = L.divIcon({
   popupAnchor: [0, -28],
 });
 
+const placeName = (list, id) => {
+  if (id === null || id === undefined || id === '') return '';
+  return text(list.find((place) => String(place.id) === String(id))?.name);
+};
+
+// Governorate in amber, city in blue; a branch with neither is flagged red
+// rather than left blank, since it is the one that still needs fixing.
+const placeTag = (label, color) => `<span style="display:inline-block;padding:1px 8px;border-radius:9999px;border:1px solid ${color.border};background:${color.bg};color:${color.text};font-size:11px;font-weight:500;">${escapeHtml(label)}</span>`;
+const TAG_GOVERNORATE = { border: '#f59e0b', bg: '#fef3c7', text: '#92400e' };
+const TAG_CITY = { border: '#3b82f6', bg: '#dbeafe', text: '#1e40af' };
+const TAG_MISSING = { border: '#f87171', bg: '#fee2e2', text: '#991b1b' };
+
 const popupHtml = (branch, lat, lng) => {
   const name = escapeHtml(text(branch.name) || '-');
   const address = escapeHtml(text(branch.address));
   const link = `https://www.google.com/maps?q=${lat},${lng}`;
-  return `<div style="min-width:170px;font-size:12px;line-height:1.4;">
+  const governorate = placeName(props.governorates, branch.governorate_id);
+  const city = placeName(props.cities, branch.city_id);
+  const tags = [
+    governorate
+      ? placeTag(governorate, TAG_GOVERNORATE)
+      : placeTag(t.value.facility_branch?.no_governorate || 'No governorate', TAG_MISSING),
+    city
+      ? placeTag(city, TAG_CITY)
+      : placeTag(t.value.facility_branch?.no_city || 'No city', TAG_MISSING),
+  ].join('');
+  // A branch not saved yet has no slug, so there is nothing to open.
+  const edit = canWrite.value && branch.slug
+    ? `<a href="${escapeHtml(route('admin.facility-branch.edit', branch.slug))}" data-branch-edit style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;background:#d97706;color:#fff;text-decoration:none;font-weight:600;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>${escapeHtml(t.value.common?.edit || 'Edit')}</a>`
+    : '';
+  return `<div style="min-width:190px;font-size:12px;line-height:1.4;">
     <div style="font-weight:600;">${name}</div>
-    ${address ? `<div style="margin-top:4px;">${address}</div>` : ''}
-    <div style="margin-top:4px;"><a href="${link}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${escapeHtml(t.value.facility_branch?.view_on_maps || 'Open in Google Maps')}</a></div>
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${tags}</div>
+    ${address ? `<div style="margin-top:6px;">${address}</div>` : ''}
+    <div style="margin-top:6px;"><a href="${link}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${escapeHtml(t.value.facility_branch?.view_on_maps || 'Open in Google Maps')}</a></div>
+    ${edit ? `<div style="margin-top:8px;">${edit}</div>` : ''}
   </div>`;
+};
+
+// Popup HTML is plain markup, so its Edit link is routed through Inertia here
+// instead of reloading the whole page.
+const handlePopupClick = (event) => {
+  const link = event.target.closest?.('a[data-branch-edit]');
+  if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return;
+  event.preventDefault();
+  router.visit(link.getAttribute('href'));
 };
 
 const render = () => {
@@ -112,6 +157,7 @@ onMounted(() => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
+  mapEl.value.addEventListener('click', handlePopupClick);
   render();
 
   // The card sits inside a tab that is hidden with v-show: Leaflet measures
@@ -121,6 +167,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  mapEl.value?.removeEventListener('click', handlePopupClick);
   resizeObserver?.disconnect();
   if (map) {
     map.remove();

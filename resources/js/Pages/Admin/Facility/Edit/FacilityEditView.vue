@@ -56,7 +56,7 @@
               <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :facility-slug="facility.slug" :ai-enabled="locationAiEnabled" :english-fix-enabled="englishFixEnabled" :place-ai-enabled="placeAiEnabled" />
               <FacilityManagerCard v-model="managers" :facility-slug="facility.slug" />
-              <FacilityBranchesMap :branches="branches" />
+              <FacilityBranchesMap :branches="branches" :governorates="governorates" :cities="cities" />
             </div>
 
             <!-- v-show, not v-if: the SEO inputs stay mounted so AI-filled

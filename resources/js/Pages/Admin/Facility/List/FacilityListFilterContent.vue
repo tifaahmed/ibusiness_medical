@@ -150,6 +150,36 @@
         </div>
       </div>
 
+      <!-- Manager, present or missing -->
+      <div class="w-full sm:w-auto">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+        >
+          {{ t.facility?.manager_assignment || 'Manager' }}
+        </label>
+        <div class="flex items-center gap-3 h-7 sm:h-8 md:h-9">
+          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
+              :checked="filters.manager_presence === 'with'"
+              @change="toggleManagerPresence('with')"
+            />
+            <span>{{ t.facility?.with_manager || 'Has manager' }}</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
+              :checked="filters.manager_presence === 'without'"
+              @change="toggleManagerPresence('without')"
+            />
+            <span>{{ t.facility?.without_manager || 'No manager' }}</span>
+          </label>
+        </div>
+      </div>
+
       <!-- The facilities holding a branch nobody can place on a map. They are
            invisible to the governorate and city filters above — those can only
            name a place a branch actually has — and the migration import stops
@@ -326,6 +356,7 @@ const props = defineProps({
       facility_type_id: '',
       sales_id: '',
       sales_presence: '',
+      manager_presence: '',
       branches_missing: '',
       governorate_id: '',
       city_id: '',
@@ -419,6 +450,7 @@ const getInitialFilters = () => {
       facility_type_id: props.initialFilters.facility_type_id || props.initialFilters.facility_type_id === 0 ? '0' : '',
       sales_id: props.initialFilters.sales_id || '',
       sales_presence: props.initialFilters.sales_presence || '',
+      manager_presence: props.initialFilters.manager_presence || '',
       branches_missing: props.initialFilters.branches_missing || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
@@ -434,6 +466,7 @@ const getInitialFilters = () => {
       facility_type_id: urlParams.get('facility_type_id') || '',
       sales_id: urlParams.get('sales_id') || '',
       sales_presence: urlParams.get('sales_presence') || '',
+      manager_presence: urlParams.get('manager_presence') || '',
       branches_missing: urlParams.get('branches_missing') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
@@ -442,14 +475,14 @@ const getInitialFilters = () => {
       discount_format: urlParams.get('discount_format') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', manager_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.manager_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
 });
 
 let searchTimeout = null;
@@ -468,7 +501,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', manager_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
   applyFilters();
 };
 
@@ -495,6 +528,11 @@ const toggleSalesPresence = (value) => {
     filters.value.sales_id = '';
   }
 
+  applyFilters();
+};
+
+const toggleManagerPresence = (value) => {
+  filters.value.manager_presence = filters.value.manager_presence === value ? '' : value;
   applyFilters();
 };
 
@@ -527,6 +565,9 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.sales_presence && currentFilters.sales_presence !== '') {
     params.sales_presence = currentFilters.sales_presence;
+  }
+  if (currentFilters.manager_presence && currentFilters.manager_presence !== '') {
+    params.manager_presence = currentFilters.manager_presence;
   }
   if (currentFilters.branches_missing && currentFilters.branches_missing !== '') {
     params.branches_missing = currentFilters.branches_missing;

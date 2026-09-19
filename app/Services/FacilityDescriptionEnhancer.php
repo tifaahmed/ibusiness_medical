@@ -10,7 +10,9 @@ use App\Services\Ai\GeminiClient;
  *
  * Only the presentation changes — every fact in the original (names, numbers,
  * phones, addresses, prices, links, images) has to survive. Each language is
- * rewritten in its own language. Nothing is saved here; the HTML goes back into
+ * rewritten in its own language, and BOTH languages always come back: one that
+ * is empty is filled with a faithful translation of the other, so the button
+ * never leaves the Arabic and English boxes out of step. Nothing is saved here; the HTML goes back into
  * the open form for the admin to check.
  */
 class FacilityDescriptionEnhancer
@@ -29,22 +31,26 @@ class FacilityDescriptionEnhancer
      * @param  array{ar?: string|null, en?: string|null}  $description  HTML per language
      * @param  array<string, string>  $context  free-form lines given to the model as context
      * @return array<string, string> the enhanced HTML per language; a language the
-     *                               model got wrong (or that was empty) is left out
+     *                               model got wrong twice is left out
      */
     public function enhance(array $description, array $context = []): array
     {
-        $pending = [];
+        $written = [];
         foreach (['ar', 'en'] as $locale) {
             $html = trim((string) ($description[$locale] ?? ''));
             if ($this->hasText($html)) {
-                $pending[$locale] = $html;
+                $written[$locale] = $html;
             }
         }
 
-        if ($pending === []) {
+        if ($written === []) {
             return [];
         }
 
+        // Both languages are always asked for. What a language is checked
+        // against is its own text, or — when it is empty — the other language's,
+        // which is what it is being translated from.
+        $pending = [];
         $lines = [];
         foreach ($context as $label => $value) {
             $value = trim((string) $value);
@@ -54,8 +60,15 @@ class FacilityDescriptionEnhancer
         }
         $lines[] = '';
         $lines[] = 'Descriptions to reorganise (JSON key = language):';
-        foreach ($pending as $locale => $html) {
-            $lines[] = "{$locale}: ".json_encode($html, JSON_UNESCAPED_UNICODE);
+        foreach (['ar', 'en'] as $locale) {
+            if (isset($written[$locale])) {
+                $pending[$locale] = $written[$locale];
+                $lines[] = "{$locale}: ".json_encode($written[$locale], JSON_UNESCAPED_UNICODE);
+            } else {
+                $other = $locale === 'ar' ? 'en' : 'ar';
+                $pending[$locale] = $written[$other];
+                $lines[] = "{$locale}: (empty - write it as a faithful translation of the \"{$other}\" text, laid out the same way)";
+            }
         }
 
         $out = [];
@@ -143,7 +156,9 @@ class FacilityDescriptionEnhancer
      */
     private function words(string $html): array
     {
-        $text = mb_strtolower(html_entity_decode(strip_tags($html)));
+        // Tags become spaces: `</h3><ul><li>` would otherwise glue a heading to
+        // the first word beneath it and read as one word nobody wrote.
+        $text = mb_strtolower(html_entity_decode(preg_replace('/<[^>]*>/', ' ', $html) ?? $html));
         $text = preg_replace('/[\x{064B}-\x{0652}\x{0640}]/u', '', $text) ?? $text;
         $text = strtr($text, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي']);
 
@@ -288,7 +303,8 @@ class FacilityDescriptionEnhancer
         - Write each key in its own language ("ar" in Arabic, "en" in English). If the
           text under a key is in the other language (for example Arabic text sitting under
           "en"), give a faithful, complete translation of it — again adding nothing.
-        - If a key is not in the input, leave it out.
+        - Always return BOTH keys. If a key's text is empty, write it as a faithful,
+          complete translation of the other language's text, laid out the same way.
         PROMPT;
     }
 }

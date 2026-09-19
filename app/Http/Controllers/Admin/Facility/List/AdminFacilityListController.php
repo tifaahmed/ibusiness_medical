@@ -65,6 +65,10 @@ class AdminFacilityListController extends BaseController
             // name a rep that exists.
             ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
             ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
+            // Same question asked of the managers: which facilities have
+            // nobody to contact, which a manager filter cannot answer.
+            ->when($filters['manager_presence'] === 'with', fn ($q) => $q->has('managers'))
+            ->when($filters['manager_presence'] === 'without', fn ($q) => $q->doesntHave('managers'))
             ->when(isset($filters['governorate_id']) && $filters['governorate_id'] !== '' && $filters['governorate_id'] !== null, function ($q) use ($filters) {
                 $q->whereHas('branches', function ($bq) use ($filters) {
                     $bq->where('governorate_id', (int) $filters['governorate_id']);
@@ -185,6 +189,9 @@ class AdminFacilityListController extends BaseController
         $salesPresence = $request->input('sales_presence');
         $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : '';
 
+        $managerPresence = $request->input('manager_presence');
+        $managerPresence = in_array($managerPresence, ['with', 'without'], true) ? $managerPresence : '';
+
         $branchesMissing = $request->input('branches_missing');
         $branchesMissing = in_array($branchesMissing, ['governorate', 'city', 'either', 'both'], true)
             ? $branchesMissing
@@ -198,6 +205,7 @@ class AdminFacilityListController extends BaseController
             'facility_type_id' => $request->input('facility_type_id'),
             'sales_id' => $request->input('sales_id'),
             'sales_presence' => $salesPresence,
+            'manager_presence' => $managerPresence,
             'branches_missing' => $branchesMissing,
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
