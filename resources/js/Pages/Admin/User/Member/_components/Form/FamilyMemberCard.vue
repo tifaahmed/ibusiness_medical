@@ -92,16 +92,35 @@
             >
               {{ t.common?.cancel || 'Cancel' }}
             </button>
-            <button
-              type="submit"
-              :disabled="isSubmitting"
-              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
-            >
-              {{ editingMember ? (t.member?.update_family_member || 'Update Family Member') : (t.member?.add_family_member || 'Add Family Member') }}
-            </button>
+            <div class="relative inline-flex">
+              <button
+                type="submit"
+                :disabled="isSubmitting"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2"
+              >
+                {{ editingMember ? (t.member?.update_family_member || 'Update Family Member') : (t.member?.add_family_member || 'Add Family Member') }}
+              </button>
+              <!-- Shows only when a submit failed validation — the per-field
+                   messages can be scrolled out of view, so this opens a full list. -->
+              <button
+                v-if="hasValidationErrors"
+                type="button"
+                title="View all validation errors"
+                @click.stop="showValidationDialog = true"
+                class="absolute -top-1.5 -end-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-card"
+              >
+                i
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      <ValidationErrorsDialog
+        v-model:open="showValidationDialog"
+        :errors="errors || {}"
+        :debug-log="debugLog"
+      />
 
       <!-- Family Members List -->
       <div v-if="familyMembers.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -206,6 +225,24 @@ import { ref, computed, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { FormInput, FormSelect, FormDateInput, FormCheckbox, ImageFileInput } from '@/Components/form';
 import { useNotification } from '@/composables/useNotification';
+import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
+
+// The literal wire payload — every entry actually appended to the FormData
+// that goes over the network, in the order it was appended. Lets the
+// "Advanced Error Track" tab show exactly what was sent, not just what the
+// form's own state looked like.
+const formDataToLog = (formData) => {
+  const entries = [];
+  for (const [key, value] of formData.entries()) {
+    entries.push({
+      key,
+      value: value instanceof File
+        ? `<file: ${value.name}, ${value.size} bytes, ${value.type || 'unknown type'}>`
+        : value,
+    });
+  }
+  return entries;
+};
 
 const props = defineProps({
   familyMembers: {
@@ -232,6 +269,14 @@ const editingMember = ref(null);
 const isSubmitting = ref(false);
 const errors = ref({});
 const photoFile = ref(null);
+const showValidationDialog = ref(false);
+// What the last submit actually sent and what the server sent back — the
+// "Advanced Error Track" tab, so a failure can be handed to a programmer as
+// a full trace instead of a screenshot of the field-level messages alone.
+const debugLog = ref(null);
+const hasValidationErrors = computed(() =>
+  Object.keys(errors.value || {}).length > 0 || !!debugLog.value?.response
+);
 
 const relationshipOptions = computed(() => {
   const options = page.props.relationshipOptions || [];
@@ -263,6 +308,7 @@ const resetForm = () => {
   };
   photoFile.value = null;
   errors.value = {};
+  debugLog.value = null;
 };
 
 const cancelForm = () => {
@@ -285,6 +331,7 @@ const editMember = (member) => {
   };
   photoFile.value = null;
   errors.value = {};
+  debugLog.value = null;
 };
 
 const handlePhotoSelect = (file) => {
@@ -341,55 +388,51 @@ const handleSubmit = () => {
     formData.append('photo', photoFile.value);
   }
 
-  if (editingMember.value) {
-    router.put(
-      route('admin.user.membership.family-member.update', [
-        props.userSlug,
-        props.membershipSlug,
-        editingMember.value.id
-      ]),
-      formData,
-      {
-        preserveScroll: true,
-        forceFormData: true,
-        onSuccess: () => {
-          notification.success(t.value.member?.family_member_updated || 'Family member updated successfully');
-          cancelForm();
-          router.reload({ only: ['member'] });
-        },
-        onError: (pageErrors) => {
-          errors.value = pageErrors;
-          notification.error(t.value.member?.fix_errors || 'Please fix the errors and try again');
-        },
-        onFinish: () => {
-          isSubmitting.value = false;
-        }
+  const isEditing = !!editingMember.value;
+  const url = isEditing
+    ? route('admin.user.membership.family-member.update', [props.userSlug, props.membershipSlug, editingMember.value.id])
+    : route('admin.user.membership.family-member.store', [props.userSlug, props.membershipSlug]);
+
+  // Snapshot of exactly what is going out, before the request is fired —
+  // the "sent to server" half of the advanced error track.
+  debugLog.value = {
+    request: {
+      method: isEditing ? 'PUT' : 'POST',
+      url,
+      at: new Date().toISOString(),
+      fields: formDataToLog(formData),
+    },
+    response: null,
+  };
+
+  const requestOptions = {
+    preserveScroll: true,
+    forceFormData: true,
+    onSuccess: () => {
+      notification.success(
+        isEditing
+          ? (t.value.member?.family_member_updated || 'Family member updated successfully')
+          : (t.value.member?.family_member_added || 'Family member added successfully')
+      );
+      cancelForm();
+      router.reload({ only: ['member'] });
+    },
+    onError: (pageErrors) => {
+      errors.value = pageErrors;
+      if (debugLog.value) {
+        debugLog.value.response = { at: new Date().toISOString(), errors: pageErrors };
       }
-    );
+      notification.error(t.value.member?.fix_errors || 'Please fix the errors and try again');
+    },
+    onFinish: () => {
+      isSubmitting.value = false;
+    }
+  };
+
+  if (isEditing) {
+    router.put(url, formData, requestOptions);
   } else {
-    router.post(
-      route('admin.user.membership.family-member.store', [
-        props.userSlug,
-        props.membershipSlug
-      ]),
-      formData,
-      {
-        preserveScroll: true,
-        forceFormData: true,
-        onSuccess: () => {
-          notification.success(t.value.member?.family_member_added || 'Family member added successfully');
-          cancelForm();
-          router.reload({ only: ['member'] });
-        },
-        onError: (pageErrors) => {
-          errors.value = pageErrors;
-          notification.error(t.value.member?.fix_errors || 'Please fix the errors and try again');
-        },
-        onFinish: () => {
-          isSubmitting.value = false;
-        }
-      }
-    );
+    router.post(url, formData, requestOptions);
   }
 };
 
