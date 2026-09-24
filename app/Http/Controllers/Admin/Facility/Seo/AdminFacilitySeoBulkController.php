@@ -6,6 +6,7 @@ use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Facility;
+use App\Support\FacilityAudit;
 use App\Services\Ai\RateLimitException;
 use App\Services\FacilitySeoGenerator;
 use Illuminate\Http\JsonResponse;
@@ -111,7 +112,7 @@ class AdminFacilitySeoBulkController extends BaseController
 
             if ($doSeo && ($overwrite || $this->needsSeo($facility))) {
                 try {
-                    $this->fillSeo($facility, $overwrite);
+                    FacilityAudit::as(FacilityAudit::SOURCE_AI_SEO, fn () => $this->fillSeo($facility, $overwrite));
                     $result['seo'] = 'ok';
                 } catch (RateLimitException $e) {
                     $rateLimited = true;

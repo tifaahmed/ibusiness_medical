@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\FacilityBranch\Actions\Store;
 
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
+use App\Models\FacilityLog;
 use App\Support\PhoneNumbers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,13 +40,27 @@ class StoreFacilityBranchAction
                 'created_by' => Auth::id(),
             ]);
 
+            $snapshot = $this->snapshot($facilityBranch->fresh());
+
             FacilityBranchLog::record(
                 facilityBranchId: $facilityBranch->id,
                 facilityId: $facilityBranch->facility_id,
                 adminId: Auth::id(),
                 action: FacilityBranchLog::ACTION_CREATED,
                 oldValues: null,
-                newValues: $this->snapshot($facilityBranch->fresh()),
+                newValues: $snapshot,
+                request: request(),
+            );
+
+            // Mirrored onto the facility's own timeline too, so a branch
+            // created from the standalone branch form reads the same as one
+            // added from the facility form's modal.
+            FacilityLog::record(
+                facilityId: $facilityBranch->facility_id,
+                adminId: Auth::id(),
+                action: FacilityLog::ACTION_BRANCH_CREATED,
+                oldValues: null,
+                newValues: $snapshot,
                 request: request(),
             );
 

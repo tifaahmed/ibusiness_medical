@@ -89,6 +89,16 @@ class Governorate extends Model
     }
 
     /**
+     * Store branches located in this governorate — mirrors {@see branches()},
+     * the same either-counts rule stores use in place of a head-office
+     * address (Store has none of its own; see `StoreBranch`).
+     */
+    public function storeBranches(): HasMany
+    {
+        return $this->hasMany(StoreBranch::class);
+    }
+
+    /**
      * Get the cities for the governorate.
      */
     public function cities(): HasMany

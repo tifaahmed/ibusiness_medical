@@ -153,7 +153,7 @@ class UpdateFacilityAction
 
             foreach ($branchChanges['deleted'] as $snap) {
                 FacilityBranchLog::record(
-                    facilityBranchId: null,
+                    facilityBranchId: $snap['branch_id'] ?? null,
                     facilityId: $facility->id,
                     adminId: $adminId,
                     action: FacilityBranchLog::ACTION_DELETED,
@@ -165,6 +165,39 @@ class UpdateFacilityAction
                     facilityId: $facility->id,
                     adminId: $adminId,
                     action: FacilityLog::ACTION_BRANCH_DELETED,
+                    oldValues: $snap,
+                    newValues: null,
+                    request: $request,
+                );
+            }
+
+            foreach ($managerChanges['created'] as $manager) {
+                FacilityLog::record(
+                    facilityId: $facility->id,
+                    adminId: $adminId,
+                    action: FacilityLog::ACTION_MANAGER_CREATED,
+                    oldValues: null,
+                    newValues: $this->managerSnapshot($manager),
+                    request: $request,
+                );
+            }
+
+            foreach ($managerChanges['updated'] as $change) {
+                FacilityLog::record(
+                    facilityId: $facility->id,
+                    adminId: $adminId,
+                    action: FacilityLog::ACTION_MANAGER_UPDATED,
+                    oldValues: $change['old'],
+                    newValues: $change['new'],
+                    request: $request,
+                );
+            }
+
+            foreach ($managerChanges['deleted'] as $snap) {
+                FacilityLog::record(
+                    facilityId: $facility->id,
+                    adminId: $adminId,
+                    action: FacilityLog::ACTION_MANAGER_DELETED,
                     oldValues: $snap,
                     newValues: null,
                     request: $request,
@@ -212,9 +245,12 @@ class UpdateFacilityAction
             ->map(fn (FacilityBranch $b) => $this->branchSnapshot($b))
             ->all();
 
+        // Soft-deleted, not dropped: removing a branch card and saving the
+        // form is the everyday way a branch gets deleted, and it must be as
+        // recoverable from the trash as an explicit delete is.
         $facility->branches()
             ->whereNotIn('id', $existingBranchIds)
-            ->delete();
+            ->update(['deleted_at' => now(), 'deleted_by' => Auth::id()]);
 
         $created = [];
         $updated = [];
@@ -314,9 +350,12 @@ class UpdateFacilityAction
             ->map(fn (FacilityManager $m) => $this->managerSnapshot($m))
             ->all();
 
+        // Soft-deleted for the same reason as a branch above: removing a
+        // manager card and saving is the everyday delete, and it must be
+        // recoverable from the "Removed managers" list.
         $facility->managers()
             ->whereNotIn('id', $existingManagerIds)
-            ->delete();
+            ->update(['deleted_at' => now(), 'deleted_by' => Auth::id()]);
 
         $created = [];
         $updated = [];

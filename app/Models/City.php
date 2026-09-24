@@ -70,4 +70,12 @@ class City extends Model
     {
         return $this->hasMany(FacilityBranch::class);
     }
+
+    /**
+     * Store branches located in this city — mirrors {@see branches()}.
+     */
+    public function storeBranches(): HasMany
+    {
+        return $this->hasMany(StoreBranch::class);
+    }
 }

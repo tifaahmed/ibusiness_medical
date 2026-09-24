@@ -143,7 +143,7 @@ class FacilityBranchAiSweepTest extends TestCase
         $this->assertSame($this->city->id, $branch->city_id);
 
         $log = FacilityBranchLog::where('facility_branch_id', $branch->id)->latest('id')->first();
-        $this->assertSame('ai_place', $log->new_values['source']);
+        $this->assertSame('ai_place', $log->source);
     }
 
     public function test_the_place_sweep_does_not_overwrite_a_place_set_by_hand(): void

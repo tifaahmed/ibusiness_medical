@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\V1\Guest\AboutController as V1AboutController;
 use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
 use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
+use App\Http\Controllers\Api\V1\Guest\FacilityBranchLocationsController as V1FacilityBranchLocationsController;
+use App\Http\Controllers\Api\V1\Guest\FacilityBranchMapController as V1FacilityBranchMapController;
 use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
 use App\Http\Controllers\Api\V1\Guest\FacilitySearchController as V1FacilitySearchController;
 use App\Http\Controllers\Api\V1\Guest\HomeController as V1HomeController;
@@ -21,6 +23,10 @@ use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1Partner
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchMapController;
+use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
+use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
+use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
@@ -78,7 +84,45 @@ Route::prefix('v1')
          */
         Route::get('/facilities/search', V1FacilitySearchController::class)->name('facilities.search');
 
+        /*
+         * Every branch on the map at once, merged by proximity into cluster
+         * pins — see `ClusterFacilityBranches`. A two-segment path, so it
+         * needs no ordering trick against `/facilities/{facility:slug}`
+         * below (that route only ever matches one segment).
+         */
+        Route::get('/facilities/branches/map', V1FacilityBranchMapController::class)->name('facilities.branches-map');
+
+        /*
+         * The raw, paginated branch points behind the storefront's client-side
+         * clustering — see `FacilityBranchLocationsController`.
+         */
+        Route::get('/facilities/branches/locations', V1FacilityBranchLocationsController::class)->name('facilities.branches-locations');
+
         Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');
+
+        /*
+         * The stores directory behind the Deilar storefront. Public and
+         * key-less like the facilities above it — same reasoning, same
+         * shape: the listing endpoint ships governorate/city options with
+         * the grid so a page paints in one call.
+         */
+        Route::get('/stores', V1StoreListController::class)->name('stores.index');
+
+        /*
+         * The stores directory's own suggestion box — mirrors
+         * `/facilities/search`. Registered BEFORE `/stores/{store:slug}` for
+         * the same ordering reason.
+         */
+        Route::get('/stores/search', V1StoreSearchController::class)->name('stores.search');
+
+        /*
+         * Every store branch on the map at once, merged by proximity into
+         * cluster pins — see `ClusterStoreBranches`. A two-segment path, so
+         * it needs no ordering trick against `/stores/{store:slug}` below.
+         */
+        Route::get('/stores/branches/map', V1StoreBranchMapController::class)->name('stores.branches-map');
+
+        Route::get('/stores/{store:slug}', [V1StoreController::class, 'show'])->name('stores.show');
 
         /*
          * The product catalogue behind the Deilar storefront. Public and

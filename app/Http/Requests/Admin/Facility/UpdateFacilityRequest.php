@@ -7,6 +7,7 @@ use App\Models\FacilityType;
 use App\Models\Sales;
 use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateFacilityRequest extends FormRequest
@@ -86,10 +87,12 @@ class UpdateFacilityRequest extends FormRequest
             'banner_config.shadow_color' => ['nullable', 'string', 'max:9'],
             'banner_config.days' => ['nullable', 'numeric', 'between:1,365'],
             'branches' => 'nullable|array',
-            'branches.*.id' => 'nullable|exists:facility_branches,id',
+            // A soft-deleted id is excluded: reattaching one through the
+            // facility save would bypass its own restore action.
+            'branches.*.id' => ['nullable', Rule::exists('facility_branches', 'id')->whereNull('deleted_at')],
             'branches.*.governorate_id' => 'nullable|exists:governorates,id',
             'managers' => 'nullable|array',
-            'managers.*.id' => 'nullable|exists:facility_managers,id',
+            'managers.*.id' => ['nullable', Rule::exists('facility_managers', 'id')->whereNull('deleted_at')],
             'managers.*.name' => 'nullable|string|max:255',
             'managers.*.position' => 'nullable|string|max:255',
             ...$this->phoneRules('managers.*.phones'),

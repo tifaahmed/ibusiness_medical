@@ -503,6 +503,27 @@ return [
         'open_in_new_tab' => 'Open in new tab',
         'download' => 'Download',
         'close' => 'Close',
+
+        /* Trash: a facility is soft-deleted, so every string here is about a
+           row that still exists — with its branches and managers — and can
+           still come back. */
+        'trash_title' => 'Trash - Deleted Facilities',
+        'trash_empty' => 'Trash is Empty',
+        'trash_empty_message' => 'No deleted facilities found.',
+        'deleted_at' => 'Deleted at',
+        'deleted_by' => 'Deleted by',
+        'view_facility' => 'View Facility',
+        'restore_facility' => 'Restore facility',
+        'force_delete_facility' => 'Delete permanently',
+        'confirm_delete' => 'Move :name to the trash? Its branches and managers go with it, and all of it can be restored.',
+        'confirm_restore' => 'Restore :name, along with the branches and managers deleted with it?',
+        'confirm_force_delete' => 'Permanently delete :name? Its branches, managers and images go with it and this cannot be undone.',
+        'deleted_success' => 'Facility and its branches moved to trash.',
+        'deleted_failed' => 'Could not move the facility to trash. Please try again.',
+        'restored_success' => 'Facility restored.',
+        'restored_failed' => 'Could not restore the facility. Please try again.',
+        'force_deleted_success' => 'Facility permanently deleted.',
+        'force_deleted_failed' => 'Could not permanently delete the facility. Please try again.',
     ],
 
     // Facility Type
@@ -679,6 +700,25 @@ return [
         'plural' => 'branches',
         'select' => 'Select Facility Branch',
         'placeholder' => 'Choose a facility branch',
+
+        /* Trash: a branch is soft-deleted, so every string here is about a row
+           that still exists and can still come back. */
+        'trash_title' => 'Trash - Deleted Branches',
+        'trash_empty' => 'Trash is Empty',
+        'trash_empty_message' => 'No deleted branches found.',
+        'deleted_at' => 'Deleted at',
+        'deleted_by' => 'Deleted by',
+        'restore_branch' => 'Restore branch',
+        'force_delete_branch' => 'Delete permanently',
+        'confirm_delete' => 'Move :name to the trash? It can be restored.',
+        'confirm_restore' => 'Restore :name back to the list?',
+        'confirm_force_delete' => 'Permanently delete :name? This cannot be undone.',
+        'deleted_success' => 'Facility branch moved to trash.',
+        'deleted_failed' => 'Could not move the facility branch to trash. Please try again.',
+        'restored_success' => 'Facility branch restored.',
+        'restored_failed' => 'Could not restore the facility branch. Please try again.',
+        'force_deleted_success' => 'Facility branch permanently deleted.',
+        'force_deleted_failed' => 'Could not permanently delete the facility branch. Please try again.',
     ],
 
     // Offer

@@ -105,6 +105,49 @@
       </div>
     </div>
 
+    <!-- Removed managers: soft-deleted, so any of them can come back. Only
+         shown on the edit page, where facilitySlug (and so the id these
+         restore calls need) is available. -->
+    <div v-if="facilitySlug && localTrashedManagers.length > 0" class="px-6">
+      <button
+        type="button"
+        @click="showTrashed = !showTrashed"
+        class="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="showTrashed ? 'rotate-90' : ''" class="transition-transform">
+          <path d="m9 18 6-6-6-6"></path>
+        </svg>
+        {{ (t.facility_manager?.removed_managers || 'Removed managers (:count)').replace(':count', localTrashedManagers.length) }}
+      </button>
+
+      <div v-if="showTrashed" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div
+          v-for="manager in localTrashedManagers"
+          :key="manager.id"
+          class="p-3 bg-destructive/5 rounded-lg border border-destructive/20 flex items-center justify-between gap-3"
+        >
+          <div class="min-w-0">
+            <p class="font-medium text-sm text-white/90 truncate line-through decoration-white/40">
+              {{ manager.name || (t.facility_manager?.unnamed || 'Unnamed Manager') }}
+            </p>
+            <p v-if="manager.position" class="text-xs text-white/60 truncate">{{ manager.position }}</p>
+          </div>
+          <button
+            type="button"
+            :disabled="restoringId === manager.id"
+            @click="restoreManager(manager)"
+            class="inline-flex items-center gap-1.5 flex-shrink-0 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-600/10 disabled:opacity-50 dark:text-emerald-400"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+            {{ t.common?.restore || 'Restore' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Add / Edit Manager modal -->
     <Teleport to="body">
       <div
@@ -210,10 +253,45 @@ const props = defineProps({
   facilitySlug: {
     type: String,
     default: ''
+  },
+  // Managers soft-deleted from this facility — removed via this card and
+  // saved, or cascaded with the whole facility being deleted and restored.
+  trashedManagers: {
+    type: Array,
+    default: () => []
   }
 });
 
 const emit = defineEmits(['update:modelValue']);
+
+const showTrashed = ref(false);
+const restoringId = ref(null);
+// A local copy so a restored manager can be dropped from the list without
+// waiting for the page to reload the trashedManagers prop.
+const localTrashedManagers = ref([...props.trashedManagers]);
+watch(() => props.trashedManagers, (list) => { localTrashedManagers.value = [...list]; });
+
+const restoreManager = async (manager) => {
+  if (restoringId.value) return;
+
+  restoringId.value = manager.id;
+  try {
+    const { data } = await axios.post(route('admin.facility.manager.restore', [props.facilitySlug, manager.id]));
+
+    localTrashedManagers.value = localTrashedManagers.value.filter((m) => m.id !== manager.id);
+    emit('update:modelValue', [...props.modelValue, data.manager]);
+    useNotification().success(
+      data.message || (t.value?.facility_manager?.restored || 'Manager restored successfully')
+    );
+  } catch (error) {
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value?.facility_manager?.restore_failed || 'Failed to restore the manager. Please try again.')
+    );
+  } finally {
+    restoringId.value = null;
+  }
+};
 
 const showAddForm = ref(false);
 const editingIndex = ref(null);

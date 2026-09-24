@@ -9,6 +9,7 @@ use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
 use App\Models\FacilityLog;
+use App\Models\FacilityManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +31,13 @@ class AdminFacilityDeleteController extends BaseController
     }
 
     /**
-     * Remove the specified facility from storage.
+     * Move the facility, its branches and its managers to the trash together.
+     *
+     * All three are stamped with the exact same `deleted_at` (not each one's
+     * own `->delete()` call, whose timestamps could differ by a few
+     * microseconds) so that restoring the facility later can restore only the
+     * branches/managers that went into the trash with it — not one that an
+     * admin had already deleted separately beforehand.
      */
     public function __invoke(Request $request, string $facilitySlug): RedirectResponse
     {
@@ -59,13 +66,23 @@ class AdminFacilityDeleteController extends BaseController
 
         // Store data for logging before deletion
         $facilityId = $facility->id;
-        $facilityName = $facility->name;
         $facilitySlugValue = $facility->slug;
         $branches = $facility->branches()->get();
+        $managers = $facility->managers()->get();
         $branchesCount = $branches->count();
         $facilitySnapshot = $this->facilitySnapshot($facility);
         $branchSnapshots = $branches->map(fn (FacilityBranch $b) => $this->branchSnapshot($b))->all();
+        $managerSnapshots = $managers->map(fn (FacilityManager $m) => $this->managerSnapshot($m))->all();
         $adminId = Auth::id();
+        /*
+         * A plain string with microseconds, not a Carbon instance: passing a
+         * DateTimeInterface as a query binding gets reformatted by
+         * Connection::prepareBindings() to the grammar's default format
+         * (whole seconds only), which would throw away exactly the precision
+         * the migration added the column for. A raw query-builder update()
+         * with a pre-formatted string writes it byte for byte instead.
+         */
+        $deletedAt = now()->format('Y-m-d H:i:s.u');
 
         try {
             DB::beginTransaction();
@@ -91,8 +108,22 @@ class AdminFacilityDeleteController extends BaseController
                 );
             }
 
-            // Delete associated branches (cascade)
-            $facility->branches()->delete();
+            foreach ($managerSnapshots as $snap) {
+                FacilityLog::record(
+                    facilityId: $facilityId,
+                    adminId: $adminId,
+                    action: FacilityLog::ACTION_MANAGER_DELETED,
+                    oldValues: $snap,
+                    newValues: null,
+                    request: $request,
+                );
+            }
+
+            // Soft-delete the branches and managers with the facility, all
+            // sharing the one $deletedAt so a later restore can tell them
+            // apart from anything deleted separately, before or since.
+            $facility->branches()->update(['deleted_at' => $deletedAt, 'deleted_by' => $adminId]);
+            $facility->managers()->update(['deleted_at' => $deletedAt, 'deleted_by' => $adminId]);
 
             FacilityLog::record(
                 facilityId: $facilityId,
@@ -103,21 +134,24 @@ class AdminFacilityDeleteController extends BaseController
                 request: $request,
             );
 
-            // Delete the facility
-            $facility->delete();
+            // A raw update, not $facility->save(): Eloquent would cast this
+            // string back into a Carbon instance and reformat it through
+            // getDateFormat() on write, throwing away the same precision.
+            Facility::where('id', $facilityId)->update(['deleted_at' => $deletedAt, 'deleted_by' => $adminId]);
 
             DB::commit();
 
-            Log::info('Facility deleted successfully', [
+            Log::info('Facility moved to trash by admin', [
                 'facility_id' => $facilityId,
                 'facility_slug' => $facilitySlugValue,
                 'branches_deleted' => $branchesCount,
+                'admin_id' => $adminId,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
 
             return redirect()->route('admin.facility.list')
-                ->with('success', 'Facility and its branches deleted successfully.');
+                ->with('success', 'Facility and its branches moved to trash. It can be restored from the trash page.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -158,6 +192,17 @@ class AdminFacilityDeleteController extends BaseController
             'city_id' => $branch->city_id,
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
+        ];
+    }
+
+    private function managerSnapshot(FacilityManager $manager): array
+    {
+        return [
+            'manager_id' => $manager->id,
+            'facility_id' => $manager->facility_id,
+            'name' => $manager->name,
+            'position' => $manager->position,
+            'phones' => $manager->phones,
         ];
     }
 

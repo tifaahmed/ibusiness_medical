@@ -98,7 +98,7 @@ class ProductController extends Controller
      * Echoed back in the response so a consumer can render "you searched for…"
      * without re-parsing the URL it just asked with.
      *
-     * @return array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, sort: string, slugs: list<string>}
+     * @return array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, store_id: ?int, sort: string, slugs: list<string>}
      */
     private function filters(Request $request): array
     {
@@ -110,6 +110,11 @@ class ProductController extends Controller
             'tag_id' => $request->filled('tag_id') ? (int) $request->input('tag_id') : null,
             'min_price' => $request->filled('min_price') ? (float) $request->input('min_price') : null,
             'max_price' => $request->filled('max_price') ? (float) $request->input('max_price') : null,
+            /*
+             * Narrows the catalogue to one store — how the Deilar storefront's
+             * store page fills its own "products from this store" section.
+             */
+            'store_id' => $request->filled('store_id') ? (int) $request->input('store_id') : null,
             'sort' => $this->sort($request),
             /*
              * Named products rather than a search: this is how a storefront
@@ -152,7 +157,7 @@ class ProductController extends Controller
     /**
      * The catalogue narrowed by the filters and put in order.
      *
-     * @param  array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, sort: string, slugs: list<string>}  $filters
+     * @param  array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, store_id: ?int, sort: string, slugs: list<string>}  $filters
      * @return Builder<Product>
      */
     private function filtered(array $filters): Builder
@@ -179,7 +184,7 @@ class ProductController extends Controller
      * `slug` and `id` all exist on both sides of that join.
      *
      * @param  Builder<Product>  $query
-     * @param  array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, sort: string, slugs: list<string>}  $filters
+     * @param  array{search: string, product_type_id: ?int, tag_id: ?int, min_price: ?float, max_price: ?float, store_id: ?int, sort: string, slugs: list<string>}  $filters
      * @param  string|null  $except  a filter key to skip: 'product_type_id' or 'tag_id'
      */
     private function applyFilters(Builder $query, array $filters, ?string $except = null): void
@@ -211,7 +216,8 @@ class ProductController extends Controller
                 fn (Builder $q) => $q->whereHas('tags', fn ($t) => $t->where('tags.id', $filters['tag_id'])),
             )
             ->when($filters['min_price'] !== null, fn (Builder $q) => $q->whereRaw("{$price} >= ?", [$filters['min_price']]))
-            ->when($filters['max_price'] !== null, fn (Builder $q) => $q->whereRaw("{$price} <= ?", [$filters['max_price']]));
+            ->when($filters['max_price'] !== null, fn (Builder $q) => $q->whereRaw("{$price} <= ?", [$filters['max_price']]))
+            ->when($except !== 'store_id' && ($filters['store_id'] ?? null), fn (Builder $q) => $q->where('products.store_id', $filters['store_id']));
     }
 
     /**

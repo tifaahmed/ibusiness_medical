@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Services\Ai\GeminiClient;
+use App\Support\FacilityAudit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -127,15 +128,19 @@ class FacilityEnglishBackfiller
      */
     private function saveTouched(array $touched): void
     {
-        foreach ($touched as $model) {
-            $originalSlug = $model->getOriginal('slug');
-            $model->save();
+        // Named so each facility/branch this saves is filed in its history as
+        // an AI translation — see FacilityAudit.
+        FacilityAudit::as(FacilityAudit::SOURCE_AI_TRANSLATE, function () use ($touched) {
+            foreach ($touched as $model) {
+                $originalSlug = $model->getOriginal('slug');
+                $model->save();
 
-            if ($model->slug !== $originalSlug && filled($originalSlug)) {
-                $model->slug = $originalSlug;
-                $model->saveQuietly();
+                if ($model->slug !== $originalSlug && filled($originalSlug)) {
+                    $model->slug = $originalSlug;
+                    $model->saveQuietly();
+                }
             }
-        }
+        });
     }
 
     /**
@@ -338,6 +343,7 @@ class FacilityEnglishBackfiller
 
         $applied = [];
         $errors = [];
+        $before = FacilityAudit::snapshot($branch, $branch->getRawOriginal());
 
         foreach ($pending as $index => $row) {
             $ar = data_get($answers, "{$index}.ar");
@@ -366,6 +372,7 @@ class FacilityEnglishBackfiller
 
         if ($applied !== []) {
             $branch->saveQuietly();
+            FacilityAudit::record($branch, $before, FacilityAudit::SOURCE_AI_TRANSLATE);
 
             Log::info('Branch bilingual fix applied', [
                 'branch_id' => $branch->id,

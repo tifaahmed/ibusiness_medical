@@ -15,10 +15,15 @@ use App\Support\DirectorySearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
 
 class PartnersController extends Controller
 {
+    /** Steps a visitor may pick "within X km" from — see `nearestBranchKm()`. */
+    private const RADIUS_STEPS_KM = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
     public function __invoke(Request $request): JsonResponse
     {
         $filters = [
@@ -27,6 +32,27 @@ class PartnersController extends Controller
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),
         ];
+
+        /*
+         * "Within X km": the browser's own coordinates plus a radius step.
+         * Distance is measured to a facility's NEAREST branch — the same
+         * place a card leads with when a governorate or city is chosen above
+         * — computed once as a joined subquery rather than N+1 Haversine
+         * calls. `lat`/`lng` alone (no radius) still asks for the distance,
+         * for a "closest first" sort that reorders locally on the storefront
+         * side rather than here — see `.ai/rules` on the Deilar repo for why
+         * this endpoint otherwise forwards no sort of its own.
+         */
+        $validated = $request->validate([
+            'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:radius_km'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km'],
+            'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
+        ]);
+
+        $lat = isset($validated['lat']) ? (float) $validated['lat'] : null;
+        $lng = isset($validated['lng']) ? (float) $validated['lng'] : null;
+        $radiusKm = isset($validated['radius_km']) ? (int) $validated['radius_km'] : null;
+        $hasPoint = $lat !== null && $lng !== null;
 
         $with = ['facilityType', 'branches.governorate', 'branches.city', 'media', 'tags'];
 
@@ -96,6 +122,20 @@ class PartnersController extends Controller
                         ->orWhereHas('branches', fn ($b) => $b->where('city_id', $cityId));
                 });
             })
+            ->when($hasPoint, function ($q) use ($lat, $lng, $radiusKm) {
+                $q->leftJoinSub(
+                    $this->nearestBranchKm($lat, $lng),
+                    'nearest_branch',
+                    fn ($join) => $join->on('facilities.id', '=', 'nearest_branch.facility_id'),
+                )
+                    ->select('facilities.*')
+                    ->addSelect('nearest_branch.distance_km');
+
+                if ($radiusKm !== null) {
+                    $q->whereNotNull('nearest_branch.distance_km')
+                        ->where('nearest_branch.distance_km', '<=', $radiusKm);
+                }
+            })
             ->latest()
             ->paginate($request->input('per_page', 12))
             ->withQueryString();
@@ -108,12 +148,13 @@ class PartnersController extends Controller
          * (a registered address rather than a place to walk into) is worse
          * than a shorter, honest list.
          */
+        $governorateCounts = $this->facilityCountsByPlace('governorate_id');
         $governorates = Governorate::whereHas('branches')
             ->get()
             ->map(fn ($g) => [
                 'id' => $g->id,
                 'name' => $g->name,
-                'facility_count' => $this->facilityCountForGovernorate($g->id),
+                'facility_count' => (int) ($governorateCounts[$g->id] ?? 0),
             ]);
 
         /*
@@ -140,10 +181,11 @@ class PartnersController extends Controller
             $facilityTypesQuery->when($ids, fn ($q) => $q->whereIn('id', $ids), fn ($q) => $q->whereRaw('1 = 0'));
         }
 
+        $typeCounts = $this->facilityCountsByType($governorateId, $cityId);
         $facilityTypes = $facilityTypesQuery->get()->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
-            'facility_count' => $this->facilityCountForType($t->id, $governorateId, $cityId),
+            'facility_count' => (int) ($typeCounts[$t->id] ?? 0),
         ]);
 
         /*
@@ -157,6 +199,7 @@ class PartnersController extends Controller
             $citiesQuery->where('governorate_id', $governorateId);
         }
 
+        $cityCounts = $this->facilityCountsByPlace('city_id');
         $cities = $citiesQuery
             ->whereHas('branches')
             ->get()
@@ -165,7 +208,7 @@ class PartnersController extends Controller
             ->map(fn (City $city) => [
                 'id' => $city->id,
                 'name' => $city->name,
-                'facility_count' => $this->facilityCountForCity($city->id),
+                'facility_count' => (int) ($cityCounts[$city->id] ?? 0),
             ]);
 
         $locale = App::getLocale();
@@ -196,36 +239,77 @@ class PartnersController extends Controller
     }
 
     /**
-     * How many facilities a governorate dropdown entry actually stands for —
-     * itself or a branch, the same either-counts rule the grid filters by,
-     * so the number matches what picking it is about to return.
+     * One row per facility that has at least one geocoded branch: the
+     * great-circle distance (km) from `$lat`/`$lng` to its NEAREST branch,
+     * via the standard Haversine formula. `LEAST`/`GREATEST` clamp the
+     * `ACOS` argument to [-1, 1] — floating-point rounding can push a point
+     * essentially on top of a branch a hair outside that range, which would
+     * otherwise make `ACOS` return `NAN` for the exact case this query is
+     * most likely to be asked about.
      */
-    private function facilityCountForGovernorate(int $governorateId): int
+    private function nearestBranchKm(float $lat, float $lng): \Illuminate\Database\Query\Builder
     {
-        return Facility::where(function ($q) use ($governorateId) {
-            $q->where('governorate_id', $governorateId)
-                ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
-        })->count();
-    }
+        $distance = '(6371 * ACOS(LEAST(1, GREATEST(-1,
+            COS(RADIANS(?)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(?))
+            + SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+        ))))';
 
-    /** Same idea as {@see facilityCountForGovernorate()}, for one city. */
-    private function facilityCountForCity(int $cityId): int
-    {
-        return Facility::where(function ($q) use ($cityId) {
-            $q->where('city_id', $cityId)
-                ->orWhereHas('branches', fn ($b) => $b->where('city_id', $cityId));
-        })->count();
+        return DB::table('facility_branches')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->groupBy('facility_id')
+            ->selectRaw('facility_id, MIN('.$distance.') as distance_km', [$lat, $lng, $lat]);
     }
 
     /**
-     * How many facilities of one type are on offer — narrowed to whichever
-     * of governorate/city is currently chosen, the same "city wins" rule
-     * that narrows which types are even listed. Unnarrowed, it is every
-     * facility of that type.
+     * Every governorate's (or city's) `facility_count` in ONE query, rather
+     * than one query per dropdown row — the directory can list up to a few
+     * hundred cities, and a query per row was the actual cost of this
+     * endpoint (measured: ~280 of these across governorates, cities and
+     * types, most of the request's total time).
+     *
+     * A facility touches a place through its own head office OR any branch,
+     * the same either-counts rule the grid filters by — so this unions
+     * "facility's own place" with "each branch's place" first. `UNION`
+     * (not `UNION ALL`) already collapses an identical (facility, place)
+     * pair coming from both sides; `COUNT(DISTINCT facility_id)` on the
+     * outside is belt and braces for a facility with several branches in
+     * the same place still counting once.
+     *
+     * @param  'governorate_id'|'city_id'  $column
+     * @return Collection<int, int> facility_count keyed by the place's id
      */
-    private function facilityCountForType(int $facilityTypeId, ?int $governorateId, ?int $cityId): int
+    private function facilityCountsByPlace(string $column): Collection
     {
-        return Facility::where('facility_type_id', $facilityTypeId)
+        $own = DB::table('facilities')
+            ->select('id as facility_id', $column)
+            ->whereNotNull($column);
+
+        $branch = DB::table('facility_branches')
+            ->select('facility_id', $column)
+            ->whereNotNull($column);
+
+        return DB::query()
+            ->fromSub($own->union($branch), 'touches')
+            ->select($column, DB::raw('COUNT(DISTINCT facility_id) as facility_count'))
+            ->groupBy($column)
+            ->pluck('facility_count', $column);
+    }
+
+    /**
+     * Every facility type's `facility_count` in one query — narrowed to
+     * whichever of governorate/city is currently chosen, the same "city
+     * wins" rule that narrows which types are even listed. Unnarrowed, it is
+     * every facility of that type; narrowed, "touches this place" is the
+     * same own-or-branch rule {@see facilityCountsByPlace()} unions, here
+     * AND'd onto the type filter and grouped by type instead of by place.
+     *
+     * @return Collection<int, int> facility_count keyed by facility_type_id
+     */
+    private function facilityCountsByType(?int $governorateId, ?int $cityId): Collection
+    {
+        return Facility::query()
+            ->whereNotNull('facility_type_id')
             ->when(
                 $cityId !== null,
                 fn ($q) => $q->where(function ($qq) use ($cityId) {
@@ -240,7 +324,9 @@ class PartnersController extends Controller
                         ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
                 }),
             )
-            ->count();
+            ->select('facility_type_id', DB::raw('COUNT(*) as facility_count'))
+            ->groupBy('facility_type_id')
+            ->pluck('facility_count', 'facility_type_id');
     }
 
     /**

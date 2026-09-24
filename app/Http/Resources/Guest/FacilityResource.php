@@ -32,6 +32,17 @@ class FacilityResource extends JsonResource
             // or a branch" the same way this endpoint's own filters do.
             'governorate_id' => $this->governorate_id,
             'city_id' => $this->city_id,
+            /*
+             * Distance (km) to this facility's nearest branch from the point
+             * `PartnersController` was asked about — present only when the
+             * request carried `lat`/`lng`, absent (not merely null) otherwise,
+             * because `distance_km` is never a real column and only exists on
+             * the model when that request joined it in.
+             */
+            'distance_km' => $this->when(
+                array_key_exists('distance_km', $this->getAttributes()),
+                fn () => $this->distance_km !== null ? round((float) $this->distance_km, 1) : null,
+            ),
             'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
                 'id' => $tag->id,
                 'name' => $tag->name,

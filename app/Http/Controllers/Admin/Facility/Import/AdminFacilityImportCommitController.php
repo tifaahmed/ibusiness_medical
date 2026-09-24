@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin\Facility\Import;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityLog;
+use App\Support\FacilityAudit;
 use App\Support\PhoneNumbers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,13 @@ class AdminFacilityImportCommitController extends BaseController
      *              imported rows as brand-new facilities.
      */
     public function __invoke(Request $request): JsonResponse
+    {
+        // Every facility and branch this writes is filed in its history as an
+        // import, by whoever ran it — see FacilityAudit.
+        return FacilityAudit::as(FacilityAudit::SOURCE_IMPORT, fn () => $this->commit($request));
+    }
+
+    private function commit(Request $request): JsonResponse
     {
         $payload = $request->validate([
             'mode' => ['required', 'in:upsert,clear'],
@@ -60,8 +69,17 @@ class AdminFacilityImportCommitController extends BaseController
         try {
             if ($mode === 'clear') {
                 $cleared = Facility::count();
-                FacilityBranch::query()->delete();
-                Facility::query()->delete();
+                $adminId = Auth::id();
+
+                foreach (Facility::query()->get() as $gone) {
+                    FacilityLog::record($gone->id, $adminId, FacilityLog::ACTION_DELETED, FacilityAudit::snapshot($gone, $gone->getAttributes()), null, $request);
+                }
+
+                // A query-builder soft delete fires no model events, so the
+                // stamp that says who cleared the table is written here.
+                $now = now()->format('Y-m-d H:i:s.u');
+                FacilityBranch::query()->update(['deleted_at' => $now, 'deleted_by' => $adminId]);
+                Facility::query()->update(['deleted_at' => $now, 'deleted_by' => $adminId]);
             }
 
             foreach ($rows as $i => $row) {

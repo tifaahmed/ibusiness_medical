@@ -5,6 +5,7 @@ namespace App\Services\FacilityMigration;
 use App\Models\City;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
+use App\Models\FacilityLog;
 use App\Models\FacilityManager;
 use App\Models\FacilityType;
 use App\Models\Governorate;
@@ -12,10 +13,12 @@ use App\Models\Offer;
 use App\Models\Sales;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\FacilityAudit;
 use App\Support\PhoneNumbers;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -278,7 +281,7 @@ class FacilityMigrationImporter
 
             try {
                 DB::beginTransaction();
-                $this->importFacility($data, $state['mode'], $addedMediaPaths);
+                FacilityAudit::as(FacilityAudit::SOURCE_MIGRATION, fn () => $this->importFacility($data, $state['mode'], $addedMediaPaths));
 
                 if ($this->dryRun) {
                     DB::rollBack();
@@ -1041,6 +1044,8 @@ class FacilityMigrationImporter
                 $offer->delete();
             }
             // Deletes the facility's media files too; branches go by FK cascade.
+            $facility->forceFill(['deleted_by' => Auth::id()])->saveQuietly();
+            FacilityLog::record($facility->id, Auth::id(), FacilityLog::ACTION_DELETED, FacilityAudit::snapshot($facility, $facility->getAttributes()), null, request(), FacilityAudit::SOURCE_MIGRATION);
             $facility->delete();
         }
 

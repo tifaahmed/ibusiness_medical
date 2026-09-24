@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\FacilityAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,20 +18,32 @@ class FacilityLog extends Model
 
     public const ACTION_DELETED = 'deleted';
 
+    public const ACTION_RESTORED = 'restored';
+
+    /** The facility left the trash for good — nothing about it survives after this. */
+    public const ACTION_FORCE_DELETED = 'force_deleted';
+
     public const ACTION_BRANCH_CREATED = 'branch_created';
 
     public const ACTION_BRANCH_UPDATED = 'branch_updated';
 
     public const ACTION_BRANCH_DELETED = 'branch_deleted';
 
+    public const ACTION_BRANCH_RESTORED = 'branch_restored';
+
     public const ACTION_MANAGER_CREATED = 'manager_created';
 
     public const ACTION_MANAGER_UPDATED = 'manager_updated';
+
+    public const ACTION_MANAGER_DELETED = 'manager_deleted';
+
+    public const ACTION_MANAGER_RESTORED = 'manager_restored';
 
     protected $fillable = [
         'facility_id',
         'admin_id',
         'action',
+        'source',
         'old_values',
         'new_values',
         'changed_fields',
@@ -64,6 +77,7 @@ class FacilityLog extends Model
         ?array $oldValues,
         ?array $newValues,
         ?Request $request = null,
+        ?string $source = null,
     ): self {
         return self::create([
             'facility_id' => $facilityId,
@@ -72,6 +86,7 @@ class FacilityLog extends Model
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'changed_fields' => self::diffKeys($oldValues, $newValues),
+            'source' => $source ?? FacilityAudit::source(),
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
         ]);

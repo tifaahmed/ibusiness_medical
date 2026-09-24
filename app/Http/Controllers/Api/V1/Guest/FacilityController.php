@@ -38,6 +38,9 @@ class FacilityController extends Controller
                 'phones' => $branch->phone,
                 'governorate' => $branch->governorate ? ['name' => $branch->governorate->name] : null,
                 'city' => $branch->city ? ['name' => $branch->city->name] : null,
+                'latitude' => $branch->latitude !== null ? (float) $branch->latitude : null,
+                'longitude' => $branch->longitude !== null ? (float) $branch->longitude : null,
+                'google_location_url' => $branch->google_location_url,
             ]);
 
         $facilityName = $facility->getTranslation('name', $locale);

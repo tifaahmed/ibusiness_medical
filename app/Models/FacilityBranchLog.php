@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\FacilityAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,14 +13,22 @@ class FacilityBranchLog extends Model
     use HasFactory;
 
     public const ACTION_CREATED = 'created';
+
     public const ACTION_UPDATED = 'updated';
+
     public const ACTION_DELETED = 'deleted';
+
+    public const ACTION_RESTORED = 'restored';
+
+    /** The branch left the trash for good — nothing about it survives after this. */
+    public const ACTION_FORCE_DELETED = 'force_deleted';
 
     protected $fillable = [
         'facility_branch_id',
         'facility_id',
         'admin_id',
         'action',
+        'source',
         'old_values',
         'new_values',
         'changed_fields',
@@ -59,6 +68,7 @@ class FacilityBranchLog extends Model
         ?array $oldValues,
         ?array $newValues,
         ?Request $request = null,
+        ?string $source = null,
     ): self {
         return self::create([
             'facility_branch_id' => $facilityBranchId,
@@ -68,6 +78,7 @@ class FacilityBranchLog extends Model
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'changed_fields' => self::diffKeys($oldValues, $newValues),
+            'source' => $source ?? FacilityAudit::source(),
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
         ]);
@@ -81,10 +92,11 @@ class FacilityBranchLog extends Model
 
         $changed = [];
         foreach ($new as $key => $value) {
-            if (!array_key_exists($key, $old) || $old[$key] !== $value) {
+            if (! array_key_exists($key, $old) || $old[$key] !== $value) {
                 $changed[] = $key;
             }
         }
+
         return $changed;
     }
 }

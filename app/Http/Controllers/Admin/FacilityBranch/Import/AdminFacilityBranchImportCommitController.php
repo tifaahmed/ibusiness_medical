@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin\FacilityBranch\Import;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\FacilityBranch;
+use App\Models\FacilityBranchLog;
+use App\Models\FacilityLog;
+use App\Support\FacilityAudit;
 use App\Support\PhoneNumbers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +24,13 @@ class AdminFacilityBranchImportCommitController extends BaseController
      *  - "clear":  delete every existing branch first, then insert all rows as new.
      */
     public function __invoke(Request $request): JsonResponse
+    {
+        // Every branch this writes is filed in its history as an import, by
+        // whoever ran it — see FacilityAudit.
+        return FacilityAudit::as(FacilityAudit::SOURCE_IMPORT, fn () => $this->commit($request));
+    }
+
+    private function commit(Request $request): JsonResponse
     {
         $payload = $request->validate([
             'mode' => ['required', 'in:upsert,clear'],
@@ -49,7 +59,17 @@ class AdminFacilityBranchImportCommitController extends BaseController
         try {
             if ($mode === 'clear') {
                 $cleared = FacilityBranch::count();
-                FacilityBranch::query()->delete();
+                $adminId = Auth::id();
+
+                foreach (FacilityBranch::query()->get() as $gone) {
+                    $snapshot = FacilityAudit::snapshot($gone, $gone->getAttributes());
+                    FacilityBranchLog::record($gone->id, $gone->facility_id, $adminId, FacilityBranchLog::ACTION_DELETED, $snapshot, null, $request);
+                    FacilityLog::record($gone->facility_id, $adminId, FacilityLog::ACTION_BRANCH_DELETED, $snapshot, null, $request);
+                }
+
+                // A query-builder soft delete fires no model events, so the
+                // stamp that says who cleared the table is written here.
+                FacilityBranch::query()->update(['deleted_at' => now()->format('Y-m-d H:i:s.u'), 'deleted_by' => $adminId]);
             }
 
             foreach ($rows as $i => $row) {

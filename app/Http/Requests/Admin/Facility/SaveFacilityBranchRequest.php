@@ -6,6 +6,7 @@ use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\Facility;
 use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
@@ -41,7 +42,9 @@ class SaveFacilityBranchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'id' => 'nullable|exists:facility_branches,id',
+            // A soft-deleted id is excluded: reattaching one through an edit
+            // save would bypass the branch's own restore action.
+            'id' => ['nullable', Rule::exists('facility_branches', 'id')->whereNull('deleted_at')],
             'governorate_id' => 'required|exists:governorates,id',
             'city_id' => 'required|exists:cities,id',
             'latitude' => 'nullable|numeric|between:-90,90',

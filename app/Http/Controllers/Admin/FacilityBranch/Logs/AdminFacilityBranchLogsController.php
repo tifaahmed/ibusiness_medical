@@ -55,6 +55,8 @@ class AdminFacilityBranchLogsController extends BaseController
                 'old_values' => $log->old_values,
                 'new_values' => $log->new_values,
                 'changed_fields' => $log->changed_fields,
+                // Rows written before the column existed carry it in new_values.
+                'source' => $log->source ?? ($log->new_values['source'] ?? null),
                 'ip_address' => $log->ip_address,
                 'user_agent' => $log->user_agent,
                 'created_at' => $log->created_at?->toDateTimeString(),

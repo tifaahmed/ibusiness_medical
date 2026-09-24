@@ -69,10 +69,30 @@
                 />
             </div>
 
+            <div class="w-full sm:w-40 min-w-0">
+              <label for="entity" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">What</label>
+              <Select id="entity" v-model="entityFilter" :options="ENTITY_OPTIONS" placeholder="Everything" @update:model-value="applyFilters" />
+            </div>
+
+            <div class="w-full sm:w-44 min-w-0">
+              <label for="source" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">Made by</label>
+              <Select id="source" v-model="sourceFilter" :options="SOURCE_OPTIONS" placeholder="Any way" @update:model-value="applyFilters" />
+            </div>
+
+            <div class="w-full sm:w-40 min-w-0">
+              <label for="from" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">From</label>
+              <input id="from" type="date" v-model="fromFilter" @change="applyFilters" class="h-8 sm:h-9 w-full rounded-md border border-input bg-background px-2 text-xs" />
+            </div>
+
+            <div class="w-full sm:w-40 min-w-0">
+              <label for="to" class="flex items-center gap-1.5 text-xs leading-none font-medium select-none mb-1">To</label>
+              <input id="to" type="date" v-model="toFilter" @change="applyFilters" class="h-8 sm:h-9 w-full rounded-md border border-input bg-background px-2 text-xs" />
+            </div>
+
             <button
-              v-if="adminFilter !== null || actionFilter !== null"
+              v-if="hasFilters"
               type="button"
-              @click="adminFilter = null; actionFilter = null; applyFilters()"
+              @click="clearFilters"
               class="cursor-pointer justify-center whitespace-nowrap text-xs font-medium transition-all bg-destructive text-white shadow-xs hover:bg-destructive/90 h-8 sm:h-9 rounded-md px-3 inline-flex items-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -108,9 +128,17 @@
                         </div>
                       </td>
                       <td class="p-2 sm:p-3 align-middle whitespace-nowrap">
-                        <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', actionClass(log.action)]">
-                          {{ formatAction(log.action) }}
-                        </span>
+                        <div class="flex flex-col items-start gap-1 max-w-xs">
+                          <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', actionClass(log.action)]">
+                            {{ ENTITY_ICON[log.entity] }} {{ formatAction(log.action) }}
+                          </span>
+                          <span v-if="log.subject?.label" class="text-xs font-medium text-foreground truncate max-w-full" :title="log.subject.label">
+                            {{ log.subject.label }}
+                          </span>
+                          <span v-if="sourceLabel(log.source)" class="inline-flex items-center rounded bg-violet-500/15 px-1.5 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                            {{ sourceLabel(log.source) }}
+                          </span>
+                        </div>
                       </td>
                       <td class="p-2 sm:p-3 align-middle">
                         <div v-if="log.admin" class="flex flex-col min-w-0">
@@ -118,11 +146,12 @@
                           <span class="text-muted-foreground text-xs truncate">{{ log.admin.email }}</span>
                         </div>
                         <span v-else class="text-muted-foreground italic text-xs">system / unknown</span>
+                        <div class="text-xs text-muted-foreground mt-0.5">{{ summary(log) }}</div>
                       </td>
                       <td class="p-2 sm:p-3 align-middle">
-                        <div v-if="log.changed_fields?.length" class="flex flex-wrap gap-1">
+                        <div v-if="shownFields(log).length" class="flex flex-wrap gap-1">
                           <span
-                            v-for="field in log.changed_fields"
+                            v-for="field in shownFields(log)"
                             :key="field"
                             class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground"
                           >
@@ -130,7 +159,7 @@
                           </span>
                         </div>
                         <span v-else class="text-muted-foreground text-xs italic">
-                          {{ ['created', 'branch_created', 'manager_created'].includes(log.action) ? 'Initial values' : '—' }}
+                          {{ ['created', 'branch_created', 'manager_created'].includes(log.action) ? 'Initial values' : (log.action.endsWith('updated') ? 'Saved with no changes' : '—') }}
                         </span>
                       </td>
                       <td class="p-2 sm:p-3 align-middle text-center">
@@ -145,14 +174,14 @@
                     <tr v-if="expanded[log.id]" class="bg-muted/30 border-b border-border">
                       <td colspan="5" class="p-3 sm:p-4 space-y-4">
                         <div
-                          v-if="['updated', 'branch_updated', 'manager_updated'].includes(log.action) && (log.changed_fields?.length || 0) > 0"
+                          v-if="['updated', 'branch_updated', 'manager_updated'].includes(log.action) && shownFields(log).length > 0"
                           class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
                         >
                           <div class="flex items-center gap-2 text-xs font-semibold text-amber-300 uppercase tracking-wide mb-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                               <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path>
                             </svg>
-                            Changed ({{ log.changed_fields.length }})
+                            Changed ({{ shownFields(log).length }})
                           </div>
                           <div class="overflow-x-auto">
                             <table class="w-full text-xs">
@@ -164,7 +193,7 @@
                                 </tr>
                               </thead>
                               <tbody class="font-mono">
-                                <tr v-for="field in log.changed_fields" :key="field" class="border-t border-amber-500/20">
+                                <tr v-for="field in shownFields(log)" :key="field" class="border-t border-amber-500/20">
                                   <td class="py-1 pr-3 text-amber-200/90 whitespace-nowrap">{{ formatField(field) }}</td>
                                   <td class="py-1 pr-3 text-rose-300/90 break-all">{{ formatValue(log.old_values?.[field]) }}</td>
                                   <td class="py-1 text-emerald-300/90 break-all">{{ formatValue(log.new_values?.[field]) }}</td>
@@ -283,6 +312,65 @@ const toggle = (id) => { expanded[id] = !expanded[id]; };
 
 const adminFilter = ref(props.filters?.admin_id ?? null);
 const actionFilter = ref(props.filters?.action ?? null);
+const entityFilter = ref(props.filters?.entity ?? null);
+const sourceFilter = ref(props.filters?.source ?? null);
+const fromFilter = ref(props.filters?.from ?? '');
+const toFilter = ref(props.filters?.to ?? '');
+
+const ENTITY_OPTIONS = [
+  { value: 'facility', label: 'Facility' },
+  { value: 'branch', label: 'Branches' },
+  { value: 'manager', label: 'Managers' },
+];
+const ENTITY_ICON = { facility: '🏥', branch: '📍', manager: '👤' };
+const ENTITY_NOUN = { facility: 'the facility', branch: 'a branch', manager: 'a manager' };
+
+/* Where a change came from. Nothing to show for the ordinary case — an admin
+   working a form — so it is a filter choice ("manual") but never a badge. */
+const SOURCE_LABELS = {
+  import: 'Spreadsheet import',
+  migration: 'Migration package',
+  ai_seo: 'AI SEO',
+  ai_translate: 'AI translation',
+  ai_geocode: 'AI location',
+  ai_place: 'AI place lookup',
+  rename_sweep: 'Branch rename sweep',
+};
+const SOURCE_OPTIONS = [
+  { value: 'manual', label: 'Admin form' },
+  ...Object.entries(SOURCE_LABELS).map(([value, label]) => ({ value, label })),
+];
+const sourceLabel = (source) => (source ? (SOURCE_LABELS[source] || source) : null);
+
+const hasFilters = computed(() =>
+  [adminFilter.value, actionFilter.value, entityFilter.value, sourceFilter.value, fromFilter.value, toFilter.value]
+    .some(v => v !== null && v !== undefined && v !== '')
+);
+const clearFilters = () => {
+  adminFilter.value = null; actionFilter.value = null; entityFilter.value = null;
+  sourceFilter.value = null; fromFilter.value = ''; toFilter.value = '';
+  applyFilters();
+};
+
+/* Ids are bookkeeping, not something an editor changed — keep them out of the
+   "what changed" chips and tables. */
+const HIDDEN_FIELDS = ['branch_id', 'manager_id', 'facility_id', 'source'];
+const shownFields = (log) => (log.changed_fields || []).filter(f => !HIDDEN_FIELDS.includes(f));
+
+const VERBS = {
+  created: 'created', updated: 'edited', deleted: 'moved to trash', restored: 'restored',
+  force_deleted: 'permanently deleted',
+};
+const summary = (log) => {
+  const who = log.admin?.name || 'The system';
+  const verb = VERBS[log.action.replace(/^(branch|manager)_/, '')] || log.action;
+  const what = log.subject?.label ? `${log.entity === 'branch' ? 'branch' : 'manager'} “${log.subject.label}”` : ENTITY_NOUN[log.entity];
+  const fields = shownFields(log);
+  const detail = log.action.endsWith('updated') && fields.length
+    ? ` — ${fields.map(formatField).join(', ')}`
+    : '';
+  return `${who} ${verb} ${what}${detail}`;
+};
 
 /* Shaped for the shared picker. "All admins" is the placeholder rather than a
    row of its own, so clearing the filter is the same gesture everywhere. */
@@ -296,6 +384,10 @@ const applyFilters = () => {
   const params = {};
   if (adminFilter.value !== null && adminFilter.value !== undefined && adminFilter.value !== '') params.admin_id = adminFilter.value;
   if (actionFilter.value !== null && actionFilter.value !== undefined && actionFilter.value !== '') params.action = actionFilter.value;
+  if (entityFilter.value) params.entity = entityFilter.value;
+  if (sourceFilter.value) params.source = sourceFilter.value;
+  if (fromFilter.value) params.from = fromFilter.value;
+  if (toFilter.value) params.to = toFilter.value;
   router.get(route('admin.facility.logs', props.facility.slug), params, {
     preserveState: true,
     preserveScroll: true,
@@ -306,12 +398,17 @@ const applyFilters = () => {
 const ACTION_LABELS = {
   created: 'Created',
   updated: 'Updated',
-  deleted: 'Deleted',
+  deleted: 'Moved to Trash',
+  restored: 'Restored',
+  force_deleted: 'Permanently Deleted',
   branch_created: 'Branch Added',
   branch_updated: 'Branch Updated',
-  branch_deleted: 'Branch Removed',
+  branch_deleted: 'Branch Moved to Trash',
+  branch_restored: 'Branch Restored',
   manager_created: 'Manager Added',
   manager_updated: 'Manager Updated',
+  manager_deleted: 'Manager Moved to Trash',
+  manager_restored: 'Manager Restored',
 };
 
 const formatAction = (action) => ACTION_LABELS[action] || action;
@@ -320,11 +417,16 @@ const actionClass = (action) => ({
   created: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   updated: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   deleted: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  restored: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  force_deleted: 'bg-red-500/15 text-red-600 dark:text-red-400',
   branch_created: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
   branch_updated: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
   branch_deleted: 'bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400',
+  branch_restored: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
   manager_created: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
   manager_updated: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+  manager_deleted: 'bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400',
+  manager_restored: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
 }[action] || 'bg-gray-500/15 text-gray-600 dark:text-gray-400');
 
 const formatField = (field) => String(field).replace(/_/g, ' ');
@@ -356,7 +458,16 @@ const relativeTime = (s) => {
 const formatValue = (v) => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (Array.isArray(v)) {
+    // Phones are entries of {number, type}; anything else is a plain list.
+    return v.map(i => (i && typeof i === 'object' ? (i.number ? `${i.number}${i.type ? ` (${i.type})` : ''}` : JSON.stringify(i)) : String(i))).join(', ');
+  }
   if (typeof v === 'object') {
+    // A translation map reads as "ar: … · en: …" rather than raw JSON.
+    const keys = Object.keys(v);
+    if (keys.length && keys.every(k => ['ar', 'en'].includes(k))) {
+      return keys.map(k => `${k}: ${v[k]}`).join('  ·  ');
+    }
     try { return JSON.stringify(v); } catch (e) { return String(v); }
   }
   return String(v);
@@ -366,7 +477,7 @@ const allKeys = (oldVals, newVals) => {
   const set = new Set();
   if (oldVals && typeof oldVals === 'object') Object.keys(oldVals).forEach(k => set.add(k));
   if (newVals && typeof newVals === 'object') Object.keys(newVals).forEach(k => set.add(k));
-  return Array.from(set);
+  return Array.from(set).filter(k => !HIDDEN_FIELDS.includes(k));
 };
 
 const isChanged = (log, key) => {

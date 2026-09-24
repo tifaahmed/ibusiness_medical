@@ -128,7 +128,7 @@ class FacilityBranchTranslateSweepTest extends TestCase
 
         $log = FacilityBranchLog::where('facility_branch_id', $branch->id)->latest('id')->first();
         $this->assertNotNull($log);
-        $this->assertSame('ai_translate', $log->new_values['source']);
+        $this->assertSame('ai_translate', $log->source);
     }
 
     public function test_an_answer_still_in_the_wrong_language_writes_nothing(): void

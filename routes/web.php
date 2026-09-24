@@ -49,6 +49,7 @@ use App\Http\Controllers\Admin\Facility\Edit\AdminFacilityEditController;
 use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishBulkController;
 use App\Http\Controllers\Admin\Facility\English\AdminFacilityEnglishFixController;
 use App\Http\Controllers\Admin\Facility\Export\AdminFacilityExportController;
+use App\Http\Controllers\Admin\Facility\ForceDelete\AdminFacilityForceDeleteController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportCommitController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPageController;
 use App\Http\Controllers\Admin\Facility\Import\AdminFacilityImportPreviewController;
@@ -56,25 +57,31 @@ use App\Http\Controllers\Admin\Facility\List\AdminFacilityListController;
 use App\Http\Controllers\Admin\Facility\Location\AdminFacilityBranchLocateController;
 use App\Http\Controllers\Admin\Facility\Location\AdminFacilityLocationBulkController;
 use App\Http\Controllers\Admin\Facility\Logs\AdminFacilityLogsController;
+use App\Http\Controllers\Admin\Facility\Manager\AdminFacilityManagerRestoreController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationExportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationImportController;
 use App\Http\Controllers\Admin\Facility\Migration\AdminFacilityMigrationPageController;
+use App\Http\Controllers\Admin\Facility\Restore\AdminFacilityRestoreController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoBulkController;
 use App\Http\Controllers\Admin\Facility\Seo\AdminFacilitySeoGenerateController;
 use App\Http\Controllers\Admin\Facility\Show\AdminFacilityShowController;
 use App\Http\Controllers\Admin\Facility\Store\AdminFacilityStoreController;
+use App\Http\Controllers\Admin\Facility\Trash\AdminFacilityTrashController;
 use App\Http\Controllers\Admin\Facility\Update\AdminFacilityUpdateController;
 use App\Http\Controllers\Admin\FacilityBranch\Create\AdminFacilityBranchCreateController;
 use App\Http\Controllers\Admin\FacilityBranch\Delete\AdminFacilityBranchDeleteController;
 use App\Http\Controllers\Admin\FacilityBranch\Edit\AdminFacilityBranchEditController;
 use App\Http\Controllers\Admin\FacilityBranch\Export\AdminFacilityBranchExportController;
+use App\Http\Controllers\Admin\FacilityBranch\ForceDelete\AdminFacilityBranchForceDeleteController;
 use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportCommitController;
 use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPageController;
 use App\Http\Controllers\Admin\FacilityBranch\Import\AdminFacilityBranchImportPreviewController;
 use App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchListController;
 use App\Http\Controllers\Admin\FacilityBranch\Logs\AdminFacilityBranchLogsController;
+use App\Http\Controllers\Admin\FacilityBranch\Restore\AdminFacilityBranchRestoreController;
 use App\Http\Controllers\Admin\FacilityBranch\Show\AdminFacilityBranchShowController;
 use App\Http\Controllers\Admin\FacilityBranch\Store\AdminFacilityBranchStoreController;
+use App\Http\Controllers\Admin\FacilityBranch\Trash\AdminFacilityBranchTrashController;
 use App\Http\Controllers\Admin\FacilityBranch\Update\AdminFacilityBranchUpdateController;
 use App\Http\Controllers\Admin\FacilityType\Create\AdminFacilityTypeCreateController;
 use App\Http\Controllers\Admin\FacilityType\Delete\AdminFacilityTypeDeleteController;
@@ -241,7 +248,6 @@ use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
 use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
 use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
 use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
-use App\Http\Controllers\Admin\User\Membership\Otp\AdminMembershipOtpController;
 use App\Http\Controllers\Admin\User\Membership\Address\Delete\AdminAddressDeleteController;
 use App\Http\Controllers\Admin\User\Membership\Address\Store\AdminAddressStoreController;
 use App\Http\Controllers\Admin\User\Membership\Address\Update\AdminAddressUpdateController;
@@ -260,6 +266,7 @@ use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportP
 use App\Http\Controllers\Admin\User\Membership\Import\AdminUserMembershipImportTemplateController;
 use App\Http\Controllers\Admin\User\Membership\List\AdminUserMembershipListController;
 use App\Http\Controllers\Admin\User\Membership\Logs\AdminUserMembershipLogsController;
+use App\Http\Controllers\Admin\User\Membership\Otp\AdminMembershipOtpController;
 use App\Http\Controllers\Admin\User\Membership\Restore\AdminUserMembershipRestoreController;
 use App\Http\Controllers\Admin\User\Membership\Show\AdminUserMembershipShowController;
 use App\Http\Controllers\Admin\User\Membership\Store\AdminUserMembershipStoreController;
@@ -603,15 +610,26 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // Manager add/edit from the facility form's modal — same deal: the one
         // manager is written immediately and answered as JSON.
         Route::post('/admin/facility/{facility}/manager', \App\Http\Controllers\Admin\Facility\Manager\AdminFacilityManagerSaveController::class)->name('admin.facility.manager.save');
+        // Puts back a manager removed from the form (directly, or cascaded
+        // with the whole facility) — the "Removed managers" list's own action.
+        Route::post('/admin/facility/{facility}/manager/{manager}/restore', AdminFacilityManagerRestoreController::class)->name('admin.facility.manager.restore');
         Route::get('/admin/facility/{facility}/edit', AdminFacilityEditController::class)->name('admin.facility.edit');
         Route::put('/admin/facility/{facility}', AdminFacilityUpdateController::class)->name('admin.facility.update');
+        // Soft delete — moves the facility, its branches and its managers to
+        // the trash together. Bound by slug like every other facility route.
         Route::delete('/admin/facility/{facility}', AdminFacilityDeleteController::class)->name('admin.facility.destroy');
+        // The two trash actions: only the trash page offers them.
+        Route::post('/admin/facility/{facility}/restore', AdminFacilityRestoreController::class)->name('admin.facility.restore');
+        Route::delete('/admin/facility/{facility}/force-delete', AdminFacilityForceDeleteController::class)->name('admin.facility.force-delete');
     });
 
     // Facility read screens. Registered after the group above so every static
     // segment (/create, /export, /import, /migration) is matched first.
     Route::middleware('permission:manage facilities|manage own facilities|view facilities')->group(function () {
         Route::get('/admin/facility', AdminFacilityListController::class)->name('admin.facility.list');
+        // Ahead of /{facility}: "trash" would otherwise be looked up as a
+        // facility slug.
+        Route::get('/admin/facility/trash', AdminFacilityTrashController::class)->name('admin.facility.trash');
         Route::get('/admin/facility/{facility}', AdminFacilityShowController::class)->name('admin.facility.show');
         Route::get('/admin/facility/{facility}/logs', AdminFacilityLogsController::class)->name('admin.facility.logs');
     });
@@ -628,6 +646,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/facility-branch/{facilityBranch}/edit', AdminFacilityBranchEditController::class)->name('admin.facility-branch.edit');
         Route::put('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchUpdateController::class)->name('admin.facility-branch.update');
         Route::delete('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchDeleteController::class)->name('admin.facility-branch.destroy');
+        // The two trash actions: only the trash page offers them.
+        Route::post('/admin/facility-branch/{facilityBranch}/restore', AdminFacilityBranchRestoreController::class)->name('admin.facility-branch.restore');
+        Route::delete('/admin/facility-branch/{facilityBranch}/force-delete', AdminFacilityBranchForceDeleteController::class)->name('admin.facility-branch.force-delete');
         /* The two AI sweeps on the branch list — browser-stepped begin/step, so
            no single request has to outlive a shared-hosting timeout. One fills
            the governorate and city a branch's address names; the other its
@@ -678,6 +699,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // Border of a governorate, drawn on the map when filtering by governorate.
         Route::get('/admin/facility-branch/governorate-boundary/{governorate}', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchGovernorateBoundaryController::class)->name('admin.facility-branch.governorate-boundary');
         Route::get('/admin/facility-branch/city-boundary/{city}', \App\Http\Controllers\Admin\FacilityBranch\List\AdminFacilityBranchCityBoundaryController::class)->name('admin.facility-branch.city-boundary');
+        // Ahead of /{facilityBranch}: "trash" would otherwise be looked up as
+        // a branch slug.
+        Route::get('/admin/facility-branch/trash', AdminFacilityBranchTrashController::class)->name('admin.facility-branch.trash');
         Route::get('/admin/facility-branch/{facilityBranch}', AdminFacilityBranchShowController::class)->name('admin.facility-branch.show');
         Route::get('/admin/facility-branch/{facilityBranch}/logs', AdminFacilityBranchLogsController::class)->name('admin.facility-branch.logs');
     });

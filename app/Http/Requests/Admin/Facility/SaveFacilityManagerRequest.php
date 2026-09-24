@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Facility;
 
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * One manager saved on its own from the facility form's manager modal.
@@ -37,7 +38,9 @@ class SaveFacilityManagerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'id' => 'nullable|exists:facility_managers,id',
+            // A soft-deleted id is excluded: reattaching one through an edit
+            // save would bypass the manager's own restore action.
+            'id' => ['nullable', Rule::exists('facility_managers', 'id')->whereNull('deleted_at')],
             'name' => 'required|string|max:255',
             'position' => 'nullable|string|max:255',
             ...$this->phoneRules('phones'),

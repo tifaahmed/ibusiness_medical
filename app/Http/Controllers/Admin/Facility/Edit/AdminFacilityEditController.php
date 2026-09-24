@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Facility\Edit\AdminFacilityEditResource;
 use App\Models\City;
 use App\Models\Facility;
+use App\Models\FacilityManager;
 use App\Models\FacilityType;
 use App\Models\Governorate;
 use App\Models\Sales;
@@ -89,6 +90,21 @@ class AdminFacilityEditController extends BaseController
 
         $tags = Tag::forPicker();
 
+        // Managers removed from the form (directly, or cascaded with a
+        // now-restored facility) — offered back on the edit page rather than
+        // on a trash page of their own, since a manager has no list view.
+        $trashedManagers = FacilityManager::onlyTrashed()
+            ->where('facility_id', $facility->id)
+            ->orderByDesc('deleted_at')
+            ->get()
+            ->map(fn (FacilityManager $manager) => [
+                'id' => $manager->id,
+                'name' => $manager->name,
+                'position' => $manager->position,
+                'phones' => $manager->phones,
+                'deleted_at' => $manager->deleted_at?->format('Y-m-d H:i:s'),
+            ]);
+
         $result = [
             'facility' => $resourceArray,
             'facilityTypes' => $facilityTypes,
@@ -96,6 +112,7 @@ class AdminFacilityEditController extends BaseController
             'cities' => $cities,
             'tags' => $tags,
             'salesOptions' => $salesOptions,
+            'trashedManagers' => $trashedManagers,
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
             'locationAiEnabled' => BranchGeocoder::isConfigured(),
             'englishFixEnabled' => FacilityEnglishBackfiller::isConfigured(),

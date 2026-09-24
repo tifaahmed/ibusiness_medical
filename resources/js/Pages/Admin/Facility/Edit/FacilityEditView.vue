@@ -55,7 +55,7 @@
             <div v-show="activeTab === 'details'" class="space-y-3">
               <FacilityForm :facility-types="facilityTypes" :facility="facility" :tags="tags" :sales-options="salesOptions" />
               <FacilityBranchCard v-model="branches" :governorates="governorates" :cities="cities" :facility-slug="facility.slug" :ai-enabled="locationAiEnabled" :english-fix-enabled="englishFixEnabled" :place-ai-enabled="placeAiEnabled" />
-              <FacilityManagerCard v-model="managers" :facility-slug="facility.slug" />
+              <FacilityManagerCard v-model="managers" :facility-slug="facility.slug" :trashed-managers="trashedManagers" />
               <FacilityBranchesMap :branches="branches" :governorates="governorates" :cities="cities" />
             </div>
 
@@ -163,6 +163,10 @@ const props = defineProps({
     default: () => []
   },
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  trashedManagers: {
     type: Array,
     default: () => []
   },

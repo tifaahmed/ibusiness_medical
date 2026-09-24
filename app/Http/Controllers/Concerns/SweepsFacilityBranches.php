@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Enums\User\UserPermissionEnum;
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
+use App\Models\FacilityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -140,8 +141,21 @@ trait SweepsFacilityBranches
             adminId: Auth::id(),
             action: FacilityBranchLog::ACTION_UPDATED,
             oldValues: $before,
-            newValues: [...$after, 'source' => $source],
+            newValues: $after,
             request: $request,
+            source: $source,
+        );
+
+        // The facility's own history lists its branches' changes too — a sweep
+        // touches hundreds, and would otherwise leave no trace on any of them.
+        FacilityLog::record(
+            facilityId: $branch->facility_id,
+            adminId: Auth::id(),
+            action: FacilityLog::ACTION_BRANCH_UPDATED,
+            oldValues: ['branch_id' => $branch->id, 'name' => $branch->getTranslations('name'), ...$before],
+            newValues: ['branch_id' => $branch->id, 'name' => $branch->getTranslations('name'), ...$after],
+            request: $request,
+            source: $source,
         );
     }
 }

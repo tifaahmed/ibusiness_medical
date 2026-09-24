@@ -3,7 +3,11 @@
 namespace App\Providers;
 
 use App\Enums\User\UserRoleEnum;
+use App\Models\Facility;
+use App\Models\FacilityBranch;
+use App\Models\FacilityManager;
 use App\Models\User;
+use App\Observers\FacilityAuditObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Silent unless a bulk tool names itself — see App\Support\FacilityAudit.
+        Facility::observe(FacilityAuditObserver::class);
+        FacilityBranch::observe(FacilityAuditObserver::class);
+        FacilityManager::observe(FacilityAuditObserver::class);
 
         /*
          * The super admin passes every permission check, by virtue of the role

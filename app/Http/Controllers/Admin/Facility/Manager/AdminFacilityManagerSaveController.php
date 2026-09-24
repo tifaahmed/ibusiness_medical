@@ -113,6 +113,7 @@ class AdminFacilityManagerSaveController extends BaseController
     private function snapshot(FacilityManager $manager): array
     {
         return [
+            'manager_id' => $manager->id,
             'name' => $manager->name,
             'position' => $manager->position,
             'phones' => $manager->phones,

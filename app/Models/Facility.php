@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Sluggable\HasSlug;
@@ -22,6 +23,13 @@ class Facility extends Model implements HasMedia
     use HasTranslations;
     use InteractsWithMedia;
     use MediaImageTrait;
+
+    /*
+     * A deleted facility keeps its branches, managers and audit trail, and an
+     * admin can put it back. See the `deleted_at` migration for why a
+     * facility is never dropped outright by the admin screens.
+     */
+    use SoftDeletes;
 
     /**
      * The attributes that are translatable.
@@ -94,6 +102,11 @@ class Facility extends Model implements HasMedia
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     /**

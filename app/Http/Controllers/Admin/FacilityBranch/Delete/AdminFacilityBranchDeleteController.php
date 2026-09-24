@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
+use App\Models\FacilityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,7 @@ class AdminFacilityBranchDeleteController extends BaseController
     }
 
     /**
-     * Remove the specified facility branch from storage.
+     * Move the specified facility branch to the trash.
      */
     public function __invoke(Request $request, string $facilityBranchSlug): RedirectResponse
     {
@@ -57,10 +58,10 @@ class AdminFacilityBranchDeleteController extends BaseController
 
         // Store data for logging before deletion
         $facilityBranchId = $facilityBranch->id;
-        $facilityBranchName = $facilityBranch->name;
         $facilityBranchSlugValue = $facilityBranch->slug;
         $facilityIdForLog = $facilityBranch->facility_id;
         $snapshot = $this->snapshot($facilityBranch);
+        $adminId = Auth::id();
 
         try {
             DB::beginTransaction();
@@ -68,27 +69,37 @@ class AdminFacilityBranchDeleteController extends BaseController
             FacilityBranchLog::record(
                 facilityBranchId: $facilityBranchId,
                 facilityId: $facilityIdForLog,
-                adminId: Auth::id(),
+                adminId: $adminId,
                 action: FacilityBranchLog::ACTION_DELETED,
                 oldValues: $snapshot,
                 newValues: null,
                 request: $request,
             );
+            FacilityLog::record(
+                facilityId: $facilityIdForLog,
+                adminId: $adminId,
+                action: FacilityLog::ACTION_BRANCH_DELETED,
+                oldValues: $snapshot,
+                newValues: null,
+                request: $request,
+            );
 
-            // Delete the facility branch
+            $facilityBranch->deleted_by = $adminId;
+            $facilityBranch->save();
             $facilityBranch->delete();
 
             DB::commit();
 
-            Log::info('Facility branch deleted successfully', [
+            Log::info('Facility branch moved to trash by admin', [
                 'facility_branch_id' => $facilityBranchId,
                 'facility_branch_slug' => $facilityBranchSlugValue,
+                'admin_id' => $adminId,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
 
             return redirect()->route('admin.facility-branch.list')
-                ->with('success', 'Facility branch deleted successfully.');
+                ->with('success', 'Facility branch moved to trash. It can be restored from the trash page.');
         } catch (\Exception $e) {
             DB::rollBack();
 

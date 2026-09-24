@@ -111,6 +111,9 @@
                         <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', actionClass(log.action)]">
                           {{ formatAction(log.action) }}
                         </span>
+                        <div v-if="sourceLabel(log.source)" class="mt-1">
+                          <span class="inline-flex items-center rounded bg-violet-500/15 px-1.5 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">{{ sourceLabel(log.source) }}</span>
+                        </div>
                       </td>
                       <td class="p-2 sm:p-3 align-middle">
                         <div v-if="log.admin" class="flex flex-col min-w-0">
@@ -120,9 +123,9 @@
                         <span v-else class="text-muted-foreground italic text-xs">system / unknown</span>
                       </td>
                       <td class="p-2 sm:p-3 align-middle">
-                        <div v-if="log.changed_fields?.length" class="flex flex-wrap gap-1">
+                        <div v-if="shownFields(log).length" class="flex flex-wrap gap-1">
                           <span
-                            v-for="field in log.changed_fields"
+                            v-for="field in shownFields(log)"
                             :key="field"
                             class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground"
                           >
@@ -145,14 +148,14 @@
                     <tr v-if="expanded[log.id]" class="bg-muted/30 border-b border-border">
                       <td colspan="5" class="p-3 sm:p-4 space-y-4">
                         <div
-                          v-if="log.action === 'updated' && (log.changed_fields?.length || 0) > 0"
+                          v-if="log.action === 'updated' && shownFields(log).length > 0"
                           class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
                         >
                           <div class="flex items-center gap-2 text-xs font-semibold text-amber-300 uppercase tracking-wide mb-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                               <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path>
                             </svg>
-                            Changed ({{ log.changed_fields.length }})
+                            Changed ({{ shownFields(log).length }})
                           </div>
                           <div class="overflow-x-auto">
                             <table class="w-full text-xs">
@@ -164,7 +167,7 @@
                                 </tr>
                               </thead>
                               <tbody class="font-mono">
-                                <tr v-for="field in log.changed_fields" :key="field" class="border-t border-amber-500/20">
+                                <tr v-for="field in shownFields(log)" :key="field" class="border-t border-amber-500/20">
                                   <td class="py-1 pr-3 text-amber-200/90 whitespace-nowrap">{{ formatField(field) }}</td>
                                   <td class="py-1 pr-3 text-rose-300/90 break-all">{{ formatValue(log.old_values?.[field]) }}</td>
                                   <td class="py-1 text-emerald-300/90 break-all">{{ formatValue(log.new_values?.[field]) }}</td>
@@ -306,7 +309,9 @@ const applyFilters = () => {
 const ACTION_LABELS = {
   created: 'Created',
   updated: 'Updated',
-  deleted: 'Deleted',
+  deleted: 'Moved to Trash',
+  restored: 'Restored',
+  force_deleted: 'Permanently Deleted',
 };
 
 const formatAction = (action) => ACTION_LABELS[action] || action;
@@ -315,6 +320,8 @@ const actionClass = (action) => ({
   created: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   updated: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   deleted: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  restored: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  force_deleted: 'bg-red-500/15 text-red-600 dark:text-red-400',
 }[action] || 'bg-gray-500/15 text-gray-600 dark:text-gray-400');
 
 const formatField = (field) => String(field).replace(/_/g, ' ');
@@ -358,6 +365,18 @@ const allKeys = (oldVals, newVals) => {
   if (newVals && typeof newVals === 'object') Object.keys(newVals).forEach(k => set.add(k));
   return Array.from(set);
 };
+
+const SOURCE_LABELS = {
+  import: 'Spreadsheet import',
+  migration: 'Migration package',
+  ai_seo: 'AI SEO',
+  ai_translate: 'AI translation',
+  ai_geocode: 'AI location',
+  ai_place: 'AI place lookup',
+  rename_sweep: 'Branch rename sweep',
+};
+const sourceLabel = (source) => (source ? (SOURCE_LABELS[source] || source) : null);
+const shownFields = (log) => (log.changed_fields || []).filter(f => f !== 'source');
 
 const isChanged = (log, key) => {
   if (!Array.isArray(log.changed_fields)) return false;

@@ -53,9 +53,13 @@ class AdminFacilityBranchListResource extends JsonResource
             'google_location_url' => $this->google_location_url,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'deleted_by' => $this->whenLoaded('deletedBy', function () {
+                return $this->deletedBy ? [
+                    'id' => $this->deletedBy->id,
+                    'name' => $this->deletedBy->name,
+                ] : null;
+            }),
         ];
     }
 }
-
-
-

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\FacilityBranch\Actions\Update;
 
 use App\Models\FacilityBranch;
 use App\Models\FacilityBranchLog;
+use App\Models\FacilityLog;
 use App\Support\PhoneNumbers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,18 @@ class UpdateFacilityBranchAction
                 facilityId: $facilityBranch->facility_id,
                 adminId: Auth::id(),
                 action: FacilityBranchLog::ACTION_UPDATED,
+                oldValues: $oldSnapshot,
+                newValues: $newSnapshot,
+                request: request(),
+            );
+
+            // Mirrored onto the facility's own timeline too, so a branch
+            // updated from the standalone branch form reads the same as one
+            // updated from the facility form's modal.
+            FacilityLog::record(
+                facilityId: $facilityBranch->facility_id,
+                adminId: Auth::id(),
+                action: FacilityLog::ACTION_BRANCH_UPDATED,
                 oldValues: $oldSnapshot,
                 newValues: $newSnapshot,
                 request: request(),

@@ -114,6 +114,17 @@ class StoreFacilityAction
                 );
             }
 
+            foreach ($createdManagers as $manager) {
+                FacilityLog::record(
+                    facilityId: $facility->id,
+                    adminId: $adminId,
+                    action: FacilityLog::ACTION_MANAGER_CREATED,
+                    oldValues: null,
+                    newValues: $this->managerSnapshot($manager),
+                    request: $request,
+                );
+            }
+
             DB::commit();
 
             Log::info('Facility created successfully', [
@@ -240,6 +251,17 @@ class StoreFacilityAction
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
             'google_location_url' => $branch->google_location_url,
+        ];
+    }
+
+    private function managerSnapshot(FacilityManager $manager): array
+    {
+        return [
+            'manager_id' => $manager->id,
+            'facility_id' => $manager->facility_id,
+            'name' => $manager->name,
+            'position' => $manager->position,
+            'phones' => $manager->phones,
         ];
     }
 

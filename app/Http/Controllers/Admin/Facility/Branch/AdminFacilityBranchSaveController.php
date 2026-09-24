@@ -11,9 +11,7 @@ use App\Http\Requests\Admin\Facility\SaveFacilityBranchRequest;
 use App\Http\Resources\Admin\Facility\Edit\AdminFacilityEditBranchResource;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
-use App\Models\FacilityLog;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -22,7 +20,9 @@ use Illuminate\Support\Facades\Log;
  * The facility form otherwise only writes branches when the whole facility is
  * submitted; here the admin gets the branch stored (and logged) the moment they
  * press "Add branch" / "Update branch", and the saved row comes back as JSON so
- * the list on the page can show it with its real id.
+ * the list on the page can show it with its real id. StoreFacilityBranchAction
+ * and UpdateFacilityBranchAction write both the branch log and its mirror on
+ * the facility's own timeline, so nothing extra is logged here.
  */
 class AdminFacilityBranchSaveController extends BaseController
 {
@@ -78,17 +78,6 @@ class AdminFacilityBranchSaveController extends BaseController
                 'message' => 'Failed to save the branch. Please try again.',
             ], 500);
         }
-
-        // The branch actions write the branch log; the facility timeline gets its
-        // own entry here so it reads the same as a branch saved with the facility.
-        FacilityLog::record(
-            facilityId: $facility->id,
-            adminId: Auth::id(),
-            action: $created ? FacilityLog::ACTION_BRANCH_CREATED : FacilityLog::ACTION_BRANCH_UPDATED,
-            oldValues: null,
-            newValues: ['branch_id' => $branch->id],
-            request: $request,
-        );
 
         return response()->json([
             'created' => $created,
