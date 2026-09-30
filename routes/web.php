@@ -668,6 +668,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Fill governorate & city from the address" — reads the typed address
         // and picks the two rows it belongs to, from the ones that exist.
         Route::post('/admin/facility/branch/place', \App\Http\Controllers\Admin\Facility\Place\AdminFacilityBranchPlaceController::class)->name('admin.facility.branch.place');
+        // The chosen city's areas for the branch form's optional "Area" picker (names only, `{city}` is the id).
+        Route::get('/admin/facility/branch/city-areas/{city}', \App\Http\Controllers\Admin\Facility\Place\AdminFacilityBranchCityAreasController::class)->name('admin.facility.branch.city-areas');
     });
 
     Route::middleware('permission:manage facility branches|manage own facility branches|view facility branches')->group(function () {
@@ -697,6 +699,38 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/governorate/{governorate}/edit', AdminGovernorateEditController::class)->name('admin.governorate.edit');
         Route::put('/admin/governorate/{governorate}', AdminGovernorateUpdateController::class)->name('admin.governorate.update');
         Route::delete('/admin/governorate/{governorate}', AdminGovernorateDeleteController::class)->name('admin.governorate.destroy');
+        // Save the governorate's own border from the map editor of the edit page (`{governorate}` is the id).
+        Route::put('/admin/governorate/{governorate}/boundary', [\App\Http\Controllers\Admin\Governorate\Boundary\AdminBoundaryController::class, 'governorate'])->name('admin.governorate.boundary.update');
+    });
+
+    // ---- Cities and areas: their own permissions, apart from the governorates' ----
+    Route::middleware('permission:manage cities')->group(function () {
+        Route::post('/admin/city', [\App\Http\Controllers\Admin\City\AdminCityController::class, 'store'])->name('admin.city.store');
+        Route::put('/admin/city/{city}', [\App\Http\Controllers\Admin\City\AdminCityController::class, 'update'])->name('admin.city.update');
+        Route::delete('/admin/city/{city}', [\App\Http\Controllers\Admin\City\AdminCityController::class, 'destroy'])->name('admin.city.destroy');
+        Route::put('/admin/city/{city}/boundary', [\App\Http\Controllers\Admin\Governorate\Boundary\AdminBoundaryController::class, 'city'])->name('admin.city.boundary.update');
+    });
+    Route::middleware('permission:manage areas')->group(function () {
+        Route::post('/admin/city/{city}/areas', [\App\Http\Controllers\Admin\Area\AdminAreaController::class, 'store'])->name('admin.area.store');
+        Route::put('/admin/area/{area}', [\App\Http\Controllers\Admin\Area\AdminAreaController::class, 'update'])->name('admin.area.update');
+        Route::delete('/admin/area/{area}', [\App\Http\Controllers\Admin\Area\AdminAreaController::class, 'destroy'])->name('admin.area.destroy');
+        Route::put('/admin/area/{area}/boundary', [\App\Http\Controllers\Admin\Governorate\Boundary\AdminBoundaryController::class, 'area'])->name('admin.area.boundary.update');
+    });
+    Route::middleware('permission:manage cities|view cities')->group(function () {
+        Route::get('/admin/city', \App\Http\Controllers\Admin\City\AdminCityListController::class)->name('admin.city.list');
+        Route::get('/admin/city/{city}', \App\Http\Controllers\Admin\City\AdminCityShowController::class)->whereNumber('city')->name('admin.city.show');
+    });
+    Route::middleware('permission:manage areas|view areas')->group(function () {
+        Route::get('/admin/area', \App\Http\Controllers\Admin\Area\AdminAreaListController::class)->name('admin.area.list');
+    });
+    // The map feeds are shared: the governorate map and edit page read them, and so do the city and area pages.
+    Route::middleware('permission:manage governorates|manage own governorates|view governorates|manage cities|view cities')->group(function () {
+        // The selected governorate's cities and their borders (`{governorate}` is the id).
+        Route::get('/admin/governorate/{governorate}/city-borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateCityBordersController::class)->name('admin.governorate.city-borders');
+    });
+    Route::middleware('permission:manage governorates|manage own governorates|view governorates|manage areas|view areas')->group(function () {
+        // One city's areas (admin level 3) and their borders (`{city}` is the id).
+        Route::get('/admin/city/{city}/area-borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateAreaBordersController::class)->name('admin.city.area-borders');
     });
     Route::middleware('permission:manage governorates|manage own governorates|view governorates')->group(function () {
         Route::get('/admin/governorate', AdminGovernorateListController::class)->name('admin.governorate.list');
@@ -704,8 +738,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // Every governorate's border for the list's map view. A literal path: it has to sit above the `{governorate}` show route.
         Route::get('/admin/governorate/borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateBordersController::class)->name('admin.governorate.borders');
         Route::get('/admin/governorate/{governorate}/facilities', AdminGovernorateFacilitiesController::class)->name('admin.governorate.facilities');
-        // The selected governorate's cities and their borders, for the map view (`{governorate}` is the id).
-        Route::get('/admin/governorate/{governorate}/city-borders', \App\Http\Controllers\Admin\Governorate\List\AdminGovernorateCityBordersController::class)->name('admin.governorate.city-borders');
         Route::get('/admin/governorate/{governorate}', AdminGovernorateShowController::class)->name('admin.governorate.show');
     });
 
@@ -1030,6 +1062,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('role:super_admin')->group(function () {
         Route::get('/admin/client-error-logs', [\App\Http\Controllers\Admin\ClientErrorLogController::class, 'index'])->name('admin.client-error-logs.index');
         Route::delete('/admin/client-error-logs/{clientErrorLog}', [\App\Http\Controllers\Admin\ClientErrorLogController::class, 'destroy'])->name('admin.client-error-logs.destroy');
+    });
+
+    // ---- Database backups (super_admin only) ----
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('/admin/database-backup', [\App\Http\Controllers\Admin\DatabaseBackup\AdminDatabaseBackupController::class, 'index'])->name('admin.database-backup.index');
+        Route::get('/admin/database-backup/{filename}/download', [\App\Http\Controllers\Admin\DatabaseBackup\AdminDatabaseBackupController::class, 'download'])->name('admin.database-backup.download');
     });
 
     // ---- Admin user management (permission-based) ----

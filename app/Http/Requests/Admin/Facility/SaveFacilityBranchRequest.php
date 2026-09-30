@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Facility;
 
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\Facility;
+use App\Rules\AreaBelongsToCity;
 use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -44,6 +45,8 @@ class SaveFacilityBranchRequest extends FormRequest
             'id' => 'nullable|exists:facility_branches,id',
             'governorate_id' => 'required|exists:governorates,id',
             'city_id' => 'required|exists:cities,id',
+            // Optional, and only ever one of the chosen city's areas.
+            'area_id' => ['nullable', 'integer', new AreaBelongsToCity],
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'google_location_url' => 'nullable|url|max:2048',

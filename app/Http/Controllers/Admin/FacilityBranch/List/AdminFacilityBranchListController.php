@@ -39,7 +39,7 @@ class AdminFacilityBranchListController extends BaseController
     {
         $filters = $this->getFilters($request);
 
-        $facilityBranches = FacilityBranch::with(['facility.facilityType', 'governorate', 'city', 'creator:id,name,email'])
+        $facilityBranches = FacilityBranch::with(['facility.facilityType', 'governorate', 'city', 'area', 'creator:id,name,email'])
             ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {

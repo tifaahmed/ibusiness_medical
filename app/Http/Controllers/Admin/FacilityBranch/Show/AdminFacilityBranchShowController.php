@@ -30,7 +30,7 @@ class AdminFacilityBranchShowController extends BaseController
      */
     public function __invoke(Request $request, string $facilityBranch): Response
     {
-        $facilityBranch = FacilityBranch::with('facility.facilityType', 'governorate', 'city')
+        $facilityBranch = FacilityBranch::with('facility.facilityType', 'governorate', 'city', 'area')
             ->where('slug', $facilityBranch)
             ->firstOrFail();
         $this->assertOwns($facilityBranch);

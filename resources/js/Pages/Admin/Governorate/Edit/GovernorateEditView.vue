@@ -35,6 +35,7 @@
             <div class="space-y-2 sm:space-y-3 md:space-y-4">
               <GovernorateForm />
               <CitiesCard v-model="cities" />
+              <BordersCard :governorate="governorate" />
             </div>
           </div>
 
@@ -79,7 +80,7 @@ import { watch, computed, ref } from "vue";
 import GovernorateLayout from "../GovernorateLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useGovernorateStore } from "../Stores/GovernorateStore";
-import { GovernorateForm, CitiesCard } from "../_components/Form";
+import { GovernorateForm, CitiesCard, BordersCard } from "../_components/Form";
 import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
 import { useNotification } from "@/composables/useNotification";
 

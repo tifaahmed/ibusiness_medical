@@ -28,7 +28,7 @@ class PartnersController extends Controller
             'city_id' => $request->input('city_id'),
         ];
 
-        $with = ['facilityType', 'branches.governorate', 'branches.city', 'media', 'tags'];
+        $with = ['facilityType', 'branches.governorate', 'branches.city', 'branches.area', 'media', 'tags'];
 
         /*
          * A card leads with a branch, and the moment a visitor filters by

@@ -18,7 +18,7 @@ class FacilityController extends Controller
         $locale = app()->getLocale();
         $branchSearch = $request->input('branch_search', '');
 
-        $branches = FacilityBranch::with(['governorate', 'city'])
+        $branches = FacilityBranch::with(['governorate', 'city', 'area'])
             ->where('facility_id', $facility->id)
             ->when($branchSearch, function ($q) use ($branchSearch, $locale) {
                 $q->where(function ($query) use ($branchSearch, $locale) {
@@ -38,6 +38,8 @@ class FacilityController extends Controller
                 'phones' => $branch->phone,
                 'governorate' => $branch->governorate ? ['name' => $branch->governorate->name] : null,
                 'city' => $branch->city ? ['name' => $branch->city->name] : null,
+                // Optional: most branches are known to their city and no closer.
+                'area' => $branch->area ? ['id' => $branch->area->id, 'name' => $branch->area->name] : null,
             ]);
 
         $facilityName = $facility->getTranslation('name', $locale);

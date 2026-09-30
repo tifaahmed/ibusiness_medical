@@ -28,6 +28,7 @@ class AdminFacilityEditBranchResource extends JsonResource
             'phone' => $this->phone,
             'governorate_id' => $this->governorate_id,
             'city_id' => $this->city_id,
+            'area_id' => $this->area_id,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'google_location_url' => $this->google_location_url,

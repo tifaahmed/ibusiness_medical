@@ -23,7 +23,7 @@ class PartnersController extends BaseController
         $filters = $this->getFilters($request);
 
         // Fetch facilities with related data and pagination
-        $facilities = Facility::with(['facilityType', 'branches.governorate', 'branches.city', 'media'])
+        $facilities = Facility::with(['facilityType', 'branches.governorate', 'branches.city', 'branches.area', 'media'])
             ->when(!empty($filters['search']), function ($q) use ($filters) {
                 $locale     = app()->getLocale();
                 $normalized = $this->normalizeSearch($filters['search']);

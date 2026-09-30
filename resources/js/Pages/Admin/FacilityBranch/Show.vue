@@ -67,6 +67,14 @@
                 <p class="text-sm font-medium mt-0.5 text-white">{{ getTranslatedName(facilityBranch.facility.governorate?.name) || 'N/A' }}</p>
               </div>
               <div>
+                <label class="text-xs font-medium text-muted-foreground">City</label>
+                <p class="text-sm font-medium mt-0.5 text-white">{{ getTranslatedName(facilityBranch.city?.name) || 'N/A' }}</p>
+              </div>
+              <div v-if="facilityBranch.area">
+                <label class="text-xs font-medium text-muted-foreground">Area</label>
+                <p class="text-sm font-medium mt-0.5 text-white">{{ getTranslatedName(facilityBranch.area?.name) }}</p>
+              </div>
+              <div>
                 <Link
                   v-if="facilityBranch.facility.slug"
                   :href="route('admin.facility.show', facilityBranch.facility.slug)"
