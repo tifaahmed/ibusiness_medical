@@ -23,15 +23,12 @@ use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1Partner
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
-<<<<<<< HEAD
 use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchMapController;
 use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
 use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
-=======
 use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
->>>>>>> 2904f9a523fe2f3c8c07d8b95c667119a1818cc0
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;

@@ -33,7 +33,6 @@ class PartnersController extends Controller
             'city_id' => $request->input('city_id'),
         ];
 
-<<<<<<< HEAD
         /*
          * "Within X km": the browser's own coordinates plus a radius step.
          * Distance is measured to a facility's NEAREST branch — the same
@@ -55,10 +54,7 @@ class PartnersController extends Controller
         $radiusKm = isset($validated['radius_km']) ? (int) $validated['radius_km'] : null;
         $hasPoint = $lat !== null && $lng !== null;
 
-        $with = ['facilityType', 'branches.governorate', 'branches.city', 'media', 'tags'];
-=======
         $with = ['facilityType', 'branches.governorate', 'branches.city', 'branches.area', 'media', 'tags'];
->>>>>>> 2904f9a523fe2f3c8c07d8b95c667119a1818cc0
 
         /*
          * A card leads with a branch, and the moment a visitor filters by

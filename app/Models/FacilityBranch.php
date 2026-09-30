@@ -8,11 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-<<<<<<< HEAD
 use Illuminate\Database\Eloquent\SoftDeletes;
-=======
 use Illuminate\Support\Facades\Schema;
->>>>>>> 2904f9a523fe2f3c8c07d8b95c667119a1818cc0
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 use Spatie\Translatable\HasTranslations;
