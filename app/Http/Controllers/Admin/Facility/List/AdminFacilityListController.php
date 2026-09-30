@@ -50,7 +50,8 @@ class AdminFacilityListController extends BaseController
             ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                    $query->where('name->ar', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('name->en', 'like', '%'.$filters['search'].'%')
                         ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })

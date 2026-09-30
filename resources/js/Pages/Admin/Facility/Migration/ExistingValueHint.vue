@@ -1,6 +1,7 @@
 <template>
   <p
     v-if="text"
+    :data-hint-path="path"
     class="mt-0.5 flex gap-1 rounded-sm border-l-2 border-amber-600 bg-amber-100 px-1 py-0.5 text-[10px] leading-tight text-amber-900 dark:border-amber-400 dark:bg-amber-900/50 dark:text-amber-100"
     :title="`This site holds ${text} — importing replaces it`"
   >

@@ -864,7 +864,7 @@
               </thead>
               <tbody>
                 <template v-for="(facility, i) in paginatedFacilities" :key="facility._index">
-                  <tr class="border-b border-border hover:bg-muted/30 transition-colors">
+                  <tr :data-facility-row="facility._index" class="border-b border-border hover:bg-muted/30 transition-colors">
                     <td class="px-2 py-1.5 text-center font-mono sticky left-0 z-[5] bg-card">
                       {{ previewPage * previewPageSize + i + 1 }}
                       <button
@@ -1080,6 +1080,33 @@
                               : 'all good' }}
                           </span>
                         </div>
+                        <div v-if="(facility.branches || []).length > 1" class="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-1.5 text-[11px]">
+                          <label class="flex items-center gap-1 font-medium">
+                            Sort
+                            <select v-model="facility._branchSort" class="rounded border border-border bg-background px-1.5 py-0.5 text-[11px]">
+                              <option v-for="o in BRANCH_SORTS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                          </label>
+                          <span class="text-muted-foreground">
+                            Showing {{ visibleBranches(facility).length }} of {{ (facility.branches || []).length }}
+                          </span>
+                          <template v-if="visibleBranches(facility).length < (facility.branches || []).length">
+                            <button type="button" @click="showMoreBranches(facility)" class="rounded border border-border px-2 py-0.5 font-semibold hover:bg-muted">
+                              Show 3 more
+                            </button>
+                            <button type="button" @click="showAllBranches(facility)" class="rounded bg-violet-600 px-2 py-0.5 font-semibold text-white hover:bg-violet-700">
+                              Open all {{ (facility.branches || []).length }}
+                            </button>
+                          </template>
+                          <button
+                            v-if="(facility._branchLimit || 3) > 3"
+                            type="button"
+                            @click="showFewerBranches(facility)"
+                            class="rounded border border-border px-2 py-0.5 font-semibold hover:bg-muted"
+                          >
+                            Show first 3 only
+                          </button>
+                        </div>
                         <table class="w-full text-[11px]">
                           <thead class="bg-muted">
                             <tr>
@@ -1101,7 +1128,7 @@
                           </thead>
                           <tbody>
                             <tr
-                              v-for="(br, bi) in facility.branches"
+                              v-for="{ br, bi } in visibleBranches(facility)"
                               :key="bi"
                               :data-issue-row="`${facility._index}:b${bi}`"
                               class="border-t border-border align-top scroll-mt-24"
@@ -1935,7 +1962,7 @@
 
             <button
               type="button"
-              @click="startImportFromPreview"
+              @click="requestStart"
               :disabled="busy || previewData.facilities.length === 0 || hasLookupIssues || hasBlockingIssues || (importMode === 'fresh' && !dryRun && !confirmWipe)"
               :title="hasBlockingIssues ? 'Fix the problems listed beside this button first' : ''"
               :class="[
@@ -1947,6 +1974,136 @@
             </button>
           </div>
         </div>
+
+
+        <!-- Review of what the import will overwrite on this site, shown before
+             anything is written. Each line jumps to its input; the checkbox keeps
+             the value the site holds today instead of the package's. -->
+        <teleport to="body">
+          <div
+            v-if="reviewOpen"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-2 sm:items-center sm:p-4"
+            @click.self="reviewOpen = false"
+          >
+            <div
+              :class="[
+                'flex w-full flex-col overflow-hidden rounded-xl border border-amber-600/50 bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100 transition-all',
+                reviewWide ? 'h-[96vh] max-w-[98vw]' : 'max-h-[88vh] max-w-3xl lg:max-w-6xl 2xl:max-w-[1600px]',
+              ]"
+            >
+              <div class="flex flex-wrap items-start gap-3 border-b border-amber-300 bg-amber-100 p-4 dark:border-amber-800 dark:bg-amber-950">
+                <div class="min-w-0 flex-1 space-y-1">
+                  <p class="flex items-center gap-2 text-base font-semibold text-amber-900 dark:text-amber-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    {{ reviewRows.length }} change{{ reviewRows.length === 1 ? '' : 's' }} to existing data
+                    <span v-if="keptCount" class="text-xs font-normal opacity-80">· {{ keptCount }} kept as they are</span>
+                  </p>
+                  <p class="text-xs text-slate-600 dark:text-slate-300">
+                    These values already exist on this site and the import will replace them.
+                    Press <strong>Go</strong> to jump to the input, or tick
+                    <strong>Keep current</strong> to leave that value untouched.
+                  </p>
+                </div>
+                <div class="ml-auto flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    @click="reviewWide = !reviewWide"
+                    class="hidden rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer md:inline-flex"
+                  >
+                    {{ reviewWide ? 'Smaller' : 'Full screen' }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="reviewOpen = false"
+                    class="rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+                <input
+                  v-model="reviewSearch"
+                  type="text"
+                  placeholder="Filter by facility, branch, field or value…"
+                  class="h-8 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 text-xs outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+                />
+                <button type="button" @click="keepAllShown(true)" class="h-8 rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                  Keep current for all matching
+                </button>
+                <button type="button" @click="keepAllShown(false)" class="h-8 rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                  Apply all matching
+                </button>
+              </div>
+
+              <div class="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem_3.5rem] gap-3 border-b border-slate-200 bg-slate-200 px-4 py-2 dark:border-slate-700 dark:bg-slate-700 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 md:grid">
+                <span>Where</span><span>Field</span><span>Now on site</span><span>Will become</span><span>Keep current</span><span></span>
+              </div>
+
+              <ul class="flex-1 divide-y divide-slate-200 dark:divide-slate-700 overflow-y-auto">
+                <li
+                  v-for="row in pagedReviewRows"
+                  :key="row.key"
+                  :class="[
+                    'grid grid-cols-1 items-start gap-x-3 gap-y-1 px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem_3.5rem]',
+                    row.kept ? 'opacity-60' : '',
+                  ]"
+                >
+                  <div class="min-w-0">
+                    <p class="truncate font-medium">{{ row.where }}</p>
+                    <p class="truncate text-[11px] text-slate-600 dark:text-slate-300">{{ row.row }}</p>
+                  </div>
+                  <p class="font-semibold">{{ row.field }}</p>
+                  <p class="break-words rounded-sm border-l-2 border-amber-600 bg-amber-100 px-1.5 py-0.5 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100">
+                    <span class="font-semibold md:hidden">now: </span>{{ row.before }}
+                  </p>
+                  <p :class="['break-words rounded-sm border-l-2 border-emerald-600 bg-emerald-100 px-1.5 py-0.5 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100', row.kept ? 'line-through' : '']">
+                    <span class="font-semibold md:hidden">new: </span>{{ row.after }}
+                  </p>
+                  <label class="flex cursor-pointer items-center gap-1.5 font-medium">
+                    <input type="checkbox" :checked="row.kept" @change="toggleKeep(row)" class="h-4 w-4 cursor-pointer" />
+                    Keep current
+                  </label>
+                  <button
+                    type="button"
+                    :disabled="row.kept"
+                    @click="goToChange(row)"
+                    class="justify-self-start rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-1.5 font-semibold hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  >
+                    Go →
+                  </button>
+                </li>
+                <li v-if="!visibleReviewRows.length" class="px-4 py-8 text-center text-xs text-slate-600 dark:text-slate-300">
+                  {{ reviewRows.length ? `Nothing matches “${reviewSearch}”.` : 'No existing data would change.' }}
+                </li>
+              </ul>
+
+              <div class="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                <span class="text-[11px] text-slate-600 dark:text-slate-300">
+                  {{ visibleReviewRows.length ? reviewPage * REVIEW_PAGE_SIZE + 1 : 0 }}–{{ Math.min((reviewPage + 1) * REVIEW_PAGE_SIZE, visibleReviewRows.length) }}
+                  of {{ visibleReviewRows.length }}<template v-if="visibleReviewRows.length !== reviewRows.length"> (filtered from {{ reviewRows.length }})</template>.
+                </span>
+                <div v-if="reviewPageCount > 1" class="flex items-center gap-1 text-[11px]">
+                  <button type="button" :disabled="reviewPage === 0" @click="reviewPage = 0" class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">«</button>
+                  <button type="button" :disabled="reviewPage === 0" @click="reviewPage--" class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">‹ Prev</button>
+                  <span class="px-1">Page {{ reviewPage + 1 }} / {{ reviewPageCount }}</span>
+                  <button type="button" :disabled="reviewPage >= reviewPageCount - 1" @click="reviewPage++" class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">Next ›</button>
+                  <button type="button" :disabled="reviewPage >= reviewPageCount - 1" @click="reviewPage = reviewPageCount - 1" class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">»</button>
+                </div>
+                <button type="button" @click="reviewOpen = false" :class="[btnSecondary, 'ml-auto !border-slate-300 !bg-white !text-slate-900 hover:!bg-slate-100 dark:!border-slate-600 dark:!bg-slate-800 dark:!text-slate-100 dark:hover:!bg-slate-700']">Back to editing</button>
+                <button
+                  type="button"
+                  :disabled="busy"
+                  @click="confirmReview"
+                  class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground btn-golden disabled:opacity-50 cursor-pointer"
+                >
+                  {{ busy ? 'Saving edits…' : 'Confirm & start import' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </teleport>
 
         <!-- Step 2: running -->
         <div v-if="importStep === 'running'" class="space-y-4">
@@ -2043,7 +2200,7 @@ import FacilityLayout from '../FacilityLayout.vue';
 import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 import Select from '@/Components/ui/Select.vue';
 import ExistingValueHint from './ExistingValueHint.vue';
-import { oldValue } from './existingValue.js';
+import { asText, at, oldValue } from './existingValue.js';
 import { Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -2308,9 +2465,11 @@ const deletePackage = async (pkg) => {
   if (!confirm(`Delete ${pkg.name} from this server? The file is gone for good.`)) return;
   try {
     const { data } = await axios.delete(route('admin.facility.migration.packages.destroy'), {
-      data: { name: pkg.name },
+      // Query string, not a body: a DELETE body is dropped by some servers and
+      // proxies, which reached the controller as "no such package".
+      params: { name: pkg.name },
     });
-    packages.value = data.packages || [];
+    packages.value = packages.value.filter(p => p.name !== (data.deleted || pkg.name));
     if (serverPath.value === pkg.name) serverPath.value = '';
   } catch (e) {
     importError.value = e.response?.data?.message || 'Could not delete that package.';
@@ -3817,6 +3976,8 @@ const goToIssue = async (issue) => {
     facility._showManagers = true;
   } else {
     facility._showBranches = true;
+    // The row may sit past the visible few; a hidden row cannot be scrolled to.
+    facility._branchLimit = ALL_BRANCHES;
   }
 
   issuesOpen.value = false;
@@ -3876,6 +4037,8 @@ const applyPreviewData = (data) => {
           media: f.media || [],
           tags: f.tags || [],
           _showBranches: false,
+          _branchLimit: 3,
+          _branchSort: 'package',
           _showManagers: false,
           _showMedia: false,
         };
@@ -4334,6 +4497,330 @@ const saveProgress = async () => {
     savingProgress.value = false;
   }
 };
+
+/* ------------------- review of overwrites before the import ------------------- */
+
+/* Every field of a row that already exists here and that the import would
+   change. The field list is the same one the preview marks amber with
+   ExistingValueHint, and the comparison is the same `oldValue`, so this popup
+   can never disagree with the table behind it. */
+const REVIEW_FIELDS = {
+  facility: [
+    { path: 'name.en', label: 'Name (EN)' },
+    { path: 'name.ar', label: 'Name (AR)' },
+    { path: 'facility_type', label: 'Facility type', choice: true, options: () => props.facilityTypes },
+    { path: 'sales', label: 'Sales rep', choice: true, options: () => salesList.value },
+    { path: 'discount_percent', label: 'Discount %', numeric: true },
+  ],
+  branch: [
+    { path: 'name.en', label: 'Name (EN)' },
+    { path: 'name.ar', label: 'Name (AR)' },
+    { path: 'city', label: 'City', choice: true, options: () => cityList.value },
+    { path: 'governorate', label: 'Governorate', choice: true, options: () => governorateList.value },
+    { path: 'phone', label: 'Phones' },
+    { path: 'latitude', label: 'Latitude', numeric: true },
+    { path: 'longitude', label: 'Longitude', numeric: true },
+    { path: 'google_location_url', label: 'Google URL' },
+    { path: 'address.en', label: 'Address (EN)' },
+    { path: 'address.ar', label: 'Address (AR)' },
+  ],
+  manager: [
+    { path: 'name', label: 'Name' },
+    { path: 'position', label: 'Position' },
+    { path: 'phones', label: 'Phones' },
+  ],
+};
+
+const reviewOpen = ref(false);
+const reviewWide = ref(true);
+const reviewSearch = ref('');
+
+// Hundreds of rows in one list is what makes the popup crawl; 20 a page.
+const REVIEW_PAGE_SIZE = 20;
+const reviewPage = ref(0);
+
+// key -> what the package said before "keep current" overwrote it, so a
+// mistaken tick can be undone.
+const keptValues = ref({});
+
+const currentOf = (row, spec) => (spec.choice ? (row[`_${spec.path}Choice`] ?? '') : at(row, spec.path));
+
+const reviewChoiceLabel = (row, spec) => {
+  const choice = row[`_${spec.path}Choice`];
+  if (choice === NEW_LOOKUP) return `${row[`_${spec.path}Label`] || ''} (new)`;
+  if (choice === '' || choice === undefined || choice === null) return EMPTY_TEXT;
+  const option = (spec.options() || []).find(o => String(o.value) === String(choice));
+
+  return option?.label || row[`_${spec.path}Label`] || EMPTY_TEXT;
+};
+
+const EMPTY_TEXT = '— empty —';
+
+const reviewChangeRows = computed(() => {
+  const out = [];
+  previewData.value.facilities.forEach((facility) => {
+    const name = facility.name?.en || facility.name?.ar || 'facility';
+    const collect = (row, kind, relation, position, where, rowLabel) => {
+      if (!row?._existing) return;
+      REVIEW_FIELDS[kind].forEach((spec) => {
+        const current = currentOf(row, spec);
+        const before = oldValue(row._existing, spec.path, current, !!spec.choice, !!spec.numeric);
+        if (!before) return;
+        out.push({
+          key: `${facility._index}:${relation}${position}:${spec.path}`,
+          facilityIndex: facility._index,
+          relation,
+          position,
+          spec,
+          kind,
+          where,
+          row: rowLabel,
+          field: spec.label,
+          before,
+          after: (spec.choice ? reviewChoiceLabel(row, spec) : asText(current)) || EMPTY_TEXT,
+          kept: false,
+        });
+      });
+    };
+    collect(facility, 'facility', 'f', '', name, 'facility');
+    (facility.branches || []).forEach((br, i) =>
+      collect(br, 'branch', 'b', i, `${name} · branch ${i + 1}`, br.name?.en || br.name?.ar || `branch ${i + 1}`));
+    (facility.managers || []).forEach((mg, i) =>
+      collect(mg, 'manager', 'm', i, `${name} · manager ${i + 1}`, mg.name || `manager ${i + 1}`));
+  });
+
+  return out;
+});
+
+/* A kept field equals the site's value again, so it drops out of the computed
+   list; it is put back from what was stashed so the operator can still see
+   it — and undo it — until the popup closes. */
+const reviewRows = computed(() => {
+  const live = reviewChangeRows.value;
+  const liveKeys = new Set(live.map(r => r.key));
+  const kept = Object.values(keptValues.value)
+    .filter(k => !liveKeys.has(k.row.key))
+    .map(k => ({ ...k.row, kept: true }));
+
+  return [...live, ...kept];
+});
+
+const keptCount = computed(() => Object.keys(keptValues.value).length);
+
+const visibleReviewRows = computed(() => {
+  const needle = reviewSearch.value.trim().toLowerCase();
+  if (!needle) return reviewRows.value;
+
+  return reviewRows.value.filter(r =>
+    `${r.where} ${r.row} ${r.field} ${r.before} ${r.after}`.toLowerCase().includes(needle)
+  );
+});
+
+const reviewPageCount = computed(() => Math.max(1, Math.ceil(visibleReviewRows.value.length / REVIEW_PAGE_SIZE)));
+
+const pagedReviewRows = computed(() => {
+  const start = Math.min(reviewPage.value, reviewPageCount.value - 1) * REVIEW_PAGE_SIZE;
+
+  return visibleReviewRows.value.slice(start, start + REVIEW_PAGE_SIZE);
+});
+
+// A new filter starts from its first page; a shrinking list must not strand us past the end.
+watch(reviewSearch, () => { reviewPage.value = 0; });
+watch(reviewPageCount, (count) => { if (reviewPage.value >= count) reviewPage.value = count - 1; });
+
+const reviewTarget = (change) => {
+  const facility = previewData.value.facilities.find(f => f._index === change.facilityIndex);
+  if (!facility) return null;
+  if (change.relation === 'f') return { facility, row: facility };
+
+  const list = change.relation === 'b' ? facility.branches : facility.managers;
+
+  return { facility, row: list?.[change.position] };
+};
+
+/* Write a value into a dotted path, going through the setters that keep the
+   phone textareas and the pickers in step with what they display. */
+const writeField = (facility, row, change, value) => {
+  const { spec, kind } = change;
+  if (spec.choice) {
+    if (kind === 'facility' && spec.path === 'facility_type') return setFacilityType(row, value);
+    if (kind === 'facility') return setFacilitySales(row, value);
+    if (spec.path === 'governorate') return setBranchGovernorate(row, value);
+
+    return setBranchCity(row, value);
+  }
+  if (spec.path === 'phone') return setBranchPhones(row, Array.isArray(value) ? value.join('\n') : String(value ?? ''));
+  if (spec.path === 'phones') return setManagerPhones(row, Array.isArray(value) ? value.join('\n') : String(value ?? ''));
+
+  const keys = spec.path.split('.');
+  const last = keys.pop();
+  let target = row;
+  keys.forEach((k) => {
+    if (!target[k] || typeof target[k] !== 'object') target[k] = {};
+    target = target[k];
+  });
+  target[last] = value;
+  if (kind === 'facility' || kind === 'branch') rematchFacility(facility);
+};
+
+const toggleKeep = (change) => {
+  const target = reviewTarget(change);
+  if (!target?.row) return;
+
+  try {
+    const stash = keptValues.value[change.key];
+    if (stash) {
+      writeField(target.facility, target.row, change, stash.package);
+      delete keptValues.value[change.key];
+      return;
+    }
+
+    const existing = at(target.row._existing, change.spec.path);
+    const packageValue = change.spec.choice
+      ? target.row[`_${change.spec.path}Choice`]
+      : JSON.parse(JSON.stringify(at(target.row, change.spec.path) ?? ''));
+    const back = change.spec.choice
+      ? (existing?.id ?? '')
+      : (existing ?? '');
+
+    keptValues.value[change.key] = { package: packageValue, row: { ...change, kept: true } };
+    writeField(target.facility, target.row, change, back);
+  } catch (e) {
+    importError.value = 'Could not keep the current value for that field.';
+    reportReviewError(e, 'toggle-keep', change.key);
+  }
+};
+
+const keepAllShown = (keep) => {
+  visibleReviewRows.value
+    .filter(r => r.kept !== keep)
+    .forEach(r => toggleKeep(r));
+};
+
+/* A whole-site package can carry hundreds of branches under one facility, and
+   a row is a dozen inputs and pickers — rendering them all at once is what
+   froze the browser. Each facility shows BRANCH_PAGE rows and grows on request;
+   the sort only reorders what is SHOWN, never facility.branches itself, because
+   every row is addressed by its position there (issue keys, the review popup). */
+const BRANCH_PAGE = 3;
+const ALL_BRANCHES = Number.MAX_SAFE_INTEGER;
+const BRANCH_SORTS = [
+  { value: 'package', label: 'Package order' },
+  { value: 'new', label: 'New first (will be created)' },
+  { value: 'changed', label: 'Changed first' },
+  { value: 'unchanged', label: 'Unchanged first' },
+  { value: 'governorate', label: 'Governorate' },
+  { value: 'city', label: 'City' },
+];
+
+const branchChangeCount = (br) => {
+  if (!br?._existing) return 0;
+
+  return REVIEW_FIELDS.branch.filter((spec) =>
+    oldValue(br._existing, spec.path, currentOf(br, spec), !!spec.choice, !!spec.numeric)
+  ).length;
+};
+
+const branchPlaceName = (br, kind) => kind === 'city'
+  ? choiceLabel(citiesFor(br), br._cityChoice, br._cityLabel)
+  : choiceLabel(governorateList.value, br._governorateChoice, br._governorateLabel);
+
+const sortedBranches = (facility) => {
+  const rows = (facility.branches || []).map((br, bi) => ({ br, bi }));
+  const mode = facility._branchSort || 'package';
+  if (mode === 'package') return rows;
+
+  const rank = {
+    new: ({ br }) => (br._existing || siteBranchClash(facility, br) ? 1 : 0),
+    changed: ({ br }) => -branchChangeCount(br),
+    unchanged: ({ br }) => (br._existing ? branchChangeCount(br) : 1e6),
+  }[mode];
+  const text = (r) => (mode === 'city' ? branchPlaceName(r.br, 'city') : branchPlaceName(r.br, 'governorate'));
+
+  return rows.sort((a, b) => rank
+    ? (rank(a) - rank(b)) || (a.bi - b.bi)
+    : text(a).localeCompare(text(b)) || (a.bi - b.bi));
+};
+
+const visibleBranches = (facility) =>
+  sortedBranches(facility).slice(0, facility._branchLimit || BRANCH_PAGE);
+
+const showMoreBranches = (facility) => {
+  facility._branchLimit = (facility._branchLimit || BRANCH_PAGE) + BRANCH_PAGE;
+};
+
+const showAllBranches = (facility) => { facility._branchLimit = ALL_BRANCHES; };
+
+const showFewerBranches = (facility) => { facility._branchLimit = BRANCH_PAGE; };
+
+const goToChange = async (change) => {
+  try {
+    const position = previewData.value.facilities.findIndex(f => f._index === change.facilityIndex);
+    if (position < 0) return;
+
+    previewPage.value = Math.floor(position / previewPageSize);
+    const facility = previewData.value.facilities[position];
+    if (change.relation === 'b') {
+      facility._showBranches = true;
+      facility._branchLimit = ALL_BRANCHES;
+    }
+    if (change.relation === 'm') facility._showManagers = true;
+
+    reviewOpen.value = false;
+    await nextTick();
+
+    const scope = change.relation === 'f'
+      ? document.querySelector(`[data-facility-row="${change.facilityIndex}"]`)
+      : document.querySelector(`[data-issue-row="${change.facilityIndex}:${change.relation}${change.position}"]`);
+    const hint = scope?.querySelector(`[data-hint-path="${change.spec.path}"]`);
+    const cell = hint?.parentElement || scope;
+    if (!cell) return;
+
+    const input = cell.querySelector('input, textarea, button, select') || cell;
+    input.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    input.focus?.({ preventScroll: true });
+    const ring = ['ring-4', 'ring-primary', 'ring-offset-2'];
+    input.classList.add(...ring);
+    setTimeout(() => input.classList.remove(...ring), 3500);
+  } catch (e) {
+    reportReviewError(e, 'go-to-change', change.key);
+  }
+};
+
+const requestStart = () => {
+  // A fresh import wipes the site first, so there is nothing "existing" to overwrite.
+  if (importMode.value !== 'fresh' && reviewRows.value.length) {
+    reviewSearch.value = '';
+    reviewPage.value = 0;
+    reviewOpen.value = true;
+    return;
+  }
+  startImportFromPreview();
+};
+
+const confirmReview = async () => {
+  reviewOpen.value = false;
+  keptValues.value = {};
+  await startImportFromPreview();
+};
+
+function reportReviewError(e, step, key) {
+  try {
+    fetch('/api/v1/client-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        message: e?.message || String(e),
+        stack: e?.stack,
+        route: window.location.pathname,
+        fatal: false,
+        extra: { feature: 'facility-migration-review', step, key },
+      }),
+    }).catch(() => {});
+  } catch (err) {
+    // Reporting must never break the page it reports on.
+  }
+}
 
 const startImportFromPreview = async () => {
   busy.value = true;

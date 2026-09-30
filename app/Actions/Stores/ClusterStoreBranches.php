@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ClusterStoreBranches
 {
+    /** Approximate on-screen size of one merged pin's cell. */
+    private const CELL_PX = 80;
+
     /**
      * @return list<array{latitude: float, longitude: float, count: int, branch: ?array<string, mixed>}>
      */
@@ -21,7 +24,7 @@ class ClusterStoreBranches
         ?int $governorateId = null,
         ?int $cityId = null,
     ): array {
-        $precision = $this->precisionForZoom($zoom);
+        $cell = $this->cellSizeForZoom($zoom);
 
         $clusters = StoreBranch::query()
             ->whereNotNull('latitude')
@@ -29,8 +32,8 @@ class ClusterStoreBranches
             ->when($governorateId, fn ($q) => $q->where('governorate_id', $governorateId))
             ->when($cityId, fn ($q) => $q->where('city_id', $cityId))
             ->select([
-                DB::raw("ROUND(latitude, {$precision}) as grid_lat"),
-                DB::raw("ROUND(longitude, {$precision}) as grid_lng"),
+                DB::raw("FLOOR(latitude / {$cell}) as grid_lat"),
+                DB::raw("FLOOR(longitude / {$cell}) as grid_lng"),
                 DB::raw('COUNT(*) as branch_count'),
                 DB::raw('AVG(latitude) as avg_lat'),
                 DB::raw('AVG(longitude) as avg_lng'),
@@ -72,18 +75,18 @@ class ClusterStoreBranches
     }
 
     /**
-     * Grid cell size in decimal degrees, matched to Leaflet zoom levels — same
-     * table as `ClusterFacilityBranches::precisionForZoom()`.
+     * Grid cell size in decimal degrees, sized in SCREEN pixels rather than
+     * fixed decimal places: a Leaflet world is 256 * 2^zoom px wide, so a
+     * cell of CELL_PX pixels is CELL_PX * 360 / (256 * 2^zoom) degrees. Any
+     * two pins closer than about a cell on screen therefore merge at EVERY
+     * zoom, instead of the old decimal rounding that left pins 100m-1km apart
+     * unmerged across zoom 11-15. Capped at zoom 18 so branches at the very
+     * same address still merge when zoomed all the way in.
      */
-    private function precisionForZoom(int $zoom): int
+    private function cellSizeForZoom(int $zoom): string
     {
-        return match (true) {
-            $zoom >= 16 => 5,
-            $zoom >= 14 => 4,
-            $zoom >= 11 => 3,
-            $zoom >= 8 => 2,
-            $zoom >= 5 => 1,
-            default => 0,
-        };
+        $degrees = self::CELL_PX * 360 / (256 * (2 ** min(max($zoom, 0), 18)));
+
+        return number_format($degrees, 8, '.', '');
     }
 }

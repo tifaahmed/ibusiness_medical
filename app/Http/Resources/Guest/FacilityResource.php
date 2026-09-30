@@ -62,6 +62,11 @@ class FacilityResource extends JsonResource
                         'name' => $branch->name,
                         'slug' => $branch->slug,
                         'address' => $branch->address,
+                        // Where the branch sits, for the marketing site's map
+                        // beside the directory. Null until it is geocoded.
+                        'latitude' => $branch->latitude !== null ? (float) $branch->latitude : null,
+                        'longitude' => $branch->longitude !== null ? (float) $branch->longitude : null,
+                        'google_location_url' => $branch->google_location_url,
                         // Flat numbers, unchanged: the marketing site reads this.
                         'phone' => $branch->phoneNumbers(),
                         // The same numbers with the kind of line each one is,

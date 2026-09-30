@@ -24,6 +24,12 @@ use Illuminate\Support\Facades\DB;
  */
 class ClusterFacilityBranches
 {
+    /** Approximate on-screen size of one merged pin's cell. */
+    private const CELL_PX = 80;
+
+    /** From this zoom a lone branch's pin becomes its facility's logo. */
+    private const LOGO_MIN_ZOOM = 13;
+
     /**
      * @return list<array{latitude: float, longitude: float, count: int, branch: ?array<string, mixed>}>
      */
@@ -33,7 +39,7 @@ class ClusterFacilityBranches
         ?int $cityId = null,
         ?int $facilityTypeId = null,
     ): array {
-        $precision = $this->precisionForZoom($zoom);
+        $cell = $this->cellSizeForZoom($zoom);
 
         $clusters = FacilityBranch::query()
             ->whereNotNull('latitude')
@@ -45,8 +51,8 @@ class ClusterFacilityBranches
                 fn ($f) => $f->where('facility_type_id', $facilityTypeId),
             ))
             ->select([
-                DB::raw("ROUND(latitude, {$precision}) as grid_lat"),
-                DB::raw("ROUND(longitude, {$precision}) as grid_lng"),
+                DB::raw("FLOOR(latitude / {$cell}) as grid_lat"),
+                DB::raw("FLOOR(longitude / {$cell}) as grid_lng"),
                 DB::raw('COUNT(*) as branch_count'),
                 DB::raw('AVG(latitude) as avg_lat'),
                 DB::raw('AVG(longitude) as avg_lng'),
@@ -59,13 +65,17 @@ class ClusterFacilityBranches
             return [];
         }
 
-        $representatives = FacilityBranch::with('facility:id,slug,name')
+        $withLogos = $zoom >= self::LOGO_MIN_ZOOM;
+
+        // Logos only where a pin can show one (close in), and with the media
+        // eager-loaded so a thousand pins do not become a thousand queries.
+        $representatives = FacilityBranch::with($withLogos ? ['facility:id,slug,name', 'facility.media'] : ['facility:id,slug,name'])
             ->whereIn('id', $clusters->pluck('representative_id'))
             ->get()
             ->keyBy('id');
 
         return $clusters
-            ->map(function ($cluster) use ($representatives) {
+            ->map(function ($cluster) use ($representatives, $withLogos) {
                 $branch = $representatives->get((int) $cluster->representative_id);
 
                 return [
@@ -79,6 +89,9 @@ class ClusterFacilityBranches
                         'facility' => $branch->facility ? [
                             'slug' => $branch->facility->slug,
                             'name' => $branch->facility->name,
+                            'logo' => $withLogos && (int) $cluster->branch_count === 1
+                                ? ($branch->facility->logo ?: null)
+                                : null,
                         ] : null,
                     ] : null,
                 ];
@@ -88,19 +101,18 @@ class ClusterFacilityBranches
     }
 
     /**
-     * Grid cell size in decimal degrees, matched to Leaflet zoom levels:
-     * zoomed out, a whole city collapses into one marker; zoomed all the way
-     * in, only branches at almost the same address merge.
+     * Grid cell size in decimal degrees, sized in SCREEN pixels rather than
+     * fixed decimal places: a Leaflet world is 256 * 2^zoom px wide, so a
+     * cell of CELL_PX pixels is CELL_PX * 360 / (256 * 2^zoom) degrees. Any
+     * two pins closer than about a cell on screen therefore merge at EVERY
+     * zoom, instead of the old decimal rounding that left pins 100m-1km apart
+     * unmerged across zoom 11-15. Capped at zoom 18 so branches at the very
+     * same address still merge when zoomed all the way in.
      */
-    private function precisionForZoom(int $zoom): int
+    private function cellSizeForZoom(int $zoom): string
     {
-        return match (true) {
-            $zoom >= 16 => 5,  // ~1.1m
-            $zoom >= 14 => 4,  // ~11m
-            $zoom >= 11 => 3,  // ~110m
-            $zoom >= 8 => 2,   // ~1.1km
-            $zoom >= 5 => 1,   // ~11km
-            default => 0,      // ~111km
-        };
+        $degrees = self::CELL_PX * 360 / (256 * (2 ** min(max($zoom, 0), 18)));
+
+        return number_format($degrees, 8, '.', '');
     }
 }

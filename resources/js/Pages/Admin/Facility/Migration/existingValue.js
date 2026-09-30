@@ -39,12 +39,26 @@ const sameNumber = (a, b) => {
   return a !== '' && b !== '' && Number.isFinite(left) && Number.isFinite(right) && left === right;
 };
 
+/* Two strings that print identically are not always equal: a pasted address
+ * carries non-breaking spaces, doubled spaces, line breaks, zero-width and
+ * right-to-left marks. None of that is a change an operator can see or would
+ * want flagged, so the comparison ignores it — the shown values are untouched. */
+const looksSame = (a, b) => {
+  const fold = (text) => text
+    .normalize('NFC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return fold(a) === fold(b);
+};
+
 export const oldText = (existing, path, current, numeric = false) => {
   if (!existing) return null;
 
   const before = asText(at(existing, path));
   const now = asText(current);
-  if (before === now) return null;
+  if (before === now || looksSame(before, now)) return null;
   if (numeric && sameNumber(before, now)) return null;
 
   return before === '' ? EMPTY_LABEL : before;

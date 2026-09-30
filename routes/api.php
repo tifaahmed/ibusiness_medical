@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Guest\AboutController as V1AboutController;
 use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
 use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
+use App\Http\Controllers\Api\V1\Guest\FacilityBranchCardController as V1FacilityBranchCardController;
 use App\Http\Controllers\Api\V1\Guest\FacilityBranchLocationsController as V1FacilityBranchLocationsController;
 use App\Http\Controllers\Api\V1\Guest\FacilityBranchMapController as V1FacilityBranchMapController;
 use App\Http\Controllers\Api\V1\Guest\FacilityController as V1FacilityController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\V1\Guest\LocationController as V1LocationController
 use App\Http\Controllers\Api\V1\Guest\MembershipCardController as V1MembershipCardController;
 use App\Http\Controllers\Api\V1\Guest\MembershipController as V1MembershipController;
 use App\Http\Controllers\Api\V1\Guest\MembershipUsageController as V1MembershipUsageController;
+use App\Http\Controllers\Api\V1\Guest\NearestBordersController as V1NearestBordersController;
 use App\Http\Controllers\Api\V1\Guest\NewsTickerController as V1NewsTickerController;
 use App\Http\Controllers\Api\V1\Guest\OfferController as V1OfferController;
 use App\Http\Controllers\Api\V1\Guest\PartnerCompanyController as V1PartnerCompanyController;
@@ -72,6 +74,7 @@ Route::prefix('v1')
          * nobody, and the whole list is a few kilobytes shipped in one call.
          */
         Route::get('/locations', V1LocationController::class)->name('locations.index');
+        Route::get('/locations/nearest-borders', V1NearestBordersController::class)->name('locations.nearest-borders');
 
         Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
 
@@ -99,6 +102,9 @@ Route::prefix('v1')
          * clustering — see `FacilityBranchLocationsController`.
          */
         Route::get('/facilities/branches/locations', V1FacilityBranchLocationsController::class)->name('facilities.branches-locations');
+
+        // One branch's popup card (numeric id, so it cannot swallow `map` / `locations`).
+        Route::get('/facilities/branches/{branch}', V1FacilityBranchCardController::class)->whereNumber('branch')->name('facilities.branch-card');
 
         Route::get('/facilities/{facility:slug}', [V1FacilityController::class, 'show'])->name('facilities.show');
 

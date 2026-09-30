@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Services\FacilityMigration\FacilityMigrationExporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
@@ -54,9 +56,15 @@ class AdminFacilityMigrationPackagesController extends BaseController
     public function destroy(Request $request): JsonResponse
     {
         $path = $this->resolve($request->input('name'));
-        @unlink($path);
+        if (! unlink($path)) {
+            Log::error('Could not delete a migration package', ['route' => $request->path(), 'package' => basename($path)]);
+            abort(500, 'Could not delete that package — the server refused (file permissions?).');
+        }
 
-        return response()->json(['packages' => $this->packages()]);
+        // No re-listing here: reading every package's manifest is what timed
+        // this request out AFTER the file was already gone, so the page never
+        // heard the delete had worked. The page drops the row itself.
+        return response()->json(['deleted' => basename($path)]);
     }
 
     /**
@@ -77,7 +85,7 @@ class AdminFacilityMigrationPackagesController extends BaseController
                 'name' => $entry,
                 'size' => filesize($path) ?: 0,
                 'modified' => date('c', filemtime($path) ?: time()),
-            ] + $this->manifest($path);
+            ] + $this->cachedManifest($path);
         }
 
         usort($out, fn ($a, $b) => strcmp($b['modified'], $a['modified']));
@@ -92,6 +100,17 @@ class AdminFacilityMigrationPackagesController extends BaseController
      *
      * @return array<string, mixed>
      */
+    private function cachedManifest(string $path): array
+    {
+        // A package never changes once written, and reading one means opening a
+        // zip (and, for image packages, parsing a whole workbook) — do it once
+        // per file version, not on every page load.
+        return Cache::rememberForever(
+            'facility-migration-manifest:'.md5($path.'|'.filesize($path).'|'.filemtime($path)),
+            fn () => $this->manifest($path),
+        );
+    }
+
     private function manifest(string $path): array
     {
         $blank = ['generated_at' => null, 'counts' => null, 'options' => null, 'source' => null];
@@ -141,7 +160,10 @@ class AdminFacilityMigrationPackagesController extends BaseController
         file_put_contents($tmp, $bytes);
 
         try {
-            $sheet = IOFactory::load($tmp)->getSheetByName('Package');
+            $reader = IOFactory::createReaderForFile($tmp);
+            $reader->setReadDataOnly(true);
+            $reader->setLoadSheetsOnly(['Package']);
+            $sheet = $reader->load($tmp)->getSheetByName('Package');
             if (! $sheet) {
                 return $blank;
             }
