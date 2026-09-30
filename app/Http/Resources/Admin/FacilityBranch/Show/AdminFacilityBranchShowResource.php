@@ -25,13 +25,13 @@ class AdminFacilityBranchShowResource extends JsonResource
                     'id' => $this->facility->id,
                     'name' => $this->facility->name,
                     'slug' => $this->facility->slug,
-                    'facility_type' => $this->facility->whenLoaded('facilityType', function () {
-                        return $this->facility->facilityType ? [
-                            'id' => $this->facility->facilityType->id,
-                            'name' => $this->facility->facilityType->name,
-                            'slug' => $this->facility->facilityType->slug,
-                        ] : null;
-                    }),
+                    // `whenLoaded` belongs to resources, not models: called on the facility
+                    // it threw, and this page answered 500.
+                    'facility_type' => $this->facility->relationLoaded('facilityType') && $this->facility->facilityType ? [
+                        'id' => $this->facility->facilityType->id,
+                        'name' => $this->facility->facilityType->name,
+                        'slug' => $this->facility->facilityType->slug,
+                    ] : null,
                 ] : null;
             }),
             'governorate' => $this->whenLoaded('governorate', function () {
@@ -45,6 +45,12 @@ class AdminFacilityBranchShowResource extends JsonResource
                 return $this->city ? [
                     'id' => $this->city->id,
                     'name' => $this->city->name,
+                ] : null;
+            }),
+            'area' => $this->whenLoaded('area', function () {
+                return $this->area ? [
+                    'id' => $this->area->id,
+                    'name' => $this->area->getTranslations('name'),
                 ] : null;
             }),
             'latitude' => $this->latitude,

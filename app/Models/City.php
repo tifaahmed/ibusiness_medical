@@ -16,6 +16,12 @@ class City extends Model
     use HasSlug;
     use HasTranslations;
 
+    /**
+     * The city that holds a governorate's ground no other city border covers.
+     * See UnmarkedCitySeeder.
+     */
+    public const UNMARKED_NAME = ['ar' => 'مدينة غير محددة', 'en' => 'Unmarked City'];
+
     public $translatable = [
         'name',
     ];
@@ -50,9 +56,22 @@ class City extends Model
             ->saveSlugsTo('slug');
     }
 
+    public function isUnmarked(): bool
+    {
+        return $this->getTranslation('name', 'en', false) === self::UNMARKED_NAME['en'];
+    }
+
     public function governorate(): BelongsTo
     {
         return $this->belongsTo(Governorate::class);
+    }
+
+    /**
+     * The neighbourhood / village units (admin level 3) inside this city.
+     */
+    public function areas(): HasMany
+    {
+        return $this->hasMany(Area::class);
     }
 
     /**

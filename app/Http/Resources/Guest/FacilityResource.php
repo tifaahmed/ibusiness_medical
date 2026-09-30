@@ -75,6 +75,11 @@ class FacilityResource extends JsonResource
                             'id' => $branch->city->id,
                             'name' => $branch->city->name,
                         ] : null,
+                        // Optional: most branches are known to their city and no closer.
+                        'area' => $branch->relationLoaded('area') && $branch->area ? [
+                            'id' => $branch->area->id,
+                            'name' => $branch->area->name,
+                        ] : null,
                     ];
                 });
             }),

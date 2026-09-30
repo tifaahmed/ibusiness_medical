@@ -33,6 +33,8 @@ class UpdateFacilityBranchAction
                 'facility_id' => $validated['facility_id'],
                 'governorate_id' => $validated['governorate_id'] ?? null,
                 'city_id' => $validated['city_id'] ?? null,
+                // Not sent (an older caller): keep what is stored. Sent empty: clear it.
+                'area_id' => array_key_exists('area_id', $validated) ? $validated['area_id'] : $facilityBranch->area_id,
                 'latitude' => $validated['latitude'] ?? null,
                 'longitude' => $validated['longitude'] ?? null,
                 'google_location_url' => $validated['google_location_url'] ?? null,
@@ -97,6 +99,7 @@ class UpdateFacilityBranchAction
             'phone' => $branch->phone,
             'governorate_id' => $branch->governorate_id,
             'city_id' => $branch->city_id,
+            'area_id' => $branch->area_id,
             'latitude' => $branch->latitude,
             'longitude' => $branch->longitude,
             'google_location_url' => $branch->google_location_url,

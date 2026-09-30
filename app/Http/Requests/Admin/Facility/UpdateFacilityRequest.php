@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin\Facility;
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\FacilityType;
 use App\Models\Sales;
+use App\Rules\AreaBelongsToCity;
 use App\Support\BranchUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -99,6 +100,7 @@ class UpdateFacilityRequest extends FormRequest
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
             'branches.*.city_id' => 'nullable|exists:cities,id',
+            'branches.*.area_id' => ['nullable', 'integer', new AreaBelongsToCity],
             'branches.*.latitude' => 'nullable|numeric|between:-90,90',
             'branches.*.longitude' => 'nullable|numeric|between:-180,180',
             'branches.*.name' => 'nullable|array',

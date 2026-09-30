@@ -90,6 +90,19 @@
                   {{ t.city?.none || 'No city' }}
                 </span>
 
+                <!-- Optional, so a branch with none simply shows nothing. -->
+                <span
+                  v-if="areaNames(branch).length"
+                  class="inline-flex items-center gap-1 rounded-md border border-teal-400/50 bg-teal-500/25 px-2 py-0.5 text-[11px] font-semibold text-teal-950 dark:text-teal-100"
+                  :title="t.area?.name || 'Area'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+                  <template v-for="(place, index) in areaNames(branch)" :key="place.locale">
+                    <span v-if="index" class="opacity-40" aria-hidden="true">·</span>
+                    <span :dir="place.locale === 'ar' ? 'rtl' : 'ltr'" :lang="place.locale">{{ place.value }}</span>
+                  </template>
+                </span>
+
                 <a
                   v-if="branch.google_location_url"
                   :href="branch.google_location_url"
@@ -288,6 +301,7 @@ const placeNames = (value) => {
 
 const governorateNames = (branch) => placeNames(branch?.governorate?.name);
 const cityNames = (branch) => placeNames(branch?.city?.name);
+const areaNames = (branch) => placeNames(branch?.area?.name);
 
 // The address reads the same way — every language it was written in.
 const addressNames = (branch) => placeNames(branch?.address);

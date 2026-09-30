@@ -295,6 +295,10 @@
                     :placeholder="t.city?.select || 'Select a city'"
                   />
                 </div>
+                <!-- Optional: one of the chosen city's areas, when the address names it. -->
+                <div class="md:col-span-2">
+                  <BranchAreaSelect v-model="form.area_id" :city-id="form.city_id" :error="errors.area_id" />
+                </div>
                 <div class="md:col-span-2 flex flex-wrap items-center justify-end gap-2">
                   <p v-if="locateHint" class="text-[11px] text-white/70 order-2 sm:order-1">{{ locateHint }}</p>
                   <button
@@ -398,6 +402,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { FormTranslatableInput, FormSelect, FormInput, BranchPhonesInput } from '@/Components/form';
+import BranchAreaSelect from '@/Pages/Admin/FacilityBranch/Form/BranchAreaSelect.vue';
 import { usePage } from '@inertiajs/vue3';
 import { useFacilityStore } from '../../Stores/FacilityStore';
 import { useNotification } from '@/composables/useNotification';
@@ -464,6 +469,7 @@ const form = ref({
   phone: [],
   governorate_id: '',
   city_id: '',
+  area_id: '',
   latitude: '',
   longitude: '',
   google_location_url: ''
@@ -492,6 +498,7 @@ const branchFingerprint = (branch) => JSON.stringify({
   phone: Array.isArray(branch.phone) ? branch.phone : (branch.phone ? [branch.phone] : []),
   governorate_id: numeric(branch.governorate_id),
   city_id: numeric(branch.city_id),
+  area_id: numeric(branch.area_id),
   latitude: numeric(branch.latitude),
   longitude: numeric(branch.longitude),
   google_location_url: branch.google_location_url || null
@@ -860,6 +867,7 @@ const resetForm = () => {
     phone: [],
     governorate_id: '',
     city_id: '',
+    area_id: '',
     latitude: '',
     longitude: '',
     google_location_url: ''
@@ -897,6 +905,7 @@ const formFingerprint = () => JSON.stringify({
   phone: normalizePhoneEntries(form.value.phone),
   governorate_id: form.value.governorate_id ?? '',
   city_id: form.value.city_id ?? '',
+  area_id: form.value.area_id ?? '',
   latitude: form.value.latitude ?? '',
   longitude: form.value.longitude ?? '',
   google_location_url: form.value.google_location_url ?? '',
@@ -1102,6 +1111,7 @@ const editBranch = (index) => {
     phone: Array.isArray(branch.phone) ? branch.phone : (branch.phone ? [branch.phone] : []),
     governorate_id: branch.governorate_id ?? '',
     city_id: branch.city_id ?? '',
+    area_id: branch.area_id ?? '',
     latitude: branch.latitude ?? '',
     longitude: branch.longitude ?? '',
     google_location_url: branch.google_location_url ?? ''
@@ -1205,6 +1215,7 @@ const handleSubmit = async () => {
     phone: form.value.phone && form.value.phone.length > 0 ? form.value.phone : null,
     governorate_id: form.value.governorate_id || null,
     city_id: form.value.city_id || null,
+    area_id: form.value.area_id || null,
     latitude: form.value.latitude !== '' && form.value.latitude !== null ? form.value.latitude : null,
     longitude: form.value.longitude !== '' && form.value.longitude !== null ? form.value.longitude : null,
     google_location_url: (form.value.google_location_url || '').trim() || null

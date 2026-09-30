@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\FacilityBranch;
 
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use App\Models\City;
+use App\Rules\AreaBelongsToCity;
 use App\Models\Facility;
 use App\Models\FacilityBranch;
 use App\Models\Governorate;
@@ -48,6 +49,8 @@ class UpdateFacilityBranchRequest extends FormRequest
             // unusable, so it is asked for rather than left to be filled later.
             'governorate_id' => ['required', 'exists:'.Governorate::class.',id'],
             'city_id' => ['required', 'exists:'.City::class.',id'],
+            // Optional, and only ever one of the chosen city's areas.
+            'area_id' => ['nullable', 'integer', new AreaBelongsToCity],
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'google_location_url' => 'nullable|url|max:2048',

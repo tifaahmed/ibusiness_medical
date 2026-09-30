@@ -152,6 +152,15 @@
               required
             />
           </div>
+
+          <!-- Optional: one of the chosen city's areas, when the address names it. -->
+          <div data-slot="form-item" class="grid gap-1 lg:col-span-2">
+            <BranchAreaSelect
+              v-model="facilityBranchStore.form.area_id"
+              :city-id="facilityBranchStore.form.city_id"
+              :error="facilityBranchStore.validationErrors?.area_id"
+            />
+          </div>
         </div>
 
         <!-- Row 3b: the two readers of the address typed above — one fills the
@@ -259,6 +268,7 @@
 import { FormTranslatableInput, FormSelect, FormInput, BranchPhonesInput } from "@/Components/form";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";
 import FacilityBranchLocationMap from "./FacilityBranchLocationMap.vue";
+import BranchAreaSelect from "./BranchAreaSelect.vue";
 import { computed, nextTick, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { Link, usePage } from "@inertiajs/vue3";

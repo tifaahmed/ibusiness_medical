@@ -47,6 +47,12 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path></svg>
           {{ t.governorate?.map_no_cities || 'No cities are stored for this governorate yet.' }}
         </div>
+        <div v-if="touchedCities.length" class="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 text-[11px] bg-sky-500/10 text-sky-800">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M3 3h7v7H3z"></path><path d="M14 3h7v7h-7z"></path><path d="M14 14h7v7h-7z"></path><path d="M3 14h7v7H3z"></path></svg>
+          <span v-if="areasError" class="text-red-600">{{ areasError }}</span>
+          <span v-else-if="areasLoading">{{ t.area?.map_loading || 'Loading areas…' }}</span>
+          <span v-else>{{ (t.area?.map_areas_in || 'Areas in :city').replace(':city', nameOf(touchedCities[0])) }} ({{ areas.length }})</span>
+        </div>
         <div v-if="citiesWithoutBorder > 0" class="px-3 py-1.5 text-[11px] border-b border-border/50 text-amber-700 bg-amber-500/10">
           {{ (t.governorate?.map_cities_no_border || ':count without a border').replace(':count', citiesWithoutBorder) }}
         </div>
@@ -117,6 +123,13 @@ const touchedCities = ref([]);
 const hoveredCityId = ref(null);
 const citiesCache = new Map();
 
+// The areas (admin level 3) of the city the admin last focused.
+const areas = ref([]);
+const areasLoading = ref(false);
+const areasError = ref('');
+const areasCache = new Map();
+let areaLayer = null;
+
 const mapEl = ref(null);
 let map = null;
 const layersById = new Map();
@@ -144,7 +157,11 @@ const colorOf = (id, alpha = 1) => `hsla(${hueOf(id)}, 68%, 46%, ${alpha})`;
 // THIS list that have to look different from each other. Deeper and darker than
 // the governorate palette so a city reads against its governorate's tint.
 const cityIndex = (id) => Math.max(0, cities.value.findIndex((c) => c.id === id));
-const cityColor = (id, alpha = 1) => `hsla(${Math.round((cityIndex(id) * 137.508 + 25) % 360)}, 78%, 40%, ${alpha})`;
+// The "Unmarked City" is the ground no other city covers, so it takes neutral grey
+// instead of a hue that would make it look like just another city.
+const cityColor = (id, alpha = 1) => (cities.value.find((c) => c.id === id)?.is_unmarked
+  ? `hsla(215, 10%, 50%, ${alpha})`
+  : `hsla(${Math.round((cityIndex(id) * 137.508 + 25) % 360)}, 78%, 40%, ${alpha})`);
 
 const styleFor = (id, state = 'idle') => {
   // With a governorate selected the others step back and the selected one is
@@ -261,7 +278,7 @@ const reportClientError = (message, error, step, extra = {}) => {
   }
 };
 
-const popupHtml = (matches, cityMatches = []) => {
+const popupHtml = (matches, cityMatches = [], areaMatches = []) => {
   if (matches.length === 0) {
     return `<div style="font-size:12px;">${escapeHtml(t.value.governorate?.map_outside || 'This spot is outside every governorate border.')}</div>`;
   }
@@ -271,11 +288,14 @@ const popupHtml = (matches, cityMatches = []) => {
   const also = escapeHtml(t.value.governorate?.map_overlap || 'Also inside');
   const cityLabel = escapeHtml(t.value.governorate?.map_city_in || 'City');
   const city = cityMatches[0];
+  const areaLabel = escapeHtml(t.value.area?.map_area_in || 'Area');
+  const area = areaMatches[0];
   return `<div style="min-width:150px;">
     <div style="font-size:11px;color:#6b7280;">${label}</div>
     <div style="font-size:15px;font-weight:600;color:${colorOf(first.id)};">${escapeHtml(nameOf(first))}</div>
     ${others.length ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${also}: ${others.map((g) => escapeHtml(nameOf(g))).join('، ')}</div>` : ''}
     ${city ? `<div style="font-size:11px;color:#6b7280;margin-top:6px;">${cityLabel}</div><div style="font-size:14px;font-weight:600;color:${cityColor(city.id)};">${escapeHtml(nameOf(city))}</div>` : ''}
+    ${area ? `<div style="font-size:11px;color:#6b7280;margin-top:6px;">${areaLabel}</div><div style="font-size:13px;font-weight:600;">${escapeHtml(nameOf(area))}</div>` : ''}
     <a href="${route('admin.governorate.show', first.slug)}" style="display:inline-block;margin-top:6px;font-size:12px;">${open}</a>
   </div>`;
 };
@@ -319,6 +339,7 @@ const selectGovernorate = async (g) => {
   cities.value = [];
   citiesError.value = '';
   clearCityLayers();
+  clearAreaLayer();
   restyle();
   fitSelected();
 
@@ -346,8 +367,48 @@ const clearSelection = () => {
   citiesError.value = '';
   citiesLoading.value = false;
   clearCityLayers();
+  clearAreaLayer();
   restyle();
   fitAll();
+};
+
+const clearAreaLayer = () => {
+  if (areaLayer && map) map.removeLayer(areaLayer);
+  areaLayer = null;
+  areas.value = [];
+  areasError.value = '';
+  areasLoading.value = false;
+};
+
+// Thin outlines only: the city keeps its colour, the areas just divide it.
+const drawAreas = () => {
+  if (!map) return;
+  areaLayer = L.featureGroup(
+    areas.value
+      .filter((a) => a.geometry)
+      .map((a) => L.geoJSON(a.geometry, { interactive: false, style: { color: '#1e293b', weight: 1, opacity: 0.8, fillColor: '#1e293b', fillOpacity: 0.04 } })),
+  ).addTo(map);
+};
+
+const loadAreas = async (city) => {
+  clearAreaLayer();
+  areasLoading.value = true;
+  try {
+    if (!areasCache.has(city.id)) {
+      const { data } = await axios.get(route('admin.city.area-borders', city.id));
+      areasCache.set(city.id, data.areas || []);
+    }
+    // The admin may have focused another city while this one was loading.
+    if (touchedCities.value[0]?.id !== city.id) return;
+    areas.value = areasCache.get(city.id);
+    drawAreas();
+  } catch (error) {
+    console.error('Failed to load city areas:', error);
+    areasError.value = t.value.area?.map_load_failed || 'The areas of this city could not be loaded.';
+    reportClientError('City areas map failed to load', error, 'load-area-borders', { city_id: city.id });
+  } finally {
+    if (touchedCities.value[0]?.id === city.id) areasLoading.value = false;
+  }
 };
 
 const focusCity = (c) => {
@@ -355,11 +416,13 @@ const focusCity = (c) => {
   touchedCities.value = [c];
   restyleCities();
   if (map && layer) map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+  loadAreas(c);
 };
 
-const handleMapClick = (event) => {
+const handleMapClick = async (event) => {
   const { lat, lng } = event.latlng;
   const matches = governorates.value.filter((g) => contains(g.geometry, lng, lat));
+  let areaMatches = [];
 
   // A touch inside the selected governorate answers with its cities; a touch in
   // another one moves the selection there.
@@ -371,6 +434,13 @@ const handleMapClick = (event) => {
       .sort((a, b) => roughSize(a.geometry) - roughSize(b.geometry));
     restyle();
     restyleCities();
+    // A click inside a city also names the area holding the point.
+    if (touchedCities.value.length) {
+      await loadAreas(touchedCities.value[0]);
+      areaMatches = areas.value.filter((a) => contains(a.geometry, lng, lat));
+    } else {
+      clearAreaLayer();
+    }
   } else if (matches.length) {
     touchedCities.value = [];
     selectGovernorate(matches[0]);
@@ -382,7 +452,7 @@ const handleMapClick = (event) => {
     restyleCities();
   }
 
-  L.popup({ closeButton: true }).setLatLng(event.latlng).setContent(popupHtml(touched.value, touchedCities.value)).openOn(map);
+  L.popup({ closeButton: true }).setLatLng(event.latlng).setContent(popupHtml(touched.value, touchedCities.value, areaMatches)).openOn(map);
 };
 
 const fitAll = () => {
@@ -441,5 +511,6 @@ onBeforeUnmount(() => {
   }
   layersById.clear();
   cityLayersById.clear();
+  areaLayer = null;
 });
 </script>

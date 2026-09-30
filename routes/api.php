@@ -23,10 +23,15 @@ use App\Http\Controllers\Api\V1\Guest\PartnerOfferRequestController as V1Partner
 use App\Http\Controllers\Api\V1\Guest\PartnersController as V1PartnersController;
 use App\Http\Controllers\Api\V1\Guest\ProductController as V1ProductController;
 use App\Http\Controllers\Api\V1\Guest\ServiceController as V1ServiceController;
+<<<<<<< HEAD
 use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchMapController;
 use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
 use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
+=======
+use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
+use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
+>>>>>>> 2904f9a523fe2f3c8c07d8b95c667119a1818cc0
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
@@ -270,6 +275,33 @@ Route::prefix('v1')
                 ->name('orders.claim');
 
             Route::get('/orders/{orderCode}', [V1MemberOrderController::class, 'show'])->name('orders.show');
+
+            /*
+             * A member's own family, and the one thing they may add to it: a
+             * child, by first name — see `FamilyController`. Token-gated, so
+             * the caller is the father and no membership id is read from the
+             * request.
+             */
+            Route::get('/family', [V1MemberFamilyController::class, 'index'])->name('family.index');
+
+            /*
+             * The addresses on the member's own card, read-only — see
+             * `AddressController`.
+             */
+            Route::get('/addresses', [V1MemberAddressController::class, 'index'])->name('addresses.index');
+
+            Route::post('/family/children', [V1MemberFamilyController::class, 'storeChild'])
+                ->middleware('throttle:10,1')
+                ->name('family.children.store');
+            Route::put('/family/children/{familyMember}', [V1MemberFamilyController::class, 'updateChild'])
+                ->middleware('throttle:20,1')
+                ->whereNumber('familyMember')
+                ->name('family.children.update');
+            Route::delete('/family/children/{familyMember}', [V1MemberFamilyController::class, 'destroyChild'])
+                ->middleware('throttle:20,1')
+                ->whereNumber('familyMember')
+                ->name('family.children.destroy');
+
             Route::get('/profile', [V1AuthController::class, 'profile'])->name('profile.show');
             Route::put('/profile', [V1AuthController::class, 'updateProfile'])->name('profile.update');
             Route::put('/profile/password', [V1AuthController::class, 'changePassword'])->name('profile.password');

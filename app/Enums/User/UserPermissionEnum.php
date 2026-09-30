@@ -205,6 +205,20 @@ enum UserPermissionEnum
 
     public const VIEW_GOVERNORATES = 'view governorates';
 
+    /**
+     * Cities and areas sit under a governorate but have their own permissions,
+     * so a role can run the cities (or only the areas) without also owning the
+     * governorates. Standalone rather than paired: neither table has a
+     * `created_by`, so a "manage own" variant could never grant anything.
+     */
+    public const MANAGE_CITIES = 'manage cities';
+
+    public const VIEW_CITIES = 'view cities';
+
+    public const MANAGE_AREAS = 'manage areas';
+
+    public const VIEW_AREAS = 'view areas';
+
     public const VIEW_CONTACT_MESSAGES = 'view contact messages';
 
     public const VIEW_FAQS = 'view faqs';
@@ -240,6 +254,8 @@ enum UserPermissionEnum
             self::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::MANAGE_CARD_TEMPLATES,
+            self::MANAGE_CITIES,
+            self::MANAGE_AREAS,
             /*
              * Standalone rather than paired: a contact enquiry arrives from a
              * public form and has no creator (`created_by` is null on every
@@ -309,6 +325,8 @@ enum UserPermissionEnum
             self::VIEW_FACILITIES,
             self::VIEW_FACILITY_BRANCHES,
             self::VIEW_GOVERNORATES,
+            self::VIEW_CITIES,
+            self::VIEW_AREAS,
             self::VIEW_PRODUCT_TYPES,
             self::VIEW_PRODUCTS,
             self::VIEW_STORES,

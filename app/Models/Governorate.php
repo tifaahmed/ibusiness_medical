@@ -105,4 +105,12 @@ class Governorate extends Model
     {
         return $this->hasMany(City::class);
     }
+
+    /**
+     * The areas (admin level 3) of every city in this governorate.
+     */
+    public function areas(): HasMany
+    {
+        return $this->hasMany(Area::class);
+    }
 }

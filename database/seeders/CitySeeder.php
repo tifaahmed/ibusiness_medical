@@ -15,6 +15,7 @@ class CitySeeder extends Seeder
     private array $citiesByGovernorate = [
         'alexandria' => [
             ['الإسكندرية', 'Alexandria'],
+            ['العطارين', 'Attarin'],
             ['برج العرب', 'Borg El Arab'],
             ['العامرية', 'Al Amreya'],
             ['أبو قير', 'Abu Qir'],
@@ -57,6 +58,7 @@ class CitySeeder extends Seeder
             ['كلابشة', 'Kalabsha'],
             ['أبو سمبل', 'Abu Simbel'],
             ['السباعية', 'El Sebaiya'],
+            ['توشكى', 'Tushka'],
             ['أسوان الجديدة', 'New Aswan'],
         ],
         'beheira' => [
@@ -89,6 +91,8 @@ class CitySeeder extends Seeder
         ],
         'cairo' => [
             ['القاهرة', 'Cairo'],
+            ['منشأة ناصر', 'Manshiyat Nasser'],
+            ['قصر النيل', 'Qasr El Nil'],
             ['حلوان', 'Helwan'],
             ['المعادي', 'Maadi'],
             ['مدينة نصر', 'Nasr City'],
@@ -152,7 +156,7 @@ class CitySeeder extends Seeder
             ['الكردي', 'El Kurdi'],
             ['تمي الأمديد', 'Tami El Amdid'],
             ['منية النصر', 'Minyat El Nasr'],
-            ['المطرية', 'El Matariya Dakahlia'],
+            ['المطرية', 'El Matariya'],
             ['محلة دمنة', 'Mahallat Damana'],
             ['الجمالية', 'El Gamaliya'],
             ['المنصورة الجديدة', 'New Mansoura'],
@@ -279,10 +283,12 @@ class CitySeeder extends Seeder
             ['رفح', 'Rafah'],
             ['الحسنة', 'El Hasana'],
             ['نخل', 'Nakhl'],
+            ['القسيمة', 'El Qusayma'],
         ],
         'port-said' => [
             ['بورسعيد', 'Port Said'],
             ['بورفؤاد', 'Port Fouad'],
+            ['شرق التفريعة', 'Sharq El Tafreaa'],
             ['المناخ', 'El Manakh'],
             ['الشرق', 'El Sharq'],
             ['العرب', 'El Arab'],
@@ -358,7 +364,7 @@ class CitySeeder extends Seeder
             ['أخميم الجديدة', 'New Akhmim'],
             ['طما', 'Tama'],
             ['طهطا', 'Tahta'],
-            ['المنشاة', 'El Munshah'],
+            ['المنشأة', "El Monsha'a"],
             ['دار السلام', 'Dar El Salam'],
             ['ساقلتة', 'Saqulta'],
             ['جرجا', 'Girga'],
@@ -385,7 +391,7 @@ class CitySeeder extends Seeder
             ['الأربعين', 'El Arbaeen'],
             ['فيصل', 'Faisal'],
             ['الجناين', 'El Ganayen'],
-            ['عين الصخنة', 'Ain Sokhna'],
+            ['عين السخنة', 'Ain Sokhna'],
             ['عين السخنة', 'Ain Sokhna'],
         ],
         'gharbia' => [

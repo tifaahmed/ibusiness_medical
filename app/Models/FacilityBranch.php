@@ -8,7 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+<<<<<<< HEAD
 use Illuminate\Database\Eloquent\SoftDeletes;
+=======
+use Illuminate\Support\Facades\Schema;
+>>>>>>> 2904f9a523fe2f3c8c07d8b95c667119a1818cc0
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 use Spatie\Translatable\HasTranslations;
@@ -78,6 +82,7 @@ class FacilityBranch extends Model
         'facility_id',
         'governorate_id',
         'city_id',
+        'area_id',
         'latitude',
         'longitude',
         'google_location_url',
@@ -179,6 +184,48 @@ class FacilityBranch extends Model
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
+    }
+
+    private static ?bool $areaColumn = null;
+
+    private static function hasAreaColumn(): bool
+    {
+        return self::$areaColumn ??= Schema::hasColumn('facility_branches', 'area_id');
+    }
+
+    /**
+     * The neighbourhood / village unit inside the city, when known. Optional.
+     */
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * An area only means something inside its own city. Whoever moves a branch to
+     * another city — the form, an import, the AI place sweep — would otherwise
+     * leave the old city's area behind, so it is dropped here, once, for all of them.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $branch) {
+            // Code ships before its migration on this host: until `area_id` exists,
+            // leave it out of the write rather than fail every branch save.
+            if (! static::hasAreaColumn()) {
+                $branch->offsetUnset('area_id');
+
+                return;
+            }
+
+            if ($branch->area_id === null || ! $branch->isDirty(['city_id', 'area_id'])) {
+                return;
+            }
+
+            $areaCity = Area::query()->whereKey($branch->area_id)->value('city_id');
+            if ($areaCity === null || (int) $areaCity !== (int) $branch->city_id) {
+                $branch->area_id = null;
+            }
+        });
     }
 
     /**

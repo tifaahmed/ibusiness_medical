@@ -286,6 +286,23 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.client_error_logs || 'App Error Logs' }}</template>
                 </SidebarLink>
 
+                <SidebarLink
+                    v-if="isSuperAdmin"
+                    :href="route('admin.database-backup.index')"
+                    :active="route().current('admin.database-backup.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <ellipse cx="12" cy="5" rx="9" ry="3" stroke-width="2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.database_backup || 'Database Backups' }}</template>
+                </SidebarLink>
+
                 <!--
                     Enquiries from every public form: this site's contact page
                     and the Deilar storefront's contact form, card popup and
@@ -328,6 +345,38 @@ const getUserInitials = (name) => {
                         </svg>
                     </template>
                     <template #label>{{ t.sidebar?.governorates || 'Governorates' }}</template>
+                </SidebarLink>
+
+                <SidebarLink
+                    v-if="canAny('manage cities', 'view cities')"
+                    :href="route('admin.city.list')"
+                    :active="route().current('admin.city.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.cities || 'Cities' }}</template>
+                </SidebarLink>
+
+                <SidebarLink
+                    v-if="canAny('manage areas', 'view areas')"
+                    :href="route('admin.area.list')"
+                    :active="route().current('admin.area.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.areas || 'Areas' }}</template>
                 </SidebarLink>
 
                 <SidebarLink

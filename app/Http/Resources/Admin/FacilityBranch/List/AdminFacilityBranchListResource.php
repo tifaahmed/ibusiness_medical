@@ -48,6 +48,12 @@ class AdminFacilityBranchListResource extends JsonResource
                     'name' => $this->city->getTranslations('name'),
                 ] : null;
             }),
+            'area' => $this->whenLoaded('area', function () {
+                return $this->area ? [
+                    'id' => $this->area->id,
+                    'name' => $this->area->getTranslations('name'),
+                ] : null;
+            }),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'google_location_url' => $this->google_location_url,
