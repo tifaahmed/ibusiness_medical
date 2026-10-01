@@ -1,9 +1,32 @@
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
-import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { buildDebugLog, describeClientError, recordResponse } from '@/utils/errorTrack';
+
+// The exception a failed save's redirect flashed back (App\Support\ErrorTrace),
+// read once the error response has replaced the page props.
+const serverException = () => usePage().props?.flash?.error_debug || null;
+
+// A save that blew up in the browser never reaches laravel.log, so send it to
+// the client error log (/admin/client-error-logs).
+const reportClientError = (message, error, extra = {}) => {
+    try {
+        fetch('/api/v1/client-errors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+                message,
+                stack: error?.stack || String(error?.message || error || ''),
+                route: window.location.pathname,
+                fatal: false,
+                extra,
+            }),
+        }).catch(() => {});
+    } catch {
+        // Reporting must never break the form.
+    }
+};
 
 export const useFacilityStore = defineStore('facility', {
     state: () => ({
@@ -195,13 +218,14 @@ export const useFacilityStore = defineStore('facility', {
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
-                        recordResponse(this.debugLog, errors);
+                        recordResponse(this.debugLog, errors, null, serverException());
                         useNotification().error('Failed to create facility');
                     }
                 });
             } catch (error) {
                 console.error('Error submitting form:', error);
-                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
+                reportClientError('Facility create failed in the browser', error, { step: 'facility-create' });
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`, describeClientError(error));
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;
@@ -291,13 +315,14 @@ export const useFacilityStore = defineStore('facility', {
                     onError: (errors) => {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
-                        recordResponse(this.debugLog, errors);
+                        recordResponse(this.debugLog, errors, null, serverException());
                         useNotification().error('Failed to update facility');
                     }
                 });
             } catch (error) {
                 console.error('Error updating facility:', error);
-                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`);
+                reportClientError('Facility update failed in the browser', error, { step: 'facility-update', facility: this.form.slug || this.form.id });
+                recordResponse(this.debugLog, {}, `${error.name}: ${error.message}`, describeClientError(error));
                 useNotification().error('An unexpected error occurred');
             } finally {
                 this.isLoading = false;

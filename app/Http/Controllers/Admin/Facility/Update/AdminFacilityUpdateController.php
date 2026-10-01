@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Facility\UpdateFacilityRequest;
 use App\Models\Facility;
+use App\Support\ErrorTrace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -66,7 +67,7 @@ class AdminFacilityUpdateController extends BaseController
 
             return redirect()->to($redirectTo)
                 ->with('success', 'Facility updated successfully.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to update facility', [
                 'facility_slug' => $facility,
                 'error_message' => $e->getMessage(),
@@ -76,6 +77,7 @@ class AdminFacilityUpdateController extends BaseController
             ]);
 
             return back()->withErrors(['error' => 'Failed to update facility. Please try again.'])
+                ->with('error_debug', ErrorTrace::from($e))
                 ->withInput();
         }
     }

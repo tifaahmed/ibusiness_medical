@@ -111,6 +111,9 @@ class AdminFacilityEditController extends BaseController
             'governorates' => $governorates,
             'cities' => $cities,
             'tags' => $tags,
+            // For the "Quick add tag" popup on the form's Tags card.
+            'tagIconOptions' => \App\Enums\Tag\TagEnum::getIconOptions(),
+            'tagColorOptions' => \App\Enums\Tag\TagEnum::getColorOptions(),
             'salesOptions' => $salesOptions,
             'trashedManagers' => $trashedManagers,
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),

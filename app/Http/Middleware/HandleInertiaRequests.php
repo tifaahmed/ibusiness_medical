@@ -94,6 +94,9 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                // The exact exception behind a failed admin save, for the
+                // "Advanced Error Track" tab (App\Support\ErrorTrace).
+                'error_debug' => fn () => $request->session()->get('error_debug'),
             ],
             'translations' => [
                 'home' => __('home'),

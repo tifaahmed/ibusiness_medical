@@ -51,9 +51,26 @@ export const buildDebugLog = ({ method, url, fields, note = null, responseErrors
     return log;
 };
 
-/** Fill in the response half of an existing log once the server answers. */
-export const recordResponse = (debugLog, errors, note = null) => {
+/**
+ * Fill in the response half of an existing log once the server answers.
+ * `exception` is the server's own account of what broke — the
+ * `flash.error_debug` an admin controller sends with a caught exception
+ * (App\Support\ErrorTrace) — or a JS error caught client-side.
+ */
+export const recordResponse = (debugLog, errors, note = null, exception = null) => {
     if (!debugLog) return debugLog;
-    debugLog.response = { at: new Date().toISOString(), errors, note };
+    debugLog.response = { at: new Date().toISOString(), errors, note, exception };
     return debugLog;
 };
+
+/** A JS error, shaped like a server ErrorTrace so the dialog shows both alike. */
+export const describeClientError = (error) => ({
+    exception: error?.name || 'Error',
+    message: error?.message || String(error),
+    file: null,
+    line: null,
+    trace: String(error?.stack || '').split('\n').slice(1, 13).map((line) => line.trim()).filter(Boolean),
+    previous: null,
+    at: new Date().toISOString(),
+    client: true,
+});

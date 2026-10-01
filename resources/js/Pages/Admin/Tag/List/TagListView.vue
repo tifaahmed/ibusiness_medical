@@ -13,6 +13,19 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.tag?.management || 'Tags Management' }}</span>
               </div>
             </div>
+            <button
+              v-if="canWrite"
+              type="button"
+              class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border border-border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0"
+              :title="t.tag?.translations_fix_hint || 'Fix the Arabic and English names of tags with AI'"
+              @click="translationFixOpen = true"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+              </svg>
+              <span class="hidden sm:inline">{{ t.tag?.translations_fix || 'Fix translations with AI' }}</span>
+              <span class="sm:hidden">{{ t.tag?.translations_fix_short || 'AI fix' }}</span>
+            </button>
             <Link
               v-if="canWrite"
               :href="route('admin.tag.create')"
@@ -39,6 +52,7 @@
 
       <div class="flex-1 min-h-0 lg:min-h-fit w-full max-w-full px-2 sm:px-3 md:px-4 lg:px-6 pb-2 sm:pb-3 md:pb-4 lg:pb-6 overflow-hidden lg:overflow-visible">
         <TagListTable :tags="tags" @delete="handleDelete" />
+        <TagTranslationFixDialog :open="translationFixOpen" @close="translationFixOpen = false" />
       </div>
     </div>
   </TagLayout>
@@ -48,6 +62,7 @@
 import TagLayout from "../TagLayout.vue";
 import TagListFilterContent from "./TagListFilterContent.vue";
 import TagListTable from "./TagListTable.vue";
+import TagTranslationFixDialog from "./TagTranslationFixDialog.vue";
 import { useTagStore } from "../Stores/TagStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
@@ -58,6 +73,8 @@ const { canManage } = usePermissions();
 // and refused by the routes behind them either way.
 const canWrite = computed(() => canManage('manage own services', 'manage services'));
 
+
+const translationFixOpen = ref(false);
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});

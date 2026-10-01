@@ -604,6 +604,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Enhance with AI" on the description: same text, laid out with short
         // icon headings and bullets. Works on the open form, writes nothing.
         Route::post('/admin/facility/description/enhance', \App\Http\Controllers\Admin\Facility\Description\AdminFacilityDescriptionEnhanceController::class)->name('admin.facility.description.enhance');
+        // "Suggest with AI" on the banner card: ribbon message + colours fitted
+        // to the facility. Works on the open form, writes nothing.
+        Route::post('/admin/facility/banner/suggest', \App\Http\Controllers\Admin\Facility\Banner\AdminFacilityBannerSuggestController::class)->name('admin.facility.banner.suggest');
+        // Tags card: "Pick tags with AI" (chooses among existing tags, or
+        // proposes one new tag for the popup — writes nothing) and the
+        // "Quick add tag" popup, which creates the tag and answers JSON.
+        Route::post('/admin/facility/tag/suggest', \App\Http\Controllers\Admin\Facility\Tag\AdminFacilityTagSuggestController::class)->name('admin.facility.tag.suggest');
+        Route::post('/admin/facility/tag', \App\Http\Controllers\Admin\Facility\Tag\AdminFacilityTagQuickStoreController::class)->name('admin.facility.tag.quick-store');
         // Branch add/edit from the facility form's modal — writes the one branch
         // immediately and answers JSON (called via axios).
         Route::post('/admin/facility/{facility}/branch', \App\Http\Controllers\Admin\Facility\Branch\AdminFacilityBranchSaveController::class)->name('admin.facility.branch.save');
@@ -1035,6 +1043,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage services|manage own services')->group(function () {
         Route::get('/admin/tag/create', AdminTagCreateController::class)->name('admin.tag.create');
         Route::post('/admin/tag', AdminTagStoreController::class)->name('admin.tag.store');
+        // "Fix translations with AI": preview writes nothing, apply saves the ticked ones.
+        Route::post('/admin/tag/translations/preview', [\App\Http\Controllers\Admin\Tag\Translation\AdminTagTranslationFixController::class, 'preview'])->name('admin.tag.translations.preview');
+        Route::post('/admin/tag/translations/apply', [\App\Http\Controllers\Admin\Tag\Translation\AdminTagTranslationFixController::class, 'apply'])->name('admin.tag.translations.apply');
         Route::get('/admin/tag/{tag}/edit', AdminTagEditController::class)->name('admin.tag.edit');
         Route::put('/admin/tag/{tag}', AdminTagUpdateController::class)->name('admin.tag.update');
         Route::delete('/admin/tag/{tag}', AdminTagDeleteController::class)->name('admin.tag.destroy');

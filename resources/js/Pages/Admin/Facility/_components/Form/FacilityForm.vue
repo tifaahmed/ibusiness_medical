@@ -113,6 +113,25 @@
           </svg>
           {{ t.facility?.banner || 'Banner' }}
         </div>
+        <div data-slot="card-action" class="col-start-2 row-span-2 row-start-1 self-start justify-self-end">
+          <button
+            type="button"
+            :disabled="suggestingBanner"
+            class="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+            :title="t.facility?.banner_suggest_hint || 'Suggest a short ribbon message and colours that suit this facility'"
+            @click="suggestBanner"
+          >
+            <svg v-if="suggestingBanner" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+            </svg>
+            {{ suggestingBanner
+              ? (t.facility?.banner_suggesting || 'Suggesting…')
+              : (t.facility?.banner_suggest || 'Suggest with AI') }}
+          </button>
+        </div>
       </div>
       <div data-slot="card-content" class="px-6 space-y-4">
         <!-- Enable Toggle -->
@@ -350,16 +369,54 @@
           </svg>
           {{ t.service?.tags || 'Tags' }}
         </div>
+        <div data-slot="card-action" class="col-start-2 row-span-2 row-start-1 self-start justify-self-end flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            :disabled="suggestingTags"
+            class="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+            :title="t.facility?.tag_suggest_hint || 'Select the existing tags that suit this facility; if none fits, suggest a new one'"
+            @click="suggestTags"
+          >
+            <svg v-if="suggestingTags" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+            </svg>
+            {{ suggestingTags
+              ? (t.facility?.tag_suggesting || 'Choosing…')
+              : (t.facility?.tag_suggest || 'Pick best tags with AI') }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted"
+            @click="openQuickTag(null)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            {{ t.facility?.tag_quick_add || 'Quick add tag' }}
+          </button>
+        </div>
       </div>
+      <FacilityTagQuickAddDialog
+        :open="quickTagOpen"
+        :initial="quickTagInitial"
+        :icon-options="page.props.tagIconOptions || []"
+        :color-options="page.props.tagColorOptions || []"
+        @close="quickTagOpen = false"
+        @created="onTagCreated"
+      />
       <div data-slot="card-content" class="px-6">
         <div>
           <label class="block text-sm font-medium text-white mb-2">
             {{ t.service?.tags || 'Tags' }}
             <span v-if="facilityStore.validationErrors?.tag_ids" class="text-destructive ml-2 text-xs">{{ facilityStore.validationErrors.tag_ids }}</span>
           </label>
-          <div v-if="tags.length > 0" class="flex flex-wrap gap-2">
+          <div v-if="tagList.length > 0" class="flex flex-wrap gap-2">
             <button
-              v-for="tagItem in tags"
+              v-for="tagItem in tagList"
               :key="tagItem.id"
               type="button"
               @click="toggleTag(tagItem.id)"
@@ -615,6 +672,7 @@
 import { FormTranslatableInput, FormTranslatableQuillEditor, FormSelect, FormSearchableSelect, FormInput } from "@/Components/form";
 import ImageFileInput from "@/Components/form/ImageFileInput.vue";
 import ContractFileInput from "@/Components/form/ContractFileInput.vue";
+import FacilityTagQuickAddDialog from "./FacilityTagQuickAddDialog.vue";
 import { useFacilityStore } from "../../Stores/FacilityStore";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -770,6 +828,71 @@ const toggleBanner = (e) => {
   form.value.banner_config = { ...current, enabled: e.target.checked };
 };
 
+/* ---- Suggest the banner with AI --------------------------------------------
+   A short Arabic/English ribbon message and its colours, fitted to the facility
+   as typed in the form. Size, angle and days stay as they are; nothing is saved
+   until the admin saves the form. Pressing again asks for a different one.
+--------------------------------------------------------------------------- */
+const suggestingBanner = ref(false);
+
+const reportBannerError = (message, error, extra = {}) => {
+  try {
+    fetch('/api/v1/client-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        message,
+        stack: error?.stack || String(error?.message || error || ''),
+        route: window.location.pathname,
+        fatal: false,
+        extra: { step: 'facility-banner-suggest', facility_id: props.facility?.id ?? null, ...extra },
+      }),
+    }).catch(() => {});
+  } catch {
+    // Reporting is never worth a second error.
+  }
+};
+
+const suggestBanner = async () => {
+  if (suggestingBanner.value) return;
+
+  suggestingBanner.value = true;
+  try {
+    const type = props.facilityTypes.find(item => String(item.id) === String(form.value.facility_type_id));
+    const { data } = await axios.post(route('admin.facility.banner.suggest'), {
+      name: { ar: nameIn(form.value.name, 'ar'), en: nameIn(form.value.name, 'en') },
+      facility_type: type ? bilingualLabel(type.name, 'en') : null,
+      discount_percent: form.value.discount_percent || null,
+      description: { ar: formDescription.value.ar || '', en: formDescription.value.en || '' },
+      current: bannerEnabled.value
+        ? { ar: bannerConfig.value.message_ar || '', en: bannerConfig.value.message_en || '' }
+        : null,
+    });
+
+    const values = data?.values || {};
+    if (!values.message_ar || !values.message_en) throw new Error('empty banner suggestion');
+
+    form.value.banner_config = { ...bannerConfig.value, ...values, enabled: true };
+
+    useNotification().success(
+      t.value.facility?.banner_suggested || 'Banner suggested. Check the preview before saving.'
+    );
+  } catch (error) {
+    const status = error?.response?.status;
+    // A 422 is the AI or its key talking (already logged server-side); anything
+    // else is a broken request worth seeing in the client error log.
+    if (status !== 422) {
+      reportBannerError('Facility banner suggestion failed', error, { status: status ?? null });
+    }
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value.facility?.banner_suggest_failed || 'Could not suggest a banner. Please try again.')
+    );
+  } finally {
+    suggestingBanner.value = false;
+  }
+};
+
 const updateBannerConfig = (key, value) => {
   const current = bannerConfig.value;
   form.value.banner_config = { ...current, [key]: value };
@@ -872,6 +995,98 @@ const salesSelectOptions = computed(() =>
     label: bilingualLabel(option.name || option.label, locale.value),
   }))
 );
+
+/* ---- Tags: quick add + AI pick ----------------------------------------------
+   The chip list is a local copy of the `tags` prop so a tag created from the
+   popup shows up (ticked) without reloading the page. "Pick best tags with AI"
+   ticks the existing tags that suit the facility; when none does, it opens the
+   popup prefilled with the one new tag the AI proposed. Nothing is saved to the
+   facility until the form is saved — only the new tag itself is created.
+--------------------------------------------------------------------------- */
+const tagList = ref([...props.tags]);
+watch(() => props.tags, (value) => {
+  const created = tagList.value.filter(tag => !value.some(item => item.id === tag.id));
+  tagList.value = [...value, ...created];
+});
+
+const quickTagOpen = ref(false);
+const quickTagInitial = ref(null);
+const suggestingTags = ref(false);
+
+const openQuickTag = (initial) => {
+  quickTagInitial.value = initial;
+  quickTagOpen.value = true;
+};
+
+const onTagCreated = (tag) => {
+  quickTagOpen.value = false;
+  if (!tag?.id) return;
+  if (!tagList.value.some(item => item.id === tag.id)) tagList.value.push(tag);
+  if (!isTagSelected(tag.id)) toggleTag(tag.id);
+  useNotification().success(t.value.facility?.tag_quick_added || 'Tag added and selected. Save the facility to keep it.');
+};
+
+const reportTagError = (message, error, extra = {}) => {
+  try {
+    fetch('/api/v1/client-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        message,
+        stack: error?.stack || String(error?.message || error || ''),
+        route: window.location.pathname,
+        fatal: false,
+        extra: { step: 'facility-tag-suggest', facility_id: props.facility?.id ?? null, ...extra },
+      }),
+    }).catch(() => {});
+  } catch {
+    // Reporting is never worth a second error.
+  }
+};
+
+const suggestTags = async () => {
+  if (suggestingTags.value) return;
+  suggestingTags.value = true;
+
+  try {
+    const type = props.facilityTypes.find(item => String(item.id) === String(form.value.facility_type_id));
+    const { data } = await axios.post(route('admin.facility.tag.suggest'), {
+      name: { ar: nameIn(form.value.name, 'ar'), en: nameIn(form.value.name, 'en') },
+      facility_type: type ? bilingualLabel(type.name, 'en') : null,
+      description: { ar: formDescription.value.ar || '', en: formDescription.value.en || '' },
+      tag_ids: form.value.tag_ids || [],
+    });
+
+    const ids = (data?.tag_ids || []).filter(id => tagList.value.some(tag => tag.id === id));
+    const added = ids.filter(id => !isTagSelected(id));
+    added.forEach(id => toggleTag(id));
+
+    if (ids.length) {
+      useNotification().success(
+        added.length
+          ? (t.value.facility?.tag_suggested || ':count suitable tag(s) selected. Review them before saving.').replace(':count', added.length)
+          : (t.value.facility?.tag_suggested_already || 'The suitable tags are already selected.')
+      );
+    } else if (data?.new_tag) {
+      // Nothing that exists fits: offer the best new tag instead.
+      openQuickTag(data.new_tag);
+    } else {
+      useNotification().warning(t.value.facility?.tag_suggest_none || 'No suitable tag found. Add one with "Quick add tag".');
+      openQuickTag(null);
+    }
+  } catch (error) {
+    const status = error?.response?.status;
+    if (status !== 422) {
+      reportTagError('Facility tag suggestion failed', error, { status: status ?? null });
+    }
+    useNotification().error(
+      error?.response?.data?.message
+      || (t.value.facility?.tag_suggest_failed || 'Could not pick tags. Please try again.')
+    );
+  } finally {
+    suggestingTags.value = false;
+  }
+};
 
 const isTagSelected = (id) => (facilityStore.form.tag_ids || []).includes(id);
 

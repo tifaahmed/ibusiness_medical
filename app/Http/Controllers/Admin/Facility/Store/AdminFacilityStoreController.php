@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Facility\Store;
 use App\Http\Controllers\Admin\Facility\Actions\Store\StoreFacilityAction;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Facility\StoreFacilityRequest;
+use App\Support\ErrorTrace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -38,15 +39,16 @@ class AdminFacilityStoreController extends BaseController
 
             return redirect()->route('admin.facility.list')
                 ->with('success', 'Facility created successfully.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to create facility', [
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to create facility. Please try again.'])
+                ->with('error_debug', ErrorTrace::from($e))
                 ->withInput();
         }
     }

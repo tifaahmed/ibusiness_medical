@@ -7,7 +7,10 @@
       aria-modal="true"
       @click.self="close"
     >
-      <div class="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
+      <div
+        class="w-full overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl"
+        :class="tab === 'advanced' ? 'max-w-2xl' : 'max-w-lg'"
+      >
         <div class="flex items-start gap-3 border-b border-border p-4">
           <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -18,9 +21,11 @@
           <div class="min-w-0">
             <h2 class="text-base font-semibold">{{ title }}</h2>
             <p class="text-xs text-muted-foreground">
-              {{ rows.length
-                ? `${rows.length} problem(s) stopped the save. Fix them and submit again.`
-                : 'The save failed with no field-level message — see Advanced Error Track.' }}
+              {{ exception
+                ? 'The server could not save this — the exact cause is under Advanced Error Track.'
+                : rows.length
+                  ? `${rows.length} problem(s) stopped the save. Fix them and submit again.`
+                  : 'The save failed with no field-level message — see Advanced Error Track.' }}
             </p>
           </div>
           <button
@@ -54,10 +59,12 @@
             @click="tab = 'advanced'"
           >
             Advanced Error Track
+            <span v-if="exception" class="ms-1 inline-block h-1.5 w-1.5 rounded-full bg-destructive align-middle"></span>
           </button>
         </div>
 
-        <ul v-if="tab === 'errors'" class="max-h-[60vh] divide-y divide-border overflow-y-auto">
+        <div v-if="tab === 'errors'" class="max-h-[60vh] overflow-y-auto">
+        <ul class="divide-y divide-border">
           <li v-for="row in rows" :key="`${row.key}-${row.message}`">
             <button
               type="button"
@@ -69,11 +76,51 @@
             </button>
           </li>
         </ul>
+        <!-- A caught server exception only ever reaches the form as a polite
+             "Failed to … try again", which says nothing about the cause. -->
+        <button
+          v-if="exception"
+          type="button"
+          class="flex w-full items-center gap-2 border-t border-border bg-destructive/5 p-3 text-start text-xs text-muted-foreground transition hover:bg-destructive/10"
+          @click="tab = 'advanced'"
+        >
+          <span class="font-semibold text-destructive">{{ shortName(exception.exception) }}</span>
+          <span class="min-w-0 flex-1 truncate">{{ exception.message }}</span>
+          <span class="shrink-0 font-medium text-foreground">See exact cause →</span>
+        </button>
+        </div>
 
         <!-- The full trace: exactly what the last submit sent and what the
              server sent back, so a failure can be handed to a programmer
              as a complete record instead of a description of the symptom. -->
         <div v-else class="max-h-[60vh] space-y-3 overflow-y-auto p-3 text-xs">
+          <!-- What actually broke: the server's caught exception
+               (App\Support\ErrorTrace, flashed as flash.error_debug) or the
+               JS error that stopped the submit in the browser. -->
+          <div v-if="exception" class="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+            <p class="mb-1 flex flex-wrap items-center gap-2 font-semibold text-destructive">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path>
+              </svg>
+              {{ exception.client ? 'Error in the browser' : 'Error on the server' }}
+              <code class="rounded bg-background/60 px-1.5 py-0.5 font-mono text-[11px] font-normal text-foreground">{{ exception.exception }}</code>
+            </p>
+            <pre class="max-h-40 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-foreground">{{ exception.message }}</pre>
+            <p v-if="exception.file" class="mt-2 font-mono text-[11px] text-muted-foreground">
+              at {{ exception.file }}<span v-if="exception.line">:{{ exception.line }}</span>
+            </p>
+            <p v-if="exception.previous" class="mt-2 text-[11px] text-muted-foreground">
+              Caused by <code class="font-mono">{{ exception.previous.exception }}</code>: {{ exception.previous.message }}
+            </p>
+            <details v-if="exception.trace?.length" class="mt-2">
+              <summary class="cursor-pointer text-[11px] font-medium text-muted-foreground hover:text-foreground">
+                Stack trace ({{ exception.trace.length }} frames)
+              </summary>
+              <ol class="mt-1 space-y-0.5 font-mono text-[11px] text-muted-foreground">
+                <li v-for="(frame, index) in exception.trace" :key="index" class="break-all">{{ frame }}</li>
+              </ol>
+            </details>
+          </div>
           <div>
             <p class="mb-1 font-semibold text-muted-foreground">
               Sent to server
@@ -87,7 +134,7 @@
             <pre
               v-if="debugLog?.response"
               class="max-h-56 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words"
-            >{{ formatted(debugLog.response) }}</pre>
+            >{{ formatted(responseWithoutException) }}</pre>
             <p v-else class="text-muted-foreground">Waiting on a response…</p>
           </div>
         </div>
@@ -177,6 +224,17 @@ const labelFor = (key) => {
 
 const tab = ref('errors');
 
+const exception = computed(() => props.debugLog?.response?.exception || null);
+
+// The exception gets its own panel above, so the raw dump skips it.
+const responseWithoutException = computed(() => {
+  if (!props.debugLog?.response) return null;
+  const { exception: _ignored, ...rest } = props.debugLog.response;
+  return rest;
+});
+
+const shortName = (className) => String(className || '').split('\\').pop();
+
 // Land on whichever tab actually has something to show: a submit that failed
 // with no field-level messages (a raw exception, a network drop) would
 // otherwise open on an empty "Errors" list.
@@ -207,7 +265,8 @@ const copyAll = async () => {
         formatted(props.debugLog?.request?.fields),
         '',
         'Received from server:',
-        formatted(props.debugLog?.response),
+        formatted(responseWithoutException.value),
+        ...(exception.value ? ['', 'Exception:', formatted(exception.value)] : []),
       ].join('\n')
     : rows.value.map((row) => `${labelFor(row.key)}: ${row.message}`).join('\n');
   try {
