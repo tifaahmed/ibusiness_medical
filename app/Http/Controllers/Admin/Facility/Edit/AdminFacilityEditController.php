@@ -88,7 +88,7 @@ class AdminFacilityEditController extends BaseController
                 'name' => $sale->nameTranslations(),
             ])->toArray();
 
-        $tags = Tag::forPicker();
+        $tags = Tag::forPicker('facilities', $facility->tags->pluck('id')->all());
 
         // Managers removed from the form (directly, or cascaded with a
         // now-restored facility) — offered back on the edit page rather than

@@ -50,6 +50,7 @@ export const useFacilityStore = defineStore('facility', {
             tag_ids: [],
             gallery: [],
             gallery_delete: [],
+            editor_gallery_paths: [],
             contract: null,
             contract_delete: false,
         }),
@@ -81,6 +82,7 @@ export const useFacilityStore = defineStore('facility', {
                 tag_ids: [],
                 gallery: [],
                 gallery_delete: [],
+                editor_gallery_paths: [],
                 contract: null,
                 contract_delete: false,
             });
@@ -99,6 +101,7 @@ export const useFacilityStore = defineStore('facility', {
             this.form.og_image_delete = false;
             this.form.gallery = [];
             this.form.gallery_delete = [];
+            this.form.editor_gallery_paths = [];
             this.form.contract = null;
             this.form.contract_delete = false;
         },
@@ -144,6 +147,7 @@ export const useFacilityStore = defineStore('facility', {
                 mobile_image: null,
                 gallery: [],
                 gallery_delete: [],
+                editor_gallery_paths: [],
                 contract: null,
                 contract_delete: false,
             });

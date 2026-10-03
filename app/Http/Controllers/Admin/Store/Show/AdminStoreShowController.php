@@ -12,7 +12,7 @@ class AdminStoreShowController extends BaseController
 {
     public function __invoke(Store $store): Response
     {
-        $store->load(['branches.governorate', 'branches.city', 'galleries', 'creator:id,name,email'])
+        $store->load(['branches.governorate', 'branches.city', 'galleries', 'creator:id,name,email', 'categories:id,name'])
             ->loadCount('products');
 
         return Inertia::render('Admin/Store/Show', [
@@ -21,7 +21,14 @@ class AdminStoreShowController extends BaseController
                 'title' => $store->getTranslations('title'),
                 'description' => $store->getTranslations('description'),
                 'short_description' => $store->getTranslations('short_description'),
+                'categories' => $store->categories->map(fn ($c) => $c->getTranslations('name'))->values(),
                 'youtube_link' => $store->youtube_link,
+                'online_only' => (bool) $store->online_only,
+                'websites' => $store->websites ?? [],
+                'app_store_url' => $store->app_store_url,
+                'google_play_url' => $store->google_play_url,
+                'social_links' => $store->social_links ?? [],
+                'coupons' => $store->coupons ?? [],
                 'offer_percent_from' => $store->offer_percent_from,
                 'offer_percent_to' => $store->offer_percent_to,
                 'logo' => $store->logo,

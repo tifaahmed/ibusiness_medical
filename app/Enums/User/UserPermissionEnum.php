@@ -84,6 +84,10 @@ enum UserPermissionEnum
 
     public const MANAGE_OWN_PRODUCTS = 'manage own products';
 
+    public const MANAGE_STORE_CATEGORIES = 'manage store categories';
+
+    public const MANAGE_OWN_STORE_CATEGORIES = 'manage own store categories';
+
     public const MANAGE_STORES = 'manage stores';
 
     public const MANAGE_OWN_STORES = 'manage own stores';
@@ -199,6 +203,8 @@ enum UserPermissionEnum
 
     public const VIEW_PRODUCTS = 'view products';
 
+    public const VIEW_STORE_CATEGORIES = 'view store categories';
+
     public const VIEW_STORES = 'view stores';
 
     public const VIEW_ORDERS = 'view orders';
@@ -291,6 +297,7 @@ enum UserPermissionEnum
             [self::MANAGE_FACILITY_BRANCHES, self::MANAGE_OWN_FACILITY_BRANCHES],
             [self::MANAGE_PRODUCT_TYPES, self::MANAGE_OWN_PRODUCT_TYPES],
             [self::MANAGE_PRODUCTS, self::MANAGE_OWN_PRODUCTS],
+            [self::MANAGE_STORE_CATEGORIES, self::MANAGE_OWN_STORE_CATEGORIES],
             [self::MANAGE_STORES, self::MANAGE_OWN_STORES],
             [self::MANAGE_ORDERS, self::MANAGE_OWN_ORDERS],
             [self::MANAGE_GOVERNORATES, self::MANAGE_OWN_GOVERNORATES],
@@ -329,6 +336,7 @@ enum UserPermissionEnum
             self::VIEW_AREAS,
             self::VIEW_PRODUCT_TYPES,
             self::VIEW_PRODUCTS,
+            self::VIEW_STORE_CATEGORIES,
             self::VIEW_STORES,
             self::VIEW_ORDERS,
             self::VIEW_SERVICES,

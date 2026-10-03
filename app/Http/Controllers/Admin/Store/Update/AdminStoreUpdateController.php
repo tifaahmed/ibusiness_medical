@@ -27,15 +27,40 @@ class AdminStoreUpdateController extends BaseController
                 'description' => $validated['description'] ?? null,
                 'short_description' => $validated['short_description'] ?? null,
                 'youtube_link' => $validated['youtube_link'] ?? null,
+                'online_only' => (bool) ($validated['online_only'] ?? false),
+                'websites' => $validated['websites'] ?? [],
+                'app_store_url' => $validated['app_store_url'] ?? null,
+                'google_play_url' => $validated['google_play_url'] ?? null,
+                'social_links' => $validated['social_links'] ?? [],
+                'coupons' => $validated['coupons'] ?? [],
+                'meta_title' => array_filter($validated['meta_title'] ?? []) ?: null,
+                'meta_description' => array_filter($validated['meta_description'] ?? []) ?: null,
+                'meta_keywords' => array_filter($validated['meta_keywords'] ?? []) ?: null,
+                'supports_shipping' => $validated['supports_shipping'] ?? false,
+                'ships_everywhere' => $validated['ships_everywhere'] ?? true,
                 'offer_percent_from' => $validated['offer_percent_from'] ?? null,
                 'offer_percent_to' => $validated['offer_percent_to'] ?? null,
             ]);
+
+            $store->categories()->sync($validated['category_ids'] ?? []);
+            $store->tags()->sync($validated['tag_ids'] ?? []);
+            $store->shippingGovernorates()->sync($validated['shipping_governorate_ids'] ?? []);
 
             if (! empty($validated['logo'])) {
                 $store->addMedia($validated['logo'])->toMediaCollection('logo');
             } elseif (filter_var($validated['logo_delete'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $store->clearMediaCollection('logo');
             }
+
+            if (! empty($validated['seo_image'])) {
+                $store->clearMediaCollection('seo_image');
+                $store->addMedia($validated['seo_image'])->toMediaCollection('seo_image');
+            } elseif (filter_var($validated['seo_image_delete'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $store->clearMediaCollection('seo_image');
+            }
+            // Still none (never set, or just removed): a separate copy of the logo.
+            $store->unsetRelation('media');
+            $store->ensureSeoImage();
 
             if (! empty($validated['header'])) {
                 $store->addMedia($validated['header'])->toMediaCollection('header');
@@ -94,12 +119,20 @@ class AdminStoreUpdateController extends BaseController
                 ]);
             }
 
+            $store->attachEditorImages($validated['editor_gallery_paths'] ?? []);
+
             DB::commit();
 
             Log::info('Store updated successfully', [
                 'store_id' => $store->id,
                 'store_slug' => $store->slug,
             ]);
+
+            // "Save & stay" sends `stay`: land back on the edit form.
+            if ($request->boolean('stay')) {
+                return redirect()->route('admin.store.edit', $store)
+                    ->with('success', 'Store updated successfully.');
+            }
 
             return redirect()->route('admin.store.list')
                 ->with('success', 'Store updated successfully.');

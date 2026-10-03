@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\User\UserPermissionEnum;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
@@ -29,6 +30,15 @@ class EnsureAdminAreaAccess
 
         if (! $user) {
             throw new AccessDeniedHttpException('This action is unauthorized.');
+        }
+
+        /* Checked before permissions: a blocked account is refused whatever it holds. */
+        if ($user->dashboard_blocked_at !== null) {
+            Log::warning('Blocked user refused at admin area', [
+                'user_id' => $user->id,
+                'route' => $request->path(),
+            ]);
+            throw new AccessDeniedHttpException('Your access to the dashboard has been blocked.');
         }
 
         $adminPermissions = array_diff(UserPermissionEnum::all(), [UserPermissionEnum::MANAGE_PROFILE]);

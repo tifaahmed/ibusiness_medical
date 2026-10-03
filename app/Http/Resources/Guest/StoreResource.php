@@ -21,6 +21,26 @@ class StoreResource extends JsonResource
             'short_description' => $this->short_description,
             'description' => $this->description,
             'youtube_link' => $this->youtube_link,
+            'online_only' => (bool) $this->online_only,
+            'websites' => $this->websites ?? [],
+            'app_store_url' => $this->app_store_url,
+            'google_play_url' => $this->google_play_url,
+            'social_links' => $this->social_links ?? [],
+            // Expired coupons are not offered to the storefront.
+            'coupons' => collect($this->coupons ?? [])
+                ->filter(fn ($c) => empty($c['expires_at']) || \Illuminate\Support\Carbon::parse($c['expires_at'])->endOfDay()->isFuture())
+                ->values(),
+            'supports_shipping' => (bool) $this->supports_shipping,
+            'ships_everywhere' => (bool) $this->ships_everywhere,
+            'shipping_governorates' => (! $this->supports_shipping || $this->ships_everywhere) ? [] : $this->resource->loadMissing('shippingGovernorates')->shippingGovernorates->map(fn ($g) => ['id' => $g->id, 'name' => $g->name])->values(),
+            'seo' => [
+                'meta_title' => $this->meta_title,
+                'meta_description' => $this->meta_description,
+                'meta_keywords' => $this->meta_keywords,
+                // Falls back to the logo when no SEO image was ever filed.
+                'image' => $this->seo_image ?: $this->logo,
+            ],
+            'categories' => $this->resource->loadMissing('categories:id,slug,name')->categories->map->only(['id', 'slug', 'name'])->values(),
             'logo' => $this->logo,
             'mobile_logo' => $this->mobile_logo,
             'image' => $this->image,

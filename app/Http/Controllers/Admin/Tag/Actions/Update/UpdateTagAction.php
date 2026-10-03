@@ -21,6 +21,10 @@ class UpdateTagAction
             $updates['color'] = $validated['color'];
         }
 
+        if (isset($validated['applies_to'])) {
+            $updates['applies_to'] = array_values($validated['applies_to']);
+        }
+
         if (!empty($updates)) {
             $tag->update($updates);
         }

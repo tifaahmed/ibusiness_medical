@@ -26,7 +26,7 @@ class UpdateProductRequest extends FormRequest
             'cost_price' => 'nullable|numeric|min:0',
             'profit_price' => 'nullable|numeric|min:0',
             'product_type_id' => 'nullable|exists:product_types,id',
-            'store_id' => 'nullable|exists:stores,id',
+            'store_id' => 'required|exists:stores,id',
             /*
              * The three storefront switches. Nullable because a multipart form
              * that leaves one out means "unchanged"; the actions below coerce
@@ -78,6 +78,7 @@ class UpdateProductRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'store_id.required' => 'Choose the store this product is sold under.',
             'name.required' => 'The name field is required.',
             'name.array' => 'The name must be an array.',
             'name.*.required' => 'Each language name is required.',

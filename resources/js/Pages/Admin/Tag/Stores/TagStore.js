@@ -9,6 +9,8 @@ const emptyForm = () => ({
     name: {},
     icon: '',
     color: '',
+    // Which kinds of record the tag can be attached to.
+    applies_to: ['facilities', 'products', 'stores'],
 });
 
 /**
@@ -64,6 +66,7 @@ export const useTagStore = defineStore('tag', {
                 name: nameObject(tag.name),
                 icon: tag.icon || '',
                 color: tag.color || '',
+                applies_to: Array.isArray(tag.applies_to) && tag.applies_to.length ? tag.applies_to : ['facilities', 'products', 'stores'],
             });
             this.validationErrors = null;
         },

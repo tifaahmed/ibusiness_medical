@@ -32,11 +32,16 @@ class AdminTagListController extends BaseController
         $sort = $request->input('sort', 'newest');
         // '', '1' = attached somewhere, '0' = never used.
         $used = $request->input('used', '');
+        // '' = any, otherwise a TagTargetEnum value (facilities / products / stores).
+        $appliesTo = (string) $request->input('applies_to', '');
+        if (! in_array($appliesTo, \App\Enums\Tag\TagTargetEnum::values(), true)) {
+            $appliesTo = '';
+        }
 
         $tags = Tag::query()
             ->with(['creator:id,name,email'])
             ->tap(fn ($q) => $this->applyCreatorScope($q))
-            ->withCount(['services', 'facilities', 'products'])
+            ->withCount(['services', 'facilities', 'products', 'stores'])
             ->when($search, function ($q) use ($search) {
                 // Both names are listed, so both are searchable.
                 $q->where(function ($query) use ($search) {
@@ -44,21 +49,25 @@ class AdminTagListController extends BaseController
                         ->orWhere('name->ar', 'like', "%$search%");
                 });
             })
+            ->when($appliesTo !== '', fn ($q) => $q->whereJsonContains('applies_to', $appliesTo))
             ->when($used === '1', fn ($q) => $q->where(function ($qq) {
                 $qq->whereHas('services')
                     ->orWhereHas('facilities')
-                    ->orWhereHas('products');
+                    ->orWhereHas('products')
+                    ->orWhereHas('stores');
             }))
             ->when($used === '0', fn ($q) => $q
                 ->doesntHave('services')
                 ->doesntHave('facilities')
-                ->doesntHave('products'))
+                ->doesntHave('products')
+                ->doesntHave('stores'))
             // Total usage across all three pivots; id as tiebreaker for stable pages.
             ->when($sort === 'most_used' || $sort === 'least_used', function ($q) use ($sort) {
                 $direction = $sort === 'most_used' ? 'desc' : 'asc';
                 $usage = '(select count(*) from service_tag where service_tag.tag_id = tags.id)'
                     . ' + (select count(*) from facility_tag where facility_tag.tag_id = tags.id)'
-                    . ' + (select count(*) from product_tag where product_tag.tag_id = tags.id)';
+                    . ' + (select count(*) from product_tag where product_tag.tag_id = tags.id)'
+                    . ' + (select count(*) from store_tag where store_tag.tag_id = tags.id)';
                 $q->orderByRaw("$usage $direction")->orderByDesc('tags.id');
             })
             ->when($sort !== 'most_used' && $sort !== 'least_used', fn ($q) => $q->latest())
@@ -67,7 +76,8 @@ class AdminTagListController extends BaseController
 
         return Inertia::render('Admin/Tag/List', [
             'tags' => new AdminTagListCollection($tags)->toArray($request),
-            'filters' => ['search' => $search, 'sort' => $sort, 'used' => $used],
+            'filters' => ['search' => $search, 'sort' => $sort, 'used' => $used, 'applies_to' => $appliesTo],
+            'targetOptions' => \App\Enums\Tag\TagTargetEnum::getOptions(),
         ]);
     }
 }

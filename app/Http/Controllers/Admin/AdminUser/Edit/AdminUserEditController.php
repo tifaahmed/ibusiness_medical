@@ -28,7 +28,7 @@ class AdminUserEditController extends Controller
             ->get()
             ->map(fn (Role $r) => [
                 'name' => $r->name,
-                'permissions' => $r->permissions->pluck('name')->values()->all(),
+                'permissions' => $r->permissions->pluck('name')->intersect(UserPermissionEnum::all())->values()->all(),
                 'description' => UserRoleEnum::descriptionFor($r->name),
             ])
             ->values();
@@ -44,9 +44,12 @@ class AdminUserEditController extends Controller
                 'name' => $adminUser->name,
                 'email' => $adminUser->email,
                 'partner_id' => $adminUser->partner_id,
+                'dashboard_blocked' => $adminUser->dashboard_blocked_at !== null,
                 'email_verified' => $adminUser->email_verified_at !== null,
                 'roles' => $adminUser->getRoleNames()->values(),
-                'direct_permissions' => $adminUser->permissions->pluck('name')->values(),
+                // Stale rows (e.g. the retired "manage own contact messages") are not in the enum;
+                // offering them back would fail the `in` rule on save.
+                'direct_permissions' => $adminUser->permissions->pluck('name')->intersect(UserPermissionEnum::all())->values(),
             ],
             'assignable_roles' => $assignableRoles,
             'all_permissions' => UserPermissionEnum::all(),

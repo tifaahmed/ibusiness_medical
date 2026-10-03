@@ -48,11 +48,29 @@ class CardTemplate extends Model
         'status',
         'card_empty',
         'sample_card',
+        'back_image',
+        'back_logo',
+        'back_settings',
         'layout',
         'sample_data',
     ];
 
-    protected $appends = ['card_empty_url', 'sample_card_url', 'hidden_fields'];
+    protected $appends = ['card_empty_url', 'sample_card_url', 'hidden_fields', 'back_url', 'back_config', 'back_image_url', 'back_logo_url'];
+
+    /**
+     * What the back shows until an admin says otherwise. Every piece can be
+     * hidden; the logo and background are uploads on the template.
+     */
+    public const BACK_DEFAULTS = [
+        'enabled' => false,
+        // x/y/width/height are fractions of the card, like the front layout;
+        // font_size is pixels on a 700px-wide card (CardTemplateLayoutDefaults::EDITOR_WIDTH).
+        'logo' => ['visible' => true, 'x' => 0.30, 'y' => 0.08, 'width' => 0.40, 'height' => 0.46],
+        'slogan' => ['visible' => true, 'text' => '', 'color' => '#1b2a4e', 'direction' => 'center', 'font_size' => 18.7, 'x' => 0.20, 'y' => 0.555, 'width' => 0.60, 'height' => 0.07],
+        'title' => ['visible' => true, 'text' => 'Family Card', 'color' => '#14213d', 'direction' => 'center', 'font_size' => 31.7, 'x' => 0.20, 'y' => 0.65, 'width' => 0.60, 'height' => 0.10],
+        'website' => ['visible' => true, 'text' => 'deilar.com', 'color' => '#9a6a1f', 'direction' => 'center', 'font_size' => 28, 'x' => 0.20, 'y' => 0.76, 'width' => 0.60, 'height' => 0.08],
+        'qrcode' => ['visible' => false, 'value' => 'https://deilar.com', 'x' => 0.834, 'y' => 0.74, 'width' => 0.126, 'height' => 0.20],
+    ];
 
     protected function casts(): array
     {
@@ -60,6 +78,7 @@ class CardTemplate extends Model
             'status' => CardTemplateStatusEnum::class,
             'layout' => 'array',
             'sample_data' => 'array',
+            'back_settings' => 'array',
         ];
     }
 
@@ -82,6 +101,51 @@ class CardTemplate extends Model
                 app(CardGenerationService::class)->invalidateCachesFor($template);
             }
         });
+    }
+
+    /**
+     * The back's settings with every default filled in.
+     *
+     * @return array<string, mixed>
+     */
+    public function resolvedBackConfig(): array
+    {
+        return array_replace_recursive(self::BACK_DEFAULTS, $this->back_settings ?? []);
+    }
+
+    public function hasCustomBack(): bool
+    {
+        return (bool) ($this->resolvedBackConfig()['enabled'] ?? false);
+    }
+
+    protected function backConfig(): Attribute
+    {
+        return Attribute::make(get: fn () => $this->resolvedBackConfig());
+    }
+
+    /**
+     * Where every consumer (guest page, admin membership page, downloads) loads
+     * the back from. The version changes whenever the settings or the uploads
+     * do, so a browser never keeps showing a stale back. Null = no custom back,
+     * and callers fall back to the shipped artwork.
+     */
+    protected function backUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->hasCustomBack() && $this->exists
+                ? route('card-template.back', ['cardTemplate' => $this->id, 'v' => app(\App\Services\CardBackRenderer::class)->signature($this)], false)
+                : null,
+        );
+    }
+
+    protected function backImageUrl(): Attribute
+    {
+        return Attribute::make(get: fn () => $this->back_image ? '/'.ltrim($this->back_image, '/') : null);
+    }
+
+    protected function backLogoUrl(): Attribute
+    {
+        return Attribute::make(get: fn () => $this->back_logo ? '/'.ltrim($this->back_logo, '/') : null);
     }
 
     public function scopeWithPartner(Builder $query): Builder

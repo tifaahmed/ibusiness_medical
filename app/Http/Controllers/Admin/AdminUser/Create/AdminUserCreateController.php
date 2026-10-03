@@ -22,7 +22,7 @@ class AdminUserCreateController extends Controller
             ->get()
             ->map(fn (Role $r) => [
                 'name' => $r->name,
-                'permissions' => $r->permissions->pluck('name')->values()->all(),
+                'permissions' => $r->permissions->pluck('name')->intersect(UserPermissionEnum::all())->values()->all(),
                 'description' => UserRoleEnum::descriptionFor($r->name),
             ])
             ->values();

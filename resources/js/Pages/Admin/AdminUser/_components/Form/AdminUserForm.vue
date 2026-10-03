@@ -62,6 +62,26 @@
           <p v-if="form.errors.email_verified" class="mt-1 text-sm text-destructive">{{ form.errors.email_verified }}</p>
         </div>
 
+        <div v-if="isEdit">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.dashboard_blocked"
+              class="h-4 w-4 mt-0.5 rounded border-gray-300 text-red-500 focus:ring-red-500"
+            />
+            <span class="text-sm">
+              <span class="font-medium text-white inline-flex items-center gap-1.5">
+                <svg class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                {{ t.dashboard_blocked || 'Block from the dashboard' }}
+              </span>
+              <span class="block text-[11px] text-muted-foreground mt-0.5">
+                {{ t.dashboard_blocked_hint || 'Check to refuse this user at the admin area even though roles and permissions stay as they are. Uncheck to let them back in.' }}
+              </span>
+            </span>
+          </label>
+          <p v-if="form.errors.dashboard_blocked" class="mt-1 text-sm text-destructive">{{ form.errors.dashboard_blocked }}</p>
+        </div>
+
         <FormSelect
           v-model="form.partner_id"
           :label="t.partner || 'Partner'"

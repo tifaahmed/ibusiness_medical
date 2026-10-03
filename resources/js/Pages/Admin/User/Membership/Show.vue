@@ -486,7 +486,7 @@
                     </div>
                     <div class="card-face-admin card-face-back">
                       <img
-                        src="/card-template_back_side.png"
+                        :src="buildCardTemplate(membership, 'minimal')?.back_url || '/card-template_back_side.png'"
                         class="max-w-full h-auto rounded shadow"
                         style="max-height: 220px"
                         alt="Card back side"
@@ -650,7 +650,7 @@
                   <div class="card-face-admin card-face-back">
                     <div class="bg-white rounded-md p-2 flex justify-center">
                       <img
-                        src="/card-template_back_side.png"
+                        :src="buildCardTemplate(adminPopupMembership, adminPopupMode)?.back_url || '/card-template_back_side.png'"
                         class="max-w-full h-auto rounded shadow"
                         alt="Card back side"
                       />

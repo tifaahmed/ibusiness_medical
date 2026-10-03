@@ -24,7 +24,7 @@ class AdminProductCreateController extends BaseController
             'name' => $store->title,
         ]);
 
-        $tags = Tag::forPicker();
+        $tags = Tag::forPicker('products');
 
         return Inertia::render('Admin/Product/Create/ProductCreateView', [
             'productTypes' => $productTypes,

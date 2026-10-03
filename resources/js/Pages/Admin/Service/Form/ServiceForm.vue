@@ -41,7 +41,7 @@
           />
         </div>
 
-        <div>
+        <div v-if="tags.length > 0">
           <label class="block text-sm font-medium text-white mb-2">
             {{ t.service?.tags || 'Tags' }}
             <span v-if="serviceStore.validationErrors?.tag_ids" class="text-destructive ml-2 text-xs">{{ serviceStore.validationErrors.tag_ids }}</span>

@@ -9,11 +9,16 @@
           </div>
         </div>
 
-        <form @submit.prevent="submit" class="max-w-4xl mx-auto space-y-4">
+        <form @submit.prevent="submit()" class="max-w-4xl mx-auto space-y-4">
           <StoreForm
             :form="form"
+            :categories="categories"
+            :tags="tags"
+            :tag-icon-options="tagIconOptions"
+            :tag-color-options="tagColorOptions"
             :governorates="governorates"
             :cities="cities"
+            :ai-enabled="aiEnabled"
           />
 
           <div class="sticky bottom-0 z-10 bg-card border border-border rounded-lg shadow-sm">
@@ -24,6 +29,14 @@
               >
                 Cancel
               </Link>
+              <button
+                type="button"
+                :disabled="form.processing"
+                @click="submit(true)"
+                class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium border bg-background hover:bg-muted h-9 px-4 disabled:opacity-50"
+              >
+                {{ form.processing ? 'Saving…' : 'Save & stay' }}
+              </button>
               <button
                 type="submit"
                 :disabled="form.processing"
@@ -45,8 +58,13 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import StoreForm from '../_components/StoreForm.vue';
 
 defineProps({
+  categories: { type: Array, default: () => [] },
+  tags: { type: Array, default: () => [] },
+  tagIconOptions: { type: Array, default: () => [] },
+  tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
+  aiEnabled: { type: Boolean, default: false },
 });
 
 const form = useForm({
@@ -54,17 +72,33 @@ const form = useForm({
   description: { ar: '', en: '' },
   short_description: { ar: '', en: '' },
   youtube_link: '',
+  online_only: false,
+  editor_gallery_paths: [],
+  websites: [],
+  app_store_url: '',
+  google_play_url: '',
+  social_links: [],
+  coupons: [],
+  meta_title: { ar: '', en: '' },
+  meta_description: { ar: '', en: '' },
+  meta_keywords: { ar: '', en: '' },
+  category_ids: [],
+  tag_ids: [],
+  supports_shipping: false,
+  ships_everywhere: true,
+  shipping_governorate_ids: [],
   offer_percent_from: '',
   offer_percent_to: '',
   logo: null,
   header: null,
+  seo_image: null,
   gallery_images: [],
   gallery_videos: [],
   gallery_delete: [],
   branches: [],
 });
 
-const submit = () => {
-  form.post(route('admin.store.store'), { forceFormData: true });
+const submit = (stay = false) => {
+  form.transform((data) => ({ ...data, stay: stay === true })).post(route('admin.store.store'), { forceFormData: true });
 };
 </script>

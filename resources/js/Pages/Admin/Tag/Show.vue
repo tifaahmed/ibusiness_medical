@@ -89,6 +89,7 @@
 </template>
 
 <script setup>
+import { tagPillStyle } from '@/utils/tagColor';
 import { Link, usePage } from "@inertiajs/vue3";
 import TagLayout from "./TagLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
@@ -117,9 +118,7 @@ const nameIn = (lang) => {
 const previewStyle = computed(() => {
   const color = props.tag.color || '#6B7280';
   return {
-    backgroundColor: `${color}1A`,
-    color,
-    borderColor: `${color}33`,
+    ...tagPillStyle(color),
   };
 });
 </script>

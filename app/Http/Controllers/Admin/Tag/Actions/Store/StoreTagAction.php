@@ -14,6 +14,7 @@ class StoreTagAction
             'name' => $validated['name'],
             'icon' => $validated['icon'] ?? null,
             'color' => $validated['color'] ?? null,
+            'applies_to' => array_values($validated['applies_to'] ?? \App\Enums\Tag\TagTargetEnum::values()),
             'created_by' => Auth::id(),
         ]);
 

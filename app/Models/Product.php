@@ -21,6 +21,10 @@ class Product extends Model implements HasMedia
     use HasFactory;
     use HasSlug;
     use HasTranslations;
+    use \App\Models\Concerns\RelativisesEditorHtml;
+
+    /** Rich-text attributes whose images are kept as host-less URLs. */
+    public array $editorHtmlAttributes = ['description'];
     use InteractsWithMedia;
     use MediaImageTrait;
 
@@ -194,7 +198,10 @@ class Product extends Model implements HasMedia
      */
     public function getGalleryAttribute(): array
     {
+        // Description images live in the same table but stay out of the gallery.
         return $this->galleries
+            ->reject(fn (ProductGallery $item) => \App\Support\EditorImages::isAnyEditorPath($item->image_path))
+            ->values()
             ->map(fn (ProductGallery $item) => [
                 'id' => $item->id,
                 'url' => Storage::disk('public')->url($item->image_path),

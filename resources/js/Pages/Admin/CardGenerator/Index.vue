@@ -215,18 +215,38 @@
 
       <!-- Live render -->
       <div class="rounded-xl border border-border bg-card text-card-foreground p-4 space-y-3">
-        <h2 class="text-sm font-semibold">{{ t.live_render || 'Live render' }}</h2>
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-semibold">{{ t.live_render || 'Live render' }}</h2>
+          <button
+            type="button"
+            class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted"
+            @click="cardFlipped = !cardFlipped"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+            {{ cardFlipped ? (t.front || 'Front') : (t.back || 'Back') }}
+          </button>
+        </div>
         <p class="text-[11px] text-muted-foreground">{{ t.live_render_hint || 'The real canvas output, exactly as this card will print.' }}</p>
-        <div class="max-w-3xl">
-          <CardPreview
-            :membership="previewMembership"
-            :template="previewTemplate"
-            :partner="selectedPartner"
-            :values="renderValues"
-            placeholder-partner-logo
-            display-width="100%"
-            @rendered="onRendered"
-          />
+        <div class="max-w-3xl [perspective:1400px]">
+          <div class="gen-flip relative w-full" :class="{ flipped: cardFlipped }" :style="{ aspectRatio: '1579 / 996' }">
+            <div class="gen-face">
+              <CardPreview
+                :membership="previewMembership"
+                :template="previewTemplate"
+                :partner="selectedPartner"
+                :values="renderValues"
+                placeholder-partner-logo
+                display-width="100%"
+                @rendered="onRendered"
+              />
+            </div>
+            <div class="gen-face gen-back overflow-hidden rounded-md border border-border bg-white">
+              <img :src="activeTemplate?.back_url || '/card-template_back_side.png'" alt="Card back" class="h-full w-full object-contain" />
+            </div>
+          </div>
+          <p v-if="cardFlipped && !activeTemplate?.back_url" class="mt-1 text-[11px] text-muted-foreground">
+            This design has no custom back — the shipped back is shown.
+          </p>
         </div>
       </div>
 
@@ -900,4 +920,13 @@ function goBack() {
 }
 
 selected.value = visibleFields.value[0] ?? null;
+
+const cardFlipped = ref(false);
 </script>
+
+<style scoped>
+.gen-flip { transform-style: preserve-3d; transition: transform 0.6s ease; }
+.gen-flip.flipped { transform: rotateY(180deg); }
+.gen-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.gen-back { transform: rotateY(180deg); }
+</style>

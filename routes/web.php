@@ -200,6 +200,13 @@ use App\Http\Controllers\Admin\ProductType\List\AdminProductTypeListController;
 use App\Http\Controllers\Admin\ProductType\Show\AdminProductTypeShowController;
 use App\Http\Controllers\Admin\ProductType\Store\AdminProductTypeStoreController;
 use App\Http\Controllers\Admin\ProductType\Update\AdminProductTypeUpdateController;
+use App\Http\Controllers\Admin\StoreCategory\Create\AdminStoreCategoryCreateController;
+use App\Http\Controllers\Admin\StoreCategory\Delete\AdminStoreCategoryDeleteController;
+use App\Http\Controllers\Admin\StoreCategory\Edit\AdminStoreCategoryEditController;
+use App\Http\Controllers\Admin\StoreCategory\List\AdminStoreCategoryListController;
+use App\Http\Controllers\Admin\StoreCategory\Show\AdminStoreCategoryShowController;
+use App\Http\Controllers\Admin\StoreCategory\Store\AdminStoreCategoryStoreController;
+use App\Http\Controllers\Admin\StoreCategory\Update\AdminStoreCategoryUpdateController;
 use App\Http\Controllers\Admin\Sales\Create\AdminSalesCreateController;
 use App\Http\Controllers\Admin\Sales\Delete\AdminSalesDeleteController;
 use App\Http\Controllers\Admin\Sales\Edit\AdminSalesEditController;
@@ -245,6 +252,7 @@ use App\Http\Controllers\Admin\Tag\Delete\AdminTagDeleteController;
 use App\Http\Controllers\Admin\Tag\Edit\AdminTagEditController;
 use App\Http\Controllers\Admin\Tag\List\AdminTagListController;
 use App\Http\Controllers\Admin\Tag\Show\AdminTagShowController;
+use App\Http\Controllers\Admin\Tag\Quick\AdminTagQuickController;
 use App\Http\Controllers\Admin\Tag\Store\AdminTagStoreController;
 use App\Http\Controllers\Admin\Tag\Update\AdminTagUpdateController;
 use App\Http\Controllers\Admin\User\Membership\ActiveHistory\AdminUserMembershipActiveHistoryController;
@@ -304,6 +312,7 @@ Route::post('/partner-offer/{partnerOffer}/request', [PartnerOfferRequestControl
 
 // Guest routes (membership)
 Route::post('/membership/lookup', [MembershipController::class, 'lookup'])->name('guest.membership.lookup');
+Route::get('/card-back/{cardTemplate}.png', \App\Http\Controllers\CardTemplateBackImageController::class)->name('card-template.back');
 Route::get('/membership/{membership}', [MembershipController::class, 'show'])->name('guest.membership.show');
 Route::get('/membership/{membership}/usage/create', GuestMembershipUsageCreateController::class)->name('guest.membership-usage.create');
 Route::post('/membership/{membership}/usage', GuestMembershipUsageStoreController::class)->name('guest.membership-usage.store');
@@ -360,6 +369,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/card-templates/{cardTemplate}/edit', \App\Http\Controllers\Admin\CardTemplate\Edit\AdminCardTemplateEditController::class)
             ->name('admin.card-templates.edit');
 
+        Route::get('/admin/card-templates/{cardTemplate}/back', \App\Http\Controllers\Admin\CardTemplate\Back\AdminCardTemplateBackPageController::class)
+            ->name('admin.card-templates.back.edit');
+        Route::post('/api/card-templates/{cardTemplate}/back', \App\Http\Controllers\Admin\CardTemplate\Back\AdminCardTemplateBackController::class)
+            ->name('admin.card-templates.back');
         Route::post('/api/card-templates/{cardTemplate}/duplicate', \App\Http\Controllers\Admin\CardTemplate\Duplicate\AdminCardTemplateDuplicateController::class)
             ->name('admin.card-templates.duplicate');
         Route::post('/api/card-templates', \App\Http\Controllers\Admin\CardTemplate\Store\AdminCardTemplateStoreController::class)
@@ -603,7 +616,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/facility/translate', \App\Http\Controllers\Admin\Facility\English\AdminFacilityTranslateController::class)->name('admin.facility.translate');
         // "Enhance with AI" on the description: same text, laid out with short
         // icon headings and bullets. Works on the open form, writes nothing.
-        Route::post('/admin/facility/description/enhance', \App\Http\Controllers\Admin\Facility\Description\AdminFacilityDescriptionEnhanceController::class)->name('admin.facility.description.enhance');
         // "Suggest with AI" on the banner card: ribbon message + colours fitted
         // to the facility. Works on the open form, writes nothing.
         Route::post('/admin/facility/banner/suggest', \App\Http\Controllers\Admin\Facility\Banner\AdminFacilityBannerSuggestController::class)->name('admin.facility.banner.suggest');
@@ -684,7 +696,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
        the standalone branch form, which are reached by different permissions.
        Neither writes anything — values are handed back for the admin to check
        and save — so the permission to edit a branch either way is enough. */
-    Route::middleware('permission:manage facilities|manage own facilities|manage facility branches|manage own facility branches')->group(function () {
+    Route::middleware('permission:manage facilities|manage own facilities|manage facility branches|manage own facility branches|manage stores|manage own stores')->group(function () {
+        // "Enhance with AI" on a description (facility and store forms): same text, laid out
+        // with short icon headings and bullets. Works on the open form, writes nothing.
+        Route::post('/admin/store/seo/generate', \App\Http\Controllers\Admin\Store\Seo\AdminStoreSeoGenerateController::class)->name('admin.store.seo.generate');
+        Route::post('/admin/store/tags/suggest', \App\Http\Controllers\Admin\Store\Tags\AdminStoreTagSuggestController::class)->name('admin.store.tags.suggest');
+        Route::post('/admin/facility/description/enhance', \App\Http\Controllers\Admin\Facility\Description\AdminFacilityDescriptionEnhanceController::class)->name('admin.facility.description.enhance');
         // AI geocoder: address in, coordinates and a Google Maps link out
         // (called via axios, answers JSON).
         Route::post('/admin/facility/branch/locate', AdminFacilityBranchLocateController::class)->name('admin.facility.branch.locate');
@@ -807,6 +824,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/product-type/{productType}', AdminProductTypeShowController::class)->name('admin.product-type.show');
     });
 
+    // ---- StoreCategory (manage store categories OR own) ----
+    Route::middleware('permission:manage store categories|manage own store categories')->group(function () {
+        Route::get('/admin/store-category/create', AdminStoreCategoryCreateController::class)->name('admin.store-category.create');
+        Route::post('/admin/store-category', AdminStoreCategoryStoreController::class)->name('admin.store-category.store');
+        Route::get('/admin/store-category/{storeCategory}/edit', AdminStoreCategoryEditController::class)->name('admin.store-category.edit');
+        Route::put('/admin/store-category/{storeCategory}', AdminStoreCategoryUpdateController::class)->name('admin.store-category.update');
+        Route::delete('/admin/store-category/{storeCategory}', AdminStoreCategoryDeleteController::class)->name('admin.store-category.destroy');
+    });
+    Route::middleware('permission:manage store categories|manage own store categories|view store categories')->group(function () {
+        Route::get('/admin/store-category', AdminStoreCategoryListController::class)->name('admin.store-category.list');
+        Route::get('/admin/store-category/{storeCategory}', AdminStoreCategoryShowController::class)->name('admin.store-category.show');
+    });
+
     // ---- Product (manage products OR own) ----
     Route::middleware('permission:manage products|manage own products')->group(function () {
         Route::get('/admin/product/create', AdminProductCreateController::class)->name('admin.product.create');
@@ -841,6 +871,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::put('/admin/store/{store}', AdminStoreUpdateController::class)->name('admin.store.update');
         Route::delete('/admin/store/{store}', AdminStoreDeleteController::class)->name('admin.store.destroy');
     });
+    // Description-editor image upload, shared by the product, store and facility forms.
+    Route::post('/admin/editor-image', AdminProductEditorImageUploadController::class)
+        ->middleware('permission:manage products|manage own products|manage stores|manage own stores|manage facilities|manage own facilities')
+        ->name('admin.editor-image');
     Route::middleware('permission:manage stores|manage own stores|view stores')->group(function () {
         Route::get('/admin/store', AdminStoreListController::class)->name('admin.store.list');
         Route::get('/admin/store/{store}', AdminStoreShowController::class)->name('admin.store.show');
@@ -1046,6 +1080,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // "Fix translations with AI": preview writes nothing, apply saves the ticked ones.
         Route::post('/admin/tag/translations/preview', [\App\Http\Controllers\Admin\Tag\Translation\AdminTagTranslationFixController::class, 'preview'])->name('admin.tag.translations.preview');
         Route::post('/admin/tag/translations/apply', [\App\Http\Controllers\Admin\Tag\Translation\AdminTagTranslationFixController::class, 'apply'])->name('admin.tag.translations.apply');
+        Route::post('/admin/tag/quick', [AdminTagQuickController::class, 'store'])->name('admin.tag.quick.store');
+        Route::put('/admin/tag/{tag}/quick', [AdminTagQuickController::class, 'update'])->name('admin.tag.quick.update');
         Route::get('/admin/tag/{tag}/edit', AdminTagEditController::class)->name('admin.tag.edit');
         Route::put('/admin/tag/{tag}', AdminTagUpdateController::class)->name('admin.tag.update');
         Route::delete('/admin/tag/{tag}', AdminTagDeleteController::class)->name('admin.tag.destroy');

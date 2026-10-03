@@ -19,12 +19,15 @@ class AdminTagListCollection
                     'name' => $tag->getTranslations('name'),
                     'icon' => $tag->icon,
                     'color' => $tag->color,
+                    'applies_to' => $tag->applies_to ?? [],
                     'services_count' => $tag->services_count ?? $tag->services()->count(),
                     'facilities_count' => $tag->facilities_count ?? 0,
                     'products_count' => $tag->products_count ?? 0,
+                    'stores_count' => $tag->stores_count ?? 0,
                     'usage_count' => ($tag->services_count ?? 0)
                         + ($tag->facilities_count ?? 0)
-                        + ($tag->products_count ?? 0),
+                        + ($tag->products_count ?? 0)
+                        + ($tag->stores_count ?? 0),
                     'creator' => $tag->creator,
                     'created_at' => $tag->created_at,
                     'updated_at' => $tag->updated_at,

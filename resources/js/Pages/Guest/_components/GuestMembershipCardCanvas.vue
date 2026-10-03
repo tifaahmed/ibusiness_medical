@@ -266,7 +266,8 @@ function fsResetTransform() {
   fsPanY.value = 0;
 }
 
-const backSideSrc = BACK_SIDE_SRC;
+// The template's own back when it has one, the shipped artwork otherwise.
+const backSideSrc = computed(() => props.cardTemplate?.back_url || BACK_SIDE_SRC);
 
 const isLandscapeOrientation = computed(() => {
   if (typeof window === 'undefined') return false;

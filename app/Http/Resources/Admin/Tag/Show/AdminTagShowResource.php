@@ -22,6 +22,8 @@ class AdminTagShowResource extends JsonResource
             'name' => $this->tag->getTranslations('name'),
             'icon' => $this->tag->icon,
             'color' => $this->tag->color,
+            'applies_to' => $this->tag->applies_to ?? [],
+            'stores_count' => $this->tag->stores()->count(),
             'services_count' => $this->tag->services()->count(),
             'creator' => $this->tag->creator,
             'created_at' => $this->tag->created_at,

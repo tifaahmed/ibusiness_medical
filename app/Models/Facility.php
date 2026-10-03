@@ -21,6 +21,10 @@ class Facility extends Model implements HasMedia
     use HasFactory;
     use HasSlug;
     use HasTranslations;
+    use \App\Models\Concerns\RelativisesEditorHtml;
+
+    /** Rich-text attributes whose images are kept as host-less URLs. */
+    public array $editorHtmlAttributes = ['description'];
     use InteractsWithMedia;
     use MediaImageTrait;
 
@@ -172,5 +176,35 @@ class Facility extends Model implements HasMedia
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class, 'facility_tag');
+    }
+
+    /**
+     * Tie description-editor uploads to the facility. They go into their own
+     * media collection, so they are recorded against the facility but never
+     * show up in its gallery. The original file stays where it is — the
+     * description already points at it.
+     *
+     * @param  array<int, string>  $paths
+     */
+    public function attachEditorImages(array $paths): void
+    {
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
+        foreach (array_unique(array_filter(array_map('strval', $paths))) as $path) {
+            if (! \App\Support\EditorImages::isEditorPath($path, 'facility') || ! $disk->exists($path)) {
+                continue;
+            }
+
+            $already = $this->getMedia('description_images')
+                ->contains(fn ($media) => ($media->getCustomProperty('source_path') === $path));
+            if ($already) {
+                continue;
+            }
+
+            $this->addMedia($disk->path($path))
+                ->preservingOriginal()
+                ->withCustomProperties(['source_path' => $path])
+                ->toMediaCollection('description_images');
+        }
     }
 }

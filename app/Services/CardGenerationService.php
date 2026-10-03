@@ -755,7 +755,29 @@ class CardGenerationService
     {
         $layout = $membership->cardLayouts()->where('mode', $mode)->first();
 
-        if ($layout && ! empty($layout->generated_back_image_path)) {
+        // A template with its own back wins: it is drawn from the template's
+        // settings, and the layout just points at the current render.
+        $template = $layout?->cardTemplate ?? CardTemplate::where('status', $membership->partner_id
+            ? CardTemplateStatusEnum::WITH_PARTNER
+            : CardTemplateStatusEnum::NO_PARTNER)->first();
+        if ($template && $template->hasCustomBack()) {
+            $renderer = app(CardBackRenderer::class);
+            if ($renderer->ensure($template)) {
+                $relative = $renderer->relativePath($template);
+                if ($layout) {
+                    if ($layout->generated_back_image_path !== $relative) {
+                        $layout->update(['generated_back_image_path' => $relative]);
+                    }
+                } else {
+                    $membership->cardLayouts()->create(['mode' => $mode, 'generated_back_image_path' => $relative]);
+                }
+
+                return Storage::disk('public')->url($relative);
+            }
+        }
+
+        if ($layout && ! empty($layout->generated_back_image_path)
+            && ! str_starts_with($layout->generated_back_image_path, 'cards/backs/')) {
             $path = Storage::disk('public')->path($layout->generated_back_image_path);
             if (file_exists($path)) {
                 return Storage::disk('public')->url($layout->generated_back_image_path);

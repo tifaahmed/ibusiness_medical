@@ -47,6 +47,24 @@
           />
         </div>
 
+        <div class="space-y-2">
+          <label class="text-sm font-medium">{{ t.tag?.applies_to || 'Applies to' }} <span class="text-destructive">*</span></label>
+          <div class="flex flex-wrap gap-2">
+            <label
+              v-for="option in targetOptions"
+              :key="option.value"
+              class="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm cursor-pointer transition"
+              :class="form.applies_to?.includes(option.value) ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'"
+            >
+              <input type="checkbox" :value="option.value" v-model="form.applies_to" />
+              {{ option.label }}
+            </label>
+          </div>
+          <p v-if="tagStore.validationErrors?.applies_to || tagStore.validationErrors?.['applies_to.0']" class="text-xs text-destructive">
+            {{ tagStore.validationErrors.applies_to || tagStore.validationErrors['applies_to.0'] }}
+          </p>
+        </div>
+
         <!-- Same value as the icon dropdown, laid out as a radio grid for browsing. -->
         <div v-if="showIconGrid" class="rounded-lg border border-border p-3 space-y-3">
           <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
@@ -121,6 +139,7 @@
 
 <script setup>
 import { FormSelect, FormTranslatableInput } from "@/Components/form";
+import { tagPillStyle } from "@/utils/tagColor";
 import { useTagStore } from "../Stores/TagStore";
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
@@ -136,6 +155,10 @@ const props = defineProps({
     default: () => []
   },
   colorOptions: {
+    type: Array,
+    default: () => []
+  },
+  targetOptions: {
     type: Array,
     default: () => []
   },
@@ -261,11 +284,7 @@ const filteredIconOptions = computed(() => {
 
 const previewStyle = computed(() => {
   const color = formColor.value || '#6B7280';
-  return {
-    backgroundColor: `${color}1A`,
-    color,
-    borderColor: `${color}33`,
-  };
+  return tagPillStyle(color);
 });
 </script>
 

@@ -34,14 +34,30 @@
           :key="tpl.id"
           class="rounded-xl border border-border bg-card text-card-foreground overflow-hidden flex flex-col"
         >
-          <div class="bg-muted/40 aspect-[1.586/1] flex items-center justify-center overflow-hidden">
-            <img
-              v-if="tpl.sample_card_url || tpl.card_empty_url"
-              :src="tpl.sample_card_url || tpl.card_empty_url"
-              :alt="displayName(tpl)"
-              class="w-full h-full object-contain"
-            />
-            <span v-else class="text-xs text-muted-foreground">No artwork uploaded</span>
+          <div class="relative bg-muted/40 aspect-[1.586/1] [perspective:1000px]">
+            <div class="flip-inner absolute inset-0" :class="{ flipped: flipped[tpl.id] }">
+              <div class="flip-face flex items-center justify-center overflow-hidden">
+                <img
+                  v-if="tpl.sample_card_url || tpl.card_empty_url"
+                  :src="tpl.sample_card_url || tpl.card_empty_url"
+                  :alt="displayName(tpl)"
+                  class="w-full h-full object-contain"
+                />
+                <span v-else class="text-xs text-muted-foreground">No artwork uploaded</span>
+              </div>
+              <div class="flip-face flip-back flex items-center justify-center overflow-hidden bg-white">
+                <img :src="tpl.back_url || '/card-template_back_side.png'" :alt="`${displayName(tpl)} — back`" class="w-full h-full object-contain" />
+              </div>
+            </div>
+            <button
+              type="button"
+              class="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md border border-border bg-background/90 px-2 h-7 text-[11px] font-medium shadow-sm hover:bg-background cursor-pointer"
+              @click="flipped[tpl.id] = !flipped[tpl.id]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+              {{ flipped[tpl.id] ? 'Front' : 'Back' }}
+              <span v-if="flipped[tpl.id] && !tpl.back_url" class="text-muted-foreground">(shipped)</span>
+            </button>
           </div>
 
           <div class="p-3 space-y-2 flex-1 flex flex-col">
@@ -76,6 +92,14 @@
                 class="inline-flex items-center rounded-md h-8 px-2.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 Edit layout
+              </Link>
+              <Link
+                v-if="canWrite"
+                :href="route('admin.card-templates.back.edit', tpl.id)"
+                class="inline-flex items-center gap-1 rounded-md h-8 px-2.5 text-xs font-medium border border-border bg-background hover:bg-accent"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9h10" /><path d="M7 13h6" /></svg>
+                {{ tpl.back_url ? 'Edit back side' : 'Add back side' }}
               </Link>
               <button
                 v-if="canWrite"
@@ -125,6 +149,7 @@ const canWrite = computed(() => canManage('manage card templates'));
 
 const rows = ref([...props.templates]);
 const busyId = ref(null);
+const flipped = ref({});
 const error = ref('');
 
 // `name` is translatable, so it arrives as an object when the API serialises
@@ -171,3 +196,10 @@ async function destroy(tpl) {
   }
 }
 </script>
+
+<style scoped>
+.flip-inner { transform-style: preserve-3d; transition: transform 0.5s ease; }
+.flip-inner.flipped { transform: rotateY(180deg); }
+.flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip-back { transform: rotateY(180deg); }
+</style>

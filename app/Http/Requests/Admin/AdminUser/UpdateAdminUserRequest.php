@@ -48,6 +48,7 @@ class UpdateAdminUserRequest extends FormRequest
             'permissions.*' => ['string', Rule::in(UserPermissionEnum::all())],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'email_verified' => ['nullable', 'boolean'],
+            'dashboard_blocked' => ['nullable', 'boolean'],
         ];
     }
 }

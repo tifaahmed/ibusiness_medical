@@ -22,6 +22,7 @@ class AdminTagCreateController extends BaseController
         return Inertia::render('Admin/Tag/Create/TagCreateView', [
             'iconOptions' => TagEnum::getIconOptions(),
             'colorOptions' => TagEnum::getColorOptions(),
+            'targetOptions' => \App\Enums\Tag\TagTargetEnum::getOptions(),
             // Icons already in use, so the same icon+color pair can be reused consistently.
             'iconUsages' => Tag::iconUsages($this->scopesToCreator() ? auth()->id() : null),
         ]);

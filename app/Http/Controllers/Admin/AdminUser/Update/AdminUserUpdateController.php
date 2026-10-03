@@ -42,6 +42,17 @@ class AdminUserUpdateController extends Controller
             }
         }
 
+        // Dashboard block: stamp when first set, clear when unset, else leave alone.
+        if (array_key_exists('dashboard_blocked', $data)) {
+            $shouldBlock = (bool) $data['dashboard_blocked'];
+            $isBlocked = $adminUser->dashboard_blocked_at !== null;
+            if ($shouldBlock && ! $isBlocked) {
+                $update['dashboard_blocked_at'] = now();
+            } elseif (! $shouldBlock && $isBlocked) {
+                $update['dashboard_blocked_at'] = null;
+            }
+        }
+
         $adminUser->update($update);
 
         $adminUser->syncRoles($data['roles']);

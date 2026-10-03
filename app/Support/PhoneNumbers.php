@@ -119,14 +119,20 @@ final class PhoneNumbers
             // One entry can still carry several numbers ("011.../022..."), and
             // they all inherit the type the entry declared.
             foreach (self::split($number) as $single) {
-                if (isset($seen[$single])) {
+                $resolved = $type ?? self::guessType($single);
+
+                // The same line can legitimately be listed under two types
+                // (a mobile that is also a WhatsApp number), so a repeat is
+                // only dropped when the type repeats with it.
+                $key = $single.'|'.$resolved;
+                if (isset($seen[$key])) {
                     continue;
                 }
 
-                $seen[$single] = true;
+                $seen[$key] = true;
                 $out[] = [
                     'number' => $single,
-                    'type' => $type ?? self::guessType($single),
+                    'type' => $resolved,
                 ];
             }
         }

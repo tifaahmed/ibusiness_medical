@@ -1,7 +1,7 @@
 <template>
   <div class="w-full min-w-0 overflow-x-hidden space-y-2">
     <!-- Unified responsive grid: 1 col mobile / 2 col tablet / 4 col desktop -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 w-full">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 w-full">
       <!-- Search — always visible -->
       <div class="min-w-0">
         <label
@@ -75,6 +75,24 @@
           @change="applyFilters()"
         />
       </div>
+
+      <!-- Applies-to Filter -->
+      <div class="min-w-0">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="tag-applies-to"
+        >
+          {{ t.tag?.applies_to || 'Applies to' }}
+        </label>
+        <Select
+          v-model="filters.applies_to"
+          :options="appliesToOptions"
+          :placeholder="t.common?.all || 'All'"
+          id="tag-applies-to"
+          @change="applyFilters()"
+        />
+      </div>
     </div>
 
     <!-- Reset Filter - Only show if there's an active filter -->
@@ -115,8 +133,13 @@ const props = defineProps({
     default: () => ({
       search: '',
       sort: 'newest',
-      used: ''
+      used: '',
+      applies_to: ''
     })
+  },
+  targetOptions: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -135,6 +158,11 @@ const usedOptions = computed(() => [
   { value: '0', label: t.value.tag?.never_used || 'Never used' },
 ]);
 
+const appliesToOptions = computed(() => [
+  { value: '', label: t.value.common?.all || 'All' },
+  ...props.targetOptions,
+]);
+
 const emit = defineEmits(['filter-change']);
 
 const getInitialFilters = () => {
@@ -142,16 +170,17 @@ const getInitialFilters = () => {
     return {
       search: props.initialFilters.search || '',
       sort: props.initialFilters.sort || 'newest',
-      used: props.initialFilters.used ?? ''
+      used: props.initialFilters.used ?? '',
+      applies_to: props.initialFilters.applies_to ?? ''
     };
   }
-  return { search: '', sort: 'newest', used: '' };
+  return { search: '', sort: 'newest', used: '', applies_to: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 const hasActiveFilters = computed(() =>
-  !!filters.value.search || filters.value.sort !== 'newest' || (filters.value.used !== '' && filters.value.used !== null)
+  !!filters.value.search || filters.value.sort !== 'newest' || (filters.value.used !== '' && filters.value.used !== null) || !!filters.value.applies_to
 );
 
 let searchTimeout = null;
@@ -168,7 +197,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', sort: 'newest', used: '' };
+  filters.value = { search: '', sort: 'newest', used: '', applies_to: '' };
   applyFilters();
 };
 
@@ -185,6 +214,10 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.used !== '' && currentFilters.used !== null && currentFilters.used !== undefined) {
     params.used = currentFilters.used;
+  }
+
+  if (currentFilters.applies_to) {
+    params.applies_to = currentFilters.applies_to;
   }
 
   emit('filter-change', currentFilters);

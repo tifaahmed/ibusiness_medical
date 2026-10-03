@@ -77,6 +77,8 @@ class StoreFacilityAction
                     $facility->addMedia($file)->toMediaCollection('gallery');
                 }
             }
+            $facility->attachEditorImages($validated['editor_gallery_paths'] ?? []);
+
             if (! empty($validated['contract'])) {
                 $facility->addMedia($validated['contract'])->toMediaCollection('contract');
             }

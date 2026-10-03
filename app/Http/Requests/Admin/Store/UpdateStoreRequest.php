@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Admin\Store;
 
+use App\Http\Requests\Concerns\HandlesStoreExtras;
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class UpdateStoreRequest extends FormRequest
 {
+    use HandlesStoreExtras;
     use NormalisesBranchPhones;
 
     public function authorize(): bool
@@ -17,6 +19,15 @@ class UpdateStoreRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $this->cleanStoreExtras();
+
+        // An online-only store has no branches: whatever the form still holds
+        // is dropped before validation, so a hidden half-filled branch cannot
+        // fail the save.
+        if ($this->boolean('online_only')) {
+            $this->merge(['branches' => []]);
+        }
+
         $branches = $this->input('branches', []);
         if (! is_array($branches)) {
             return;
@@ -31,19 +42,26 @@ class UpdateStoreRequest extends FormRequest
 
     public function rules(): array
     {
-        return array_merge([
+        return array_merge($this->storeExtrasRules(), [
             'title' => ['required', 'array'],
             'title.*' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'array'],
-            'description.*' => ['nullable', 'string', 'max:5000'],
+            'description.*' => ['nullable', 'string', 'max:30000'],
             'short_description' => ['nullable', 'array'],
             'short_description.*' => ['nullable', 'string', 'max:500'],
             'youtube_link' => ['nullable', 'url', 'max:255'],
+            'online_only' => ['nullable', 'boolean'],
+            'editor_gallery_paths' => ['nullable', 'array'],
+            'editor_gallery_paths.*' => ['string', 'max:2048'],
+            'app_store_url' => ['nullable', 'url', 'max:2048'],
+            'google_play_url' => ['nullable', 'url', 'max:2048'],
             'offer_percent_from' => ['nullable', 'numeric', 'between:0,100'],
             'offer_percent_to' => ['nullable', 'numeric', 'between:0,100'],
 
             'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
             'logo_delete' => ['nullable', 'boolean'],
+            'seo_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
+            'seo_image_delete' => ['nullable', 'boolean'],
             'header' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
             'header_delete' => ['nullable', 'boolean'],
 
@@ -71,7 +89,7 @@ class UpdateStoreRequest extends FormRequest
 
     public function messages(): array
     {
-        return array_merge([
+        return array_merge($this->storeExtrasMessages(), [
             'title.required' => 'The title field is required.',
             'title.*.required' => 'Each language title is required.',
         ], $this->phoneMessages('branches.*.phone'));

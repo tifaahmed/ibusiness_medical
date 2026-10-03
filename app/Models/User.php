@@ -109,6 +109,7 @@ class User extends Authenticatable implements HasMedia
     {
         return [
             'email_verified_at' => 'datetime',
+            'dashboard_blocked_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

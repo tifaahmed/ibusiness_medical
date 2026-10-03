@@ -44,6 +44,7 @@
                 <tr>
                   <th class="h-10 px-3 text-left align-middle font-medium">Logo</th>
                   <th class="h-10 px-3 text-left align-middle font-medium">Title</th>
+                  <th class="h-10 px-3 text-left align-middle font-medium">Categories</th>
                   <th class="h-10 px-3 text-center align-middle font-medium">Branches</th>
                   <th class="h-10 px-3 text-center align-middle font-medium">Products</th>
                   <th class="h-10 px-3 text-left align-middle font-medium">Created</th>
@@ -57,6 +58,15 @@
                     <div v-else class="h-9 w-9 rounded bg-muted"></div>
                   </td>
                   <td class="p-3 align-middle font-medium">{{ getTranslatedName(store.title) }}</td>
+                  <td class="p-3 align-middle">
+                    <div v-if="store.categories?.length" class="flex flex-wrap gap-1">
+                      <span v-for="(c, i) in store.categories" :key="i" class="inline-flex items-center gap-1 rounded-full bg-sky-500/15 text-sky-600 px-2 py-0.5 text-xs font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>
+                        {{ getTranslatedName(c) }}
+                      </span>
+                    </div>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </td>
                   <td class="p-3 align-middle text-center">{{ store.branches_count }}</td>
                   <td class="p-3 align-middle text-center">{{ store.products_count }}</td>
                   <td class="p-3 align-middle">{{ store.created_at }}</td>

@@ -74,6 +74,7 @@
               :label="t.facility?.description || 'Description'"
               :error="facilityStore.validationErrors?.description"
               :locales="['ar', 'en']"
+              :image-uploader="uploadDescriptionImage"
               clear-colors-button
             >
               <template #label-actions>
@@ -359,8 +360,8 @@
       </div>
     </div>
 
-    <!-- Tags Card -->
-    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
+    <!-- Tags Card — only tags marked "applies to facilities"; none, no card. -->
+    <div v-if="tags.length > 0" data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
       <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
         <div data-slot="card-title" class="leading-none font-semibold title-golden">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
@@ -678,6 +679,7 @@ import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
+import { useEditorImageUpload } from '@/composables/useEditorImageUpload';
 import { bilingualLabel, nameIn } from '@/lib/lookupNames';
 
 const props = defineProps({
@@ -744,6 +746,12 @@ const formDescription = computed({
   set: (value) => {
     form.value.description = value;
   }
+});
+
+// Images added inside the description are stored at once and tied to the
+// facility (hidden from its gallery) on save; the description keeps "/storage/…".
+const uploadDescriptionImage = useEditorImageUpload('facility', (path) => {
+  if (!facilityStore.form.editor_gallery_paths.includes(path)) facilityStore.form.editor_gallery_paths.push(path);
 });
 
 /* ---- Enhance the description with AI --------------------------------------

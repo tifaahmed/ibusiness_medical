@@ -428,12 +428,12 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarDropdown
-                    v-if="canAny('manage product types', 'manage own product types', 'view product types', 'manage products', 'manage own products', 'view products', 'manage orders', 'manage own orders', 'view orders', 'manage stores', 'manage own stores', 'view stores')"
+                    v-if="canAny('manage store categories', 'manage own store categories', 'view store categories', 'manage product types', 'manage own product types', 'view product types', 'manage products', 'manage own products', 'view products', 'manage orders', 'manage own orders', 'view orders', 'manage stores', 'manage own stores', 'view stores')"
                     :label="t.sidebar?.products || 'Products'"
                     :is-collapsed="sidebarCollapsed"
-                    :active="route().current('admin.product-type.*') || route().current('admin.product.*') || route().current('admin.order.*') || route().current('admin.store.*')"
+                    :active="route().current('admin.store-category.*') || route().current('admin.product-type.*') || route().current('admin.product.*') || route().current('admin.order.*') || route().current('admin.store.*')"
                     icon-animation="animate-icon-breathe"
-                    :auto-open="['/admin/product-type', '/admin/product', '/admin/order', '/admin/store']"
+                    :auto-open="['/admin/store-category', '/admin/product-type', '/admin/product', '/admin/order', '/admin/store']"
                 >
                     <template #icon>
                         <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,6 +455,18 @@ const getUserInitials = (name) => {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" />
                         </svg>
                         {{ t.sidebar?.stores || 'Stores' }}
+                    </SidebarSubLink>
+
+                    <SidebarSubLink
+                        v-if="canAny('manage store categories', 'manage own store categories', 'view store categories')"
+                        :href="route('admin.store-category.list')"
+                        :active="route().current('admin.store-category.*')"
+                        @click="closeSidebar"
+                    >
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        {{ t.sidebar?.store_categories || 'Store Categories' }}
                     </SidebarSubLink>
 
                     <SidebarSubLink

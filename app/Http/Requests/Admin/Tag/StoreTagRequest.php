@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin\Tag;
 
+use App\Enums\Tag\TagTargetEnum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTagRequest extends FormRequest
 {
@@ -25,6 +27,8 @@ class StoreTagRequest extends FormRequest
             'name.*' => ['required', 'string', 'max:255'],
             'icon' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:50'],
+            'applies_to' => ['required', 'array', 'min:1'],
+            'applies_to.*' => ['string', Rule::in(TagTargetEnum::values())],
         ];
     }
 
@@ -34,6 +38,8 @@ class StoreTagRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'applies_to.required' => 'Pick at least one thing this tag applies to.',
+            'applies_to.min' => 'Pick at least one thing this tag applies to.',
             'name.required' => 'The name is required.',
             'name.array' => 'The name must be given per language.',
             'name.*.required' => 'Each language name is required.',

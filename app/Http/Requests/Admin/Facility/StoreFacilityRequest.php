@@ -113,6 +113,8 @@ class StoreFacilityRequest extends FormRequest
             'mobile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
             'gallery' => 'nullable|array',
             'gallery.*' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'editor_gallery_paths' => 'nullable|array',
+            'editor_gallery_paths.*' => 'string|max:2048',
             'gallery_delete' => 'nullable|array',
             'gallery_delete.*' => 'nullable|integer',
             'contract' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,avif,pdf|max:10240',

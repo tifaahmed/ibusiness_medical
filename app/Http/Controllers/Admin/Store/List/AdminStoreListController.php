@@ -29,6 +29,7 @@ class AdminStoreListController extends BaseController
         $search = $request->string('search')->toString();
 
         $stores = Store::query()
+            ->with('categories:id,name')
             ->withCount(['branches', 'products'])
             ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->when($search !== '', function ($query) use ($search) {
@@ -43,6 +44,7 @@ class AdminStoreListController extends BaseController
             ->through(fn (Store $store) => [
                 'id' => $store->id,
                 'title' => $store->title,
+                'categories' => $store->categories->map(fn ($c) => $c->getTranslations('name'))->values(),
                 'logo' => $store->logo,
                 'branches_count' => $store->branches_count,
                 'products_count' => $store->products_count,

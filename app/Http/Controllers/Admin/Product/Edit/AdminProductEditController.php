@@ -45,7 +45,7 @@ class AdminProductEditController extends BaseController
             ];
         });
 
-        $tags = Tag::forPicker();
+        $tags = Tag::forPicker('products', $product->tags->pluck('id')->all());
 
         $stores = Store::query()->orderBy('id')->get()->map(fn (Store $store) => [
             'id' => $store->id,

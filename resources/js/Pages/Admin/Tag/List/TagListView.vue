@@ -44,6 +44,7 @@
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
             <TagListFilterContent
               :initial-filters="filters"
+              :target-options="targetOptions"
               @filter-change="handleFilterChange"
             />
           </div>
@@ -84,12 +85,17 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  targetOptions: {
+    type: Array,
+    default: () => []
+  },
   filters: {
     type: Object,
     default: () => ({
       search: '',
       sort: 'newest',
-      used: ''
+      used: '',
+      applies_to: ''
     })
   }
 });
@@ -102,7 +108,8 @@ const tags = computed(() => props.tags);
 const filters = ref(props.filters || {
   search: '',
   sort: 'newest',
-  used: ''
+  used: '',
+  applies_to: ''
 });
 
 const handleDelete = (tagId) => {

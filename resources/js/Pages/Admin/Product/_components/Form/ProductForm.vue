@@ -113,11 +113,11 @@
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-medium">Store</label>
+          <label class="text-sm font-medium">Store <span class="text-destructive">*</span></label>
           <Select
             v-model="productStore.form.store_id"
             :options="stores.map(s => ({ value: s.id ?? s.value ?? s, label: `${ getTranslatedName(s.name) }` }))"
-            placeholder="— None —"
+            placeholder="Select a store"
           />
           <p v-if="fieldError('store_id')" class="text-xs text-destructive">{{ fieldError('store_id') }}</p>
           <p v-else class="text-[11px] text-muted-foreground">The store this product is sold under.</p>
@@ -166,7 +166,8 @@
           <p v-else class="text-[11px] text-muted-foreground">Visible to admins only — useful for supplier names, restock notes or warnings.</p>
         </div>
 
-        <div class="space-y-2">
+        <!-- Only tags marked "applies to products" are offered; none, no section. -->
+        <div v-if="tags.length" class="space-y-2">
           <div class="flex items-center justify-between gap-2">
             <label class="text-sm font-medium">Tags</label>
             <a
@@ -535,7 +536,7 @@
         <div class="space-y-2">
           <label class="text-sm font-medium">Gallery</label>
 
-          <div v-if="visibleExistingGallery.length || galleryPreviews.length || editorGalleryImages.length" class="flex flex-wrap gap-3">
+          <div v-if="visibleExistingGallery.length || galleryPreviews.length" class="flex flex-wrap gap-3">
             <div v-for="img in visibleExistingGallery" :key="`existing-${img.key}`" class="relative">
               <img :src="img.url" class="w-20 h-20 rounded-lg border border-border object-cover cursor-zoom-in transition hover:opacity-90" @click="openLightbox(img.url)" />
               <button
@@ -564,15 +565,10 @@
                 </svg>
               </button>
             </div>
-
-            <div v-for="img in editorGalleryImages" :key="`editor-${img.path}`" class="relative">
-              <img :src="img.url" class="w-20 h-20 rounded-lg border-2 border-dashed border-primary/60 object-cover cursor-zoom-in transition hover:opacity-90" @click="openLightbox(img.url)" />
-              <span class="absolute -top-2 -left-2 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 shadow-sm" title="Uploaded from the description editor">desc</span>
-            </div>
           </div>
 
           <p v-if="editorGalleryImages.length" class="text-xs text-muted-foreground">
-            {{ editorGalleryImages.length }} image(s) added from the description editor will be saved to the gallery.
+            {{ editorGalleryImages.length }} image(s) added in the description are stored with the product, hidden from the gallery.
           </p>
 
           <p v-if="removedGalleryCount" class="flex items-center gap-2 text-xs text-muted-foreground">
@@ -641,6 +637,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { usePage } from "@inertiajs/vue3";
 import { useNotification } from "@/composables/useNotification";
+import { useEditorImageUpload } from "@/composables/useEditorImageUpload";
 
 const props = defineProps({
   productTypes: { type: Array, default: () => [] },
@@ -959,27 +956,12 @@ const removedGalleryCount = computed(() => productStore.form.removed_gallery_ids
 // disk (the editor needs a URL right away); the gallery row is created on save.
 const editorGalleryImages = ref([]);
 
-const uploadEditorImage = async (file) => {
-  const data = new FormData();
-  data.append('image', file);
-
-  try {
-    const { data: uploaded } = await window.axios.post(route('admin.product.editor-image'), data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    if (!productStore.form.editor_gallery_paths.includes(uploaded.path)) {
-      productStore.form.editor_gallery_paths.push(uploaded.path);
-      editorGalleryImages.value.push({ path: uploaded.path, url: uploaded.url });
-    }
-
-    return uploaded.url;
-  } catch (error) {
-    const message = error?.response?.data?.errors?.image?.[0] || 'Failed to upload the image';
-    useNotification().error(message);
-    return null;
+const uploadEditorImage = useEditorImageUpload('product', (path) => {
+  if (!productStore.form.editor_gallery_paths.includes(path)) {
+    productStore.form.editor_gallery_paths.push(path);
+    editorGalleryImages.value.push({ path, url: `/storage/${path}` });
   }
-};
+});
 
 // Every picture the form currently shows, in display order — one shared
 // lightbox walks them all, exactly like on the product show page.
@@ -999,10 +981,6 @@ const formImages = computed(() => {
 
   galleryPreviews.value.forEach((preview, i) => {
     if (preview.url) images.push({ url: preview.url, alt: `${name} — new gallery ${i + 1}` });
-  });
-
-  editorGalleryImages.value.forEach((img, i) => {
-    if (img.url) images.push({ url: img.url, alt: `${name} — description image ${i + 1}` });
   });
 
   return images;

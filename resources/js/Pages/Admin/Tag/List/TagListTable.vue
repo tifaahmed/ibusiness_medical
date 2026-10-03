@@ -42,6 +42,20 @@
                     >
                       {{ otherLocale.toUpperCase() }}: {{ nameIn(tag.name, otherLocale) || '-' }}
                     </span>
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="target in tag.applies_to || []"
+                        :key="target"
+                        class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium"
+                        :class="{
+                          'bg-sky-100 text-sky-900': target === 'facilities',
+                          'bg-amber-100 text-amber-900': target === 'products',
+                          'bg-emerald-100 text-emerald-900': target === 'stores',
+                        }"
+                      >
+                        {{ targetIcons[target] }} {{ targetLabels[target] || target }}
+                      </span>
+                    </div>
                   </div>
                 </td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden md:table-cell">
@@ -140,6 +154,7 @@
 </template>
 
 <script setup>
+import { tagPillStyle } from '@/utils/tagColor';
 import Pagination from "@/Pages/_components/Pagination.vue";
 import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
@@ -174,19 +189,15 @@ const nameIn = (name, lang) => {
   return '';
 };
 
-const badgeStyle = (color) => {
-  const c = color || '#6B7280';
-  return {
-    backgroundColor: `${c}1A`,
-    color: c,
-    borderColor: `${c}33`,
-  };
-};
+const badgeStyle = tagPillStyle;
 
 const USAGE_COLORS = {
   used: '#10B981',
   unused: '#6B7280',
 };
+
+const targetIcons = { facilities: '🏥', products: '📦', stores: '🏬' };
+const targetLabels = { facilities: 'Facilities', products: 'Products', stores: 'Stores' };
 
 const usageBadgeStyle = (tag) =>
   badgeStyle(tag.usage_count > 0 ? USAGE_COLORS.used : USAGE_COLORS.unused);
@@ -195,7 +206,7 @@ const usageTitle = (tag) => {
   if (!(tag.usage_count > 0)) {
     return t.value?.tag?.never_used_message || 'This tag has never been used.';
   }
-  return `${t.value?.tag?.services_count || 'Services'}: ${tag.services_count || 0} · ${t.value?.tag?.facilities || 'Facilities'}: ${tag.facilities_count || 0} · ${t.value?.tag?.products || 'Products'}: ${tag.products_count || 0}`;
+  return `${t.value?.tag?.services_count || 'Services'}: ${tag.services_count || 0} · ${t.value?.tag?.facilities || 'Facilities'}: ${tag.facilities_count || 0} · ${t.value?.tag?.products || 'Products'}: ${tag.products_count || 0} · Stores: ${tag.stores_count || 0}`;
 };
 
 const getEditRoute = (id) => {

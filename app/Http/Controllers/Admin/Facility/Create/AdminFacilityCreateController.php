@@ -62,7 +62,7 @@ class AdminFacilityCreateController extends BaseController
                 'name' => $sale->nameTranslations(),
             ])->toArray();
 
-        $tags = Tag::forPicker();
+        $tags = Tag::forPicker('facilities');
 
         return Inertia::render('Admin/Facility/Create/FacilityCreateView', [
             'facilityTypes' => $facilityTypes,

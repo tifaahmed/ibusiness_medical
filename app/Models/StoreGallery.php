@@ -14,6 +14,9 @@ class StoreGallery extends Model
 
     public const TYPES = [self::TYPE_IMAGE, self::TYPE_VIDEO];
 
+    /** Where description-editor images land (hidden from the gallery). */
+    public const EDITOR_DIRECTORY = 'stores/gallery/editor';
+
     protected $fillable = [
         'store_id',
         'media_path',

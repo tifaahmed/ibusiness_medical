@@ -33,8 +33,14 @@ class Tag extends Model
         'name',
         'icon',
         'color',
+        'applies_to',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return ['applies_to' => 'array'];
+    }
 
     /**
      * Get the admin who created this tag.
@@ -52,6 +58,11 @@ class Tag extends Model
         return $this->belongsToMany(Service::class, 'service_tag');
     }
 
+    public function stores(): BelongsToMany
+    {
+        return $this->belongsToMany(Store::class, 'store_tag');
+    }
+
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class, 'facility_tag');
@@ -60,15 +71,22 @@ class Tag extends Model
     /**
      * All tags formatted for form pickers: ordered by the current locale's
      * name and carrying both translations, so admins can read EN and AR
-     * side by side while choosing.
+     * side by side while choosing. Pass the record kind (`TagTargetEnum` value) to
+     * list only tags that apply to it; `$keepIds` are always listed.
      */
-    public static function forPicker(): array
+    public static function forPicker(?string $target = null, array $keepIds = []): array
     {
         return static::query()
+            // Only tags meant for this kind of record — plus any already on the record being edited.
+            ->when($target !== null, fn ($q) => $q->where(fn ($w) => $w
+                ->whereJsonContains('applies_to', $target)
+                ->orWhereNull('applies_to')
+                ->orWhereIn('id', $keepIds)))
             ->orderBy('name->'.app()->getLocale())
-            ->get(['id', 'name', 'icon', 'color'])
+            ->get(['id', 'name', 'icon', 'color', 'applies_to'])
             ->map(fn (self $tag) => [
                 'id' => $tag->id,
+                'applies_to' => $tag->applies_to ?? [],
                 'name' => $tag->name,
                 // Both languages; the plain `name` above stays for older consumers.
                 'name_translations' => $tag->getTranslations('name'),
