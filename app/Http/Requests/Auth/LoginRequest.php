@@ -72,6 +72,25 @@ class LoginRequest extends FormRequest
             'remember' => $remember,
         ]);
 
+        /* A blocked account is turned away at the login itself, not only at the
+           admin area's door. The same generic failure message is used so the
+           form does not confirm which emails exist. */
+        $blocked = \App\Models\User::where('email', $credentials['email'])
+            ->whereNotNull('dashboard_blocked_at')
+            ->exists();
+
+        if ($blocked) {
+            Log::warning('LoginRequest: Blocked user refused at login', [
+                'email' => $credentials['email'],
+                'ip_address' => $this->ip(),
+            ]);
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ]);
+        }
+
         if (! Auth::attempt($credentials, $remember)) {
             Log::warning('LoginRequest: Authentication failed', [
                 'email' => $credentials['email'],
