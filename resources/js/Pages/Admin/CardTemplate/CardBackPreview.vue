@@ -25,7 +25,7 @@
           v-else-if="key === 'qrcode'"
           class="pointer-events-none flex h-full w-full items-center justify-center bg-white"
         >
-          <img v-if="qrImage" :src="qrImage" alt="" style="width: 84%; height: 84%" />
+          <img v-if="qrShown" :src="qrShown" alt="" style="width: 84%; height: 84%" />
         </div>
 
         <div
@@ -45,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import QRCode from 'qrcode';
 
 const ELEMENTS = ['logo', 'slogan', 'title', 'website', 'qrcode'];
@@ -57,6 +57,7 @@ const props = defineProps({
   config: { type: Object, required: true },
   background: { type: String, default: '' },
   logo: { type: String, default: '' },
+  qrUpload: { type: String, default: '' },
   editable: { type: Boolean, default: false },
   selected: { type: String, default: '' },
 });
@@ -115,6 +116,7 @@ function startDrag(event, key, mode) {
 }
 
 const qrImage = ref('');
+const qrShown = computed(() => (props.config.qrcode?.mode === 'image' ? props.qrUpload : qrImage.value));
 watch(
   () => [props.config.qrcode?.visible, props.config.qrcode?.value],
   async ([visible, value]) => {

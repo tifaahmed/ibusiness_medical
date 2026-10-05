@@ -39,7 +39,7 @@
               Drag an element to move it, or drag its bottom-right corner to resize. Positions are stored as fractions of the card.
             </p>
             <div class="overflow-hidden rounded-md border border-border">
-              <CardBackPreview v-model:selected="selected" :config="cfg" :background="backgroundSrc" :logo="logoSrc" editable />
+              <CardBackPreview v-model:selected="selected" :config="cfg" :background="backgroundSrc" :logo="logoSrc" :qr-upload="qrSrc" editable />
             </div>
             <div class="flex flex-wrap gap-1.5">
               <button
@@ -95,11 +95,35 @@
               </template>
 
               <template v-else-if="selected === 'qrcode'">
-                <label class="block text-[10px] uppercase text-muted-foreground">
-                  Encodes
-                  <input v-model="field.value" type="text" dir="ltr" maxlength="500" placeholder="https://deilar.com" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" />
-                </label>
-                <p class="text-[10px] text-muted-foreground">The same link on every card from this template.</p>
+                <div class="flex gap-3 text-xs">
+                  <label class="flex items-center gap-1"><input v-model="field.mode" type="radio" value="url" /> From a link</label>
+                  <label class="flex items-center gap-1"><input v-model="field.mode" type="radio" value="image" /> Upload an image</label>
+                </div>
+                <template v-if="field.mode !== 'image'">
+                  <label class="block text-[10px] uppercase text-muted-foreground">
+                    Encodes
+                    <input v-model="field.value" type="text" dir="ltr" maxlength="500" placeholder="https://deilar.com" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" />
+                  </label>
+                  <p class="text-[10px] text-muted-foreground">The same link on every card from this template.</p>
+                </template>
+                <template v-else>
+                  <div class="flex items-start gap-3">
+                    <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-white">
+                      <img v-if="qrSrc" :src="qrSrc" alt="" class="h-full w-full object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1 space-y-1">
+                      <div class="flex flex-wrap gap-2">
+                        <label class="inline-flex cursor-pointer items-center gap-1 rounded border border-border px-2 py-1 text-[11px] hover:bg-muted">
+                          {{ hasQr ? 'Replace' : 'Upload' }}
+                          <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="pick('back_qr', $event)" />
+                        </label>
+                        <button v-if="hasQr" type="button" class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md bg-destructive px-2 text-[11px] font-medium text-white hover:bg-destructive/90" @click="clearFile('back_qr')">Remove</button>
+                      </div>
+                      <p class="text-[10px] text-muted-foreground">Your own QR picture, PNG/JPG/WebP up to 5MB.</p>
+                      <p v-if="files.back_qr" class="text-[10px] text-amber-600">Uploads when you save.</p>
+                    </div>
+                  </div>
+                </template>
               </template>
 
               <template v-else-if="selected === 'logo'">
@@ -142,7 +166,7 @@
                 <img :src="frontSrc" alt="Card front" class="h-full w-full object-contain" />
               </div>
               <div class="live-face live-back overflow-hidden rounded-xl border border-border bg-white shadow-md">
-                <CardBackPreview :config="cfg" :background="backgroundSrc" :logo="logoSrc" />
+                <CardBackPreview :config="cfg" :background="backgroundSrc" :logo="logoSrc" :qr-upload="qrSrc" />
               </div>
             </div>
           </div>
@@ -180,8 +204,9 @@ const props = defineProps({
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const cfg = reactive(clone(props.template.back_config));
 const snapshot = ref(JSON.stringify(cfg));
-const files = reactive({ back_image: null, back_logo: null });
-const removed = reactive({ back_image: false, back_logo: false });
+const files = reactive({ back_image: null, back_logo: null, back_qr: null });
+const removed = reactive({ back_image: false, back_logo: false, back_qr: false });
+if (!cfg.qrcode.mode) cfg.qrcode.mode = 'url';
 const saving = ref(false);
 const saved = ref(false);
 const flipped = ref(false);
@@ -208,6 +233,10 @@ const logoSrc = computed(() => fileUrl('back_logo')
   || (removed.back_logo ? '' : props.template.back_logo_url)
   || '/images/logo/dielar.png');
 
+const qrSrc = computed(() => fileUrl('back_qr')
+  || (removed.back_qr || !cfg.qrcode.image ? '' : `/${String(cfg.qrcode.image).replace(/^\//, '')}`));
+const hasQr = computed(() => !!qrSrc.value);
+
 const name = computed(() => {
   const n = props.template.name;
   return typeof n === 'string' ? n : (n?.en || n?.ar || `#${props.template.id}`);
@@ -232,7 +261,7 @@ const setFraction = (key, percent) => {
 
 const hasImage = computed(() => files.back_image || (props.template.back_image_url && !removed.back_image));
 const hasLogo = computed(() => files.back_logo || (props.template.back_logo_url && !removed.back_logo));
-const dirty = computed(() => JSON.stringify(cfg) !== snapshot.value || files.back_image || files.back_logo || removed.back_image || removed.back_logo);
+const dirty = computed(() => JSON.stringify(cfg) !== snapshot.value || files.back_image || files.back_logo || files.back_qr || removed.back_image || removed.back_logo || removed.back_qr);
 
 const pick = (key, event) => {
   files[key] = event.target.files?.[0] || null;
@@ -285,15 +314,16 @@ const save = async ({ stay = false } = {}) => {
   try {
     const body = new FormData();
     body.append('settings', JSON.stringify(cfg));
-    ['back_image', 'back_logo'].forEach((k) => {
+    ['back_image', 'back_logo', 'back_qr'].forEach((k) => {
       if (files[k]) body.append(k, files[k]);
       if (removed[k]) body.append(`remove_${k}`, '1');
     });
     const { data } = await axios.post(route('admin.card-templates.back', props.template.id), body);
     const fresh = data.data;
+    cfg.qrcode.image = fresh?.back_config?.qrcode?.image ?? null;
     snapshot.value = JSON.stringify(cfg);
-    files.back_image = null; files.back_logo = null;
-    removed.back_image = false; removed.back_logo = false;
+    files.back_image = null; files.back_logo = null; files.back_qr = null;
+    removed.back_image = false; removed.back_logo = false; removed.back_qr = false;
     saved.value = true;
     savedAt.value = new Date().toLocaleTimeString();
     if (stay) router.reload({ only: ['template'], preserveState: true });

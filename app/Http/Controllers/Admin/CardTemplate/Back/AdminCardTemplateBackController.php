@@ -28,7 +28,9 @@ class AdminCardTemplateBackController extends Controller
             'enabled' => ['required', 'boolean'],
             'back_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
             'back_logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'back_qr' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'qrcode.value' => ['nullable', 'string', 'max:500'],
+            'qrcode.mode' => ['nullable', 'in:url,image'],
         ];
         foreach (['logo', 'slogan', 'title', 'website', 'qrcode'] as $key) {
             $rules["{$key}.visible"] = ['required', 'boolean'];
@@ -46,7 +48,7 @@ class AdminCardTemplateBackController extends Controller
             $rules["{$key}.direction"] = ['required', 'in:ltr,rtl,center'];
         }
 
-        $validator = Validator::make($settings + $request->only(['back_image', 'back_logo']), $rules);
+        $validator = Validator::make($settings + $request->only(['back_image', 'back_logo', 'back_qr']), $rules);
 
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first(), 'errors' => $validator->errors()], 422);
@@ -54,7 +56,17 @@ class AdminCardTemplateBackController extends Controller
 
         try {
             $clean = $validator->validated();
-            unset($clean['back_image'], $clean['back_logo']);
+            unset($clean['back_image'], $clean['back_logo'], $clean['back_qr']);
+
+            // The QR image path is never taken from the client: it is the one
+            // already stored, a fresh upload, or nothing.
+            $clean['qrcode']['mode'] = $clean['qrcode']['mode'] ?? 'url';
+            $clean['qrcode']['image'] = $cardTemplate->back_settings['qrcode']['image'] ?? null;
+            if ($request->hasFile('back_qr')) {
+                $clean['qrcode']['image'] = 'storage/'.$request->file('back_qr')->store('card-templates', 'public');
+            } elseif ($request->boolean('remove_back_qr')) {
+                $clean['qrcode']['image'] = null;
+            }
 
             $data = ['back_settings' => $clean];
 

@@ -37,7 +37,7 @@ class CardBackRenderer
     public function signature(CardTemplate $template): string
     {
         $files = [];
-        foreach ([$template->back_image ?: self::DEFAULT_BACKGROUND, $template->back_logo] as $path) {
+        foreach ([$template->back_image ?: self::DEFAULT_BACKGROUND, $template->back_logo, $template->resolvedBackConfig()['qrcode']['image'] ?? null] as $path) {
             $abs = $path ? public_path(ltrim($path, '/')) : null;
             $files[] = [$path, $abs && is_file($abs) ? filemtime($abs) : null];
         }
@@ -111,7 +111,14 @@ class CardBackRenderer
             $this->drawText($image, $cfg[$key]);
         }
 
-        if ($cfg['qrcode']['visible'] && trim((string) $cfg['qrcode']['value']) !== '') {
+        $qr = $cfg['qrcode'];
+        if ($qr['visible'] && ($qr['mode'] ?? 'url') === 'image' && ! empty($qr['image'])) {
+            [$x, $y, $w, $h] = $this->box($qr);
+            $side = (int) max(16, min($w, $h));
+            imagefilledrectangle($image, (int) $x, (int) $y, (int) $x + $side - 1, (int) $y + $side - 1, imagecolorallocate($image, 255, 255, 255));
+            $pad = (int) ($side * 0.04);
+            $this->drawImage($image, public_path(ltrim($qr['image'], '/')), $x + $pad, $y + $pad, $side - $pad * 2, $side - $pad * 2);
+        } elseif ($qr['visible'] && ($qr['mode'] ?? 'url') !== 'image' && trim((string) $qr['value']) !== '') {
             [$x, $y, $w, $h] = $this->box($cfg['qrcode']);
             $this->drawQr($image, (string) $cfg['qrcode']['value'], (int) $x, (int) $y, (int) max(16, min($w, $h)));
         }

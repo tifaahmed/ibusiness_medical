@@ -69,7 +69,7 @@ class CardTemplate extends Model
         'slogan' => ['visible' => true, 'text' => '', 'color' => '#1b2a4e', 'direction' => 'center', 'font_size' => 18.7, 'x' => 0.20, 'y' => 0.555, 'width' => 0.60, 'height' => 0.07],
         'title' => ['visible' => true, 'text' => 'Family Card', 'color' => '#14213d', 'direction' => 'center', 'font_size' => 31.7, 'x' => 0.20, 'y' => 0.65, 'width' => 0.60, 'height' => 0.10],
         'website' => ['visible' => true, 'text' => 'deilar.com', 'color' => '#9a6a1f', 'direction' => 'center', 'font_size' => 28, 'x' => 0.20, 'y' => 0.76, 'width' => 0.60, 'height' => 0.08],
-        'qrcode' => ['visible' => false, 'value' => 'https://deilar.com', 'x' => 0.834, 'y' => 0.74, 'width' => 0.126, 'height' => 0.20],
+        'qrcode' => ['visible' => false, 'mode' => 'url', 'image' => null, 'value' => 'https://deilar.com', 'x' => 0.834, 'y' => 0.74, 'width' => 0.126, 'height' => 0.20],
     ];
 
     protected function casts(): array
