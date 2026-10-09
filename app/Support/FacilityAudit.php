@@ -36,7 +36,7 @@ class FacilityAudit
     private const FIELDS = [
         Facility::class => [
             'name', 'description', 'meta_title', 'meta_description', 'meta_keywords',
-            'canonical_url', 'facility_type_id', 'sales_id', 'discount_percent', 'banner_config',
+            'canonical_url', 'facility_type_id', 'sales_id', 'discount_percent', 'contracted_at', 'banner_config',
         ],
         FacilityBranch::class => [
             'id:branch_id', 'facility_id', 'name', 'address', 'phone', 'governorate_id', 'city_id',

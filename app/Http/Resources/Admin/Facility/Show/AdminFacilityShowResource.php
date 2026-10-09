@@ -20,6 +20,7 @@ class AdminFacilityShowResource extends JsonResource
             'description' => $this->description,
             'slug' => $this->slug,
             'discount_percent' => $this->discount_percent,
+            'contracted_at' => $this->contracted_at?->toDateString(),
             'banner_config' => $this->banner_config,
             'facility_type' => $this->whenLoaded('facilityType', function () {
                 return $this->facilityType ? [

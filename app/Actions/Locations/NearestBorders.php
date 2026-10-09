@@ -22,11 +22,16 @@ class NearestBorders
     public const LEVELS = ['governorate', 'city'];
 
     /**
-     * @return list<array{id: int, name: ?string, distance_km: float, geometry: array<string, mixed>}>
+     * @return list<array{id: int, name: ?string, distance_km: float, geometry?: array<string, mixed>}>
      */
-    public function handle(string $level, float $lat, float $lng, int $limit = 4): array
+    public function handle(string $level, float $lat, float $lng, int $limit = 4, ?int $governorateId = null, bool $withGeometry = true): array
     {
         $rows = $this->borders($level);
+
+        /* Only the cities of one governorate — a city picker inside a chosen governorate. */
+        if ($level === 'city' && $governorateId !== null) {
+            $rows = array_intersect_key($rows, array_flip(City::query()->where('governorate_id', $governorateId)->pluck('id')->all()));
+        }
 
         $ranked = [];
 
@@ -48,7 +53,7 @@ class NearestBorders
             'id' => $id,
             'name' => $names->get($id)?->name,
             'distance_km' => round($ranked[$id], 1),
-            'geometry' => $rows[$id],
+            ...($withGeometry ? ['geometry' => $rows[$id]] : []),
         ], $ids);
     }
 

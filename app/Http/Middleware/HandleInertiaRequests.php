@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\NewsTicker;
 use App\Support\PublicMembershipUrl;
+use App\Support\ShopDelivery;
 use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -118,6 +119,8 @@ class HandleInertiaRequests extends Middleware
             'authUserPermissions' => $request->user()
                 ? $request->user()->effectivePermissionNames()
                 : [],
+            /* Things an admin still has to fill in, each with where to do it. Admin users only. */
+            'setupWarnings' => fn () => $request->user() ? ShopDelivery::missingSetup() : [],
             'authUserRoles' => $request->user()
                 ? $request->user()->getRoleNames()->values()->all()
                 : [],

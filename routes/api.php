@@ -29,6 +29,10 @@ use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchM
 use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
 use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
+use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
+use App\Http\Controllers\Api\V1\Mobile\FacilityController as V1MobileFacilityController;
+use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductController;
+use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
 use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
@@ -75,6 +79,101 @@ Route::prefix('v1')
          */
         Route::get('/locations', V1LocationController::class)->name('locations.index');
         Route::get('/locations/nearest-borders', V1NearestBordersController::class)->name('locations.nearest-borders');
+
+        /*
+         * Lean, screen-shaped endpoints for the Deilar mobile app. Same data as
+         * the guest endpoints around them, minus everything a phone screen
+         * does not draw (filter lists, every-name autocomplete payloads,
+         * offers, SEO) — see `Mobile\FacilityController`.
+         */
+        Route::prefix('mobile')->name('mobile.')->group(function () {
+            Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
+            Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
+            Route::get('/facilities', [V1MobileFacilityController::class, 'index'])->name('facilities.index');
+            Route::get('/facilities/{facility:slug}', [V1MobileFacilityController::class, 'show'])->name('facilities.show');
+            /*
+             * Phone sign-in for the app itself: same controller, same code
+             * policy (cooldown, counted attempts, `OtpSettings`) as the
+             * key-gated partner endpoints, but reachable from a phone that
+             * cannot keep an API key secret. The per-IP throttle is the only
+             * thing added; the per-number limits live in `MemberOtp`.
+             */
+            Route::post('/auth/otp', [V1PartnerOtpAuthController::class, 'request'])
+                ->middleware('throttle:10,1')
+                ->name('auth.otp.request');
+            Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
+                ->middleware('throttle:10,1')
+                ->name('auth.otp.verify');
+            Route::get('/me', function (Request $request) {
+                $user = $request->user();
+                $membership = $user->memberships()->latest('id')->first();
+
+                /* The delivery address saved on the member's card, home first — so checkout can open with it filled in.
+                   Only here, behind the sign-in token: it is personal, and a card NUMBER alone must never reveal it. */
+                $addresses = $membership ? $membership->addresses()->with(['governorate', 'city'])->get() : collect();
+                $saved = $addresses->first(fn ($a) => $a->type?->value === 'home') ?? $addresses->first();
+                $locale = app()->getLocale();
+
+                return response()->json([
+                    'address' => $saved ? [
+                        'type' => $saved->type?->value,
+                        'street' => $saved->street,
+                        'governorate' => $saved->governorate?->getTranslation('name', $locale),
+                        'city' => $saved->city?->getTranslation('name', $locale),
+                        'building_number' => $saved->building_number,
+                        'floor_number' => $saved->floor_number,
+                        'apartment_number' => $saved->apartment_number,
+                        'special_mark' => $saved->special_mark,
+                    ] : null,
+                    'user' => ['id' => $user->id, 'name' => $user->name, 'phone' => $user->phone],
+                    'membership' => $membership ? [
+                        'membership_number' => $membership->membership_number,
+                        'is_active' => (bool) ($membership->is_active ?? false),
+                        'expiration_date' => $membership->expiration_date?->format('Y-m-d'),
+                    ] : null,
+                ]);
+            })->middleware('auth:sanctum')->name('me');
+
+            /*
+             * Orders from the app: the partner order controller, behind
+             * `StampMobileOrder` (server-side delivery fee, real buyer IP).
+             * The member price still comes from the card number in the body.
+             */
+            Route::post('/orders', [V1PartnerOrderController::class, 'store'])
+                ->middleware([\App\Http\Middleware\StampMobileOrder::class, 'throttle:10,1'])
+                ->name('orders.store');
+            Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
+                ->middleware('throttle:60,1')
+                ->name('orders.show');
+            Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
+                ->middleware('throttle:20,1')
+                ->name('orders.receipt');
+
+            Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
+                ->middleware('throttle:20,1')
+                ->name('card.show');
+
+            Route::get('/map-pins', [V1MobileFacilityController::class, 'pins'])->name('map-pins');
+            Route::get('/branches/{branch}', [V1MobileFacilityController::class, 'branch'])->whereNumber('branch')->name('branches.show');
+            Route::get('/facilities/{facility:slug}/branches', [V1MobileFacilityController::class, 'branches'])->name('facilities.branches');
+
+            /* Delivery, the wallet a transfer goes to and the contact points: this application's settings (/admin/setting). */
+            Route::get('/shop', function () {
+                $delivery = \App\Support\ShopDelivery::current();
+
+                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
+                    ->header('Cache-Control', 'public, max-age=60');
+            })->name('shop');
+
+            Route::get('/store-categories', [V1MobileStoreController::class, 'categories'])->name('store-categories');
+            Route::get('/stores', [V1MobileStoreController::class, 'index'])->name('stores.index');
+            Route::get('/stores/{store:slug}', [V1MobileStoreController::class, 'show'])->name('stores.show');
+            Route::get('/stores/{store:slug}/branches', [V1MobileStoreController::class, 'branches'])->name('stores.branches');
+
+            Route::get('/product-types', [V1MobileProductController::class, 'types'])->name('product-types');
+            Route::get('/products', [V1MobileProductController::class, 'index'])->name('products.index');
+            Route::get('/products/{product:slug}', [V1MobileProductController::class, 'show'])->name('products.show');
+        });
 
         Route::get('/facilities', V1PartnersController::class)->name('facilities.index');
 
@@ -236,8 +335,31 @@ Route::prefix('v1')
                  * attacker can enumerate at.
                  */
                 Route::post('/orders', [V1PartnerOrderController::class, 'store'])
-                    ->middleware('throttle:30,1')
+                    ->middleware(['throttle:30,1', \App\Http\Middleware\ApplyShopDelivery::class])
                     ->name('orders.store');
+
+                /*
+                 * The shop's money settings for a storefront to QUOTE: what
+                 * delivery costs the buyer, where it becomes free, and the
+                 * wallet a transfer goes to. Read-only — they are edited here
+                 * at /admin/setting, and orders are written with these same
+                 * figures whatever the storefront sends.
+                 */
+                Route::get('/shop-settings', function () {
+                    $delivery = \App\Support\ShopDelivery::current();
+
+                    return response()->json([
+                        'walletNumber' => \App\Support\ShopDelivery::wallet(),
+                        'deliveryCost' => $delivery['cost'],
+                        'deliveryPrice' => $delivery['price'],
+                        'deliveryProfit' => round($delivery['price'] - $delivery['cost'], 2),
+                        'freeDeliveryThreshold' => $delivery['threshold'],
+                       
+                    ]);
+                })->name('shop-settings');
+
+                /* The contact points the website's dock, footer and contact page draw (edited at /admin/setting). */
+                Route::get('/contact-settings', fn () => response()->json(\App\Support\ShopContact::current()))->name('contact-settings');
 
                 Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
                     ->middleware('throttle:60,1')

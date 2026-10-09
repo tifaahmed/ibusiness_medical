@@ -77,6 +77,7 @@ class UpdateFacilityRequest extends FormRequest
             'facility_type_id' => ['required', 'exists:'.FacilityType::class.',id'],
             'sales_id' => ['nullable', 'exists:'.Sales::class.',id'],
             'discount_percent' => ['nullable', 'numeric', 'between:0,100'],
+            'contracted_at' => ['required', 'date'],
             'banner_config' => ['nullable', 'array'],
             'banner_config.enabled' => ['nullable', 'boolean'],
             'banner_config.message_ar' => ['nullable', 'string', 'max:255'],

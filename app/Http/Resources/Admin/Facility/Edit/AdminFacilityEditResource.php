@@ -31,6 +31,7 @@ class AdminFacilityEditResource extends JsonResource
             'facility_type_id' => $this->facility_type_id,
             'sales_id' => $this->sales_id,
             'discount_percent' => $this->discount_percent,
+            'contracted_at' => $this->contracted_at?->toDateString(),
             'banner_config' => $this->banner_config,
             'branches' => $this->whenLoaded(
                 'branches',

@@ -68,6 +68,16 @@
             />
           </div>
 
+          <div data-slot="form-item" class="grid gap-1">
+            <FormInput
+              v-model="facilityStore.form.contracted_at"
+              :label="t.facility?.contracted_at || 'Contracted date'"
+              :error="facilityStore.validationErrors?.contracted_at"
+              type="date"
+              required
+            />
+          </div>
+
           <div data-slot="form-item" class="grid gap-1 lg:col-span-2">
             <FormTranslatableQuillEditor
               v-model="formDescription"

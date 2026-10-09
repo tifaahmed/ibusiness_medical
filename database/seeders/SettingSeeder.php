@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Setting;
 use App\Support\OtpSettings;
+use App\Support\ShopContact;
+use App\Support\ShopDelivery;
 use Illuminate\Database\Seeder;
 
 class SettingSeeder extends Seeder
@@ -76,7 +78,7 @@ class SettingSeeder extends Seeder
          * deploy — and listed by `OtpSettings` rather than here so the defaults
          * that class reads and the rows an install starts with cannot drift.
          */
-        $settings = [...$settings, ...OtpSettings::seedRows()];
+        $settings = [...$settings, ...OtpSettings::seedRows(), ...ShopDelivery::seedRows(), ...ShopContact::seedRows()];
 
         foreach ($settings as $setting) {
             Setting::query()->firstOrCreate(

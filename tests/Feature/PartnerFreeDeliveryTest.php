@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Setting;
+use App\Support\ShopDelivery;
+use App\Support\SiteSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -188,6 +191,11 @@ class PartnerFreeDeliveryTest extends TestCase
         ?float $threshold,
         ?string $membershipNumber = null,
     ): \Illuminate\Testing\TestResponse {
+        /* The arrangement is this application's settings now, not something the caller posts. */
+        SiteSettings::put(ShopDelivery::COST, 20, Setting::TYPE_NUMBER);
+        SiteSettings::put(ShopDelivery::PRICE, 50, Setting::TYPE_NUMBER);
+        SiteSettings::put(ShopDelivery::THRESHOLD, $threshold ?? '', Setting::TYPE_NUMBER);
+
         return $this->withHeader('X-Api-Key', 'partner-test-key')
             ->postJson('/api/v1/partner/orders', array_filter([
                 'items' => [['slug' => $product->slug, 'quantity' => $quantity]],
@@ -195,9 +203,6 @@ class PartnerFreeDeliveryTest extends TestCase
                 'customer_phone' => '01062587475',
                 'customer_address' => 'Somewhere',
                 'payment_type' => 'cod',
-                'delivery_cost' => 20,
-                'delivery_price' => 50,
-                'free_delivery_threshold' => $threshold,
                 'membership_number' => $membershipNumber,
             ], fn ($value) => $value !== null));
     }

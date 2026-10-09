@@ -26,6 +26,9 @@ class ContactMessageController extends Controller
         $validator = Validator::make($request->all(), [
             'phone' => 'required|string|max:20',
             'message' => 'required|string|max:5000',
+            'name' => 'nullable|string|max:255',
+            // Which form sent it; the mobile app's card popup says so, everything else is the contact form.
+            'source' => ['nullable', 'in:'.ContactSourceEnum::CONTACT_FORM->value.','.ContactSourceEnum::CARD_POPUP->value],
         ]);
 
         if ($validator->fails()) {
@@ -48,7 +51,8 @@ class ContactMessageController extends Controller
             $contactMessage = app(RecordContactMessageAction::class)->handle([
                 'phone' => $request->phone,
                 'message' => $request->message,
-                'source' => ContactSourceEnum::CONTACT_FORM->value,
+                'name' => $request->input('name'),
+                'source' => $request->input('source', ContactSourceEnum::CONTACT_FORM->value),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'locale' => app()->getLocale(),

@@ -830,6 +830,20 @@ const getUserInitials = (name) => {
                 <!-- Page Content - natural scroll on all screen sizes -->
                 <main class="flex-1 w-full max-w-full">
                     <div class="max-w-7xl mx-auto w-full">
+                        <!-- Settings still to fill in, with a link straight to where. -->
+                        <div v-if="page.props.setupWarnings?.length" class="px-2 sm:px-3 md:px-4 lg:px-6 pt-3 space-y-2">
+                            <div
+                                v-for="warning in page.props.setupWarnings"
+                                :key="warning.slug"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                                role="alert"
+                            >
+                                <span>⚠️ {{ warning.message }}</span>
+                                <Link :href="warning.url" class="shrink-0 rounded-md bg-amber-500 px-3 py-1 text-xs font-bold text-white hover:bg-amber-600">
+                                    {{ page.props.locale === 'ar' ? 'أضِفه هنا' : 'Add it here' }}
+                                </Link>
+                            </div>
+                        </div>
                         <slot />
                     </div>
                 </main>
