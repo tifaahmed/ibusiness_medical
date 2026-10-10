@@ -23,7 +23,7 @@ class TagTranslationsTest extends TestCase
     {
         $user = User::factory()->create();
         $role = Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web');
-        $role->givePermissionTo(Permission::findOrCreate('manage services', 'web'));
+        $role->givePermissionTo(Permission::findOrCreate('manage tags', 'web'));
         $user->assignRole($role);
 
         return $user;

@@ -652,7 +652,7 @@ const getUserInitials = (name) => {
                 </SidebarLink>
 
                 <SidebarLink
-                    v-if="canAny('manage services', 'manage own services', 'view services')"
+                    v-if="canAny('manage tags', 'manage own tags', 'view tags')"
                     :href="route('admin.tag.list')"
                     :active="route().current('admin.tag.*')"
                     :is-collapsed="sidebarCollapsed"

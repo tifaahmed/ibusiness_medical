@@ -41,13 +41,16 @@
               >
                 {{ form.processing ? 'Saving…' : 'Save & stay' }}
               </button>
-              <button
-                type="submit"
-                :disabled="form.processing"
-                class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 disabled:opacity-50"
-              >
-                {{ form.processing ? 'Saving…' : 'Save Store' }}
-              </button>
+              <div class="relative inline-flex">
+                <button
+                  type="submit"
+                  :disabled="form.processing"
+                  class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 disabled:opacity-50"
+                >
+                  {{ form.processing ? 'Saving…' : 'Save Store' }}
+                </button>
+                <ErrorTrackButton :errors="form.errors" :debug-log="debugLog" />
+              </div>
             </div>
           </div>
         </form>
@@ -57,7 +60,12 @@
 </template>
 
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { useNotification } from '@/composables/useNotification';
+import ErrorTrackButton from '@/Components/ui/ErrorTrackButton.vue';
+import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StoreForm from '../_components/StoreForm.vue';
 
@@ -116,8 +124,28 @@ const form = useForm({
   })),
 });
 
+const debugLog = ref(null);
+
 const submit = (stay = false) => {
+  debugLog.value = buildDebugLog({ method: 'PUT', url: route('admin.store.update', props.store.id), fields: form.data() });
   form.transform((data) => ({ ...data, _method: 'PUT', stay: stay === true }))
-    .post(route('admin.store.update', props.store.id), { forceFormData: true });
+    .post(route('admin.store.update', props.store.id), { forceFormData: true, onSuccess: () => { debugLog.value = null; }, onError: onSaveError });
 };
+
+// A rejected save comes back as validation errors; StoreForm lists them all at
+// the top, the red badge on the submit button opens the full request/response
+// trace, and the client-error log hears of it.
+function onSaveError(errors) {
+  const keys = Object.keys(errors || {});
+  // The exception behind a failed save (App\Support\ErrorTrace), for the badge's Advanced tab.
+  debugLog.value = recordResponse(debugLog.value, errors, null, usePage().props?.flash?.error_debug || null);
+  useNotification().error(errors?.error || `The store was not saved: ${keys.length} field(s) need fixing.`);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  axios.post('/api/v1/client-errors', {
+    message: `Store save rejected: ${keys.join(', ') || 'no field named'}`,
+    fatal: false,
+    route: window.location.pathname,
+    extra: { feature: 'store-form', step: 'update', errors },
+  }).catch(() => {});
+}
 </script>

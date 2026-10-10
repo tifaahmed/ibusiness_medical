@@ -1,5 +1,20 @@
 <template>
   <div class="space-y-4">
+    <!-- Every rejection, wherever its field lives (another tab, a closed branch
+         editor, a gallery file, or the save itself failing) — so a save that
+         bounces never looks like a save that did nothing. -->
+    <div v-if="errorList.length" role="alert" class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+      <div class="flex items-center gap-2 font-medium">
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+        The store was not saved. Fix the following and save again:
+      </div>
+      <ul class="mt-2 list-disc space-y-0.5 ps-6 text-xs">
+        <li v-for="item in errorList" :key="item.key">
+          <span class="font-mono opacity-70">{{ item.key }}</span> — {{ item.message }}
+        </li>
+      </ul>
+    </div>
+
     <TabBar v-model="activeTab" :tabs="formTabs" />
 
     <div v-show="activeTab === 'general'" class="space-y-4">
@@ -656,9 +671,11 @@ const generateSeo = async () => {
 
 const activeTab = ref('general');
 const seoFields = ['meta_title', 'meta_description', 'meta_keywords'];
+const isSeoKey = (k) => seoFields.some(f => k === f || k.startsWith(`${f}.`));
+const errorList = computed(() => Object.entries(props.form.errors || {}).map(([key, message]) => ({ key, message })));
 const formTabs = computed(() => [
-  { key: 'general', label: 'Details' },
-  { key: 'seo', label: 'SEO', hasError: Object.keys(props.form.errors || {}).some(k => seoFields.some(f => k === f || k.startsWith(`${f}.`))) },
+  { key: 'general', label: 'Details', hasError: errorList.value.some(e => !isSeoKey(e.key)) },
+  { key: 'seo', label: 'SEO', hasError: errorList.value.some(e => isSeoKey(e.key)) },
 ]);
 const counterClass = (value, max) => {
   const n = (value || '').length;

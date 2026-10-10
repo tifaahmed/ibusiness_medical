@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Store\Update;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Store\UpdateStoreRequest;
 use App\Models\Store;
+use App\Support\ErrorTrace;
 use App\Models\StoreBranch;
 use App\Models\StoreGallery;
 use Illuminate\Http\RedirectResponse;
@@ -136,7 +137,7 @@ class AdminStoreUpdateController extends BaseController
 
             return redirect()->route('admin.store.list')
                 ->with('success', 'Store updated successfully.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
 
             Log::error('Failed to update store', [
@@ -146,6 +147,7 @@ class AdminStoreUpdateController extends BaseController
             ]);
 
             return back()->withErrors(['error' => 'Failed to update store. Please try again.'])
+                ->with('error_debug', ErrorTrace::from($e))
                 ->withInput();
         }
     }

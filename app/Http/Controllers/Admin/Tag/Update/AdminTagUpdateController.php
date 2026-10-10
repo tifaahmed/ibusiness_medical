@@ -15,8 +15,8 @@ class AdminTagUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_TAGS; }
+    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_TAGS; }
 
     public function __construct(private UpdateTagAction $updateAction) {}
 

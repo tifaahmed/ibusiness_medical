@@ -1073,8 +1073,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/setting/{setting}', AdminSettingShowController::class)->name('admin.setting.show');
     });
 
-    // ---- Tag (manage services OR own) ----
-    Route::middleware('permission:manage services|manage own services')->group(function () {
+    // ---- Tag (manage tags OR own) ----
+    Route::middleware('permission:manage tags|manage own tags')->group(function () {
         Route::get('/admin/tag/create', AdminTagCreateController::class)->name('admin.tag.create');
         Route::post('/admin/tag', AdminTagStoreController::class)->name('admin.tag.store');
         // "Fix translations with AI": preview writes nothing, apply saves the ticked ones.
@@ -1086,7 +1086,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::put('/admin/tag/{tag}', AdminTagUpdateController::class)->name('admin.tag.update');
         Route::delete('/admin/tag/{tag}', AdminTagDeleteController::class)->name('admin.tag.destroy');
     });
-    Route::middleware('permission:manage services|manage own services|view services')->group(function () {
+    Route::middleware('permission:manage tags|manage own tags|view tags')->group(function () {
         Route::get('/admin/tag', AdminTagListController::class)->name('admin.tag.list');
         Route::get('/admin/tag/{tag}', AdminTagShowController::class)->name('admin.tag.show');
     });
