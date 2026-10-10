@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Membership;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Setting;
+use App\Support\ShopDelivery;
+use App\Support\SiteSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,6 +31,17 @@ class PartnerOrderPricingTest extends TestCase
         parent::setUp();
 
         config(['services.partner_api.key' => 'partner-test-key']);
+
+        /* No delivery unless a test sets it, so the price tests read the lines alone. */
+        $this->deliverySettings(0, 0);
+    }
+
+    /** Delivery lives in this application's settings; callers cannot set it on an order. */
+    private function deliverySettings(float $cost, float $price, ?float $threshold = null): void
+    {
+        SiteSettings::put(ShopDelivery::COST, $cost, Setting::TYPE_NUMBER);
+        SiteSettings::put(ShopDelivery::PRICE, $price, Setting::TYPE_NUMBER);
+        SiteSettings::put(ShopDelivery::THRESHOLD, $threshold ?? '', Setting::TYPE_NUMBER);
     }
 
     /**
@@ -311,10 +325,9 @@ class PartnerOrderPricingTest extends TestCase
     {
         $this->markedDownProduct();
 
-        $this->placeOrder([
-            'delivery_cost' => 35,
-            'delivery_price' => 50,
-        ])->assertCreated();
+        $this->deliverySettings(35, 50);
+
+        $this->placeOrder()->assertCreated();
 
         $order = Order::query()->sole();
 
@@ -327,22 +340,27 @@ class PartnerOrderPricingTest extends TestCase
     }
 
     /**
-     * The profit is arithmetic, not a claim: a caller sending a figure of its
-     * own gets `price - cost` stored anyway.
+     * Delivery is the shop's own arrangement, set in the settings here: a caller
+     * that sends figures of its own — its price, its cost, a profit — is not
+     * believed, and the order is written with the settings' `price - cost`.
      *
      * @test
      */
-    public function the_delivery_profit_is_recomputed_rather_than_believed(): void
+    public function a_callers_own_delivery_figures_are_ignored(): void
     {
         $this->markedDownProduct();
+        $this->deliverySettings(35, 50);
 
         $this->placeOrder([
-            'delivery_cost' => 35,
-            'delivery_price' => 50,
+            'delivery_cost' => 1,
+            'delivery_price' => 1,
             'delivery_profit' => 9999,
         ])->assertCreated();
 
-        $this->assertSame('15.00', Order::query()->sole()->delivery_profit);
+        $order = Order::query()->sole();
+
+        $this->assertSame('50.00', $order->delivery_price);
+        $this->assertSame('15.00', $order->delivery_profit);
     }
 
     /**
@@ -356,10 +374,10 @@ class PartnerOrderPricingTest extends TestCase
         $this->markedDownProduct();
 
         $membership = Membership::factory()->active()->create(['is_visible' => true]);
+        $this->deliverySettings(0, 50);
 
         $this->placeOrder([
             'membership_number' => $membership->membership_number,
-            'delivery_price' => 50,
         ])->assertCreated();
 
         $order = Order::query()->sole();
@@ -373,14 +391,14 @@ class PartnerOrderPricingTest extends TestCase
     }
 
     /**
-     * A storefront that has not been updated posts no delivery at all. That is
-     * free delivery, not a refused order.
+     * A shop whose delivery price is set to nothing charges none.
      *
      * @test
      */
-    public function an_order_placed_without_delivery_figures_is_charged_none(): void
+    public function a_shop_with_no_delivery_price_charges_none(): void
     {
         $this->markedDownProduct();
+        $this->deliverySettings(0, 0);
 
         $this->placeOrder()->assertCreated();
 
@@ -401,10 +419,9 @@ class PartnerOrderPricingTest extends TestCase
     {
         $this->markedDownProduct();
 
-        $response = $this->placeOrder([
-            'delivery_cost' => 35,
-            'delivery_price' => 50,
-        ])->assertCreated();
+        $this->deliverySettings(35, 50);
+
+        $response = $this->placeOrder()->assertCreated();
 
         $response->assertJsonPath('order.delivery_price', 50);
         $response->assertJsonMissingPath('order.delivery_cost');

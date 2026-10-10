@@ -35,6 +35,7 @@ class StoreFacilityAction
                 'facility_type_id' => $validated['facility_type_id'],
                 'sales_id' => $validated['sales_id'] ?? null,
                 'discount_percent' => $validated['discount_percent'] ?? null,
+                'contracted_at' => $validated['contracted_at'],
                 'banner_config' => $validated['banner_config'] ?? null,
                 'created_by' => Auth::id(),
             ]);
@@ -237,6 +238,7 @@ class StoreFacilityAction
             'facility_type_id' => $facility->facility_type_id,
             'sales_id' => $facility->sales_id,
             'discount_percent' => $facility->discount_percent,
+            'contracted_at' => $facility->contracted_at?->toDateString(),
             'banner_config' => $facility->banner_config,
         ];
     }

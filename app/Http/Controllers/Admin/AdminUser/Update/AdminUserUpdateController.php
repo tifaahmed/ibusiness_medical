@@ -55,6 +55,24 @@ class AdminUserUpdateController extends Controller
 
         $adminUser->update($update);
 
+        // Newly blocked: kill every live session now rather than at the next request.
+        if (isset($update['dashboard_blocked_at'])) {
+            try {
+                $adminUser->forceFill(['remember_token' => \Illuminate\Support\Str::random(60)])->saveQuietly();
+                if (config('session.driver') === 'database') {
+                    \Illuminate\Support\Facades\DB::table(config('session.table', 'sessions'))
+                        ->where('user_id', $adminUser->id)
+                        ->delete();
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to end sessions of blocked user', [
+                    'user_id' => $adminUser->id,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
+
         $adminUser->syncRoles($data['roles']);
         $adminUser->syncPermissions($data['permissions'] ?? []);
 

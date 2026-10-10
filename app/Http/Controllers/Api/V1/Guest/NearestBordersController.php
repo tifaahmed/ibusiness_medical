@@ -25,7 +25,9 @@ class NearestBordersController extends Controller
             'level' => ['required', Rule::in(NearestBorders::LEVELS)],
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'governorate_id' => ['nullable', 'integer'],
+            'geometry' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -34,6 +36,8 @@ class NearestBordersController extends Controller
                 (float) $validated['lat'],
                 (float) $validated['lng'],
                 (int) ($validated['limit'] ?? 4),
+                isset($validated['governorate_id']) ? (int) $validated['governorate_id'] : null,
+                $request->boolean('geometry', true),
             );
         } catch (Throwable $exception) {
             Log::error('Nearest borders failed.', [

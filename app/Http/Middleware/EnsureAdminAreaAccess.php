@@ -38,6 +38,11 @@ class EnsureAdminAreaAccess
                 'user_id' => $user->id,
                 'route' => $request->path(),
             ]);
+            if ($request->hasSession()) {
+                auth()->guard()->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
             throw new AccessDeniedHttpException('Your access to the dashboard has been blocked.');
         }
 
