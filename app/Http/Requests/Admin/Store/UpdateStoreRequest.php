@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Store;
 
 use App\Http\Requests\Concerns\HandlesStoreExtras;
+use App\Http\Requests\Concerns\LogsFailedValidation;
 use App\Http\Requests\Concerns\NormalisesBranchPhones;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -10,6 +11,7 @@ use Illuminate\Validation\Validator;
 class UpdateStoreRequest extends FormRequest
 {
     use HandlesStoreExtras;
+    use LogsFailedValidation;
     use NormalisesBranchPhones;
 
     public function authorize(): bool

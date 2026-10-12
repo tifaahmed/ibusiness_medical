@@ -31,12 +31,12 @@ class AdminTagTranslationFixController extends BaseController
 
     protected function fullPermission(): string
     {
-        return UserPermissionEnum::MANAGE_SERVICES;
+        return UserPermissionEnum::MANAGE_TAGS;
     }
 
     protected function ownPermission(): string
     {
-        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+        return UserPermissionEnum::MANAGE_OWN_TAGS;
     }
 
     public function preview(Request $request): JsonResponse

@@ -164,7 +164,7 @@ import { usePermissions } from '@/composables/usePermissions';
 const { canManage } = usePermissions();
 // Create/export/import are writes: hidden from read-only accounts,
 // and refused by the routes behind them either way.
-const canWrite = computed(() => canManage('manage own services', 'manage services'));
+const canWrite = computed(() => canManage('manage own tags', 'manage tags'));
 
 
 const props = defineProps({

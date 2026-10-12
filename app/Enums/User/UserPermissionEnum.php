@@ -64,6 +64,15 @@ enum UserPermissionEnum
 
     public const MANAGE_OWN_SERVICES = 'manage own services';
 
+    /**
+     * Tags used to ride on the services permissions. They have their own now,
+     * so a role can run the tags without owning the services (or the reverse).
+     * Paired, because `tags.created_by` makes "own" meaningful.
+     */
+    public const MANAGE_TAGS = 'manage tags';
+
+    public const MANAGE_OWN_TAGS = 'manage own tags';
+
     public const MANAGE_CONTRACTS = 'manage contracts';
 
     public const MANAGE_OWN_CONTRACTS = 'manage own contracts';
@@ -191,6 +200,8 @@ enum UserPermissionEnum
 
     public const VIEW_SERVICES = 'view services';
 
+    public const VIEW_TAGS = 'view tags';
+
     public const VIEW_CONTRACTS = 'view contracts';
 
     public const VIEW_COMPANIES = 'view companies';
@@ -306,6 +317,7 @@ enum UserPermissionEnum
             [self::MANAGE_PARTNER_OFFERS, self::MANAGE_OWN_PARTNER_OFFERS],
             [self::MANAGE_SALES, self::MANAGE_OWN_SALES],
             [self::MANAGE_SERVICES, self::MANAGE_OWN_SERVICES],
+            [self::MANAGE_TAGS, self::MANAGE_OWN_TAGS],
             [self::MANAGE_NEWS_TICKERS, self::MANAGE_OWN_NEWS_TICKERS],
             [self::MANAGE_MEMBER_PAYMENTS, self::MANAGE_OWN_MEMBER_PAYMENTS],
         ];
@@ -340,6 +352,7 @@ enum UserPermissionEnum
             self::VIEW_STORES,
             self::VIEW_ORDERS,
             self::VIEW_SERVICES,
+            self::VIEW_TAGS,
             self::VIEW_CONTACT_MESSAGES,
             self::VIEW_FAQS,
             self::VIEW_PARTNERS,
