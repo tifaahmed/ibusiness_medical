@@ -48,6 +48,24 @@
           </div>
         </div>
       </div>
+
+      <!-- Blocked Filter -->
+      <div class="w-full sm:w-auto flex flex-col gap-1.5 sm:gap-2">
+        <label class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none mb-1">
+          Status
+        </label>
+        <button
+          type="button"
+          @click="handleBlockedFilter"
+          :class="[
+            'cursor-pointer justify-center whitespace-nowrap text-xs sm:text-sm font-medium transition-all border shadow-xs h-7 sm:h-8 md:h-9 rounded-md px-2 sm:px-3 flex items-center gap-1.5 sm:gap-2',
+            filters.blocked ? 'bg-red-500/20 text-red-300 border-red-500/50' : 'bg-background text-red-400 border-red-500/30 hover:bg-red-500/10 dark:bg-input/30'
+          ]"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+          Blocked
+        </button>
+      </div>
     </div>
 
     <button
@@ -72,7 +90,7 @@ import { router } from "@inertiajs/vue3";
 const props = defineProps({
   initialFilters: {
     type: Object,
-    default: () => ({ search: "", role: null }),
+    default: () => ({ search: "", role: null, blocked: false }),
   },
 });
 
@@ -87,9 +105,10 @@ const roleOptions = [
 const filters = ref({
   search: props.initialFilters?.search || "",
   role: props.initialFilters?.role || null,
+  blocked: !!props.initialFilters?.blocked,
 });
 
-const hasActiveFilters = computed(() => !!(filters.value.search || filters.value.role));
+const hasActiveFilters = computed(() => !!(filters.value.search || filters.value.role || filters.value.blocked));
 
 let searchTimeout = null;
 const handleSearch = (event) => {
@@ -103,8 +122,13 @@ const handleRoleFilter = (role) => {
   applyFilters();
 };
 
+const handleBlockedFilter = () => {
+  filters.value.blocked = !filters.value.blocked;
+  applyFilters();
+};
+
 const handleReset = () => {
-  filters.value = { search: "", role: null };
+  filters.value = { search: "", role: null, blocked: false };
   applyFilters();
 };
 
@@ -112,6 +136,7 @@ const applyFilters = () => {
   const params = {};
   if (filters.value.search?.trim()) params.search = filters.value.search;
   if (filters.value.role) params.role = filters.value.role;
+  if (filters.value.blocked) params.blocked = 1;
   emit("filter-change", filters.value);
   router.get(route("admin.admin-users.index"), params, {
     preserveState: true,
@@ -127,6 +152,7 @@ watch(
       filters.value = {
         search: newFilters.search || filters.value.search,
         role: newFilters.role || null,
+        blocked: !!newFilters.blocked,
       };
     }
   },

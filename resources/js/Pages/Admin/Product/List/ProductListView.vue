@@ -33,11 +33,13 @@
           </div>
 
           <div class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <ProductListFilterContent
+            <FilterAccordion>
+<ProductListFilterContent
               :initial-filters="filters"
               :creator-options="creatorOptions"
               :can-filter-by-creator="canFilterByCreator"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -50,6 +52,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import ProductLayout from "../ProductLayout.vue";
 import ProductListFilterContent from "./ProductListFilterContent.vue";
 import ProductListTable from "./ProductListTable.vue";

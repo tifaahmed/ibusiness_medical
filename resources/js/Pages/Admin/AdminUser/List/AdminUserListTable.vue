@@ -30,7 +30,10 @@
               <tr
                 v-for="admin in admins.data"
                 :key="admin.id"
-                class="border-b border-border transition-colors hover:bg-muted/50"
+                :class="[
+                  'border-b border-border transition-colors',
+                  admin.dashboard_blocked ? 'bg-red-500/10 hover:bg-red-500/20' : 'hover:bg-muted/50',
+                ]"
               >
                 <td class="p-2 sm:p-3 align-middle w-[180px] sm:w-[220px]">
                   <div class="flex items-center gap-2 sm:gap-3">
@@ -42,6 +45,13 @@
                         {{ admin.name }}
                       </div>
                       <div v-if="admin.is_self" class="text-xs text-muted-foreground">(you)</div>
+                      <span
+                        v-if="admin.dashboard_blocked"
+                        class="mt-0.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border bg-red-500/15 text-red-300 border-red-500/40"
+                      >
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                        Blocked
+                      </span>
                     </div>
                   </div>
                 </td>
@@ -78,6 +88,16 @@
                 </td>
                 <td class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
+                    <Link
+                      :href="route('admin.admin-users.logs', admin.id)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs dark:bg-input/30 dark:border-input h-8 rounded-md gap-1.5 px-3 text-violet-300 hover:!bg-violet-400/10 hover:!text-violet-300"
+                      title="Change log"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                    </Link>
                     <template v-if="admin.is_super_admin">
                       <span class="text-xs text-muted-foreground italic">locked</span>
                     </template>

@@ -36,7 +36,8 @@
       </div>
 
       <!-- Filter -->
-      <div class="rounded-xl border border-border bg-card p-3 flex flex-col sm:flex-row sm:items-end gap-2">
+      <FilterAccordion>
+        <div class="flex flex-col sm:flex-row sm:items-end gap-2">
         <div class="flex-1 min-w-0">
           <label class="block text-xs font-medium mb-1" for="filter-membership-number">
             {{ t.filter?.label || 'Filter by membership number' }}
@@ -59,6 +60,7 @@
           {{ t.filter?.clear || 'Clear' }}
         </button>
       </div>
+      </FilterAccordion>
 
       <!-- Table -->
       <div class="rounded-xl border border-border bg-card text-card-foreground overflow-hidden">
@@ -169,6 +171,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\AdminUser\Update;
 use App\Enums\User\UserRoleEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminUser\UpdateAdminUserRequest;
+use App\Models\AdminUserLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,7 @@ class AdminUserUpdateController extends Controller
         }
 
         $data = $request->validated();
+        $before = AdminUserLog::snapshot($adminUser);
 
         $update = [
             'name' => $data['name'],
@@ -53,7 +55,9 @@ class AdminUserUpdateController extends Controller
             }
         }
 
-        $adminUser->update($update);
+        // email_verified_at / dashboard_blocked_at are deliberately not $fillable, so
+        // update() would silently drop them; forceFill is the explicit admin write.
+        $adminUser->forceFill($update)->save();
 
         // Newly blocked: kill every live session now rather than at the next request.
         if (isset($update['dashboard_blocked_at'])) {
@@ -75,6 +79,36 @@ class AdminUserUpdateController extends Controller
 
         $adminUser->syncRoles($data['roles']);
         $adminUser->syncPermissions($data['permissions'] ?? []);
+
+        $after = AdminUserLog::snapshot($adminUser);
+        $passwordChanged = ! empty($data['password']);
+        $changed = array_values(array_filter(
+            array_keys($after),
+            fn ($k) => $before[$k] !== $after[$k],
+        ));
+
+        // A block flip is its own entry so it reads at a glance; every other
+        // change (and a password reset, recorded as a flag, never the hash)
+        // is filed as one "updated".
+        if (in_array('dashboard_blocked', $changed, true)) {
+            AdminUserLog::record(
+                $adminUser, $request->user(),
+                $after['dashboard_blocked'] ? AdminUserLog::ACTION_BLOCKED : AdminUserLog::ACTION_UNBLOCKED,
+                ['dashboard_blocked' => $before['dashboard_blocked']],
+                ['dashboard_blocked' => $after['dashboard_blocked']],
+                $request, ['dashboard_blocked'],
+            );
+        }
+        $others = array_values(array_diff($changed, ['dashboard_blocked']));
+        if ($others !== [] || $passwordChanged) {
+            $old = array_intersect_key($before, array_flip($others));
+            $new = array_intersect_key($after, array_flip($others));
+            if ($passwordChanged) {
+                $others[] = 'password';
+                $new['password'] = 'changed';
+            }
+            AdminUserLog::record($adminUser, $request->user(), AdminUserLog::ACTION_UPDATED, $old, $new, $request, $others);
+        }
 
         return redirect()
             ->route('admin.admin-users.index')

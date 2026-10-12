@@ -32,11 +32,13 @@
             <p class="text-xs text-muted-foreground">
               {{ t.setting?.intro || 'The details the site shows about itself — name, phone, address, logo and links. Each row is read by its key, so adding a new detail is adding a row.' }}
             </p>
-            <SettingListFilterContent
+            <FilterAccordion>
+<SettingListFilterContent
               :initial-filters="filters"
               :value-types="valueTypes"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -49,6 +51,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import SettingLayout from "../SettingLayout.vue";
 import SettingListFilterContent from "./SettingListFilterContent.vue";
 import SettingListTable from "./SettingListTable.vue";

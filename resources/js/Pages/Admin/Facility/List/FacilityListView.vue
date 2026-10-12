@@ -5,7 +5,7 @@
       <div class="flex-shrink-0 space-y-2 sm:space-y-3 md:space-y-4 p-2 sm:p-3 md:p-4 lg:p-6 pb-2 sm:pb-3 md:pb-4 lg:pb-4 w-full max-w-full overflow-hidden">
         <!-- Header Card with Actions and Filters -->
         <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-2 sm:gap-3 md:gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm overflow-hidden w-full max-w-full">
-          <div data-slot="card-header" class="flex flex-row items-center justify-between py-2 px-3 sm:px-4 md:px-6 w-full overflow-hidden gap-2 sm:gap-4">
+          <div data-slot="card-header" class="flex flex-row flex-wrap items-center justify-between py-2 px-3 sm:px-4 md:px-6 w-full overflow-hidden gap-2 sm:gap-3">
             <div data-slot="card-title" class="leading-none font-semibold min-w-0 flex-1">
               <div class="title-golden min-w-0 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building title-icon sm:w-6 sm:h-6 flex-shrink-0">
@@ -24,7 +24,8 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.facility?.management || 'Facilities Management' }}</span>
               </div>
             </div>
-            <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <!-- Own line: the actions wrap among themselves instead of being clipped off the edge. -->
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full">
               <Link
                 :href="route('admin.facility.trash')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
@@ -149,6 +150,15 @@
 
               <Link
                 v-if="canWrite"
+                :href="route('admin.facility.managed-by.page')"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
+                title="Assign many facilities to one managing admin user"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+                <span class="hidden sm:inline">Assign managers</span>
+              </Link>
+              <Link
+                v-if="canWrite"
                 :href="route('admin.facility.phones.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
                 :title="t.facility?.phone_fix_hint || 'Find branch numbers that are not 11-digit mobiles or 8-digit landlines and correct them'"
@@ -183,7 +193,9 @@
           
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" :governorates="governorates" :cities="cities" :incomplete-counts="incompleteCounts" @filter-change="handleFilterChange" />
+            <FilterAccordion>
+<FacilityListFilterContent :initial-filters="filters" :facility-types="facilityTypes" :sales-options="salesOptions" :managed-by-options="managedByOptions" :governorates="governorates" :cities="cities" :incomplete-counts="incompleteCounts" @filter-change="handleFilterChange" />
+</FilterAccordion>
           </div>
         </div>
 
@@ -198,6 +210,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import FacilityListFilterContent from "./FacilityListFilterContent.vue";
 import FacilityListTable from "./FacilityListTable.vue";
@@ -241,6 +254,10 @@ const props = defineProps({
     default: () => []
   },
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  managedByOptions: {
     type: Array,
     default: () => []
   },
@@ -361,6 +378,8 @@ const exportComputedUrl = computed(() => {
   if (f.sales_id) params.set('sales_id', f.sales_id);
   if (f.sales_presence) params.set('sales_presence', f.sales_presence);
   if (f.managers_presence) params.set('managers_presence', f.managers_presence);
+  if (f.managed_presence) params.set('managed_presence', f.managed_presence);
+  if (f.managed_by) params.set('managed_by', f.managed_by);
   if (f.branches_missing) params.set('branches_missing', f.branches_missing);
   if (f.governorate_id) params.set('governorate_id', f.governorate_id);
   if (f.city_id) params.set('city_id', f.city_id);

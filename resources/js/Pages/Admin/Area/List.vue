@@ -11,7 +11,8 @@
           <span class="text-xs text-muted-foreground flex-shrink-0">{{ t.area?.total || 'Total' }}: {{ areas.total ?? 0 }}</span>
         </div>
 
-        <div class="px-3 sm:px-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="px-3 sm:px-6"><FilterAccordion>
+<div class="px-3 sm:px-6 grid grid-cols-1 md:grid-cols-4 gap-3">
           <div class="relative md:col-span-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
             <input v-model="form.search" @input="onSearch" type="text" :placeholder="t.area?.search_placeholder || 'Search areas by name or code...'" class="border-input flex h-9 w-full rounded-md border bg-transparent pl-9 pr-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" />
@@ -25,6 +26,7 @@
             <option v-for="c in cities" :key="c.id" :value="c.id" class="text-black">{{ nameOf(c.name) }}</option>
           </select>
         </div>
+</FilterAccordion></div>
       </div>
 
       <!-- Table -->
@@ -94,6 +96,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import Pagination from '@/Pages/_components/Pagination.vue';
 import { router, usePage } from '@inertiajs/vue3';

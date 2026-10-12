@@ -34,7 +34,9 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <ProductTypeListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+            <FilterAccordion>
+<ProductTypeListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+</FilterAccordion>
           </div>
         </div>
 
@@ -49,6 +51,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import ProductTypeLayout from "../ProductTypeLayout.vue";
 import ProductTypeListFilterContent from "./ProductTypeListFilterContent.vue";
 import ProductTypeListTable from "./ProductTypeListTable.vue";

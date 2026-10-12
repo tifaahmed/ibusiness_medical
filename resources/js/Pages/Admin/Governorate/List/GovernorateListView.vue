@@ -57,7 +57,9 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <GovernorateListFilterContent v-if="viewMode === 'list'" :initial-filters="filters" @filter-change="handleFilterChange" />
+            <FilterAccordion v-if="viewMode === 'list'">
+<GovernorateListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+</FilterAccordion>
           </div>
         </div>
 
@@ -73,6 +75,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import GovernorateLayout from "../GovernorateLayout.vue";
 import GovernorateListFilterContent from "./GovernorateListFilterContent.vue";
 import GovernorateListTable from "./GovernorateListTable.vue";

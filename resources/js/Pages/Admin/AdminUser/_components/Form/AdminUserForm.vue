@@ -192,6 +192,15 @@
           </svg>
           {{ t.extra_permissions || 'Extra Permissions' }}
           <span class="text-xs text-muted-foreground font-normal ml-2">{{ t.extra_permissions_note || '(in addition to role permissions)' }}</span>
+          <button
+            v-if="form.permissions.length > 0"
+            type="button"
+            @click="form.permissions = []"
+            class="ml-auto cursor-pointer whitespace-nowrap text-xs font-medium transition-all border border-destructive/40 text-destructive hover:bg-destructive/10 h-7 rounded-md px-2.5 inline-flex items-center gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+            {{ t.uncheck_all_permissions || 'Uncheck all' }} ({{ form.permissions.length }})
+          </button>
         </div>
       </div>
       <div data-slot="card-content" class="px-6 space-y-2">

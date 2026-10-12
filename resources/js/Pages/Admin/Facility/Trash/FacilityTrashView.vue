@@ -31,6 +31,7 @@
           </div>
 
           <div class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
+            <FilterAccordion>
             <form @submit.prevent="applySearch" class="flex items-center gap-2 max-w-md">
               <input
                 v-model="search"
@@ -45,6 +46,7 @@
                 {{ t.common?.search || 'Search' }}
               </button>
             </form>
+            </FilterAccordion>
           </div>
         </div>
       </div>
@@ -57,6 +59,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import FacilityTrashTable from "./_components/FacilityTrashTable.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";

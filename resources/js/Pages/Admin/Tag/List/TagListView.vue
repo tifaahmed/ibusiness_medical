@@ -42,11 +42,13 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <TagListFilterContent
+            <FilterAccordion>
+<TagListFilterContent
               :initial-filters="filters"
               :target-options="targetOptions"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -60,6 +62,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import TagLayout from "../TagLayout.vue";
 import TagListFilterContent from "./TagListFilterContent.vue";
 import TagListTable from "./TagListTable.vue";

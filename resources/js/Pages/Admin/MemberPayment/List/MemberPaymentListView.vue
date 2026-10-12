@@ -43,7 +43,8 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 w-full">
+            <FilterAccordion>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 w-full">
               <!-- Name — always visible -->
               <div ref="searchContainer" class="min-w-0 relative">
                 <label
@@ -186,6 +187,7 @@
                 />
               </div>
             </div>
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -198,6 +200,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import MemberPaymentLayout from "../MemberPaymentLayout.vue";
 import MemberPaymentListTable from "./MemberPaymentListTable.vue";
 import { useMemberPaymentStore } from "../Stores/MemberPaymentStore";

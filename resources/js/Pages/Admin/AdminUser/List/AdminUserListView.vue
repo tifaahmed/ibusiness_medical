@@ -34,10 +34,12 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <AdminUserListFilterContent
+            <FilterAccordion>
+<AdminUserListFilterContent
               :initial-filters="filters"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -59,6 +61,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import AdminUserLayout from "../AdminUserLayout.vue";
 import AdminUserListFilterContent from "./AdminUserListFilterContent.vue";
 import AdminUserListTable from "./AdminUserListTable.vue";
@@ -77,11 +80,11 @@ const props = defineProps({
   admins: { type: Object, required: true },
   filters: {
     type: Object,
-    default: () => ({ search: "", role: null }),
+    default: () => ({ search: "", role: null, blocked: false }),
   },
 });
 
-const filters = ref(props.filters || { search: "", role: null });
+const filters = ref(props.filters || { search: "", role: null, blocked: false });
 
 const handleFilterChange = (newFilters) => {
   filters.value = newFilters;

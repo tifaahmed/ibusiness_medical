@@ -63,6 +63,7 @@ class Facility extends Model implements HasMedia
         'slug',
         'facility_type_id',
         'sales_id',
+        'managed_by',
         'discount_percent',
         'contracted_at',
         'banner_config',
@@ -74,6 +75,30 @@ class Facility extends Model implements HasMedia
         'contracted_at' => 'date:Y-m-d',
         'banner_config' => 'array',
     ];
+
+    /** The admin user who manages this facility, if one is assigned. */
+    public function manager(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'managed_by');
+    }
+
+    /**
+     * Who can be picked as "managed by": every account that holds a role other
+     * than the plain storefront member, the same people the Admin Users page lists.
+     */
+    public static function managerOptions(): array
+    {
+        return User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', '!=', \App\Enums\User\UserRoleEnum::MEMBER))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $u) => [
+                'value' => $u->id,
+                'label' => trim($u->name.' — '.$u->email, ' —'),
+            ])
+            ->values()
+            ->all();
+    }
 
     /**
      * Open Graph share image, kept in its own media collection so it can be

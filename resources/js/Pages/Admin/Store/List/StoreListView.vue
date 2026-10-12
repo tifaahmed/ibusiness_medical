@@ -29,6 +29,7 @@
 
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 sm:p-4">
+            <FilterAccordion>
             <input
               v-model="search"
               @input="handleSearch"
@@ -36,6 +37,7 @@
               placeholder="Search by title or slug…"
               class="flex h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            </FilterAccordion>
           </div>
 
           <div v-if="stores.data.length > 0" class="overflow-x-auto">
@@ -93,6 +95,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';

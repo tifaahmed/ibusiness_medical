@@ -45,7 +45,7 @@
         </div>
 
         <!-- Filters -->
-        <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border py-2 sm:py-3 shadow-sm">
+        <FilterAccordion>
           <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 px-3 sm:px-4 md:px-6">
             <div class="w-full sm:w-72 min-w-0">
               <label
@@ -75,7 +75,7 @@
               Clear
             </button>
           </div>
-        </div>
+        </FilterAccordion>
 
         <!-- Logs Table -->
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
@@ -249,6 +249,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import MemberLayout from "../MemberLayout.vue";
 import Select from '@/Components/ui/Select.vue';
 import Pagination from "@/Pages/_components/Pagination.vue";

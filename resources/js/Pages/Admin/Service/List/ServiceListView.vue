@@ -31,10 +31,12 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <ServiceListFilterContent
+            <FilterAccordion>
+<ServiceListFilterContent
               :initial-filters="filters"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -47,6 +49,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import ServiceLayout from "../ServiceLayout.vue";
 import ServiceListFilterContent from "./ServiceListFilterContent.vue";
 import ServiceListTable from "./ServiceListTable.vue";

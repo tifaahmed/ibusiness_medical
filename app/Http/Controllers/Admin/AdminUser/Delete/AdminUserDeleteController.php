@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\AdminUser\Delete;
 
 use App\Enums\User\UserRoleEnum;
 use App\Http\Controllers\Controller;
+use App\Models\AdminUserLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,9 @@ class AdminUserDeleteController extends Controller
         }
 
         $email = $adminUser->email;
+        $before = AdminUserLog::snapshot($adminUser);
         $adminUser->delete();
+        AdminUserLog::record($adminUser, $request->user(), AdminUserLog::ACTION_DELETED, $before, null, $request);
 
         return redirect()
             ->route('admin.admin-users.index')

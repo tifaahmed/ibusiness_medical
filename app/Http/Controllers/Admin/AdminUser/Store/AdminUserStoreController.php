@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\AdminUser\Store;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminUser\StoreAdminUserRequest;
+use App\Models\AdminUserLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +29,8 @@ class AdminUserStoreController extends Controller
 
         $user->syncRoles($data['roles']);
         $user->syncPermissions($data['permissions'] ?? []);
+
+        AdminUserLog::record($user, $request->user(), AdminUserLog::ACTION_CREATED, null, AdminUserLog::snapshot($user), $request);
 
         $message = "Admin user {$user->email} created.";
 

@@ -73,6 +73,7 @@ class AdminFacilityCreateController extends BaseController
             'tagIconOptions' => \App\Enums\Tag\TagEnum::getIconOptions(),
             'tagColorOptions' => \App\Enums\Tag\TagEnum::getColorOptions(),
             'salesOptions' => $salesOptions,
+            'managedByOptions' => \App\Models\Facility::managerOptions(),
             'seoAiEnabled' => FacilitySeoGenerator::isConfigured(),
             'locationAiEnabled' => BranchGeocoder::isConfigured(),
             'englishFixEnabled' => FacilityEnglishBackfiller::isConfigured(),

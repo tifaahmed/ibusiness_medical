@@ -604,6 +604,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // 8-digit landlines, listed with their correction for an admin to
         // confirm one row at a time.
         Route::get('/admin/facility/phones', \App\Http\Controllers\Admin\Facility\Phones\AdminFacilityPhoneFixPageController::class)->name('admin.facility.phones.page');
+        // Bulk "managed by": filter facilities, then point many at one admin user.
+        // `preview` is the read-only confirmation step; `assign` does the write.
+        Route::get('/admin/facility/managed-by', [\App\Http\Controllers\Admin\Facility\ManagedBy\AdminFacilityManagedByController::class, 'index'])->name('admin.facility.managed-by.page');
+        Route::post('/admin/facility/managed-by/preview', [\App\Http\Controllers\Admin\Facility\ManagedBy\AdminFacilityManagedByController::class, 'preview'])->name('admin.facility.managed-by.preview');
+        Route::post('/admin/facility/managed-by/assign', [\App\Http\Controllers\Admin\Facility\ManagedBy\AdminFacilityManagedByController::class, 'assign'])->name('admin.facility.managed-by.assign');
         Route::post('/admin/facility/phones/fix', \App\Http\Controllers\Admin\Facility\Phones\AdminFacilityPhoneFixApplyController::class)->name('admin.facility.phones.fix');
         // "Fix English with AI" — one facility (button on the form) and the
         // browser-stepped sweep on the list.
@@ -1151,6 +1156,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     });
     Route::middleware('permission:manage users|manage admin users|view admin users')->group(function () {
         Route::get('/admin/admin-users', \App\Http\Controllers\Admin\AdminUser\Index\AdminUserIndexController::class)->name('admin.admin-users.index');
+        Route::get('/admin/admin-users/{userId}/logs', \App\Http\Controllers\Admin\AdminUser\Logs\AdminUserLogsController::class)->whereNumber('userId')->name('admin.admin-users.logs');
         Route::get('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Show\AdminUserShowController::class)->name('admin.admin-users.show');
     });
 

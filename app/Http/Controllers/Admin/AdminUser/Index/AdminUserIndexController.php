@@ -16,6 +16,8 @@ class AdminUserIndexController extends Controller
     {
         $roleFilter = $request->string('role')->toString() ?: null;
 
+        $blockedOnly = $request->boolean('blocked');
+
         $admins = User::with(['roles', 'permissions'])
             ->whereHas('roles', fn ($q) => $q->where('name', '!=', UserRoleEnum::MEMBER))
             ->when($request->string('search')->toString(), function ($query, string $search) {
@@ -24,6 +26,7 @@ class AdminUserIndexController extends Controller
             ->when($roleFilter, function ($query, string $role) {
                 $query->whereHas('roles', fn ($q) => $q->where('name', $role));
             })
+            ->when($blockedOnly, fn ($query) => $query->whereNotNull('dashboard_blocked_at'))
             ->orderBy('id')
             ->paginate($request->integer('per_page', 15))
             ->withQueryString();
@@ -33,6 +36,7 @@ class AdminUserIndexController extends Controller
             'filters' => [
                 'search' => $request->string('search')->toString(),
                 'role' => $roleFilter,
+                'blocked' => $blockedOnly,
             ],
         ]);
     }

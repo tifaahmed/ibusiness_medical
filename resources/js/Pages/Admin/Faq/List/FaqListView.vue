@@ -30,10 +30,12 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FaqListFilterContent
+            <FilterAccordion>
+<FaqListFilterContent
               :initial-filters="filters"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -46,6 +48,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import FaqLayout from "../FaqLayout.vue";
 import FaqListFilterContent from "./FaqListFilterContent.vue";
 import FaqListTable from "./FaqListTable.vue";

@@ -72,6 +72,10 @@
               />
             </div>
 
+            <div v-show="activeTab === 'management'" class="space-y-3">
+              <FacilityManagementCard :managed-by-options="managedByOptions" />
+            </div>
+
             <!-- Sticky Form Actions -->
             <div class="sticky bottom-0 z-10 bg-card border rounded-lg">
               <div class="flex flex-col sm:flex-row p-4">
@@ -132,7 +136,7 @@ import { watch, ref, computed } from "vue";
 import FacilityLayout from "../FacilityLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useFacilityStore } from "../Stores/FacilityStore";
-import { FacilityForm, FacilityBranchCard, FacilitySeoCard, FacilityManagerCard } from "../_components/Form";
+import { FacilityForm, FacilityBranchCard, FacilitySeoCard, FacilityManagerCard, FacilityManagementCard } from "../_components/Form";
 import FacilityBranchesMap from "../_components/Form/FacilityBranchesMap.vue";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
@@ -163,6 +167,10 @@ const props = defineProps({
     default: () => []
   },
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  managedByOptions: {
     type: Array,
     default: () => []
   },
@@ -231,7 +239,7 @@ const fixEnglish = async () => {
 
 // The open tab lives in the URL (?tab=seo), so a reload or a shared link lands
 // on the same tab. "details" is the default and keeps the address clean.
-const TAB_KEYS = ['details', 'seo'];
+const TAB_KEYS = ['details', 'seo', 'management'];
 const tabFromUrl = () => {
   const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
   return TAB_KEYS.includes(tab) ? tab : 'details';
@@ -251,7 +259,9 @@ watch(activeTab, (tab) => {
 
 // Server-side errors can land on a tab the admin isn't looking at, so flag it.
 const SEO_ERROR_KEYS = ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'];
+const MANAGEMENT_ERROR_KEYS = ['managed_by'];
 const isSeoErrorKey = (key) => SEO_ERROR_KEYS.some(field => key === field || key.startsWith(`${field}.`));
+const isManagementErrorKey = (key) => MANAGEMENT_ERROR_KEYS.includes(key);
 
 const errorKeys = computed(() => Object.keys(facilityStore.validationErrors || {}));
 
@@ -259,12 +269,17 @@ const tabs = computed(() => [
   {
     key: 'details',
     label: t.value.facility?.tab_details || 'Details',
-    hasError: errorKeys.value.some(key => !isSeoErrorKey(key)),
+    hasError: errorKeys.value.some(key => !isSeoErrorKey(key) && !isManagementErrorKey(key)),
   },
   {
     key: 'seo',
     label: t.value.facility?.tab_seo || 'SEO',
     hasError: errorKeys.value.some(isSeoErrorKey),
+  },
+  {
+    key: 'management',
+    label: t.value.facility?.tab_management || 'Management',
+    hasError: errorKeys.value.some(isManagementErrorKey),
   },
 ]);
 const branches = ref([]);

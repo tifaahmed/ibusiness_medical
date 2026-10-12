@@ -78,6 +78,28 @@
         />
       </div>
 
+      <!-- Managed-by (admin user) Filter -->
+      <div class="w-full sm:w-48">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="managed_by"
+        >
+          {{ t.facility?.managed_by || 'Managed by' }}
+        </label>
+        <SearchableSelect
+          :key="`managed-by-${locale}`"
+          id="managed_by"
+          v-model="filters.managed_by"
+          :options="managedBySelectOptions"
+          :placeholder="filters.managed_presence === 'without'
+            ? (t.facility?.not_managed || 'Not managed')
+            : (t.facility?.all_managed_by || 'Anyone')"
+          :disabled="filters.managed_presence === 'without'"
+          @change="handleFilterChange"
+        />
+      </div>
+
       <!-- Governorate Filter -->
       <div class="w-full sm:w-48">
         <label
@@ -120,64 +142,35 @@
 
     <!-- Created Date Range - New Row -->
     <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 sm:gap-3 w-full">
-      <!-- Sales rep, present or missing -->
-      <div class="w-full sm:w-auto">
+      <!-- Presence switches (sales rep, managed-by user, manager contacts).
+           Each filter type has its own colour, drawn as tag-style chips so the
+           three questions cannot be mistaken for one another. -->
+      <div v-for="group in presenceGroups" :key="group.key" class="w-full sm:w-auto">
         <label
           data-slot="label"
           class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
         >
-          {{ t.facility?.sales_assignment || 'Sales assignment' }}
+          <span :class="['h-2 w-2 rounded-full', group.theme.dot]"></span>
+          {{ group.label }}
         </label>
-        <div class="flex items-center gap-3 h-7 sm:h-8 md:h-9">
-          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
+        <div class="flex flex-wrap items-center gap-1.5 h-auto sm:h-8 md:h-9">
+          <label
+            v-for="opt in group.options"
+            :key="opt.value"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer select-none whitespace-nowrap',
+              filters[group.field] === opt.value ? group.theme.on : group.theme.off,
+            ]"
+          >
             <input
               type="checkbox"
-              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.sales_presence === 'with'"
-              @change="toggleSalesPresence('with')"
+              :class="['h-3.5 w-3.5 cursor-pointer rounded', group.theme.accent]"
+              :checked="filters[group.field] === opt.value"
+              @change="group.toggle(opt.value)"
             />
-            <span>{{ t.facility?.with_sales || 'Has sales rep' }}</span>
-          </label>
-          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
-            <input
-              type="checkbox"
-              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.sales_presence === 'without'"
-              @change="toggleSalesPresence('without')"
-            />
-            <span>{{ t.facility?.without_sales || 'No sales rep' }}</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Managers, present or missing -->
-      <div class="w-full sm:w-auto">
-        <label
-          data-slot="label"
-          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
-        >
-          {{ t.facility?.managers_assignment || 'Managers' }}
-        </label>
-        <div class="flex items-center gap-3 h-7 sm:h-8 md:h-9">
-          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
-            <input
-              type="checkbox"
-              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.managers_presence === 'with'"
-              @change="toggleManagersPresence('with')"
-            />
-            <span>{{ t.facility?.with_managers || 'Has managers' }}</span>
-          </label>
-          <label class="inline-flex items-center gap-1.5 text-xs cursor-pointer select-none whitespace-nowrap">
-            <input
-              type="checkbox"
-              class="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
-              :checked="filters.managers_presence === 'without'"
-              @change="toggleManagersPresence('without')"
-            />
-            <span>{{ t.facility?.without_managers || 'No managers' }}</span>
-            <span v-if="incompleteCounts.without_managers" class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
-              {{ incompleteCounts.without_managers }}
+            <span>{{ opt.label }}</span>
+            <span v-if="opt.count" :class="['rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', group.theme.badge]">
+              {{ opt.count }}
             </span>
           </label>
         </div>
@@ -359,6 +352,7 @@ const props = defineProps({
       facility_type_id: '',
       sales_id: '',
       sales_presence: '', managers_presence: '',
+      managed_presence: '', managed_by: '',
       branches_missing: '',
       governorate_id: '',
       city_id: '',
@@ -373,6 +367,10 @@ const props = defineProps({
   },
   // Already shaped as { value, label } by the controller.
   salesOptions: {
+    type: Array,
+    default: () => []
+  },
+  managedByOptions: {
     type: Array,
     default: () => []
   },
@@ -425,6 +423,10 @@ const salesSelectOptions = computed(() =>
   }))
 );
 
+const managedBySelectOptions = computed(() =>
+  props.managedByOptions.map(option => ({ value: option.value, label: option.label }))
+);
+
 const governorateOptions = computed(() =>
   props.governorates.map(g => ({
     value: g.id,
@@ -453,6 +455,8 @@ const getInitialFilters = () => {
       sales_id: props.initialFilters.sales_id || '',
       sales_presence: props.initialFilters.sales_presence || '',
       managers_presence: props.initialFilters.managers_presence || '',
+      managed_presence: props.initialFilters.managed_presence || '',
+      managed_by: props.initialFilters.managed_by || '',
       branches_missing: props.initialFilters.branches_missing || '',
       governorate_id: props.initialFilters.governorate_id || '',
       city_id: props.initialFilters.city_id || '',
@@ -469,6 +473,8 @@ const getInitialFilters = () => {
       sales_id: urlParams.get('sales_id') || '',
       sales_presence: urlParams.get('sales_presence') || '',
       managers_presence: urlParams.get('managers_presence') || '',
+      managed_presence: urlParams.get('managed_presence') || '',
+      managed_by: urlParams.get('managed_by') || '',
       branches_missing: urlParams.get('branches_missing') || '',
       governorate_id: urlParams.get('governorate_id') || '',
       city_id: urlParams.get('city_id') || '',
@@ -477,14 +483,14 @@ const getInitialFilters = () => {
       discount_format: urlParams.get('discount_format') || '',
     };
   }
-  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  return { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', managed_presence: '', managed_by: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
 };
 
 const filters = ref(getInitialFilters());
 
 // Computed property to check if any filter is active
 const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.managers_presence || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
+  return !!(filters.value.search || filters.value.facility_type_id || filters.value.sales_id || filters.value.sales_presence || filters.value.managers_presence || filters.value.managed_presence || filters.value.managed_by || filters.value.branches_missing || filters.value.governorate_id || filters.value.city_id || filters.value.created_from || filters.value.created_to || filters.value.discount_format);
 });
 
 let searchTimeout = null;
@@ -503,7 +509,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
+  filters.value = { search: '', facility_type_id: '', sales_id: '', sales_presence: '', managers_presence: '', managed_presence: '', managed_by: '', branches_missing: '', governorate_id: '', city_id: '', created_from: '', created_to: '', discount_format: '' };
   applyFilters();
 };
 
@@ -533,10 +539,87 @@ const toggleSalesPresence = (value) => {
   applyFilters();
 };
 
+const toggleManagedPresence = (value) => {
+  filters.value.managed_presence = filters.value.managed_presence === value ? '' : value;
+
+  // "Not managed" while naming a manager would match nothing.
+  if (filters.value.managed_presence === 'without') {
+    filters.value.managed_by = '';
+  }
+
+  applyFilters();
+};
+
 const toggleManagersPresence = (value) => {
   filters.value.managers_presence = filters.value.managers_presence === value ? '' : value;
   applyFilters();
 };
+
+/* Static class strings on purpose: Tailwind only emits classes it can read. */
+const PRESENCE_THEMES = {
+  sky: {
+    dot: 'bg-sky-400',
+    off: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-200 hover:bg-sky-500/20',
+    on: 'border-sky-400 bg-sky-500/40 text-sky-950 dark:text-sky-50',
+    accent: 'accent-sky-500',
+    badge: 'bg-sky-500/30',
+  },
+  violet: {
+    dot: 'bg-violet-400',
+    off: 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-200 hover:bg-violet-500/20',
+    on: 'border-violet-400 bg-violet-500/40 text-violet-950 dark:text-violet-50',
+    accent: 'accent-violet-500',
+    badge: 'bg-violet-500/30',
+  },
+  rose: {
+    dot: 'bg-rose-400',
+    off: 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200 hover:bg-rose-500/20',
+    on: 'border-rose-400 bg-rose-500/40 text-rose-950 dark:text-rose-50',
+    accent: 'accent-rose-500',
+    badge: 'bg-rose-500/30',
+  },
+};
+
+const presenceGroups = computed(() => [
+  {
+    key: 'sales',
+    field: 'sales_presence',
+    theme: PRESENCE_THEMES.sky,
+    label: t.value.facility?.sales_assignment || 'Sales assignment',
+    toggle: toggleSalesPresence,
+    options: [
+      { value: 'with', label: t.value.facility?.with_sales || 'Has sales rep' },
+      { value: 'without', label: t.value.facility?.without_sales || 'No sales rep' },
+    ],
+  },
+  {
+    key: 'managed',
+    field: 'managed_presence',
+    theme: PRESENCE_THEMES.violet,
+    label: t.value.facility?.managed_status || 'Managed status',
+    toggle: toggleManagedPresence,
+    options: [
+      { value: 'with', label: t.value.facility?.is_managed || 'Managed' },
+      { value: 'without', label: t.value.facility?.not_managed || 'Not managed' },
+    ],
+  },
+  {
+    // The contact people listed on a facility — not the admin user in "Managed by".
+    key: 'contacts',
+    field: 'managers_presence',
+    theme: PRESENCE_THEMES.rose,
+    label: t.value.facility?.managers_contacts_assignment || 'Managers contacts',
+    toggle: toggleManagersPresence,
+    options: [
+      { value: 'with', label: t.value.facility?.with_manager_contacts || 'Has manager contacts' },
+      {
+        value: 'without',
+        label: t.value.facility?.without_manager_contacts || 'No manager contacts',
+        count: props.incompleteCounts?.without_managers || 0,
+      },
+    ],
+  },
+]);
 
 const handleGovernorateChange = () => {
   filters.value.city_id = '';
@@ -567,6 +650,12 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.sales_presence && currentFilters.sales_presence !== '') {
     params.sales_presence = currentFilters.sales_presence;
+  }
+  if (currentFilters.managed_presence && currentFilters.managed_presence !== '') {
+    params.managed_presence = currentFilters.managed_presence;
+  }
+  if (currentFilters.managed_by && currentFilters.managed_by !== '') {
+    params.managed_by = currentFilters.managed_by;
   }
   if (currentFilters.managers_presence && currentFilters.managers_presence !== '') {
     params.managers_presence = currentFilters.managers_presence;

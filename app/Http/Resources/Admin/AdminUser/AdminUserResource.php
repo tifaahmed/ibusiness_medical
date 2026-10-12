@@ -21,6 +21,7 @@ class AdminUserResource extends JsonResource
             'roles' => $roles,
             'direct_permissions' => $this->permissions->pluck('name')->values()->all(),
             'is_super_admin' => in_array(UserRoleEnum::SUPER_ADMIN, $roles, true),
+            'dashboard_blocked' => $this->dashboard_blocked_at !== null,
             'is_self' => $authId === $this->id,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

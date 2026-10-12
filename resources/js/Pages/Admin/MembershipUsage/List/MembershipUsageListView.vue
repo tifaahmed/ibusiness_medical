@@ -29,12 +29,14 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <MembershipUsageListFilterContent
+            <FilterAccordion>
+<MembershipUsageListFilterContent
               :initial-filters="filters"
               :facilities="facilities"
               :facility-types="facilityTypes"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -47,6 +49,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import MembershipUsageLayout from "../MembershipUsageLayout.vue";
 import MembershipUsageListFilterContent from "./MembershipUsageListFilterContent.vue";
 import MembershipUsageListTable from "./MembershipUsageListTable.vue";

@@ -32,10 +32,12 @@
           </div>
 
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <ContractListFilterContent
+            <FilterAccordion>
+<ContractListFilterContent
               :initial-filters="filters"
               @filter-change="handleFilterChange"
             />
+</FilterAccordion>
           </div>
         </div>
       </div>
@@ -48,6 +50,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import ContractLayout from "../ContractLayout.vue";
 import ContractListFilterContent from "./ContractListFilterContent.vue";
 import ContractListTable from "./ContractListTable.vue";

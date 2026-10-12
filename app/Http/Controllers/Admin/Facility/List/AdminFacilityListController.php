@@ -66,6 +66,11 @@ class AdminFacilityListController extends BaseController
             // name a rep that exists.
             ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
             ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
+            // `managed_by` — the admin user responsible for the facility. Not to be
+            // confused with `managers` below, the contact people listed on it.
+            ->when($filters['managed_presence'] === 'with', fn ($q) => $q->whereNotNull('managed_by'))
+            ->when($filters['managed_presence'] === 'without', fn ($q) => $q->whereNull('managed_by'))
+            ->when($filters['managed_by'] !== null && $filters['managed_by'] !== '', fn ($q) => $q->where('managed_by', (int) $filters['managed_by']))
             // Facilities nobody is registered to manage.
             ->when($filters['managers_presence'] === 'without', fn ($q) => $q->whereDoesntHave('managers'))
             ->when($filters['managers_presence'] === 'with', fn ($q) => $q->whereHas('managers'))
@@ -167,6 +172,7 @@ class AdminFacilityListController extends BaseController
             'incompleteCounts' => $incompleteCounts,
             'facilityTypes' => $facilityTypes,
             'salesOptions' => $salesOptions,
+            'managedByOptions' => Facility::managerOptions(),
             'governorates' => $governorates,
             'cities' => $cities,
         ]);
@@ -193,6 +199,9 @@ class AdminFacilityListController extends BaseController
         $salesPresence = $request->input('sales_presence');
         $salesPresence = in_array($salesPresence, ['with', 'without'], true) ? $salesPresence : '';
 
+        $managedPresence = $request->input('managed_presence');
+        $managedPresence = in_array($managedPresence, ['with', 'without'], true) ? $managedPresence : '';
+
         $managersPresence = $request->input('managers_presence');
         $managersPresence = in_array($managersPresence, ['with', 'without'], true) ? $managersPresence : '';
 
@@ -210,6 +219,8 @@ class AdminFacilityListController extends BaseController
             'sales_id' => $request->input('sales_id'),
             'sales_presence' => $salesPresence,
             'managers_presence' => $managersPresence,
+            'managed_presence' => $managedPresence,
+            'managed_by' => $request->input('managed_by'),
             'branches_missing' => $branchesMissing,
             'governorate_id' => $request->input('governorate_id'),
             'city_id' => $request->input('city_id'),

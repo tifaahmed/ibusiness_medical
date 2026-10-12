@@ -30,6 +30,7 @@ class AdminFacilityEditResource extends JsonResource
             'og_image' => $this->og_image,
             'facility_type_id' => $this->facility_type_id,
             'sales_id' => $this->sales_id,
+            'managed_by' => $this->managed_by,
             'discount_percent' => $this->discount_percent,
             'contracted_at' => $this->contracted_at?->toDateString(),
             'banner_config' => $this->banner_config,

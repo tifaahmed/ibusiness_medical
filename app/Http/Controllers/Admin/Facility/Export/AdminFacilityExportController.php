@@ -39,6 +39,10 @@ class AdminFacilityExportController extends BaseController
             'managers_presence' => in_array($request->input('managers_presence'), ['with', 'without'], true)
                 ? $request->input('managers_presence')
                 : null,
+            'managed_presence' => in_array($request->input('managed_presence'), ['with', 'without'], true)
+                ? $request->input('managed_presence')
+                : null,
+            'managed_by' => $request->filled('managed_by') ? (int) $request->input('managed_by') : null,
             'governorate_id' => $request->filled('governorate_id') ? (int) $request->input('governorate_id') : null,
             'city_id' => $request->filled('city_id') ? (int) $request->input('city_id') : null,
             'created_from' => $request->filled('created_from') ? $request->input('created_from') : null,
@@ -76,6 +80,9 @@ class AdminFacilityExportController extends BaseController
             ->when($filters['sales_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sales_id']))
             ->when($filters['sales_presence'] === 'with', fn ($q) => $q->whereNotNull('sales_id'))
             ->when($filters['sales_presence'] === 'without', fn ($q) => $q->whereNull('sales_id'))
+            ->when($filters['managed_presence'] === 'with', fn ($q) => $q->whereNotNull('managed_by'))
+            ->when($filters['managed_presence'] === 'without', fn ($q) => $q->whereNull('managed_by'))
+            ->when($filters['managed_by'] !== null, fn ($q) => $q->where('managed_by', $filters['managed_by']))
             ->when($filters['managers_presence'] === 'with', fn ($q) => $q->whereHas('managers'))
             ->when($filters['managers_presence'] === 'without', fn ($q) => $q->whereDoesntHave('managers'))
             ->when($filters['governorate_id'] !== null, fn ($q) => $q->whereHas('branches', fn ($bq) => $bq->where('governorate_id', $filters['governorate_id'])))

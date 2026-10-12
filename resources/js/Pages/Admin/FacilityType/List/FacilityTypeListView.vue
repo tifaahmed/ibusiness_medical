@@ -37,7 +37,9 @@
 
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-hidden min-w-0">
-            <FacilityTypeListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+            <FilterAccordion>
+<FacilityTypeListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+</FilterAccordion>
           </div>
         </div>
 
@@ -52,6 +54,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import FacilityTypeLayout from "../FacilityTypeLayout.vue";
 import FacilityTypeListFilterContent from "./FacilityTypeListFilterContent.vue";
 import FacilityTypeListTable from "./FacilityTypeListTable.vue";

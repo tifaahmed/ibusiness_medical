@@ -24,10 +24,12 @@
               Download Export
             </a>
           </div>
-          <UserMembershipListFilterContent
+          <FilterAccordion>
+<UserMembershipListFilterContent
             :initial-filters="{}"
             @filter-change="onFilterChange"
           />
+</FilterAccordion>
         </div>
 
         <!-- Upload panel -->
@@ -390,6 +392,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import { Link, usePage } from "@inertiajs/vue3";
 import Select from '@/Components/ui/Select.vue';
 import MemberLayout from "../MemberLayout.vue";

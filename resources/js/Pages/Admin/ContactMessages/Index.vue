@@ -120,7 +120,7 @@
         </div>
 
         <!-- Filters -->
-        <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
+        <FilterAccordion>
           <div class="p-3 sm:p-4 md:p-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               <div class="min-w-0">
@@ -168,7 +168,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </FilterAccordion>
 
         <!-- Messages Table -->
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
@@ -250,6 +250,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { router, usePage, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';

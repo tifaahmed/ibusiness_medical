@@ -207,7 +207,9 @@
           
           <!-- Filter Content -->
           <div data-slot="card-content" class="px-2 sm:px-4 md:px-6 space-y-2 sm:space-y-3 md:space-y-4 w-full max-w-full overflow-visible min-w-0">
-            <UserMembershipListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+            <FilterAccordion>
+<UserMembershipListFilterContent :initial-filters="filters" @filter-change="handleFilterChange" />
+</FilterAccordion>
           </div>
         </div>
 
@@ -271,6 +273,7 @@
 </template>
 
 <script setup>
+import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import MemberLayout from "../MemberLayout.vue";
 import UserMembershipListFilterContent from "./UserMembershipListFilterContent.vue";
 import MemberListTable from "./MemberListTable.vue";
