@@ -87,6 +87,19 @@ Route::prefix('v1')
          * offers, SEO) — see `Mobile\FacilityController`.
          */
         Route::prefix('mobile')->name('mobile.')->group(function () {
+            /*
+             * Oldest app build still allowed, for the forced-update screen. Public and
+             * never cached: a raised minimum must apply on the app's next launch.
+             */
+            Route::get('/app-config', function () {
+                return response()
+                    ->json([
+                        'min_version_code' => (int) config('mobile_app.min_version_code'),
+                        'store_url' => (string) config('mobile_app.store_url'),
+                    ])
+                    ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            })->name('app-config');
+
             Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
             Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
             Route::get('/facilities', [V1MobileFacilityController::class, 'index'])->name('facilities.index');
