@@ -36,8 +36,52 @@ class MemberFamilyTest extends TestCase
             'membership_id' => $membership->id,
             'name' => 'Omar Ahmed Ali Hassan',
             'relationship' => 'son',
-            'is_active' => true,
+            // Added from the app, so it waits for staff.
+            'is_active' => false,
+            'approval_status' => 'pending',
         ]);
+    }
+
+    /** @test */
+    public function a_member_adds_a_relative_with_id_scans_and_it_waits_for_approval(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        \Illuminate\Support\Facades\Storage::fake('public');
+        [$member, $membership] = $this->member('Mona Adel', 'female');
+        Sanctum::actingAs($member);
+
+        $this->postJson('/api/v1/family/members', [
+            'name' => 'Sara Adel',
+            'relationship' => 'sister',
+            'national_id' => '29801010102345',
+            'id_front' => \Illuminate\Http\UploadedFile::fake()->image('front.jpg'),
+            'id_back' => \Illuminate\Http\UploadedFile::fake()->image('back.jpg'),
+            'photo' => \Illuminate\Http\UploadedFile::fake()->image('me.jpg'),
+        ])->assertCreated()
+            ->assertJsonPath('data.family_member.approval_status', 'pending')
+            ->assertJsonPath('data.family_member.is_active', false);
+
+        $this->assertDatabaseHas('family_members', [
+            'membership_id' => $membership->id,
+            'national_id' => '29801010102345',
+            'approval_status' => 'pending',
+            'added_by' => 'member',
+            'is_active' => false,
+        ]);
+    }
+
+    /** @test */
+    public function adding_a_relative_without_the_id_images_is_rejected(): void
+    {
+        [$member] = $this->member('Mona Adel', 'female');
+        Sanctum::actingAs($member);
+
+        $this->postJson('/api/v1/family/members', [
+            'name' => 'Sara Adel',
+            'relationship' => 'sister',
+            'national_id' => '29801010102345',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['id_front', 'id_back', 'photo']);
     }
 
     /** @test */

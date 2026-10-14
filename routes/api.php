@@ -428,6 +428,10 @@ Route::prefix('v1')
              */
             Route::get('/addresses', [V1MemberAddressController::class, 'index'])->name('addresses.index');
 
+            // Any relative, with national ID + both ID faces + photo; waits for staff approval.
+            Route::post('/family/members', [V1MemberFamilyController::class, 'storeMember'])
+                ->middleware('throttle:10,1')
+                ->name('family.members.store');
             Route::post('/family/children', [V1MemberFamilyController::class, 'storeChild'])
                 ->middleware('throttle:10,1')
                 ->name('family.children.store');

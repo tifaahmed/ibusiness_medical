@@ -38,12 +38,27 @@ class ClusterFacilityBranches
         ?int $governorateId = null,
         ?int $cityId = null,
         ?int $facilityTypeId = null,
+        ?float $lat = null,
+        ?float $lng = null,
+        ?int $radiusKm = null,
     ): array {
         $cell = $this->cellSizeForZoom($zoom);
 
         $clusters = FacilityBranch::query()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            /* "Within X km of a point": great-circle distance, same formula as
+               the directory's own radius search. */
+            ->when(
+                $lat !== null && $lng !== null && $radiusKm !== null,
+                fn ($q) => $q->whereRaw(
+                    '(6371 * ACOS(LEAST(1, GREATEST(-1,
+                        COS(RADIANS(?)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(?))
+                        + SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+                    )))) <= ?',
+                    [$lat, $lng, $lat, $radiusKm],
+                ),
+            )
             ->when($governorateId, fn ($q) => $q->where('governorate_id', $governorateId))
             ->when($cityId, fn ($q) => $q->where('city_id', $cityId))
             ->when($facilityTypeId, fn ($q) => $q->whereHas(

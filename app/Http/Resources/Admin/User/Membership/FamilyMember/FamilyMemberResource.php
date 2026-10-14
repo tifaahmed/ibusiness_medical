@@ -27,6 +27,12 @@ class FamilyMemberResource extends JsonResource
             'photo_url' => get_image_url($this->resource, 'photo', '/images/defaults/avatar.png'),
             'has_photo' => $this->resource->hasMedia('photo'),
             'is_active' => $this->is_active ?? true,
+            'national_id' => $this->national_id,
+            'approval_status' => ($this->approval_status ?? \App\Enums\FamilyMember\ApprovalStatusEnum::APPROVED)->value,
+            'added_by' => $this->added_by,
+            'rejection_reason' => $this->rejection_reason,
+            'has_id_front' => $this->resource->hasMedia('national_id_front'),
+            'has_id_back' => $this->resource->hasMedia('national_id_back'),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

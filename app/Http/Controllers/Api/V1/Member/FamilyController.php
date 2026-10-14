@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Api\V1\Member;
 
 use App\Http\Controllers\Controller;
+use App\Enums\FamilyMember\ApprovalStatusEnum;
+use App\Enums\FamilyMember\RelationshipEnum;
 use App\Models\FamilyMember;
+use App\Services\MediaService;
+use Illuminate\Support\Facades\Log;
 use App\Models\MemberLog;
 use App\Models\Membership;
 use App\Models\User;
@@ -33,6 +37,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class FamilyController extends Controller
 {
+    public function __construct(private MediaService $mediaService) {}
+
     /**
      * The most children a member can add for themselves. A ceiling rather than
      * a rule about families: it stops a loop from filling a card.
@@ -107,7 +113,10 @@ class FamilyController extends Controller
             'membership_id' => $membership->id,
             'name' => $fullName,
             'relationship' => $validated['relationship'],
-            'is_active' => true,
+            // Anything added from the app waits for staff; they flip is_active on approval.
+            'is_active' => false,
+            'approval_status' => ApprovalStatusEnum::PENDING,
+            'added_by' => FamilyMember::ADDED_BY_MEMBER,
         ]);
 
         MemberLog::record(
@@ -123,6 +132,84 @@ class FamilyController extends Controller
             'success' => true,
             'message' => 'Child added.',
             'data' => ['family_member' => $this->present($familyMember, true)],
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Any relative, added from the app. Needs the national ID number, both
+     * faces of the ID card and a photo of the person — all required — and
+     * waits for staff approval before it counts on the card.
+     */
+    public function storeMember(Request $request): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'regex:'.self::FIRST_NAME_PATTERN],
+            'relationship' => ['required', Rule::enum(RelationshipEnum::class)],
+            'national_id' => ['required', 'digits:14'],
+            'id_front' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
+            'id_back' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
+            'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
+        ]);
+
+        $membership = $this->membershipOf($member);
+
+        if ($membership === null) {
+            throw ValidationException::withMessages([
+                'name' => ['There is no membership to add a member to yet.'],
+            ]);
+        }
+
+        if ($membership->familyMembers()->where('national_id', $validated['national_id'])->exists()) {
+            throw ValidationException::withMessages([
+                'national_id' => ['This national ID has already been added.'],
+            ]);
+        }
+
+        try {
+            $familyMember = FamilyMember::create([
+                'membership_id' => $membership->id,
+                'name' => preg_replace('/\s+/u', ' ', trim($validated['name'])),
+                'relationship' => $validated['relationship'],
+                'national_id' => $validated['national_id'],
+                'is_active' => false,
+                'approval_status' => ApprovalStatusEnum::PENDING,
+                'added_by' => FamilyMember::ADDED_BY_MEMBER,
+            ]);
+
+            $this->mediaService->uploadImage($familyMember, $request->file('photo'), 'photo');
+            $this->mediaService->uploadImage($familyMember, $request->file('id_front'), 'national_id_front', 'local');
+            $this->mediaService->uploadImage($familyMember, $request->file('id_back'), 'national_id_back', 'local');
+        } catch (\Throwable $e) {
+            Log::error('Member family add failed', [
+                'user_id' => $member->id,
+                'membership_id' => $membership->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            if (isset($familyMember)) {
+                $familyMember->forceDelete();
+            }
+
+            return response()->json(['success' => false, 'message' => 'Could not save the family member. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        MemberLog::record(
+            membershipId: $membership->id,
+            adminId: null,
+            action: MemberLog::ACTION_FAMILY_CREATED,
+            oldValues: null,
+            newValues: $this->snapshot($familyMember) + ['added_by' => 'member', 'approval_status' => 'pending'],
+            request: $request,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Family member sent for approval.',
+            'data' => ['family_member' => $this->present($familyMember->fresh(), false)],
         ], Response::HTTP_CREATED);
     }
 
@@ -267,7 +354,7 @@ class FamilyController extends Controller
      * `can_edit` is true for a son or a daughter of a father: the only people
      * this member may change or remove from here.
      *
-     * @return array{id: int, name: string, relationship: ?string, relationship_label: ?string, is_active: bool, can_edit: bool}
+     * @return array{id: int, name: string, relationship: ?string, relationship_label: ?string, is_active: bool, approval_status: string, rejection_reason: ?string, can_edit: bool}
      */
     private function present(FamilyMember $familyMember, bool $canEdit = false): array
     {
@@ -277,6 +364,8 @@ class FamilyController extends Controller
             'relationship' => $familyMember->relationship?->value,
             'relationship_label' => $familyMember->relationship?->label(),
             'is_active' => (bool) $familyMember->is_active,
+            'approval_status' => ($familyMember->approval_status ?? ApprovalStatusEnum::APPROVED)->value,
+            'rejection_reason' => $familyMember->rejection_reason,
             'can_edit' => $canEdit && in_array($familyMember->relationship?->value, self::CHILD_RELATIONSHIPS, true),
         ];
     }

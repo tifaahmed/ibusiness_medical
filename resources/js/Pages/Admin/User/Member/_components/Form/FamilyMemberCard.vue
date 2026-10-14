@@ -153,6 +153,55 @@
                   >
                     {{ member.is_active ? (t.member?.active || 'Active') : (t.member?.inactive || 'Inactive') }}
                   </span>
+                  <span
+                    v-if="member.approval_status === 'pending'"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/30 text-amber-200 border border-amber-500/40"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    {{ t.member?.pending_approval || 'Pending approval' }}
+                  </span>
+                  <span
+                    v-else-if="member.approval_status === 'rejected'"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/30 text-red-200 border border-red-500/40"
+                  >
+                    {{ t.member?.rejected || 'Rejected' }}
+                  </span>
+                </div>
+                <!-- Added from the mobile app: ID number + scans for staff to check -->
+                <div v-if="member.added_by === 'member'" class="mb-2 space-y-2">
+                  <p v-if="member.national_id" class="text-xs text-white/80">
+                    {{ t.member?.national_id || 'National ID' }}: <span class="font-mono">{{ member.national_id }}</span>
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    <a
+                      v-if="member.has_id_front"
+                      :href="route('admin.user.membership.family-member.id', [userSlug, membershipSlug, member.id, 'front'])"
+                      target="_blank"
+                      class="text-xs px-2 py-1 rounded bg-primary/20 text-white border border-border hover:bg-primary/40"
+                    >{{ t.member?.id_front || 'ID front' }}</a>
+                    <a
+                      v-if="member.has_id_back"
+                      :href="route('admin.user.membership.family-member.id', [userSlug, membershipSlug, member.id, 'back'])"
+                      target="_blank"
+                      class="text-xs px-2 py-1 rounded bg-primary/20 text-white border border-border hover:bg-primary/40"
+                    >{{ t.member?.id_back || 'ID back' }}</a>
+                  </div>
+                  <div v-if="member.approval_status !== 'approved'" class="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      @click.stop="approveMember(member)"
+                      class="text-xs px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-500"
+                    >{{ t.member?.approve || 'Approve' }}</button>
+                    <button
+                      v-if="member.approval_status === 'pending'"
+                      type="button"
+                      @click.stop="rejectMember(member)"
+                      class="text-xs px-3 py-1 rounded bg-red-600 text-white hover:bg-red-500"
+                    >{{ t.member?.reject || 'Reject' }}</button>
+                  </div>
+                  <p v-if="member.approval_status === 'rejected' && member.rejection_reason" class="text-xs text-red-200">
+                    {{ member.rejection_reason }}
+                  </p>
                 </div>
                 <p class="text-sm text-white/80 mb-2">
                   <span class="font-medium">{{ member.relationship_label || getRelationshipLabel(member.relationship) }}</span>
@@ -434,6 +483,33 @@ const handleSubmit = () => {
   } else {
     router.post(url, formData, requestOptions);
   }
+};
+
+const approvalUrl = (name, member) =>
+  route(`admin.user.membership.family-member.${name}`, [props.userSlug, props.membershipSlug, member.id]);
+
+const approveMember = (member) => {
+  router.post(approvalUrl('approve', member), {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      notification.success(t.value.member?.family_member_approved || 'Family member approved');
+      router.reload({ only: ['member'] });
+    },
+    onError: () => notification.error(t.value.member?.failed_approve || 'Failed to approve family member'),
+  });
+};
+
+const rejectMember = (member) => {
+  const reason = window.prompt(t.value.member?.reject_reason || 'Reason for rejection (optional)', '');
+  if (reason === null) return;
+  router.post(approvalUrl('reject', member), { reason }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      notification.success(t.value.member?.family_member_rejected || 'Family member rejected');
+      router.reload({ only: ['member'] });
+    },
+    onError: () => notification.error(t.value.member?.failed_reject || 'Failed to reject family member'),
+  });
 };
 
 const deleteMember = (member) => {

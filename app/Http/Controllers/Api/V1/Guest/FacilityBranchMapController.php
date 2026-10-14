@@ -27,6 +27,9 @@ class FacilityBranchMapController extends Controller
             'governorate_id' => ['nullable', 'integer', 'exists:governorates,id'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
             'facility_type_id' => ['nullable', 'integer', 'exists:facility_types,id'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:radius_km'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km'],
+            'radius_km' => ['nullable', 'integer', 'between:1,500'],
         ]);
 
         try {
@@ -35,6 +38,9 @@ class FacilityBranchMapController extends Controller
                 governorateId: $validated['governorate_id'] ?? null,
                 cityId: $validated['city_id'] ?? null,
                 facilityTypeId: $validated['facility_type_id'] ?? null,
+                lat: isset($validated['lat']) ? (float) $validated['lat'] : null,
+                lng: isset($validated['lng']) ? (float) $validated['lng'] : null,
+                radiusKm: isset($validated['radius_km']) ? (int) $validated['radius_km'] : null,
             );
         } catch (Throwable $exception) {
             Log::error('Branch map clustering failed.', [

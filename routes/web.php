@@ -263,6 +263,7 @@ use App\Http\Controllers\Admin\User\Membership\Create\AdminUserMembershipCreateC
 use App\Http\Controllers\Admin\User\Membership\Delete\AdminUserMembershipDeleteController;
 use App\Http\Controllers\Admin\User\Membership\Edit\AdminUserMembershipEditController;
 use App\Http\Controllers\Admin\User\Membership\Export\AdminUserMembershipExportController;
+use App\Http\Controllers\Admin\User\Membership\FamilyMember\Approval\AdminFamilyMemberApprovalController;
 use App\Http\Controllers\Admin\User\Membership\FamilyMember\Delete\AdminFamilyMemberDeleteController;
 use App\Http\Controllers\Admin\User\Membership\FamilyMember\Store\AdminFamilyMemberStoreController;
 use App\Http\Controllers\Admin\User\Membership\FamilyMember\Update\AdminFamilyMemberUpdateController;
@@ -475,6 +476,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');
         Route::delete('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberDeleteController::class)->name('admin.user.membership.family-member.destroy');
+        Route::post('/admin/user/membership/{user}/{membership}/family-member/{familyMember}/approve', [AdminFamilyMemberApprovalController::class, 'approve'])->name('admin.user.membership.family-member.approve');
+        Route::post('/admin/user/membership/{user}/{membership}/family-member/{familyMember}/reject', [AdminFamilyMemberApprovalController::class, 'reject'])->name('admin.user.membership.family-member.reject');
+        Route::get('/admin/user/membership/{user}/{membership}/family-member/{familyMember}/id/{side}', [AdminFamilyMemberApprovalController::class, 'document'])->whereIn('side', ['front', 'back'])->name('admin.user.membership.family-member.id');
 
         // Address Management
         Route::post('/admin/user/membership/{user}/{membership}/address', AdminAddressStoreController::class)->name('admin.user.membership.address.store');

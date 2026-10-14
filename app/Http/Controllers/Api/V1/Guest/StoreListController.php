@@ -76,7 +76,14 @@ class StoreListController extends Controller
             };
         }
 
+        $physical = in_array($request->input('physical'), ['yes', 'no'], true)
+            ? $request->input('physical')
+            : null;
+
         $stores = Store::with($with)
+            /* A physical store has at least one branch; the rest are online only. */
+            ->when($physical === 'yes', fn ($q) => $q->whereHas('branches'))
+            ->when($physical === 'no', fn ($q) => $q->whereDoesntHave('branches'))
             ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $titleExpr = \App\Support\DirectorySearch::translated('title', app()->getLocale());
 
@@ -152,6 +159,7 @@ class StoreListController extends Controller
             'governorates' => $governorates,
             'cities' => $cities,
             'store_names' => $storeNames,
+            'has_physical_stores' => Store::whereHas('branches')->exists(),
         ]);
     }
 
