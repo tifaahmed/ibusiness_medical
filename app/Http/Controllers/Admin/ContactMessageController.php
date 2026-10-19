@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Contact\UpdateContactMessageAction;
+use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Enums\Contact\ContactStatusEnum;
 use App\Enums\User\UserPermissionEnum;
@@ -65,9 +66,51 @@ class ContactMessageController extends Controller
         ]) ?? false;
     }
 
+    /* Matched on the last 10 digits, so +201012345678, 201012345678 and
+       01012345678 are the same person. A member = a live user holding a live card. */
+    private const IS_MEMBER_SQL = 'exists (select 1 from users u join memberships m on m.user_id = u.id
+        where u.deleted_at is null and m.deleted_at is null and u.phone is not null and u.phone != \'\'
+        and right(u.phone, 10) = right(contact_messages.phone, 10))';
+
+    private function applyMembership($query, ?string $membership): void
+    {
+        if ($membership === 'member') {
+            $query->whereRaw(self::IS_MEMBER_SQL);
+        } elseif ($membership === 'not_member') {
+            $query->whereRaw('not '.self::IS_MEMBER_SQL);
+        }
+    }
+
+    /**
+     * "Unique numbers": of the enquiries the other filters already matched,
+     * keep only the newest one per phone number, so a person who wrote five
+     * times is called once. Rows with no phone are each their own contact.
+     */
+    private function keepOneRowPerPhone($query, bool $enabled): void
+    {
+        if (! $enabled) {
+            return;
+        }
+
+        $latest = (clone $query)->toBase()
+            ->whereNotNull('phone')->where('phone', '!=', '')
+            ->select(\Illuminate\Support\Facades\DB::raw('max(contact_messages.id)'))
+            ->groupBy('phone');
+
+        $query->where(function ($builder) use ($latest) {
+            $builder->whereNull('phone')->orWhere('phone', '')
+                ->orWhereIn('contact_messages.id', $latest);
+        });
+    }
+
     public function index(Request $request): Response
     {
-        $query = ContactMessage::query()->with('sales');
+        $query = ContactMessage::query()->with('sales')
+            ->select('contact_messages.*')
+            ->selectRaw(self::IS_MEMBER_SQL.' as is_member');
+
+        $membership = in_array($request->input('membership'), ['member', 'not_member'], true) ? $request->input('membership') : null;
+        $this->applyMembership($query, $membership);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->status($request->string('status')->toString());
@@ -78,6 +121,10 @@ class ContactMessageController extends Controller
            something to search for. */
         if ($request->filled('source') && $request->source !== 'all') {
             $query->source($request->string('source')->toString());
+        }
+
+        if (in_array($request->input('channel'), ContactChannelEnum::values(), true)) {
+            $query->channel($request->input('channel'));
         }
 
         if ($request->filled('search')) {
@@ -92,6 +139,8 @@ class ContactMessageController extends Controller
                     ->orWhere('message', 'like', "%{$search}%");
             });
         }
+
+        $this->keepOneRowPerPhone($query, $request->boolean('unique_phone'));
 
         /* Allow-listed rather than taken from the query string: an arbitrary
            column here is an ORDER BY an attacker chooses. */
@@ -117,11 +166,15 @@ class ContactMessageController extends Controller
             ],
             'statuses' => array_values(ContactStatusEnum::getOptions()),
             'sources' => array_values(ContactSourceEnum::getOptions()),
+            'channels' => ContactChannelEnum::getOptions(),
             'canManage' => $this->canManage($request),
             'filters' => [
                 'status' => $request->get('status', 'all'),
                 'source' => $request->get('source', 'all'),
+                'channel' => $request->get('channel', 'all'),
+                'membership' => $membership ?? 'all',
                 'search' => $request->get('search', ''),
+                'unique_phone' => $request->boolean('unique_phone'),
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
@@ -153,6 +206,8 @@ class ContactMessageController extends Controller
             'source' => ($request->filled('source') && $request->source !== 'all') ? $request->string('source')->toString() : null,
         ];
 
+        $channel = in_array($request->input('channel'), ContactChannelEnum::values(), true) ? $request->input('channel') : null;
+
         $rawColumns = $request->input('columns', '');
         $selectedColumns = $rawColumns !== ''
             ? array_values(array_intersect(array_map('trim', explode(',', $rawColumns)), array_keys($this->contactMessageColumnDefinitions())))
@@ -183,6 +238,14 @@ class ContactMessageController extends Controller
                     ->orWhere('message', 'like', "%{$search}%");
             });
         }
+
+        $this->keepOneRowPerPhone($query, $request->boolean('unique_phone'));
+
+        if ($channel !== null) {
+            $query->channel($channel);
+        }
+
+        $this->applyMembership($query, in_array($request->input('membership'), ['member', 'not_member'], true) ? $request->input('membership') : null);
 
         $messages = $query->orderBy('created_at', 'desc')->get();
 
@@ -491,12 +554,19 @@ class ContactMessageController extends Controller
         $validated = $request->validate([
             'ids' => ['required', 'array'],
             'ids.*' => ['exists:contact_messages,id'],
-            'action' => ['required', 'string', Rule::in([...ContactStatusEnum::values(), 'delete'])],
+            'action' => ['nullable', 'string', Rule::in([...ContactStatusEnum::values(), 'delete'])],
+            'note' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $note = trim((string) ($validated['note'] ?? ''));
+
+        if (blank($validated['action'] ?? null) && $note === '') {
+            return response()->json(['success' => false, 'message' => 'Choose a status or write a note.'], 422);
+        }
 
         $messages = ContactMessage::query()->whereIn('id', $validated['ids'])->get();
 
-        if ($validated['action'] === 'delete') {
+        if (($validated['action'] ?? null) === 'delete') {
             ContactMessage::query()->whereIn('id', $validated['ids'])->delete();
 
             return response()->json([
@@ -505,12 +575,22 @@ class ContactMessageController extends Controller
             ]);
         }
 
+        /* The note is APPENDED, dated and attributed, to what is already
+           there — a bulk note must never overwrite a salesperson's own. */
+        $stamp = '['.now()->format('Y-m-d H:i').' · '.($request->user()?->name ?? '?').']';
+
         foreach ($messages as $message) {
-            $this->updateContactMessage->handle(
-                $message,
-                ['status' => $validated['action']],
-                $request->user(),
-            );
+            $changes = [];
+
+            if (filled($validated['action'] ?? null)) {
+                $changes['status'] = $validated['action'];
+            }
+
+            if ($note !== '') {
+                $changes['admin_notes'] = trim(($message->admin_notes ? $message->admin_notes."\n\n" : '').$stamp.' '.$note);
+            }
+
+            $this->updateContactMessage->handle($message, $changes, $request->user());
         }
 
         return response()->json([

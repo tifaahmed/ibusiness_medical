@@ -15,6 +15,12 @@ enum ContactSourceEnum: string
     case CONTACT_FORM = 'contact_form';
     case CARD_POPUP = 'card_popup';
     case JOIN_REQUEST = 'join_request';
+    /** A trial member asking customer services to ring them and add their relatives. */
+    case RELATIVE_REQUEST = 'relative_request';
+    /** A member who wants to pay for the card through customer services (cash, Vodafone Cash, Instapay). */
+    case SUBSCRIPTION_REQUEST = 'subscription_request';
+    /** A relative added by the card owner that waits for an admin's approval. */
+    case PENDING_RELATIVE = 'pending_relative';
 
     /**
      * @return array<int, string>

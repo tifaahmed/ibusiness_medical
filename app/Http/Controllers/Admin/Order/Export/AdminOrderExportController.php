@@ -506,7 +506,7 @@ class AdminOrderExportController extends BaseController
         return match ($status) {
             PaymentStatusEnum::ACCEPTED => ['bg' => 'D1FAE5', 'fg' => '047857'],
             PaymentStatusEnum::PENDING => ['bg' => 'FEF3C7', 'fg' => 'B45309'],
-            PaymentStatusEnum::REJECTED, PaymentStatusEnum::CANCELED => ['bg' => 'FEE2E2', 'fg' => 'B91C1C'],
+            PaymentStatusEnum::REJECTED, PaymentStatusEnum::CANCELED, PaymentStatusEnum::REFUNDED => ['bg' => 'FEE2E2', 'fg' => 'B91C1C'],
             default => null,
         };
     }

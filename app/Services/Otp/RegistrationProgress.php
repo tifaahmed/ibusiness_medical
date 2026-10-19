@@ -48,6 +48,7 @@ final class RegistrationProgress
      * @return array{
      *     essentials: array{filled: int, total: int, percent: int, missing: list<string>, complete: bool},
      *     details: array{filled: int, total: int, percent: int, missing: list<string>, complete: bool},
+     *     overall: array{filled: int, total: int, percent: int, missing: list<string>, complete: bool},
      *     pending_card: bool,
      * }
      */
@@ -60,6 +61,8 @@ final class RegistrationProgress
         return [
             'essentials' => $this->stage(self::ESSENTIAL_FIELDS, $values),
             'details' => $this->stage(self::DETAIL_FIELDS, $values),
+            /* Both stages as one bar — what the "complete your profile" reminder quotes. */
+            'overall' => $this->stage([...self::ESSENTIAL_FIELDS, ...self::DETAIL_FIELDS], $values),
             /*
              * Whether this member is still waiting on a real card. The
              * storefront shows the "customer services will be in touch" line

@@ -52,7 +52,7 @@ class MemberFamilyTest extends TestCase
 
         $this->postJson('/api/v1/family/members', [
             'name' => 'Sara Adel',
-            'relationship' => 'sister',
+            'relationship' => 'mother',
             'national_id' => '29801010102345',
             'id_front' => \Illuminate\Http\UploadedFile::fake()->image('front.jpg'),
             'id_back' => \Illuminate\Http\UploadedFile::fake()->image('back.jpg'),
@@ -78,7 +78,7 @@ class MemberFamilyTest extends TestCase
 
         $this->postJson('/api/v1/family/members', [
             'name' => 'Sara Adel',
-            'relationship' => 'sister',
+            'relationship' => 'mother',
             'national_id' => '29801010102345',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['id_front', 'id_back', 'photo']);

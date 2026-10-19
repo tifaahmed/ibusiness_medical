@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Guest;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Controllers\Concerns\ProvidesCardTemplates;
 use App\Http\Resources\Guest\MembershipResource;
+use App\Actions\Membership\StartSubscription;
 use App\Models\Membership;
+use App\Models\MembershipSubscription;
+use App\Services\Paymob\PaymobException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,5 +65,40 @@ class MembershipController extends BaseController
             'membership' => (new MembershipResource($membershipModel))->toArray($request),
             'cardTemplates' => $this->cardTemplatesByStatus(),
         ]);
+    }
+
+    /**
+     * "Buy the membership" from the scan page of an expired (or trial) card.
+     *
+     * Public like the page itself: paying for a card helps nobody to anything,
+     * and the road from a red "expired" sign to the checkout must not run
+     * through a login. Only Paymob is offered here; cash and transfers go
+     * through customer services.
+     */
+    public function subscribe(Request $request, string $membership, StartSubscription $subscribe)
+    {
+        $model = Membership::visible()->matchingNumber($membership)->firstOrFail();
+
+        try {
+            $result = $subscribe->handle(
+                $model,
+                MembershipSubscription::METHOD_PAYMOB,
+                $request->validate(['email' => ['nullable', 'email:rfc', 'max:190']])['email'] ?? null,
+                null,
+                [],
+                null,
+                $request,
+            );
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            return back()->withErrors(['subscribe' => collect($exception->errors())->flatten()->first()]);
+        } catch (PaymobException $exception) {
+            Log::error('Card payment could not be opened.', [
+                'route' => $request->path(), 'membership_id' => $model->id, 'message' => $exception->getMessage(),
+            ]);
+
+            return back()->withErrors(['subscribe' => 'The payment page could not be opened. Please try again.']);
+        }
+
+        return Inertia::location($result['checkout_url']);
     }
 }

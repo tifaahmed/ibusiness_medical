@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactLogActionEnum;
 use App\Enums\Contact\ContactStatusEnum;
 use App\Models\ContactMessageLog;
@@ -28,6 +29,9 @@ class ContactMessageResource extends JsonResource
             'message' => $this->message,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
+            'is_member' => isset($this->resource->getAttributes()['is_member']) ? (bool) $this->resource->getAttributes()['is_member'] : null,
+            'channel' => $this->channel,
+            'channel_label' => $this->channel ? ContactChannelEnum::tryFrom($this->channel)?->label() : null,
             'source' => $this->source->value,
             'source_label' => $this->source->label(),
             'sales_id' => $this->sales_id,

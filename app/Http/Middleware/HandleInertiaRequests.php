@@ -120,6 +120,8 @@ class HandleInertiaRequests extends Middleware
                 ? $request->user()->effectivePermissionNames()
                 : [],
             /* Things an admin still has to fill in, each with where to do it. Admin users only. */
+            /* Pending relatives, payments to check, call-back requests: see AdminAlerts. */
+            'adminAlerts' => fn () => \App\Support\AdminAlerts::for($request->user()),
             'setupWarnings' => fn () => $request->user() ? ShopDelivery::missingSetup() : [],
             'authUserRoles' => $request->user()
                 ? $request->user()->getRoleNames()->values()->all()

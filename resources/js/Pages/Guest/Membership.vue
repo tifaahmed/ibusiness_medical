@@ -98,6 +98,8 @@
         </div>
       </div>
 
+      <CardStatusBanner :status="membership.status" :slug="membership.slug" :locale="locale" />
+
       <!-- Membership Info — Compact -->
       <div class="bg-card text-card-foreground rounded-xl border border-border shadow-lg p-4 sm:p-6 mb-3 sm:mb-6">
         <div class="flex items-center justify-between mb-3 sm:mb-4">
@@ -112,8 +114,8 @@
               <p class="text-[11px] sm:text-xs text-muted-foreground">{{ t.official_membership || 'Official Membership' }}</p>
             </div>
           </div>
-          <div class="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border shrink-0" :class="membership.is_active ? 'bg-emerald-500/25 border-emerald-500/50' : 'bg-red-500/25 border-red-500/50'">
-            <span class="text-[10px] sm:text-xs font-semibold" :class="membership.is_active ? 'text-emerald-800' : 'text-red-800'">{{ membership.is_active ? (t.active || 'ACTIVE') : (t.inactive || 'INACTIVE') }}</span>
+          <div class="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border shrink-0" :class="isValid ? 'bg-emerald-500/25 border-emerald-500/50' : 'bg-red-500/25 border-red-500/50'">
+            <span class="text-[10px] sm:text-xs font-semibold" :class="isValid ? 'text-emerald-800' : 'text-red-800'">{{ membership.status?.expired ? (locale === 'ar' ? 'منتهي' : 'EXPIRED') : membership.status?.state === 'trial' ? (locale === 'ar' ? 'تجريبي' : 'TRIAL') : isValid ? (t.active || 'ACTIVE') : (t.inactive || 'INACTIVE') }}</span>
           </div>
         </div>
 
@@ -440,6 +442,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { Link, usePage, router } from "@inertiajs/vue3";
+import CardStatusBanner from "./_components/CardStatusBanner.vue";
 import QRCode from "qrcode";
 import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import Modal from "@/Components/Modal.vue";
@@ -459,6 +462,8 @@ const props = defineProps({
 });
 
 const page = usePage();
+/* One answer for "is this card good": the server's state, not is_active alone (a trial can be active and over). */
+const isValid = computed(() => props.membership.status ? props.membership.status.valid : !!props.membership.is_active);
 const locale = computed(() => page.props.locale || 'ar');
 const t = computed(() => page.props.translations?.home?.membership_page || {});
 

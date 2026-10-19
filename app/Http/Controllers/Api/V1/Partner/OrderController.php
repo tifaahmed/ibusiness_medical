@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1\Partner;
 
+use App\Actions\Payment\SendOrderReceipt;
+use App\Actions\Payment\StartPaymobPayment;
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
@@ -16,6 +18,9 @@ use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderProduct;
 use App\Models\Product;
+use App\Services\Paymob\PaymobClient;
+use App\Services\Paymob\PaymobException;
+use App\Support\ShopDelivery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +40,11 @@ use Throwable;
  */
 class OrderController extends Controller
 {
-    public function __construct(private readonly UpsertMemberAddressFromOrderAction $syncMemberAddressAction) {}
+    public function __construct(
+        private readonly UpsertMemberAddressFromOrderAction $syncMemberAddressAction,
+        private readonly StartPaymobPayment $startPayment,
+        private readonly SendOrderReceipt $sendReceipt,
+    ) {}
 
     /**
      * Place an order from a basket of slugs and quantities.
@@ -140,12 +149,21 @@ class OrderController extends Controller
                  */
                 $delivery = $request->deliveryFor(round($total, 2));
 
+                /*
+                 * The cash-on-delivery fee, from the admin's settings — never
+                 * from the request. Only a COD order carries it, and it is added
+                 * to BOTH totals like delivery so the gap between them stays
+                 * exactly the member discount. Zero means no fee at all.
+                 */
+                $codFee = $paymentType === PaymentTypeEnum::COD ? ShopDelivery::codFee() : 0.0;
+
                 $order = Order::query()->create([
                     'order_code' => Order::generateCode(),
                     /* Null for a guest checkout, which is most of them. */
                     'user_id' => $buyer?->id,
-                    'total_amount' => round($total + $delivery['delivery_price'], 2),
-                    'total_amount_before_discount' => round($totalBeforeDiscount + $delivery['delivery_price'], 2),
+                    'total_amount' => round($total + $delivery['delivery_price'] + $codFee, 2),
+                    'cod_fee' => $codFee,
+                    'total_amount_before_discount' => round($totalBeforeDiscount + $delivery['delivery_price'] + $codFee, 2),
                     ...$delivery,
                     /*
                      * Nothing has been paid yet whichever way it will be: cash
@@ -155,6 +173,7 @@ class OrderController extends Controller
                     'total_paid' => 0,
                     'customer_full_name' => (string) $request->input('customer_full_name'),
                     'customer_phone' => (string) $request->input('customer_phone'),
+                    'customer_email' => $request->input('customer_email'),
                     'customer_address' => (string) $request->input('customer_address'),
                     /* The structured delivery address, archived as sent: an
                        order keeps what the buyer said at purchase time. */
@@ -214,6 +233,8 @@ class OrderController extends Controller
                    against the lines is explained by the log rather than
                    investigated. */
                 'delivery_price' => (float) $order->delivery_price,
+                'cod_fee' => (float) $order->cod_fee,
+                'customer_email' => $order->customer_email,
                 /* And why it was not charged, when it was not — otherwise a
                    zero here reads as a pricing bug rather than as a basket that
                    crossed the shop's free-delivery line. */
@@ -254,9 +275,81 @@ class OrderController extends Controller
             ]);
         }
 
+        /*
+         * Online payment starts here, after the order is safely written: the
+         * buyer gets a checkout URL to be sent to. If the gateway is down the
+         * order still exists (pending) and the response says the payment could
+         * not be opened, so the client can offer "try again" — see `pay()`.
+         */
+        $payment = null;
+
+        if ($order->isOnlinePayment()) {
+            $payment = $this->openPayment($order, $request);
+        } else {
+            /* Cash on delivery / transfer: the receipt of the order goes out now, when there is an address. */
+            $this->sendReceipt->handle($order, null, $request);
+        }
+
         return response()->json([
-            'order' => new OrderResource($order->load('products')),
+            'order' => new OrderResource($order->fresh()->load('products')),
+            'payment' => $payment,
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * (Re)open the online payment of an order the buyer has not paid yet —
+     * after a declined card, or a checkout page that was closed. Each call is
+     * a new attempt at the gateway.
+     */
+    public function pay(Request $request, string $orderCode): JsonResponse
+    {
+        $order = Order::findByCode($orderCode);
+
+        if ($order === null) {
+            return response()->json(['message' => 'No order with that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (! $order->isOnlinePayment() || ! in_array($order->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true)) {
+            return response()->json(['message' => 'This order has nothing left to pay online.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $payment = $this->openPayment($order, $request);
+
+        return response()->json(['payment' => $payment], $payment['checkout_url'] ? Response::HTTP_OK : Response::HTTP_BAD_GATEWAY);
+    }
+
+    /**
+     * What a client needs to take the payment: the embeddable form's secret (Paymob Pixel mounts with
+     * the public key + this one-order, one-hour secret), and the hosted page as a fallback.
+     *
+     * @return array{checkout_url: ?string, client_secret: ?string, public_key: ?string, message: ?string}
+     */
+    private function openPayment(Order $order, Request $request): array
+    {
+        try {
+            $started = $this->startPayment->handle(
+                $order,
+                StartPaymobPayment::allowedReturnUrl($request->input('return_url')),
+                null,
+                $request,
+            );
+
+            return [
+                'checkout_url' => $started['checkout_url'],
+                'client_secret' => $started['client_secret'],
+                'public_key' => config('services.paymob.public_key'),
+                'message' => null,
+            ];
+        } catch (PaymobException $exception) {
+            Log::error('Paymob payment could not be opened.', [
+                'route' => $request->path(),
+                'order_code' => $order->order_code,
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return ['checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'message' => 'The payment page could not be opened. Please try again.'];
+        }
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Contact\RecordContactMessageAction;
+use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContactMessageResource;
@@ -53,6 +54,7 @@ class ContactMessageController extends Controller
                 'message' => $request->message,
                 'name' => $request->input('name'),
                 'source' => $request->input('source', ContactSourceEnum::CONTACT_FORM->value),
+                'channel' => ContactChannelEnum::WEBSITE->value,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'locale' => app()->getLocale(),

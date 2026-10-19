@@ -110,6 +110,30 @@ class UpdateMembershipRequest extends FormRequest
     }
 
     /**
+     * Imported data already holds shared phones / National IDs, so an
+     * untouched value must not stop an unrelated edit from saving — the
+     * uniqueness rule only bites when the admin changes the value.
+     */
+    private function uniqueUnlessUnchanged(string $table, string $column, ?int $ignoreId, ?string $current, string $message): \Closure
+    {
+        return function ($attribute, $value, $fail) use ($table, $column, $ignoreId, $current, $message) {
+            if ((string) $value === (string) $current) {
+                return;
+            }
+
+            $taken = \Illuminate\Support\Facades\DB::table($table)
+                ->where($column, $value)
+                ->whereNull('deleted_at')
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->exists();
+
+            if ($taken) {
+                $fail($message);
+            }
+        };
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -147,10 +171,10 @@ class UpdateMembershipRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
             ],
-            'phone' => ['required', 'string', 'regex:/^01\d{9}$/'],
+            'phone' => ['required', 'string', 'regex:/^01\d{9}$/', $this->uniqueUnlessUnchanged('users', 'phone', $user->id, $user->phone, 'This phone number already belongs to another member.')],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'membership_number' => $membershipNumberRule,
-            'national_id' => 'required|string|digits:14',
+            'national_id' => ['required', 'string', 'digits:14', $this->uniqueUnlessUnchanged('memberships', 'national_id', $membershipId, $editingMembership?->national_id, 'This National ID already belongs to another card.')],
             'registration_date' => 'nullable|date',
             // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
             'expiration_date' => [
@@ -167,7 +191,7 @@ class UpdateMembershipRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
-            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
+            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::offlineValues())],
             'job_title' => ['nullable', 'array'],
             'job_title.ar' => ['nullable', 'string', 'max:255'],
             'job_title.en' => ['nullable', 'string', 'max:255'],

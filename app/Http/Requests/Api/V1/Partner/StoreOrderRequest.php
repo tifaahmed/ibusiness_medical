@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1\Partner;
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Models\Order;
+use App\Services\Paymob\PaymobClient;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -39,6 +40,10 @@ class StoreOrderRequest extends FormRequest
             'customer_full_name' => ['required', 'string', 'max:190'],
             'customer_phone' => ['required', 'string', 'max:32'],
             'customer_address' => ['required', 'string', 'max:1000'],
+            /* Where the purchase receipt is mailed. Optional: no address, no email. */
+            'customer_email' => ['nullable', 'email:rfc', 'max:190'],
+            /* Where the buyer's browser returns after paying online; checked against an allow-list. */
+            'return_url' => ['nullable', 'string', 'max:500'],
 
             /*
              * The delivery address in detail, as far as the storefront collected
@@ -85,7 +90,12 @@ class StoreOrderRequest extends FormRequest
 
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'payment_type' => ['required', Rule::in(PaymentTypeEnum::values())],
+            'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
+                /* Offering "pay online" with no gateway behind it would take an order that can never be paid. */
+                if ($value === PaymentTypeEnum::PAYMOB->value && ! PaymobClient::isConfigured()) {
+                    $fail('Online payment is not available right now.');
+                }
+            }],
 
             'items' => ['required', 'array', 'min:1', 'max:'.self::MAX_ITEMS],
             'items.*.slug' => ['required', 'string', 'max:190'],

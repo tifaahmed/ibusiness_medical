@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\Order\Show;
 
+use App\Services\Paymob\PaymobClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -35,6 +36,7 @@ class AdminOrderShowResource extends JsonResource
              * placed. The cost and the profit are shop-internal and stop here;
              * the partner resource carries the price alone.
              */
+            'cod_fee' => (float) $this->cod_fee,
             'delivery_cost' => (float) $this->delivery_cost,
             'delivery_price' => (float) $this->delivery_price,
             'delivery_profit' => (float) $this->delivery_profit,
@@ -53,6 +55,9 @@ class AdminOrderShowResource extends JsonResource
 
             'customer_full_name' => $this->customer_full_name,
             'customer_phone' => $this->customer_phone,
+            'customer_email' => $this->customer_email,
+            /* Where a receipt would actually go: the typed address, else the member's. */
+            'receipt_email' => $this->receiptEmail(),
             'customer_address' => $this->customer_address,
             /* The delivery address in detail — where the courier is actually
                being sent, as the buyer described it when ordering. */
@@ -87,6 +92,29 @@ class AdminOrderShowResource extends JsonResource
                 'label' => $this->payment_type?->label(),
             ],
             'cancel_reason' => $this->cancel_reason,
+
+            /* Online payment (Paymob): where the money stands and what the gateway last said. */
+            'paymob' => [
+                'is_online' => $this->isOnlinePayment(),
+                'transaction_id' => $this->paymob_transaction_id,
+                'order_id' => $this->paymob_order_id,
+                'reference' => $this->paymob_reference,
+                'attempts' => (int) $this->paymob_attempts,
+                'response_code' => $this->paymob_response_code,
+                'refunded_amount' => (float) $this->refunded_amount,
+                'refundable' => max(0, round((float) $this->total_paid - (float) $this->refunded_amount, 2)),
+                'paid_at' => $this->paid_at?->format('Y-m-d H:i:s'),
+                'refunded_at' => $this->refunded_at?->format('Y-m-d H:i:s'),
+                'receipt_emailed_at' => $this->receipt_emailed_at?->format('Y-m-d H:i:s'),
+                'configured' => PaymobClient::isConfigured(),
+                'inquiry_ready' => filled(config('services.paymob.api_key')),
+                'can_refund' => $this->isOnlinePayment()
+                    && $this->payment_status === \App\Enums\Order\PaymentStatusEnum::ACCEPTED
+                    && filled($this->paymob_transaction_id),
+            ],
+            'payment_logs' => $this->relationLoaded('paymentLogs')
+                ? AdminOrderPaymentLogResource::collection($this->paymentLogs)
+                : [],
 
             /*
              * Provenance, recorded once when the order arrived: the BUYER's

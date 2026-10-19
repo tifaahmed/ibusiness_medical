@@ -61,6 +61,9 @@ class Membership extends Model implements HasMedia
         'is_paid',
         'payment_type',
         'job_title',
+        'plan',
+        'source',
+        'trial_started_at',
     ];
 
     /**
@@ -77,6 +80,7 @@ class Membership extends Model implements HasMedia
             'is_visible' => 'boolean',
             'completed_at' => 'datetime',
             'is_paid' => 'boolean',
+            'trial_started_at' => 'datetime',
         ];
     }
 
@@ -217,6 +221,69 @@ class Membership extends Model implements HasMedia
         return $query->where(fn ($nested) => $nested
             ->where('membership_number', $numberOrSlug)
             ->orWhere('slug', $numberOrSlug));
+    }
+
+    public const PLAN_TRIAL = 'trial';
+
+    public const PLAN_FULL = 'full';
+
+    /** Where a self-issued card came from. */
+    public const SOURCE_SELF_SERVICE = 'self_service';
+
+    /** Card states, as clients draw them. */
+    public const STATE_PENDING = 'pending';
+
+    public const STATE_TRIAL = 'trial';
+
+    public const STATE_TRIAL_EXPIRED = 'trial_expired';
+
+    public const STATE_ACTIVE = 'active';
+
+    public const STATE_EXPIRED = 'expired';
+
+    public const STATE_INACTIVE = 'inactive';
+
+    public function isTrial(): bool
+    {
+        return $this->plan === self::PLAN_TRIAL;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expiration_date?->isPast() ?? false;
+    }
+
+    /**
+     * The ONE answer to "what is this card right now" — every scan page, API
+     * and app reads this, so they cannot disagree. Derived from the dates each
+     * time rather than stored, so an expiry needs no job to take effect.
+     */
+    public function state(): string
+    {
+        if (\App\Services\Otp\MemberRegistration::isPending($this->membership_number)) {
+            return self::STATE_PENDING;
+        }
+
+        if ($this->isTrial()) {
+            return $this->isExpired() ? self::STATE_TRIAL_EXPIRED : ($this->is_active ? self::STATE_TRIAL : self::STATE_INACTIVE);
+        }
+
+        if (! $this->is_active) {
+            return self::STATE_INACTIVE;
+        }
+
+        return $this->isExpired() ? self::STATE_EXPIRED : self::STATE_ACTIVE;
+    }
+
+    /** Whole days left (0 when expired or undated). */
+    public function daysLeft(): int
+    {
+        return $this->expiration_date === null ? 0 : max(0, (int) ceil(now()->floatDiffInDays($this->expiration_date, false)));
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(MembershipSubscription::class);
     }
 
     /**

@@ -159,6 +159,8 @@ class StoreController extends Controller
             'logo' => $store->mobile_logo ?: $store->logo,
             'cover' => $store->header ?: null,
             'gallery' => $gallery,
+            /* Videos the admin added to the gallery; the app plays them inline. */
+            'videos' => collect($store->gallery)->where('type', 'video')->pluck('url')->take(6)->values()->all(),
             'offer_from' => $store->offer_percent_from !== null ? (float) $store->offer_percent_from : null,
             'offer_to' => $store->offer_percent_to !== null ? (float) $store->offer_percent_to : null,
             'online_only' => (bool) $store->online_only,
@@ -204,7 +206,7 @@ class StoreController extends Controller
 
         $query = StoreBranch::query()
             ->where('store_id', $storeId)
-            ->select(['id', 'governorate_id', 'city_id', 'latitude', 'longitude', 'name', 'address', 'phone', 'google_location_url'])
+            ->select(['id', 'governorate_id', 'city_id', 'latitude', 'longitude', 'name', 'address', 'area', 'phone', 'google_location_url'])
             ->when(! empty($v['governorate_id']), fn ($q) => $q->where('governorate_id', (int) $v['governorate_id']))
             ->when(! empty($v['city_id']), fn ($q) => $q->where('city_id', (int) $v['city_id']));
 
@@ -236,6 +238,7 @@ class StoreController extends Controller
             'governorate' => $governorates[$b->governorate_id] ?? null,
             'city' => $cities[$b->city_id] ?? null,
             'address' => $b->address ? (string) $b->address : null,
+            'area' => $b->area ? (string) $b->area : null,
             'lat' => $b->latitude !== null ? (float) $b->latitude : null,
             'lng' => $b->longitude !== null ? (float) $b->longitude : null,
             'phone' => $phones['phone'],

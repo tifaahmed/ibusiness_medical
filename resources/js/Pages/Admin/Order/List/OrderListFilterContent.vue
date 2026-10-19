@@ -213,6 +213,7 @@ const paymentStatusOptions = computed(() => [
   { value: 'accepted', label: t.value.order?.status_accepted || 'Accepted' },
   { value: 'rejected', label: t.value.order?.status_rejected || 'Rejected' },
   { value: 'canceled', label: t.value.order?.status_canceled || 'Canceled' },
+  { value: 'refunded', label: t.value.order?.status_refunded || 'Refunded' },
 ]);
 
 const deliveryStatusOptions = computed(() => [
@@ -231,6 +232,7 @@ const orderStatusOptions = computed(() => [
 const paymentTypeOptions = computed(() => [
   { value: 'cod', label: t.value.order?.type_cod || 'Cash on Delivery' },
   { value: 'transfer-wallet', label: t.value.order?.type_transfer_wallet || 'Transfer Wallet' },
+  { value: 'paymob', label: t.value.order?.type_paymob || 'Online (Paymob)' },
 ]);
 
 const getInitialFilters = () => {

@@ -2,8 +2,10 @@
 
 namespace App\Http\Resources\Api\V1\Partner;
 
+use App\Enums\Order\PaymentStatusEnum;
 use App\Models\Order;
 use App\Models\OrderProduct;
+use App\Services\Paymob\PaymobClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -52,6 +54,14 @@ class OrderResource extends JsonResource
                 ? null
                 : (float) $this->total_amount_before_discount,
             'total_paid' => (float) $this->total_paid,
+            /* The cash-on-delivery fee already included in `total_amount`; 0 means none, and clients hide it. */
+            'cod_fee' => (float) $this->cod_fee,
+            'refunded_amount' => (float) $this->refunded_amount,
+            'paid_at' => $this->paid_at?->toAtomString(),
+            /* Whether the buyer can still be sent to the gateway for this order. */
+            'can_pay_online' => $this->isOnlinePayment()
+                && PaymobClient::isConfigured()
+                && in_array($this->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true),
             /* What delivery was charged at on this order, already included in
                `total_amount`. The buyer's half of the three columns. */
             'delivery_price' => (float) $this->delivery_price,

@@ -67,11 +67,24 @@ class Order extends Model implements HasMedia
         'delivery_cost',
         'delivery_price',
         'delivery_profit',
+        /* The extra fee cash on delivery carried when this was placed. */
+        'cod_fee',
+        /* Paymob: see `order_payment_logs` for the full exchange. */
+        'paymob_attempts',
+        'paymob_reference',
+        'paymob_order_id',
+        'paymob_transaction_id',
+        'paymob_response_code',
+        'refunded_amount',
+        'paid_at',
+        'refunded_at',
+        'receipt_emailed_at',
         /* Why delivery was not charged, and the basket total that earned it. */
         'delivery_free_reason',
         'free_delivery_threshold',
         'customer_full_name',
         'customer_phone',
+        'customer_email',
         'customer_address',
         'customer_address_type',
         'customer_street',
@@ -104,6 +117,11 @@ class Order extends Model implements HasMedia
             'delivery_cost' => 'decimal:2',
             'delivery_price' => 'decimal:2',
             'delivery_profit' => 'decimal:2',
+            'cod_fee' => 'decimal:2',
+            'refunded_amount' => 'decimal:2',
+            'paid_at' => 'datetime',
+            'refunded_at' => 'datetime',
+            'receipt_emailed_at' => 'datetime',
             /*
              * Nullable, and the cast leaves null alone — which matters here:
              * null means no threshold was in force when this order was placed,
@@ -146,6 +164,33 @@ class Order extends Model implements HasMedia
     public function logs(): HasMany
     {
         return $this->hasMany(OrderLog::class)->latest('id');
+    }
+
+    /** Every exchange with the payment gateway, oldest first. */
+    public function paymentLogs(): HasMany
+    {
+        return $this->hasMany(OrderPaymentLog::class)->orderBy('id');
+    }
+
+    /**
+     * Where the receipt goes: the address the buyer typed, else the signed-in
+     * member's own. Null when neither exists — a receipt is then simply not sent.
+     */
+    public function receiptEmail(): ?string
+    {
+        foreach ([$this->customer_email, $this->user?->email] as $candidate) {
+            if (filled($candidate) && filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** Whether the money for this order is collected through the Paymob gateway. */
+    public function isOnlinePayment(): bool
+    {
+        return $this->payment_type === PaymentTypeEnum::PAYMOB;
     }
 
     public function registerMediaCollections(): void

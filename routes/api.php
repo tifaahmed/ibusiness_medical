@@ -35,8 +35,11 @@ use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductContr
 use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
 use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
+use App\Http\Controllers\Api\V1\Guest\CardSubscriptionController as V1CardSubscriptionController;
+use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
+use App\Http\Controllers\Api\V1\Paymob\PaymobCallbackController as V1PaymobCallbackController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
 use App\Http\Controllers\Api\V1\Partner\OrderController as V1PartnerOrderController;
 use App\Http\Controllers\Api\V1\Partner\OtpAuthController as V1PartnerOtpAuthController;
@@ -63,6 +66,28 @@ Route::prefix('v1')
     ->middleware(\App\Http\Middleware\SetApiLocale::class)
     ->name('api.v1.')
     ->group(function () {
+        /*
+         * Paymob → us. Public (the gateway holds no API key): the HMAC on each
+         * request is the credential, checked before anything touches an order.
+         */
+        Route::post('/paymob/callback', [V1PaymobCallbackController::class, 'callback'])
+            ->middleware('throttle:120,1')
+            ->name('paymob.callback');
+        Route::get('/paymob/return/{code}', [V1PaymobCallbackController::class, 'return'])
+            ->middleware('throttle:60,1')
+            ->name('paymob.return');
+
+        /*
+         * What a QR scan of a card leads to: its state (trial / expired / active)
+         * and a way to pay for it, without signing in. See `CardSubscriptionController`.
+         */
+        Route::get('/card/{number}/status', [V1CardSubscriptionController::class, 'status'])
+            ->middleware('throttle:60,1')
+            ->name('card.status');
+        Route::post('/card/{number}/subscribe', [V1CardSubscriptionController::class, 'subscribe'])
+            ->middleware('throttle:10,1')
+            ->name('card.subscribe');
+
         Route::get('/home', V1HomeController::class)->name('home');
         Route::get('/services', [V1ServiceController::class, 'index'])->name('services.index');
         Route::get('/services/{service:slug}', [V1ServiceController::class, 'show'])->name('services.show');
@@ -161,6 +186,10 @@ Route::prefix('v1')
             Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
                 ->middleware('throttle:20,1')
                 ->name('orders.receipt');
+            /* Open the online payment again for an order not yet paid (declined card, closed page). */
+            Route::post('/orders/{orderCode}/pay', [V1PartnerOrderController::class, 'pay'])
+                ->middleware('throttle:10,1')
+                ->name('orders.pay');
 
             Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
                 ->middleware('throttle:20,1')
@@ -174,7 +203,7 @@ Route::prefix('v1')
             Route::get('/shop', function () {
                 $delivery = \App\Support\ShopDelivery::current();
 
-                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
+                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'cod_fee' => \App\Support\ShopDelivery::codFee(), 'paymob_enabled' => \App\Services\Paymob\PaymobClient::isConfigured(), 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
                     ->header('Cache-Control', 'public, max-age=60');
             })->name('shop');
 
@@ -367,12 +396,19 @@ Route::prefix('v1')
                         'deliveryPrice' => $delivery['price'],
                         'deliveryProfit' => round($delivery['price'] - $delivery['cost'], 2),
                         'freeDeliveryThreshold' => $delivery['threshold'],
+                        /* Extra fee on a cash-on-delivery order; 0 = none, and clients show nothing. */
+                        'codFee' => \App\Support\ShopDelivery::codFee(),
+                        'paymobEnabled' => \App\Services\Paymob\PaymobClient::isConfigured(),
                        
                     ]);
                 })->name('shop-settings');
 
                 /* The contact points the website's dock, footer and contact page draw (edited at /admin/setting). */
                 Route::get('/contact-settings', fn () => response()->json(\App\Support\ShopContact::current()))->name('contact-settings');
+
+                Route::post('/orders/{orderCode}/pay', [V1PartnerOrderController::class, 'pay'])
+                    ->middleware('throttle:10,1')
+                    ->name('orders.pay');
 
                 Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
                     ->middleware('throttle:60,1')
@@ -421,6 +457,19 @@ Route::prefix('v1')
              * request.
              */
             Route::get('/family', [V1MemberFamilyController::class, 'index'])->name('family.index');
+
+            /*
+             * The member's own card: its state, a free trial from phone + name +
+             * national ID, paying for it, and asking customer services to add
+             * relatives. See `Member\MembershipController`.
+             */
+            Route::get('/membership', [V1MemberMembershipController::class, 'show'])->name('me.membership.show');
+            Route::post('/membership/trial', [V1MemberMembershipController::class, 'trial'])
+                ->middleware('throttle:5,1')->name('me.membership.trial');
+            Route::post('/membership/subscribe', [V1MemberMembershipController::class, 'subscribe'])
+                ->middleware('throttle:10,1')->name('me.membership.subscribe');
+            Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])
+                ->middleware('throttle:5,1')->name('me.membership.relatives-request');
 
             /*
              * The addresses on the member's own card, read-only — see

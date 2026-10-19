@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Partner;
 
+use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -63,6 +64,9 @@ class StoreContactMessageRequest extends FormRequest
             'name' => $this->input('name'),
             'commercial_register' => $this->input('commercial_register'),
             'source' => $this->input('source', ContactSourceEnum::CONTACT_FORM->value),
+            'channel' => in_array($this->input('channel'), ContactChannelEnum::values(), true)
+                ? $this->input('channel')
+                : ContactChannelEnum::WEBSITE->value,
             'ip_address' => $this->input('ip_address'),
             'user_agent' => $this->input('user_agent'),
             'locale' => $this->input('locale'),

@@ -31,6 +31,9 @@ const can = (permission) => isSuperAdmin.value || userPermissions.value.includes
 // nav entries where three permissions all unlock the same route group.
 const canAny = (...permissions) => permissions.some((p) => can(p));
 
+/* Sidebar badge: how many items of this kind are waiting (from the shared adminAlerts). */
+const alertCount = (key) => (page.props.adminAlerts || []).find((alert) => alert.key === key)?.count || 0;
+
 const showingNavigationDropdown = ref(false);
 const sidebarCollapsed = ref(false);
 const isMobile = ref(false);
@@ -171,6 +174,8 @@ const getUserInitials = (name) => {
                     v-if="canAny('manage memberships', 'manage own memberships', 'manage partner memberships', 'view memberships')"
                     :href="route('admin.user.membership.list')"
                     :active="route().current('admin.user.membership.*')"
+                    :badge="alertCount('pending_relatives') || null"
+                    badge-variant="amber"
                     :is-collapsed="sidebarCollapsed"
                     icon-animation="animate-icon-breathe"
                     @click="closeSidebar"
@@ -181,6 +186,26 @@ const getUserInitials = (name) => {
                         </svg>
                     </template>
                     <template #label>{{ t.sidebar?.members || 'Members' }}</template>
+                </SidebarLink>
+
+                <!-- Membership payments: receipts and cash collections to check, and every Paymob attempt. -->
+                <SidebarLink
+                    v-if="canAny('manage memberships')"
+                    :href="route('admin.subscription.index')"
+                    :active="route().current('admin.subscription.*')"
+                    :badge="alertCount('pending_subscriptions') || null"
+                    badge-variant="amber"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <rect x="2" y="5" width="20" height="14" rx="2" stroke-width="2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 10h20M6 15h4" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.subscriptions || 'Membership Payments' }}</template>
                 </SidebarLink>
 
                 <SidebarLink
@@ -841,6 +866,20 @@ const getUserInitials = (name) => {
                                 <span>⚠️ {{ warning.message }}</span>
                                 <Link :href="warning.url" class="shrink-0 rounded-md bg-amber-500 px-3 py-1 text-xs font-bold text-white hover:bg-amber-600">
                                     {{ page.props.locale === 'ar' ? 'أضِفه هنا' : 'Add it here' }}
+                                </Link>
+                            </div>
+                        </div>
+                        <!-- Work waiting for the admin: relatives to approve, payments to check, call-backs. -->
+                        <div v-if="page.props.adminAlerts?.length" class="px-2 sm:px-3 md:px-4 lg:px-6 pt-3 space-y-2">
+                            <div
+                                v-for="alert in page.props.adminAlerts"
+                                :key="alert.key"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900"
+                                role="status"
+                            >
+                                <span>🔔 {{ alert.message }}</span>
+                                <Link :href="alert.url" class="shrink-0 rounded-md bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-700">
+                                    {{ page.props.locale === 'ar' ? 'عرض' : 'View' }}
                                 </Link>
                             </div>
                         </div>

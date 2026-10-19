@@ -199,6 +199,25 @@
           </div>
         </div>
 
+        <!-- Tabs: the order itself, the payment gateway's record, and everything done to it -->
+        <div class="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
+          <button
+            v-for="entry in tabs"
+            :key="entry.key"
+            type="button"
+            @click="tab = entry.key"
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer',
+              tab === entry.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
+            ]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="entry.icon"></svg>
+            {{ entry.label }}
+            <span v-if="entry.count" class="rounded-full bg-background/20 px-1.5 text-xs tabular-nums">{{ entry.count }}</span>
+          </button>
+        </div>
+
+        <div v-show="tab === 'details'" class="space-y-3">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <!-- Customer -->
           <div class="bg-card text-card-foreground rounded-xl border border-border shadow-sm lg:col-span-2">
@@ -216,6 +235,10 @@
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_phone || 'Phone' }}</label>
                 <p class="text-sm font-medium mt-0.5" dir="ltr">{{ order.customer_phone || '—' }}</p>
+              </div>
+              <div v-if="order.receipt_email">
+                <label class="text-xs font-medium text-muted-foreground">{{ t.order?.customer_email || 'Email' }}</label>
+                <p class="text-sm font-medium mt-0.5 break-all" dir="ltr">{{ order.receipt_email }}</p>
               </div>
               <div>
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.membership_number || 'Membership No.' }}</label>
@@ -302,6 +325,11 @@
               <div v-if="saved">
                 <label class="text-xs font-medium text-muted-foreground">{{ t.order?.membership_discount || 'Membership discount' }}</label>
                 <p class="text-sm font-medium mt-0.5 text-emerald-500">−{{ formatPrice(saved) }}</p>
+              </div>
+              <!-- The cash-on-delivery fee this order was placed with. Absent when zero. -->
+              <div v-if="Number(order.cod_fee) > 0" class="flex items-center justify-between gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-1.5">
+                <label class="text-xs font-medium text-sky-500">{{ t.order?.cod_fee || 'Cash on delivery fee' }}</label>
+                <p class="text-sm font-medium">{{ formatPrice(order.cod_fee) }}</p>
               </div>
               <!--
                 Delivery as it was archived on THIS order: what the courier
@@ -529,7 +557,11 @@
           </div>
         </div>
 
-        <OrderLogTimeline :logs="order.logs || []" />
+        </div>
+        <OrderPaymentTab v-show="tab === 'payment'" :order="order" :can-manage="canManage" />
+        <div v-show="tab === 'activity'">
+          <OrderLogTimeline :logs="order.logs || []" />
+        </div>
       </div>
     </div>
 
@@ -552,9 +584,10 @@
 
 <script setup>
 import { Link, usePage } from "@inertiajs/vue3";
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import OrderLayout from "../OrderLayout.vue";
 import OrderLogTimeline from "./OrderLogTimeline.vue";
+import OrderPaymentTab from "./OrderPaymentTab.vue";
 import OrderPdfPreview from "./OrderPdfPreview.vue";
 import OrderShipDialog from "./OrderShipDialog.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
@@ -603,6 +636,26 @@ const canManage = computed(() => {
 });
 
 const saved = computed(() => savedAmount(props.order));
+
+/* Which tab is open. Remembered per browser tab so a refresh after pressing
+   "Check with Paymob" lands back on the payment record, not the details. */
+const readTab = () => {
+  try {
+    const stored = sessionStorage.getItem('order-tab');
+    return ['details', 'payment', 'activity'].includes(stored) ? stored : 'details';
+  } catch {
+    return 'details';
+  }
+};
+const tab = ref(readTab());
+watch(tab, (value) => {
+  try { sessionStorage.setItem('order-tab', value); } catch { /* storage may be blocked */ }
+});
+const tabs = computed(() => [
+  { key: 'details', label: t.value.order?.tab_details || 'Details', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>' },
+  { key: 'payment', label: t.value.order?.payment_tab || 'Payment', icon: '<rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line>', count: (props.order.payment_logs || []).length },
+  { key: 'activity', label: t.value.order?.activity_log || 'Activity Log', icon: '<path d="M12 8v4l3 3"></path><path d="M3.05 11a9 9 0 1 1 .5 4"></path><path d="M3 21v-6h6"></path>', count: (props.order.logs || []).length },
+]);
 
 /*
  * Why delivery was not charged, read in the admin's own language.

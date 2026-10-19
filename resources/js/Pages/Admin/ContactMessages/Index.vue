@@ -155,6 +155,31 @@
                   @change="applyFilters"
                 />
               </div>
+              <div class="min-w-0">
+                <label class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full mb-1">{{ t.channel || 'From' }}</label>
+                <Select
+                  :modelValue="filters.channel"
+                  :options="channelOptions"
+                  :placeholder="t.all_channels || 'Website & App'"
+                  @update:modelValue="val => { filters.channel = val; applyFilters(); }"
+                  @change="applyFilters"
+                />
+              </div>
+              <div class="min-w-0">
+                <label class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full mb-1">{{ t.membership || 'Membership' }}</label>
+                <Select
+                  :modelValue="filters.membership"
+                  :options="membershipOptions"
+                  @update:modelValue="val => { filters.membership = val; applyFilters(); }"
+                  @change="applyFilters"
+                />
+              </div>
+              <div class="min-w-0 flex items-end">
+                <label class="flex items-center gap-2 text-xs sm:text-sm font-medium select-none cursor-pointer h-7 sm:h-8 md:h-9">
+                  <input type="checkbox" v-model="filters.unique_phone" @change="applyFilters" class="h-4 w-4 cursor-pointer" />
+                  {{ t.unique_numbers || 'Unique numbers' }}
+                </label>
+              </div>
               <div class="min-w-0 flex items-end">
                 <button v-if="hasActiveFilters" @click="resetFilters"
                   class="cursor-pointer justify-center whitespace-nowrap text-xs font-medium transition-all outline-none bg-destructive text-white shadow-xs hover:bg-destructive/90 h-7 sm:h-8 rounded-md px-2 sm:px-3 inline-flex items-center gap-1.5 sm:gap-2"
@@ -170,6 +195,42 @@
           </div>
         </FilterAccordion>
 
+        <!-- Bulk action bar -->
+        <div v-if="canManage && selectedIds.length" class="mb-3 rounded-xl border border-primary/40 bg-primary/5 p-3 flex flex-col lg:flex-row gap-2 lg:items-end">
+          <div class="text-sm font-medium whitespace-nowrap">{{ selectedIds.length }} {{ t.selected || 'selected' }}</div>
+          <div class="min-w-[180px]">
+            <label class="block text-xs font-medium mb-1">{{ t.change_status_to || 'Change status to' }}</label>
+            <Select :modelValue="bulk.status" :options="bulkStatusOptions" @update:modelValue="val => bulk.status = val" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <label class="block text-xs font-medium mb-1">{{ t.add_note || 'Add a note to all selected' }}</label>
+            <textarea v-model="bulk.note" rows="1" maxlength="5000" :placeholder="t.note_placeholder || 'Optional note…'"
+              class="w-full rounded-md border border-border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"></textarea>
+          </div>
+          <button @click="openConfirm" :disabled="!bulk.status && !bulk.note.trim()"
+            class="h-8 rounded-md px-3 text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50 cursor-pointer">{{ t.apply || 'Apply' }}</button>
+          <button @click="selectedIds = []" class="h-8 rounded-md px-3 text-xs font-medium border border-border cursor-pointer">{{ t.clear_selection || 'Clear selection' }}</button>
+        </div>
+
+        <!-- Confirmation -->
+        <div v-if="confirming" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="confirming = false">
+          <div class="w-full max-w-md rounded-xl border border-border bg-card text-card-foreground p-5 shadow-lg">
+            <h3 class="text-lg font-bold mb-2">{{ t.confirm_bulk_title || 'Confirm bulk update' }}</h3>
+            <p class="text-sm mb-2">
+              {{ (t.confirm_bulk_body || 'This will update :count message(s):').replace(':count', selectedIds.length) }}
+            </p>
+            <ul class="text-sm list-disc ps-5 mb-3 space-y-1">
+              <li v-if="bulk.status">{{ t.status || 'Status' }} → <strong>{{ bulkStatusLabel }}</strong></li>
+              <li v-if="bulk.note.trim()">{{ t.note || 'Note' }}: <em class="whitespace-pre-wrap">{{ bulk.note.trim() }}</em></li>
+            </ul>
+            <p v-if="bulkError" class="text-sm text-destructive mb-2">{{ bulkError }}</p>
+            <div class="flex justify-end gap-2">
+              <button @click="confirming = false" :disabled="bulkBusy" class="h-8 rounded-md px-3 text-xs font-medium border border-border cursor-pointer">{{ t.cancel || 'Cancel' }}</button>
+              <button @click="submitBulk" :disabled="bulkBusy" class="h-8 rounded-md px-3 text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50 cursor-pointer">{{ bulkBusy ? (t.saving || 'Saving…') : (t.confirm || 'Confirm') }}</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Messages Table -->
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div v-if="messages?.data?.length > 0">
@@ -177,6 +238,9 @@
               <table class="w-full caption-bottom text-xs sm:text-sm">
                 <thead class="[&_tr]:border-b [&_tr]:border-border">
                   <tr class="border-b border-border transition-colors">
+                    <th v-if="canManage" class="h-9 sm:h-10 px-2 sm:px-3 w-8">
+                      <input type="checkbox" :checked="allOnPageSelected" @change="togglePage" class="h-4 w-4 cursor-pointer" />
+                    </th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.name || 'Name' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.phone || 'Phone' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.source || 'Came through' }}</th>
@@ -186,7 +250,10 @@
                   </tr>
                 </thead>
                 <tbody class="[&_tr:last-child]:border-0">
-                  <tr v-for="msg in messages.data" :key="msg.id" class="border-b border-border transition-colors hover:bg-muted/50">
+                  <tr v-for="msg in messages.data" :key="msg.id" class="border-b border-border transition-colors hover:bg-muted/50" :class="selectedIds.includes(msg.id) ? 'bg-primary/5' : ''">
+                    <td v-if="canManage" class="p-2 sm:p-3 align-middle">
+                      <input type="checkbox" :value="msg.id" v-model="selectedIds" class="h-4 w-4 cursor-pointer" />
+                    </td>
                     <td class="p-2 sm:p-3 align-middle">
                       <span class="font-medium text-foreground">{{ msg.name || '—' }}</span>
                       <span v-if="msg.commercial_register" class="block text-[11px] text-muted-foreground">
@@ -195,9 +262,12 @@
                     </td>
                     <td class="p-2 sm:p-3 align-middle">
                       <span class="text-foreground text-xs" dir="ltr">{{ msg.phone }}</span>
+                      <span v-if="msg.is_member === true" class="ms-1 inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">✓ {{ t.member || 'Member' }}</span>
+                      <span v-else-if="msg.is_member === false" class="ms-1 inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">{{ t.not_member_badge || 'Not a member' }}</span>
                     </td>
                     <td class="p-2 sm:p-3 align-middle text-center">
                       <span :class="sourceBadgeClass(msg.source)">{{ msg.source_label }}</span>
+                      <span v-if="msg.channel_label" class="ms-1 text-[10px] text-muted-foreground">{{ msg.channel === 'mobile' ? '📱' : '🌐' }} {{ msg.channel_label }}</span>
                     </td>
                     <td class="p-2 sm:p-3 align-middle text-center">
                       <span :class="statusBadgeClass(msg.status)">{{ msg.status_label }}</span>
@@ -256,6 +326,7 @@ import { router, usePage, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Pages/_components/Pagination.vue';
 import Select from '@/Components/ui/Select.vue';
+import axios from 'axios';
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.contact_messages || {});
@@ -267,6 +338,7 @@ const props = defineProps({
   // out of step with the enums behind them.
   statuses: { type: Array, default: () => [] },
   sources: { type: Array, default: () => [] },
+  channels: { type: Array, default: () => [] },
   filters: { type: Object, default: () => ({ status: 'all', source: 'all', search: '' }) },
   canManage: { type: Boolean, default: false },
 });
@@ -275,10 +347,56 @@ const filters = ref({
   search: props.filters?.search || '',
   status: props.filters?.status || 'all',
   source: props.filters?.source || 'all',
+  channel: props.filters?.channel || 'all',
+  membership: props.filters?.membership || 'all',
+  unique_phone: !!props.filters?.unique_phone,
 });
 
+const selectedIds = ref([]);
+const bulk = ref({ status: '', note: '' });
+const confirming = ref(false);
+const bulkBusy = ref(false);
+const bulkError = ref('');
+
+const pageIds = computed(() => (props.messages?.data || []).map(m => m.id));
+const allOnPageSelected = computed(() => pageIds.value.length > 0 && pageIds.value.every(id => selectedIds.value.includes(id)));
+const togglePage = () => {
+  selectedIds.value = allOnPageSelected.value
+    ? selectedIds.value.filter(id => !pageIds.value.includes(id))
+    : [...new Set([...selectedIds.value, ...pageIds.value])];
+};
+const bulkStatusOptions = computed(() => [
+  { value: '', label: t.value.keep_status || '— keep current —' },
+  ...props.statuses.map(s => ({ value: s.value, label: t.value[s.value] || s.label })),
+]);
+const bulkStatusLabel = computed(() => bulkStatusOptions.value.find(o => o.value === bulk.value.status)?.label || '');
+const openConfirm = () => { bulkError.value = ''; confirming.value = true; };
+
+const submitBulk = async () => {
+  bulkBusy.value = true;
+  bulkError.value = '';
+  try {
+    await axios.post(route('admin.contact-messages.bulk-update'), {
+      ids: selectedIds.value,
+      action: bulk.value.status || null,
+      note: bulk.value.note.trim() || null,
+    });
+    confirming.value = false;
+    selectedIds.value = [];
+    bulk.value = { status: '', note: '' };
+    router.reload({ preserveScroll: true });
+  } catch (e) {
+    bulkError.value = e?.response?.data?.message || e?.message || 'Update failed';
+    try {
+      axios.post('/api/v1/client-errors', { message: String(e?.message || e), stack: e?.stack, route: 'admin.contact-messages.bulk-update', extra: { count: selectedIds.value.length } }).catch(() => {});
+    } catch (_) { /* reporting must never break the page */ }
+  } finally {
+    bulkBusy.value = false;
+  }
+};
+
 const hasActiveFilters = computed(() =>
-  filters.value.search || filters.value.status !== 'all' || filters.value.source !== 'all'
+  filters.value.search || filters.value.status !== 'all' || filters.value.source !== 'all' || filters.value.channel !== 'all' || filters.value.membership !== 'all' || filters.value.unique_phone
 );
 
 const statusOptions = computed(() => [
@@ -364,6 +482,9 @@ const exportComputedUrl = computed(() => {
   if (filters.value.search?.trim()) params.set('search', filters.value.search.trim());
   if (filters.value.status && filters.value.status !== 'all') params.set('status', filters.value.status);
   if (filters.value.source && filters.value.source !== 'all') params.set('source', filters.value.source);
+  if (filters.value.channel && filters.value.channel !== 'all') params.set('channel', filters.value.channel);
+  if (filters.value.membership && filters.value.membership !== 'all') params.set('membership', filters.value.membership);
+  if (filters.value.unique_phone) params.set('unique_phone', '1');
   if (selectedColumns.value.length < allColumnKeys.length) {
     params.set('columns', selectedColumns.value.join(','));
   }
@@ -372,6 +493,17 @@ const exportComputedUrl = computed(() => {
   const base = route('admin.contact-messages.export');
   return qs ? `${base}?${qs}` : base;
 });
+
+const membershipOptions = computed(() => [
+  { value: 'all', label: t.value.all_people || 'Members & non-members' },
+  { value: 'member', label: t.value.already_member || 'Already a member' },
+  { value: 'not_member', label: t.value.not_member || 'Not a member' },
+]);
+
+const channelOptions = computed(() => [
+  { value: 'all', label: t.value.all_channels || 'Website & App' },
+  ...props.channels,
+]);
 
 const sourceOptions = computed(() => [
   { value: 'all', label: t.value.all_sources || 'All Sources' },
@@ -447,6 +579,9 @@ const applyFilters = () => {
   if (filters.value.search?.trim()) params.search = filters.value.search.trim();
   if (filters.value.status && filters.value.status !== 'all') params.status = filters.value.status;
   if (filters.value.source && filters.value.source !== 'all') params.source = filters.value.source;
+  if (filters.value.channel && filters.value.channel !== 'all') params.channel = filters.value.channel;
+  if (filters.value.membership && filters.value.membership !== 'all') params.membership = filters.value.membership;
+  if (filters.value.unique_phone) params.unique_phone = 1;
   router.get(route('admin.contact-messages.index'), params, {
     preserveState: true,
     preserveScroll: true,
@@ -455,7 +590,7 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-  filters.value = { search: '', status: 'all', source: 'all' };
+  filters.value = { search: '', status: 'all', source: 'all', channel: 'all', membership: 'all', unique_phone: false };
   router.get(route('admin.contact-messages.index'), {}, {
     preserveState: true,
     preserveScroll: true,

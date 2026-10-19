@@ -13,6 +13,7 @@ export const statusClass = {
         accepted: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
         rejected: 'border-red-500/30 bg-red-500/10 text-red-500',
         canceled: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400',
+        refunded: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-500',
     },
     delivery: {
         pending: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
@@ -33,6 +34,7 @@ export const statusClass = {
 export const paymentTypeClass = {
     cod: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
     'transfer-wallet': 'border-violet-500/30 bg-violet-500/10 text-violet-500',
+    paymob: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-500',
 };
 
 /**
@@ -48,6 +50,14 @@ export const logActionClass = {
     order_status_changed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     products_changed: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
     canceled: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400',
+    payment_initiated: 'border-blue-500/30 bg-blue-500/10 text-blue-500',
+    payment_callback: 'border-violet-500/30 bg-violet-500/10 text-violet-500',
+    payment_checked: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
+    payment_accepted: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
+    payment_rejected: 'border-red-500/30 bg-red-500/10 text-red-500',
+    payment_refunded: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-500',
+    refund_failed: 'border-red-500/30 bg-red-500/10 text-red-500',
+    receipt_emailed: 'border-teal-500/30 bg-teal-500/10 text-teal-500',
     viewed: 'border-border bg-muted/50 text-muted-foreground',
     edit_viewed: 'border-border bg-muted/50 text-muted-foreground',
 };
@@ -71,6 +81,7 @@ export const paymentStatusLabel = (t, status) => labelled(t, {
     accepted: 'status_accepted',
     rejected: 'status_rejected',
     canceled: 'status_canceled',
+    refunded: 'status_refunded',
 }, status, typeof status === 'object' ? status?.label : null);
 
 export const deliveryStatusLabel = (t, status) => labelled(t, {
@@ -89,6 +100,7 @@ export const orderStatusLabel = (t, status) => labelled(t, {
 export const paymentTypeLabel = (t, type) => labelled(t, {
     cod: 'type_cod',
     'transfer-wallet': 'type_transfer_wallet',
+    paymob: 'type_paymob',
 }, type, typeof type === 'object' ? type?.label : null);
 
 export const logActionLabel = (t, action) => t?.order?.[`log_${action}`] || action?.replace(/_/g, ' ') || '';

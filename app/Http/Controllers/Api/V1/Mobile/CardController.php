@@ -41,6 +41,8 @@ class CardController extends Controller
         return $this->respond($request, [
             'number' => $membership->membership_number,
             'active' => (bool) ($membership->is_active ?? false),
+            // trial / trial_expired / active / expired, the price, and how to buy or call — see `MembershipStatus`.
+            'status' => \App\Support\MembershipStatus::forCard($membership),
             'valid_from' => $membership->registration_date?->format('Y-m-d'),
             'valid_to' => $membership->expiration_date?->format('Y-m-d'),
             'holder' => (string) ($membership->user?->name ?? ''),

@@ -127,4 +127,30 @@ return [
         'verify' => filter_var(env('SMS_API_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    /*
+     * Paymob (Accept) — online card / wallet payment for storefront and app orders.
+     * Leave `secret_key` blank and the "pay online" choice is hidden everywhere.
+     * `api_key` is only needed for the admin's "check with Paymob" inquiry.
+     * `integration_ids` is a comma-separated list of the payment-method ids to offer.
+     */
+    'paymob' => [
+        'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com'),
+        'secret_key' => env('PAYMOB_SECRET_KEY'),
+        'public_key' => env('PAYMOB_PUBLIC_KEY'),
+        'api_key' => env('PAYMOB_API_KEY'),
+        'hmac' => env('PAYMOB_HMAC_SECRET'),
+        /* PAYMOB_INTEGRATION_IDS wins; PAYMOB_CARD_INTEGRATION_ID (one card integration) is the shorter way to say the same for a single method. */
+        'integration_ids' => array_values(array_filter(array_map('trim', explode(',', (string) (env('PAYMOB_INTEGRATION_IDS') ?: env('PAYMOB_CARD_INTEGRATION_ID', '')))))),
+        /* Hosted-iframe id from the old flow. Not used by the Unified Checkout we open; kept so the value has a home. */
+        'iframe_id' => env('PAYMOB_IFRAME_ID'),
+        'currency' => env('PAYMOB_CURRENCY', 'EGP'),
+        'timeout' => (int) env('PAYMOB_TIMEOUT', 30),
+        /* Where the buyer's browser lands after paying; `{code}` is the order code. */
+        'return_url' => env('PAYMOB_RETURN_URL'),
+        /* Same, for a membership subscription; `{code}` is `SUB<id>`. */
+        'subscription_return_url' => env('PAYMOB_SUBSCRIPTION_RETURN_URL'),
+        /* Comma-separated prefixes a client may ask to be returned to (the app's scheme, the storefront). */
+        'allowed_return_urls' => array_values(array_filter(array_map('trim', explode(',', (string) env('PAYMOB_ALLOWED_RETURN_URLS', ''))))),
+    ],
+
 ];

@@ -24,6 +24,7 @@
     </div>
 
     <div class="max-w-2xl mx-auto relative z-10">
+      <CardStatusBanner :status="membership.status" :slug="membership.slug" :locale="locale" />
 
       <!-- Header -->
       <div class="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-5">
@@ -190,6 +191,7 @@
 import { computed, ref, markRaw } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
+import CardStatusBanner from '../_components/CardStatusBanner.vue';
 
 const props = defineProps({
   membership:       { type: Object, required: true },

@@ -222,12 +222,14 @@ const statusClass = {
     accepted: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     rejected: 'border-red-500/30 bg-red-500/10 text-red-500',
     canceled: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400',
+    refunded: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-500',
   },
 };
 
 const paymentTypeClass = {
   cod: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
   'transfer-wallet': 'border-violet-500/30 bg-violet-500/10 text-violet-500',
+  paymob: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-500',
 };
 
 const paymentStatusLabel = (status) => {
@@ -236,6 +238,7 @@ const paymentStatusLabel = (status) => {
     accepted: t.value.order?.status_accepted,
     rejected: t.value.order?.status_rejected,
     canceled: t.value.order?.status_canceled,
+    refunded: t.value.order?.status_refunded,
   };
   return map[status?.value] || status?.label || status?.value || '—';
 };
@@ -244,6 +247,7 @@ const paymentTypeLabel = (type) => {
   const map = {
     cod: t.value.order?.type_cod,
     'transfer-wallet': t.value.order?.type_transfer_wallet,
+    paymob: t.value.order?.type_paymob,
   };
   return map[type?.value] || type?.label || type?.value || '';
 };

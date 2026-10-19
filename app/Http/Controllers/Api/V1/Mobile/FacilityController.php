@@ -80,6 +80,8 @@ class FacilityController extends Controller
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km,lat'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:40'],
+            /* `discount`: the biggest discount first (facilities with none last); nearest still breaks ties. */
+            'sort' => ['nullable', 'in:nearest,discount'],
         ]);
 
         $lat = isset($v['lat']) ? (float) $v['lat'] : null;
@@ -114,10 +116,18 @@ class FacilityController extends Controller
                 $query->where('nearest_branch.distance_km', '<=', $radius);
             }
 
+            if (($v['sort'] ?? null) === 'discount') {
+                $query->orderByRaw('facilities.discount_percent is null')->orderByDesc('facilities.discount_percent');
+            }
+
             $query->orderByRaw('nearest_branch.distance_km is null')
                 ->orderBy('nearest_branch.distance_km')
                 ->orderBy('facilities.id');
         } else {
+            if (($v['sort'] ?? null) === 'discount') {
+                $query->orderByRaw('facilities.discount_percent is null')->orderByDesc('facilities.discount_percent');
+            }
+
             $query->orderByDesc('facilities.id');
         }
 
@@ -188,7 +198,7 @@ class FacilityController extends Controller
             'lng' => ['required', 'numeric', 'between:-180,180'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'facility_type_id' => ['nullable', 'integer'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:3000'],
         ]);
 
         $limit = (int) ($v['limit'] ?? 300);

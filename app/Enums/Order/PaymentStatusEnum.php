@@ -8,6 +8,7 @@ enum PaymentStatusEnum: string
     case ACCEPTED = 'accepted';
     case REJECTED = 'rejected';
     case CANCELED = 'canceled';
+    case REFUNDED = 'refunded';
 
     public static function values(): array
     {
@@ -21,6 +22,7 @@ enum PaymentStatusEnum: string
             self::ACCEPTED->value => ['value' => self::ACCEPTED->value, 'label' => 'Accepted'],
             self::REJECTED->value => ['value' => self::REJECTED->value, 'label' => 'Rejected'],
             self::CANCELED->value => ['value' => self::CANCELED->value, 'label' => 'Canceled'],
+            self::REFUNDED->value => ['value' => self::REFUNDED->value, 'label' => 'Refunded'],
         ];
     }
 

@@ -33,7 +33,7 @@ class AdminOrderShowController extends BaseController
     public function __invoke(Request $request, string $order): Response
     {
         $orderModel = Order::withTrashed()
-            ->with(['products.product:id,slug', 'logs.admin:id,name,email', 'media'])
+            ->with(['products.product:id,slug', 'logs.admin:id,name,email', 'paymentLogs.admin:id,name', 'user:id,email', 'media'])
             ->where('order_code', $order)
             ->firstOrFail();
 

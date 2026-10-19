@@ -71,17 +71,17 @@ class StoreMembershipRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class.',email'],
-            'phone' => ['required', 'string', 'max:20'],
+            'phone' => ['required', 'string', 'max:20', Rule::unique(User::class, 'phone')->whereNull('deleted_at')],
             'password' => 'nullable|string', // Password is auto-generated, so it's optional
             'membership_number' => 'nullable|string|unique:'.Membership::class.',membership_number',
-            'national_id' => 'required|string|digits:14',
+            'national_id' => ['required', 'string', 'digits:14', Rule::unique(Membership::class, 'national_id')->whereNull('deleted_at')],
             'registration_date' => 'required|date',
             // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
             'expiration_date' => ['nullable', 'date', $this->expirationDateRule()],
             'is_active' => 'nullable|boolean',
             'is_visible' => 'nullable|boolean',
             'is_paid' => ['nullable', 'boolean'],
-            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
+            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::offlineValues())],
             // Payment card hidden from the create/edit UI — the admin can no longer
             // fill these in here, so the conditional Rule::requiredIf(...) that used
             // to force them when marking a membership paid is commented out below.
@@ -164,6 +164,8 @@ class StoreMembershipRequest extends FormRequest
             'password.required' => 'The password field is required.',
             'password.confirmed' => 'The password confirmation does not match.',
             'membership_number.unique' => 'This membership number is already in use.',
+            'phone.unique' => 'This phone number already belongs to another member.',
+            'national_id.unique' => 'This National ID already belongs to another card.',
             'national_id.required' => 'The National ID number is required.',
             'national_id.digits' => 'The National ID number must be exactly 14 digits.',
             'registration_date.required' => 'The registration date field is required.',

@@ -74,6 +74,29 @@ class MobileApiTest extends TestCase
     }
 
     /** @test */
+    public function the_list_can_put_the_biggest_discount_first_and_facilities_without_one_last(): void
+    {
+        $nearNoDiscount = $this->facility('Near No Discount', ['discount_percent' => null]);
+        $this->branch($nearNoDiscount, 30.05, 31.24);
+        $farBig = $this->facility('Far Big', ['discount_percent' => 50]);
+        $this->branch($farBig, 31.2, 29.9);
+        $nearSmall = $this->facility('Near Small', ['discount_percent' => 10]);
+        $this->branch($nearSmall, 30.06, 31.25);
+
+        $this->getJson('/api/v1/mobile/facilities?lat=30.04&lng=31.23&sort=discount')
+            ->assertOk()
+            ->assertJsonPath('data.0.slug', $farBig->slug)
+            ->assertJsonPath('data.1.slug', $nearSmall->slug)
+            ->assertJsonPath('data.2.slug', $nearNoDiscount->slug);
+
+        // Without the flag nothing changes: nearest first.
+        $this->getJson('/api/v1/mobile/facilities?lat=30.04&lng=31.23')
+            ->assertJsonPath('data.0.slug', $nearNoDiscount->slug);
+
+        $this->getJson('/api/v1/mobile/facilities?sort=bogus')->assertUnprocessable();
+    }
+
+    /** @test */
     public function a_radius_drops_facilities_beyond_it(): void
     {
         $this->branch($this->facility('Far Clinic'), 31.2, 29.9);

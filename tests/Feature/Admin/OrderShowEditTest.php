@@ -160,8 +160,8 @@ class OrderShowEditTest extends TestCase
         // A select binds to the value; a {value,label} pair would post back an object.
         $this->assertSame('pending', $props['order']['payment_status']);
         $this->assertSame('transfer-wallet', $props['order']['payment_type']);
-        $this->assertCount(4, $props['paymentStatuses']);
-        $this->assertCount(2, $props['paymentTypes']);
+        $this->assertCount(5, $props['paymentStatuses']);
+        $this->assertCount(3, $props['paymentTypes']);
 
         $this->assertSame(1, OrderLog::where('order_id', $order->id)
             ->where('action', OrderLog::ACTION_EDIT_VIEWED)->count());

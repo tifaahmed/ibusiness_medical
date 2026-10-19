@@ -7,6 +7,8 @@ use App\Enums\Contact\ContactSourceEnum;
 use App\Enums\Contact\ContactStatusEnum;
 use App\Mail\ContactMessageReceived;
 use App\Models\ContactMessage;
+use App\Services\Sms\SmsGateway;
+use App\Support\ContactAlert;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -23,7 +25,7 @@ use Throwable;
 class RecordContactMessageAction
 {
     /**
-     * @param  array{phone: string, message: string, name?: ?string, email?: ?string, subject?: ?string, commercial_register?: ?string, source?: ?string, ip_address?: ?string, user_agent?: ?string, locale?: ?string, referrer?: ?string, created_at?: ?string}  $attributes
+     * @param  array{phone: string, message: string, name?: ?string, email?: ?string, subject?: ?string, commercial_register?: ?string, source?: ?string, channel?: ?string, ip_address?: ?string, user_agent?: ?string, locale?: ?string, referrer?: ?string, created_at?: ?string}  $attributes
      */
     public function handle(array $attributes): ContactMessage
     {
@@ -36,6 +38,7 @@ class RecordContactMessageAction
                 'subject' => $attributes['subject'] ?? null,
                 'commercial_register' => $attributes['commercial_register'] ?? null,
                 'source' => $attributes['source'] ?? ContactSourceEnum::CONTACT_FORM->value,
+                'channel' => $attributes['channel'] ?? null,
                 'status' => ContactStatusEnum::NEW->value,
                 'ip_address' => $attributes['ip_address'] ?? null,
                 'user_agent' => $attributes['user_agent'] ?? null,
@@ -73,8 +76,53 @@ class RecordContactMessageAction
         });
 
         $this->notifyInbox($enquiry);
+        $this->alertStaffPhone($enquiry);
 
         return $enquiry;
+    }
+
+    /**
+     * SMS the staff phone (setting `contact_alert_phone`) when the number that
+     * wrote in belongs to nobody in the system AND has never written before, so it can be rung back fast.
+     *
+     * Like the mail, a failure here is logged and swallowed: the enquiry is
+     * already committed and must not turn into a 500 that the storefront
+     * re-sends.
+     */
+    private function alertStaffPhone(ContactMessage $enquiry): void
+    {
+        try {
+            $alertPhone = ContactAlert::phone();
+
+            if ($alertPhone === null
+                || ContactAlert::isKnownPhone((string) $enquiry->phone)
+                || ! ContactAlert::isFirstEnquiry((string) $enquiry->phone, $enquiry->id)) {
+                return;
+            }
+
+            $text = sprintf(
+                'New %s from %s%s. Call back: %s',
+                $enquiry->source->label(),
+                $enquiry->name ?: 'a visitor',
+                $enquiry->commercial_register ? ' (CR '.$enquiry->commercial_register.')' : '',
+                $enquiry->phone,
+            );
+
+            $result = app(SmsGateway::class)->send($alertPhone, $text);
+
+            if (! $result['sent']) {
+                Log::warning('Contact alert SMS was not sent.', [
+                    'contact_message_id' => $enquiry->id,
+                    'error' => $result['error'],
+                ]);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Contact alert SMS failed.', [
+                'contact_message_id' => $enquiry->id,
+                'exception' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+        }
     }
 
     /**

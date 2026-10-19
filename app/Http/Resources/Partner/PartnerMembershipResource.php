@@ -31,6 +31,8 @@ class PartnerMembershipResource extends JsonResource
             'membership_number' => $this->membership_number,
             'is_active' => (bool) $this->is_active,
             'is_expired' => $this->expiration_date?->isPast() ?? false,
+            /* trial / trial_expired / active / expired, price and how to buy — see `MembershipStatus`. */
+            'status' => \App\Support\MembershipStatus::forCard($this->resource),
             'registration_date' => $this->registration_date?->toDateString(),
             'expiration_date' => $this->expiration_date?->toDateString(),
             'job_title' => $this->getTranslation('job_title', $locale)

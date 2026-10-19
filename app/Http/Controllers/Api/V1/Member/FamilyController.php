@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1\Member;
 
+use App\Actions\Contact\RecordContactMessageAction;
+use App\Enums\Contact\ContactChannelEnum;
+use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
+use App\Support\MembershipPlan;
 use App\Enums\FamilyMember\ApprovalStatusEnum;
 use App\Enums\FamilyMember\RelationshipEnum;
 use App\Models\FamilyMember;
@@ -37,13 +41,19 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class FamilyController extends Controller
 {
-    public function __construct(private MediaService $mediaService) {}
+    public function __construct(
+        private MediaService $mediaService,
+        private RecordContactMessageAction $inbox,
+    ) {}
 
     /**
      * The most children a member can add for themselves. A ceiling rather than
      * a rule about families: it stops a loop from filling a card.
      */
-    private const MAX_CHILDREN = 12;
+    private const MAX_CHILDREN = MembershipPlan::MAX_RELATIVES;
+
+    /** First degree only: parents, spouse and children. Siblings are second degree — customer services adds those. */
+    private const FIRST_DEGREE = ['wife', 'husband', 'son', 'daughter', 'father', 'mother'];
 
     /** @var list<string> */
     private const CHILD_RELATIONSHIPS = ['son', 'daughter'];
@@ -93,6 +103,10 @@ class FamilyController extends Controller
             ]);
         }
 
+        if ($refusal = $this->refusal($membership)) {
+            return $refusal;
+        }
+
         $fullName = $this->fullNameFor($member, $validated['first_name']);
 
         $children = $membership->familyMembers()->whereIn('relationship', self::CHILD_RELATIONSHIPS);
@@ -128,6 +142,8 @@ class FamilyController extends Controller
             request: $request,
         );
 
+        $this->tellAdmins($member, $membership, $familyMember, $request);
+
         return response()->json([
             'success' => true,
             'message' => 'Child added.',
@@ -147,7 +163,7 @@ class FamilyController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'regex:'.self::FIRST_NAME_PATTERN],
-            'relationship' => ['required', Rule::enum(RelationshipEnum::class)],
+            'relationship' => ['required', Rule::in(self::FIRST_DEGREE)],
             'national_id' => ['required', 'digits:14'],
             'id_front' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
             'id_back' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
@@ -160,6 +176,10 @@ class FamilyController extends Controller
             throw ValidationException::withMessages([
                 'name' => ['There is no membership to add a member to yet.'],
             ]);
+        }
+
+        if ($refusal = $this->refusal($membership)) {
+            return $refusal;
         }
 
         if ($membership->familyMembers()->where('national_id', $validated['national_id'])->exists()) {
@@ -205,6 +225,8 @@ class FamilyController extends Controller
             newValues: $this->snapshot($familyMember) + ['added_by' => 'member', 'approval_status' => 'pending'],
             request: $request,
         );
+
+        $this->tellAdmins($member, $membership, $familyMember, $request);
 
         return response()->json([
             'success' => true,
@@ -343,6 +365,73 @@ class FamilyController extends Controller
     private function isFather(User $member): bool
     {
         return $member->gender === 'male' && trim((string) $member->name) !== '';
+    }
+
+    /**
+     * Why this card may not take another relative right now, or null if it may.
+     *
+     * Three separate reasons, each with its own `reason` for the client to word:
+     * a TRIAL card holds the owner alone (relatives go through customer
+     * services until it is paid), an expired card adds nothing, and fifteen is
+     * the ceiling for one card.
+     */
+    private function refusal(Membership $membership): ?JsonResponse
+    {
+        if ($membership->isTrial()) {
+            return response()->json([
+                'success' => false,
+                'reason' => 'trial_no_relatives',
+                'message' => 'Relatives cannot be added during the trial. Please contact customer service and they will add them for you.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if (! $membership->isCurrent()) {
+            return response()->json([
+                'success' => false,
+                'reason' => 'card_expired',
+                'message' => 'Your card has expired. Renew it to add relatives.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $counted = $membership->familyMembers()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)->count();
+
+        if ($counted >= MembershipPlan::MAX_RELATIVES) {
+            return response()->json([
+                'success' => false,
+                'reason' => 'limit_reached',
+                'message' => 'A card carries up to '.MembershipPlan::MAX_RELATIVES.' relatives. Please contact customer service.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return null;
+    }
+
+    /**
+     * A relative added by the card owner waits for an admin: say so in the
+     * contact inbox (and its mail), so it is not found only by chance. A mail
+     * failure is the inbox action's to swallow — the relative is already saved.
+     */
+    private function tellAdmins(User $member, Membership $membership, FamilyMember $familyMember, Request $request): void
+    {
+        try {
+            $this->inbox->handle([
+                'phone' => (string) $member->phone,
+                'name' => $member->name,
+                'email' => $member->email,
+                'subject' => 'Relative awaiting approval — card '.$membership->membership_number,
+                'message' => 'Card '.$membership->membership_number.' added '.$familyMember->name.' ('.($familyMember->relationship?->value ?? '').') and is waiting for approval.',
+                'source' => ContactSourceEnum::PENDING_RELATIVE->value,
+                'channel' => ContactChannelEnum::fromRequest($request)->value,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('Pending relative could not be announced to the admins.', [
+                'membership_id' => $membership->id,
+                'family_member_id' => $familyMember->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function membershipOf(User $member): ?Membership

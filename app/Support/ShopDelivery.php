@@ -33,6 +33,9 @@ class ShopDelivery
 
     public const WALLET = 'shop_wallet_number';
 
+    /** Extra fee added to a cash-on-delivery order. Zero hides it everywhere. */
+    public const COD_FEE = 'shop_cod_fee';
+
 
     /** The previous names, from when only the mobile app used these. */
     public const LEGACY_SLUGS = [
@@ -67,6 +70,12 @@ class ShopDelivery
         }
 
         return $missing;
+    }
+
+    /** The extra fee a cash-on-delivery order carries; 0 means none, and nothing shows it. */
+    public static function codFee(): float
+    {
+        return max(0.0, round((float) SiteSettings::get(self::COD_FEE, 0), 2));
     }
 
     /** The phone a wallet transfer goes to, or null when none is set. */
@@ -117,6 +126,12 @@ class ShopDelivery
                 'slug' => self::THRESHOLD,
                 'name' => ['en' => 'Free delivery from (EGP, empty = never free)', 'ar' => 'توصيل مجاني للطلبات من (ج.م، فارغ = لا يوجد)'],
                 'value' => (string) config('mobile_orders.free_delivery_threshold'),
+                'value_type' => Setting::TYPE_NUMBER,
+            ],
+            [
+                'slug' => self::COD_FEE,
+                'name' => ['en' => 'Cash on delivery fee (EGP, 0 = none)', 'ar' => 'رسوم الدفع عند الاستلام (ج.م، 0 = بدون)'],
+                'value' => '0',
                 'value_type' => Setting::TYPE_NUMBER,
             ],
             [

@@ -54,6 +54,7 @@ class GuestMembershipUsageCreateController extends BaseController
                 'id'                => $membershipModel->id,
                 'membership_number' => $membershipModel->membership_number,
                 'slug'              => $membershipModel->slug,
+                'status'            => \App\Support\MembershipStatus::forCard($membershipModel),
             ],
             'facilities'       => $facilities,
             'facilityBranches' => $facilityBranches,

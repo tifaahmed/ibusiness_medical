@@ -42,6 +42,30 @@ class OrderLog extends Model
      */
     public const ACTION_SHIPPED = 'shipped';
 
+    /* ---- Online payment (Paymob). Each is its own action so the activity log
+       answers "what did the gateway say, and what did we do about it". ---- */
+
+    /** A payment link was requested from the gateway. */
+    public const ACTION_PAYMENT_INITIATED = 'payment_initiated';
+
+    /** The gateway (callback) or the buyer's browser (return) told us a result. */
+    public const ACTION_PAYMENT_CALLBACK = 'payment_callback';
+
+    /** An admin asked the gateway what happened to the payment. */
+    public const ACTION_PAYMENT_CHECKED = 'payment_checked';
+
+    public const ACTION_PAYMENT_ACCEPTED = 'payment_accepted';
+
+    public const ACTION_PAYMENT_REJECTED = 'payment_rejected';
+
+    public const ACTION_PAYMENT_REFUNDED = 'payment_refunded';
+
+    /** A refund was attempted and the gateway refused it (or could not be reached). */
+    public const ACTION_REFUND_FAILED = 'refund_failed';
+
+    /** The purchase receipt was mailed (or could not be) to the buyer. */
+    public const ACTION_RECEIPT_EMAILED = 'receipt_emailed';
+
     /**
      * How long the same admin's repeat visit to the same order is folded into
      * the visit already logged. Without it, one admin refreshing an order page

@@ -36,6 +36,7 @@ class ContactMessage extends Model
         'subject',
         'message',
         'source',
+        'channel',
         'status',
         'sales_id',
         'admin_notes',
@@ -114,6 +115,11 @@ class ContactMessage extends Model
     public function scopeStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
+    }
+
+    public function scopeChannel(Builder $query, string $channel): Builder
+    {
+        return $query->where('channel', $channel);
     }
 
     public function scopeSource(Builder $query, string $source): Builder

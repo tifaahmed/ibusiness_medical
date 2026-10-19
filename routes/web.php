@@ -315,6 +315,7 @@ Route::post('/partner-offer/{partnerOffer}/request', [PartnerOfferRequestControl
 Route::post('/membership/lookup', [MembershipController::class, 'lookup'])->name('guest.membership.lookup');
 Route::get('/card-back/{cardTemplate}.png', \App\Http\Controllers\CardTemplateBackImageController::class)->name('card-template.back');
 Route::get('/membership/{membership}', [MembershipController::class, 'show'])->name('guest.membership.show');
+Route::post('/membership/{membership}/subscribe', [MembershipController::class, 'subscribe'])->middleware('throttle:10,1')->name('guest.membership.subscribe');
 Route::get('/membership/{membership}/usage/create', GuestMembershipUsageCreateController::class)->name('guest.membership-usage.create');
 Route::post('/membership/{membership}/usage', GuestMembershipUsageStoreController::class)->name('guest.membership-usage.store');
 
@@ -473,6 +474,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             ->name('admin.memberships.card-layout');
 
         // Family Member Management
+        /* Membership payments: the receipts and cash collections customer services must check, and every Paymob attempt. */
+        Route::get('/admin/subscription', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'index'])->middleware('permission:manage memberships')->name('admin.subscription.index');
+        Route::post('/admin/subscription/{subscription}/confirm', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'confirm'])->whereNumber('subscription')->middleware('permission:manage memberships')->name('admin.subscription.confirm');
+        Route::post('/admin/subscription/{subscription}/reject', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'reject'])->whereNumber('subscription')->middleware('permission:manage memberships')->name('admin.subscription.reject');
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');
         Route::delete('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberDeleteController::class)->name('admin.user.membership.family-member.destroy');
@@ -918,6 +923,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/order/{order}/ship', AdminOrderShipController::class)
             ->where('order', '[A-Za-z0-9\\-]+')
             ->name('admin.order.ship');
+        /* Online payment: look it up at Paymob, refund it, re-mail the receipt. */
+        Route::post('/admin/order/{order}/payment/check', [\App\Http\Controllers\Admin\Order\Payment\AdminOrderPaymentController::class, 'check'])
+            ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.payment.check');
+        Route::post('/admin/order/{order}/payment/refund', [\App\Http\Controllers\Admin\Order\Payment\AdminOrderPaymentController::class, 'refund'])
+            ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.payment.refund');
+        Route::post('/admin/order/{order}/payment/resend-receipt', [\App\Http\Controllers\Admin\Order\Payment\AdminOrderPaymentController::class, 'resendReceipt'])
+            ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.payment.resend-receipt');
         Route::put('/admin/order/{order}', AdminOrderUpdateController::class)->name('admin.order.update');
         /* Soft delete — bound by `order_code` like the edit and update above it,
            and constrained the same way so it cannot answer for `/export`. */

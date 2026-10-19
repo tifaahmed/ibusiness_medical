@@ -290,6 +290,61 @@
         </div>
       </div>
 
+      <!-- Relatives waiting for approval, and trial cards -->
+      <div :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
+        <div class="flex flex-col gap-1.5 sm:gap-2 w-full">
+          <label data-slot="label" class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1">
+            {{ t.attention_label || 'Needs attention' }}
+          </label>
+          <div class="flex gap-2 w-full">
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('pending_relatives', 1)"
+              :title="t.pending_relatives_hint || 'Cards with a relative added by the member that is waiting for approval.'"
+              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.pending_relatives === 1 || filters.pending_relatives === '1' || filters.pending_relatives === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path>
+              </svg>
+              <span>{{ t.pending_relatives || 'Pending relatives' }}</span>
+            </button>
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('is_trial', 1)"
+              :title="t.trial_hint || 'Free trial cards issued from the app or the website.'"
+              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.is_trial === 1 || filters.is_trial === '1' || filters.is_trial === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>{{ t.trial || 'Trial' }}</span>
+            </button>
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('dup_phone', 1)"
+              :title="t.dup_phone_hint || 'Cards whose phone number is shared with another member.'"
+              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_phone === 1 || filters.dup_phone === '1' || filters.dup_phone === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+              </svg>
+              <span>{{ t.dup_phone || 'Duplicate phone' }}</span>
+            </button>
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('dup_national_id', 1)"
+              :title="t.dup_national_id_hint || 'Cards whose National ID is shared with another card.'"
+              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_national_id === 1 || filters.dup_national_id === '1' || filters.dup_national_id === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+              </svg>
+              <span>{{ t.dup_national_id || 'Duplicate National ID' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Card Filter (Custom / Default look) -->
       <div :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
         <div class="flex flex-col gap-1.5 sm:gap-2 w-full">
@@ -732,6 +787,10 @@ const props = defineProps({
     is_paid: null,
     is_from_card_patch: null,
     has_custom_card: null,
+    pending_relatives: null,
+    is_trial: null,
+    dup_phone: null,
+    dup_national_id: null,
     partner_id: null,
     creator_id: null,
     sale_id: null,
@@ -779,6 +838,10 @@ const getInitialFilters = () => {
       is_paid: normalizeBool(props.initialFilters.is_paid),
       is_from_card_patch: normalizeBool(props.initialFilters.is_from_card_patch),
       has_custom_card: normalizeBool(props.initialFilters.has_custom_card),
+      pending_relatives: normalizeBool(props.initialFilters.pending_relatives),
+      is_trial: normalizeBool(props.initialFilters.is_trial),
+      dup_phone: normalizeBool(props.initialFilters.dup_phone),
+      dup_national_id: normalizeBool(props.initialFilters.dup_national_id),
       partner_id: normalizePartnerId(props.initialFilters.partner_id),
       creator_id: normalizeId(props.initialFilters.creator_id),
       sale_id: normalizePartnerId(props.initialFilters.sale_id),
@@ -813,6 +876,10 @@ const getInitialFilters = () => {
       is_paid: isPaidParam !== null ? Number(isPaidParam) : null,
       is_from_card_patch: urlParams.get('is_from_card_patch') !== null ? Number(urlParams.get('is_from_card_patch')) : null,
       has_custom_card: urlParams.get('has_custom_card') !== null ? Number(urlParams.get('has_custom_card')) : null,
+      pending_relatives: urlParams.get('pending_relatives') !== null ? Number(urlParams.get('pending_relatives')) : null,
+      is_trial: urlParams.get('is_trial') !== null ? Number(urlParams.get('is_trial')) : null,
+      dup_phone: urlParams.get('dup_phone') !== null ? Number(urlParams.get('dup_phone')) : null,
+      dup_national_id: urlParams.get('dup_national_id') !== null ? Number(urlParams.get('dup_national_id')) : null,
       partner_id: normalizePartnerId(urlParams.get('partner_id')),
       creator_id: normalizeId(urlParams.get('creator_id')),
       sale_id: normalizePartnerId(urlParams.get('sale_id')),
@@ -859,6 +926,10 @@ const hasActiveFilters = computed(() => {
     || (filters.value.is_paid !== null && filters.value.is_paid !== undefined)
     || (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined)
     || (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined)
+    || (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined)
+    || (filters.value.is_trial !== null && filters.value.is_trial !== undefined)
+    || (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined)
+    || (filters.value.dup_national_id !== null && filters.value.dup_national_id !== undefined)
     || filters.value.partner_id
     || filters.value.creator_id
     || filters.value.sale_id
@@ -886,6 +957,10 @@ const advancedActiveCount = computed(() => {
   if (filters.value.is_paid !== null && filters.value.is_paid !== undefined) n++;
   if (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined) n++;
   if (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined) n++;
+  if (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined) n++;
+  if (filters.value.is_trial !== null && filters.value.is_trial !== undefined) n++;
+  if (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined) n++;
+  if (filters.value.dup_national_id !== null && filters.value.dup_national_id !== undefined) n++;
   if (filters.value.partner_id) n++;
   if (filters.value.creator_id) n++;
   if (filters.value.sale_id) n++;
@@ -1158,6 +1233,12 @@ const handleCardFilter = (hasCustomCard) => {
   applyFilters();
 };
 
+/* The two "needs attention" / "plan" toggles: pressing the active one again clears it. */
+const handleToggleFilter = (key, value) => {
+  filters.value[key] = filters.value[key] === value ? null : value;
+  applyFilters();
+};
+
 const handleReset = () => {
   filters.value = {
     search: '',
@@ -1212,6 +1293,18 @@ const applyFilters = (filterValues = null) => {
   }
   if (currentFilters.has_custom_card !== null && currentFilters.has_custom_card !== undefined) {
     params.has_custom_card = currentFilters.has_custom_card;
+  }
+  if (currentFilters.pending_relatives !== null && currentFilters.pending_relatives !== undefined) {
+    params.pending_relatives = currentFilters.pending_relatives;
+  }
+  if (currentFilters.is_trial !== null && currentFilters.is_trial !== undefined) {
+    params.is_trial = currentFilters.is_trial;
+  }
+  if (currentFilters.dup_phone !== null && currentFilters.dup_phone !== undefined) {
+    params.dup_phone = currentFilters.dup_phone;
+  }
+  if (currentFilters.dup_national_id !== null && currentFilters.dup_national_id !== undefined) {
+    params.dup_national_id = currentFilters.dup_national_id;
   }
   if (currentFilters.partner_id !== null && currentFilters.partner_id !== undefined && currentFilters.partner_id !== '') {
     params.partner_id = currentFilters.partner_id;
@@ -1285,6 +1378,10 @@ watch(() => props.initialFilters, (newFilters) => {
       is_paid: normalizeBool(newFilters.is_paid, filters.value.is_paid),
       is_from_card_patch: normalizeBool(newFilters.is_from_card_patch, filters.value.is_from_card_patch),
       has_custom_card: normalizeBool(newFilters.has_custom_card, filters.value.has_custom_card),
+      pending_relatives: normalizeBool(newFilters.pending_relatives, filters.value.pending_relatives),
+      is_trial: normalizeBool(newFilters.is_trial, filters.value.is_trial),
+      dup_phone: normalizeBool(newFilters.dup_phone, filters.value.dup_phone),
+      dup_national_id: normalizeBool(newFilters.dup_national_id, filters.value.dup_national_id),
       partner_id: normalizePartnerId(newFilters.partner_id),
       creator_id: normalizeId(newFilters.creator_id),
       sale_id: normalizePartnerId(newFilters.sale_id),

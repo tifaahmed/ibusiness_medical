@@ -210,6 +210,20 @@ class AdminUserMembershipListController extends BaseController
                 $mq->whereIn('id', $customCardMembershipIds);
                 $listingFilter($mq);
             }))
+            ->when($filters['pending_relatives'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+                $mq->whereHas('familyMembers', fn($f) => $f->where('approval_status', 'pending'));
+                $listingFilter($mq);
+            }))
+            ->when($filters['is_trial'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+                $mq->where('plan', Membership::PLAN_TRIAL);
+                $listingFilter($mq);
+            }))
+            ->when($filters['is_trial'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+                $mq->where('plan', '!=', Membership::PLAN_TRIAL);
+                $listingFilter($mq);
+            }))
+            ->when($filters['dup_phone'] === true, fn($q) => $q->whereIn('phone', $this->duplicatedValues('users', 'phone')))
+            ->when($filters['dup_national_id'] === true, fn($q) => $q->whereHas('memberships', fn($mq) => $mq->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id'))))
             ->with(['memberships' => function ($q) use ($isActiveFilter, $partnerIdFilter, $creatorFilter, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $listingFilter) {
                 if ($isActiveFilter === true) {
                     $q->active();
@@ -429,6 +443,11 @@ class AdminUserMembershipListController extends BaseController
             ->when($filters['is_from_card_patch'] === false, fn($q) => $q->whereNotIn('id', $cardPatchMembershipIds))
             ->when($filters['has_custom_card'] === true, fn($q) => $q->whereIn('id', $customCardMembershipIds))
             ->when($filters['has_custom_card'] === false, fn($q) => $q->whereNotIn('id', $customCardMembershipIds))
+            ->when($filters['pending_relatives'] === true, fn($q) => $q->whereHas('familyMembers', fn($f) => $f->where('approval_status', 'pending')))
+            ->when($filters['is_trial'] === true, fn($q) => $q->where('plan', Membership::PLAN_TRIAL))
+            ->when($filters['is_trial'] === false, fn($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
+            ->when($filters['dup_phone'] === true, fn($q) => $q->whereHas('user', fn($uq) => $uq->whereIn('phone', $this->duplicatedValues('users', 'phone'))))
+            ->when($filters['dup_national_id'] === true, fn($q) => $q->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id')))
             ->when(!empty($filters['chart_days']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('created_at', '>=', now()->subDays((int)$filters['chart_days']))));
 
         $dailyCounts = (clone $chartMembershipQuery)
@@ -490,6 +509,20 @@ class AdminUserMembershipListController extends BaseController
     }
 
     /**
+     * Values held by more than one row — the "duplicate phone / National ID"
+     * filters. Blank values are not duplicates of each other.
+     *
+     * @param  'users'|'memberships'  $table
+     * @param  'phone'|'national_id'  $column
+     */
+    protected function duplicatedValues(string $table, string $column): \Closure
+    {
+        return fn ($q) => $q->select($column)->from($table)
+            ->whereNotNull($column)->where($column, '!=', '')
+            ->groupBy($column)->havingRaw('count(*) > 1');
+    }
+
+    /**
      * Get filters from request.
      */
     protected function getFilters(Request $request): array
@@ -513,6 +546,10 @@ class AdminUserMembershipListController extends BaseController
             'expiration_date_to' => $request->filled('expiration_date_to') ? $request->input('expiration_date_to') : null,
             'is_from_card_patch' => $request->has('is_from_card_patch') ? (bool) $request->input('is_from_card_patch') : null,
             'has_custom_card' => $request->has('has_custom_card') ? (bool) $request->input('has_custom_card') : null,
+            'pending_relatives' => $request->has('pending_relatives') ? (bool) $request->input('pending_relatives') : null,
+            'is_trial' => $request->has('is_trial') ? (bool) $request->input('is_trial') : null,
+            'dup_phone' => $request->has('dup_phone') ? (bool) $request->input('dup_phone') : null,
+            'dup_national_id' => $request->has('dup_national_id') ? (bool) $request->input('dup_national_id') : null,
             'last_activation_changer' => $request->input('last_activation_changer', ''),
             'last_activation_from' => $request->filled('last_activation_from') ? $request->input('last_activation_from') : null,
             'last_activation_to' => $request->filled('last_activation_to') ? $request->input('last_activation_to') : null,

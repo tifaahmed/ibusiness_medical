@@ -24,6 +24,7 @@ class MembershipResource extends JsonResource
             'registration_date_formatted' => $this->registration_date?->format('F j, Y'),
             'expiration_date_formatted' => $this->expiration_date?->format('F j, Y'),
             'is_active' => $this->is_active ?? false,
+            'status' => \App\Support\MembershipStatus::forCard($this->resource),
             'job_title' => $this->getTranslation('job_title', app()->getLocale()) ?: $this->getTranslation('job_title', 'ar') ?: $this->getTranslation('job_title', 'en'),
             'company_name' => $this->company_id
                 ? ($this->company?->getTranslation('name', app()->getLocale()) ?: $this->company?->getTranslation('name', 'ar') ?: $this->company?->getTranslation('name', 'en'))

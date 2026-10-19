@@ -340,6 +340,23 @@
                   >
                     {{ t.card_default || 'Default' }}
                   </span>
+                  <!-- Self-issued free card, and the state it is in. -->
+                  <span
+                    v-if="member.membership?.plan === 'trial'"
+                    :class="['ms-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] sm:text-xs font-medium', member.membership?.state === 'trial_expired' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300']"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    {{ member.membership?.state === 'trial_expired' ? (t.trial_expired || 'Trial ended') : (t.trial || 'Trial') }}
+                  </span>
+                  <!-- Relatives the member added that wait for an admin. -->
+                  <span
+                    v-if="member.membership?.pending_relatives > 0"
+                    class="ms-1 inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                    :title="t.pending_relatives_hint || 'Relatives waiting for approval'"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                    {{ member.membership.pending_relatives }}
+                  </span>
                 </td>
                 <td v-if="cols.created" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <span class="text-muted-foreground text-xs sm:text-sm" :title="formatFullDate(member.created_at)">
