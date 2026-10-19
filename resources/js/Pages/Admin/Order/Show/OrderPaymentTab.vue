@@ -79,7 +79,7 @@
         <div>
           <label class="text-xs font-medium text-muted-foreground">{{ t.order?.payment_refunded || 'Refunded' }}</label>
           <p class="mt-0.5 tabular-nums" :class="paymob.refunded_amount > 0 ? 'text-red-500' : ''">
-            {{ formatPrice(paymob.refunded_amount) }}<span v-if="paymob.refunded_at" class="text-xs text-muted-foreground"> · {{ paymob.refunded_at }}</span>
+            {{ formatPrice(paymob.refunded_amount) }}<span v-if="paymob.refunded_at" class="text-xs text-muted-foreground"> · {{ formatDateTime(paymob.refunded_at) }}</span>
           </p>
         </div>
         <div class="col-span-2">
@@ -146,7 +146,10 @@
             <span class="ms-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground tabular-nums">
               <span v-if="log.duration_ms !== null" class="rounded bg-muted px-1.5 py-0.5" :title="t.order?.payment_duration || 'Time the exchange took'">{{ log.duration_ms }} ms</span>
               <span v-if="log.gap_ms" :title="t.order?.payment_gap || 'Time since the previous exchange'">+{{ gap(log.gap_ms) }}</span>
-              <span>{{ log.started_at }}</span>
+              <span class="text-end">
+                {{ formatDateTime(log.started_at) }}
+                <span class="block text-[11px] opacity-70">{{ timeAgo(log.started_at, page.props.locale || 'en') }}</span>
+              </span>
             </span>
           </button>
 
@@ -154,8 +157,8 @@
             <p v-if="log.error_message" class="text-red-500">{{ log.error_message }}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
               <div class="break-all" dir="ltr"><span class="text-muted-foreground">URL:</span> {{ log.url || '—' }}</div>
-              <div dir="ltr"><span class="text-muted-foreground">Started:</span> {{ log.started_at || '—' }}</div>
-              <div dir="ltr"><span class="text-muted-foreground">Finished:</span> {{ log.finished_at || '—' }}</div>
+              <div dir="ltr"><span class="text-muted-foreground">Started:</span> {{ formatDateTime(log.started_at) }} <span class="opacity-70">({{ timeAgo(log.started_at, page.props.locale || 'en') }})</span></div>
+              <div dir="ltr"><span class="text-muted-foreground">Finished:</span> {{ formatDateTime(log.finished_at) }}</div>
               <div dir="ltr"><span class="text-muted-foreground">Flow:</span> <span class="font-mono">{{ log.correlation_id }}</span></div>
               <div v-if="log.admin"><span class="text-muted-foreground">{{ t.order?.payment_by || 'By' }}:</span> {{ log.admin }}</div>
               <div v-if="log.ip_address" dir="ltr"><span class="text-muted-foreground">IP:</span> {{ log.ip_address }}</div>
@@ -179,7 +182,7 @@
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useNotification } from "@/composables/useNotification";
-import { formatPrice, paymentStatusLabel, paymentTypeLabel, statusClass } from "../orderDisplay.js";
+import { formatDateTime, formatPrice, paymentStatusLabel, timeAgo, paymentTypeLabel, statusClass } from "../orderDisplay.js";
 
 const props = defineProps({
   order: { type: Object, required: true },

@@ -40,21 +40,21 @@
                 <span class="font-mono text-lg font-semibold break-all">{{ order.order_code }}</span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', statusClass.payment[order.payment_status?.value]]">
+                <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', statusClass.payment[order.payment_status?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'payment'">
                   {{ paymentStatusLabel(t, order.payment_status) }}
-                </span>
-                <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', statusClass.delivery[order.delivery_status?.value]]">
+                </button>
+                <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', statusClass.delivery[order.delivery_status?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'delivery'">
                   {{ deliveryStatusLabel(t, order.delivery_status) }}
-                </span>
-                <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', statusClass.order[order.order_status?.value]]">
+                </button>
+                <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', statusClass.order[order.order_status?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'order'">
                   {{ orderStatusLabel(t, order.order_status) }}
-                </span>
-                <span :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', paymentTypeClass[order.payment_type?.value]]">
+                </button>
+                <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', paymentTypeClass[order.payment_type?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'type'">
                   {{ paymentTypeLabel(t, order.payment_type) }}
-                </span>
-                <span v-if="order.source" class="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                </button>
+                <button v-if="order.source" type="button" class="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs font-medium text-muted-foreground cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'source'">
                   {{ order.source }}
-                </span>
+                </button>
                 <span
                   v-if="order.awaiting_receipt"
                   class="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-500"
@@ -574,6 +574,8 @@
       @close="closePreview"
     />
     <!-- The payload ABS would receive, before any courier is booked. -->
+    <OrderStatusDialog :order="order" :kind="statusDialog" @close="statusDialog = null" />
+
     <OrderShipDialog
       :open="shipping"
       :order-code="order.order_code"
@@ -590,6 +592,7 @@ import OrderLogTimeline from "./OrderLogTimeline.vue";
 import OrderPaymentTab from "./OrderPaymentTab.vue";
 import OrderPdfPreview from "./OrderPdfPreview.vue";
 import OrderShipDialog from "./OrderShipDialog.vue";
+import OrderStatusDialog from "./OrderStatusDialog.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
 import { useNotification } from "@/composables/useNotification";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
@@ -677,6 +680,9 @@ const deliveryFreeReasonLabel = computed(() => {
     || t.value.order?.delivery_free
     || 'Free delivery — the order reached the free-delivery total';
 });
+
+/** Which header tag's history popup is open (payment | delivery | order | type | source), or null. */
+const statusDialog = ref(null);
 
 /** Whether the ship dialog is open. */
 const shipping = ref(false);

@@ -44,7 +44,10 @@
               <span class="text-xs text-muted-foreground">
                 {{ log.admin?.name || (t.order?.log_system || 'System / storefront') }}
               </span>
-              <span class="text-xs text-muted-foreground tabular-nums ms-auto">{{ log.created_at }}</span>
+              <span class="text-xs text-muted-foreground tabular-nums ms-auto text-end">
+                {{ formatDateTime(log.created_at) }}
+                <span class="block text-[11px] opacity-70">{{ timeAgo(log.created_at, page.props.locale || 'en') }}</span>
+              </span>
             </div>
 
             <!-- What actually moved, field by field. Reads carry no values at
@@ -81,7 +84,7 @@
 <script setup>
 import { usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
-import { logActionClass, logActionLabel } from "../orderDisplay.js";
+import { formatDateTime, logActionClass, logActionLabel, timeAgo } from "../orderDisplay.js";
 
 const props = defineProps({
   logs: {

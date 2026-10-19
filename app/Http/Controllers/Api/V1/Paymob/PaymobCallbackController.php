@@ -60,7 +60,7 @@ class PaymobCallbackController extends Controller
             extra: [
                 'gateway_code' => $transaction?->responseCode,
                 'gateway_ref' => $transaction?->id,
-                'started_at' => \Illuminate\Support\Carbon::createFromTimestamp($started),
+                'started_at' => \Illuminate\Support\Carbon::createFromTimestamp($started, config("app.timezone")),
             ],
         );
 
@@ -92,7 +92,7 @@ class PaymobCallbackController extends Controller
             extra: [
                 'gateway_code' => $transaction->responseCode,
                 'gateway_ref' => $transaction->id,
-                'started_at' => \Illuminate\Support\Carbon::createFromTimestamp($started),
+                'started_at' => \Illuminate\Support\Carbon::createFromTimestamp($started, config("app.timezone")),
             ],
         );
 
@@ -156,7 +156,7 @@ class PaymobCallbackController extends Controller
                     'response_body' => json_encode($body, JSON_UNESCAPED_UNICODE),
                     'success' => $ok,
                     'error_message' => $ok ? null : (string) ($body['note'] ?? ''),
-                    'finished_at' => \Illuminate\Support\Carbon::createFromTimestamp($finished),
+                    'finished_at' => \Illuminate\Support\Carbon::createFromTimestamp($finished, config("app.timezone")),
                     'duration_ms' => (int) round(($finished - $started) * 1000),
                 ]);
             }

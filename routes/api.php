@@ -472,10 +472,12 @@ Route::prefix('v1')
                 ->middleware('throttle:5,1')->name('me.membership.relatives-request');
 
             /*
-             * The addresses on the member's own card, read-only — see
+             * The addresses on the member's own card: read, and save one — see
              * `AddressController`.
              */
             Route::get('/addresses', [V1MemberAddressController::class, 'index'])->name('addresses.index');
+            Route::post('/addresses', [V1MemberAddressController::class, 'store'])
+                ->middleware('throttle:20,1')->name('addresses.store');
 
             // Any relative, with national ID + both ID faces + photo; waits for staff approval.
             Route::post('/family/members', [V1MemberFamilyController::class, 'storeMember'])

@@ -142,3 +142,29 @@ export const savedAmount = (order) => {
     const diff = Math.round((before - after) * 100) / 100;
     return diff > 0 ? diff : null;
 };
+
+/** `Y-m-d H:i:s` (the server's clock) as a Date, or null when it is not one. */
+const parseStamp = (stamp) => {
+    if (!stamp) return null;
+    const date = new Date(String(stamp).replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** `2026-10-19 03:45:12 PM` — a 12-hour clock with AM/PM, seconds kept for gateway timing. */
+export const formatDateTime = (stamp) => {
+    const date = parseStamp(stamp);
+    if (!date) return stamp || '—';
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    return `${day} ${time}`;
+};
+
+/** "5 minutes ago" / "منذ 5 دقائق" — the difference from now, for humans. */
+export const timeAgo = (stamp, locale = 'en') => {
+    const date = parseStamp(stamp);
+    if (!date) return '';
+    const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]];
+    const [unit, size] = units.find(([, size]) => Math.abs(seconds) >= size) || units[units.length - 1];
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(Math.round(seconds / size), unit);
+};

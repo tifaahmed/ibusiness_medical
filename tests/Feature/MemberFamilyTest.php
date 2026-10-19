@@ -284,9 +284,27 @@ class MemberFamilyTest extends TestCase
     }
 
     /** @test */
+    public function a_member_saves_a_checkout_address_by_type(): void
+    {
+        [$member, $membership] = $this->member('Ahmed Ali Hassan', 'male');
+        $governorate = \App\Models\Governorate::factory()->create();
+        Sanctum::actingAs($member);
+
+        $payload = ['type' => 'home', 'governorate_id' => $governorate->id, 'street' => 'Nile', 'floor_number' => '3'];
+
+        $this->postJson('/api/v1/addresses', $payload)->assertOk()->assertJsonPath('data.address.street', 'Nile');
+        $this->postJson('/api/v1/addresses', [...$payload, 'street' => 'Corniche'])->assertOk();
+        $this->postJson('/api/v1/addresses', [...$payload, 'type' => 'work'])->assertOk();
+
+        $this->assertSame(2, $membership->addresses()->count());
+        $this->assertSame('Corniche', $membership->addresses()->where('type', 'home')->value('street'));
+    }
+
+    /** @test */
     public function a_guest_is_refused_the_addresses(): void
     {
         $this->getJson('/api/v1/addresses')->assertUnauthorized();
+        $this->postJson('/api/v1/addresses', [])->assertUnauthorized();
     }
 
     /** @test */
