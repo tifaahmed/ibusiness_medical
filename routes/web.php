@@ -458,6 +458,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         // routes/api.php has no session middleware in Laravel 11 by default.
         Route::get('/api/membership-number/check', [MembershipNumberController::class, 'check'])
             ->name('admin.membership-number.check');
+        Route::get('/api/member-field/check', [MembershipNumberController::class, 'checkField'])
+            ->name('admin.member-field.check');
         Route::get('/api/membership-number/generate', [MembershipNumberController::class, 'generateUnique'])
             ->name('admin.membership-number.generate');
 

@@ -81,7 +81,7 @@ class StoreMembershipRequest extends FormRequest
             'is_active' => 'nullable|boolean',
             'is_visible' => 'nullable|boolean',
             'is_paid' => ['nullable', 'boolean'],
-            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::offlineValues())],
+            'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
             // Payment card hidden from the create/edit UI — the admin can no longer
             // fill these in here, so the conditional Rule::requiredIf(...) that used
             // to force them when marking a membership paid is commented out below.

@@ -1288,6 +1288,7 @@ return [
         ],
         'table' => [
             'column_user_details' => 'تفاصيل المستخدم',
+            'column_national_id' => 'الرقم القومي',
             'column_status' => 'الحالة',
             'column_completed' => 'مكتمل',
             'column_partner' => 'الشريك',

@@ -35,7 +35,7 @@ class AdminUserMembershipListController extends BaseController
         $isActiveFilter = $filters['is_active'];
         $isPaidFilter = $filters['is_paid'];
 
-        $sort = in_array($request->input('sort'), ['name', 'created_at', 'updated_at', 'days_covered', 'outstanding_days', 'registration_date'], true) ? $request->input('sort') : null;
+        $sort = in_array($request->input('sort'), ['name', 'created_at', 'updated_at', 'days_covered', 'outstanding_days', 'registration_date', 'national_id'], true) ? $request->input('sort') : null;
         $direction = strtolower($request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
 
         $creatorScoped = $this->scopesMembershipsToCreator();
@@ -257,6 +257,15 @@ class AdminUserMembershipListController extends BaseController
             ->when($sort === 'updated_at', fn($q) => $q->orderBy('users.updated_at', $direction))
             ->when($sort === 'registration_date', fn($q) => $q->orderBy(
                 Membership::select('registration_date')
+                    ->whereColumn('user_id', 'users.id')
+                    ->whereNotNull('completed_at')
+                    ->orderBy('is_active', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->limit(1),
+                $direction
+            ))
+            ->when($sort === 'national_id', fn($q) => $q->orderBy(
+                Membership::select('national_id')
                     ->whereColumn('user_id', 'users.id')
                     ->whereNotNull('completed_at')
                     ->orderBy('is_active', 'desc')

@@ -83,6 +83,7 @@ class AdminUserMembershipListResource extends JsonResource
                     // changes whenever that design does.
                     'has_custom_card' => isset(self::customCardIds()[(int) $membership->id]),
                     'membership_number' => $membership->membership_number,
+                    'national_id' => $membership->national_id,
                     'plan' => $membership->plan,
                     'state' => $membership->state(),
                     /* Relatives the member added that no admin has approved yet. */

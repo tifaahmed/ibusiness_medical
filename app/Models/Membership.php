@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\GuardsUniqueIdentity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Sluggable\HasSlug;
@@ -16,6 +17,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Membership extends Model implements HasMedia
 {
+    use GuardsUniqueIdentity;
     use HasFactory;
     use HasSlug;
     use HasTranslations;
@@ -407,6 +409,8 @@ class Membership extends Model implements HasMedia
     protected static function boot()
     {
         parent::boot();
+
+        static::saving(fn (self $membership) => static::guardUnique($membership, 'national_id', 'This National ID already belongs to another card.'));
 
         // When creating or updating a membership, ensure only one is active per user
         static::saving(function ($membership) {

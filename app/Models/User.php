@@ -16,6 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Concerns\GuardsUniqueIdentity;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
@@ -27,6 +28,7 @@ class User extends Authenticatable implements HasMedia
     use HasFactory;
 
     use HasProfilePhoto;
+    use GuardsUniqueIdentity;
     use HasRoles;
     use HasSlug;
     use InteractsWithMedia;
@@ -34,6 +36,11 @@ class User extends Authenticatable implements HasMedia
     use Notifiable;
     use SoftDeletes;
     use TwoFactorAuthenticatable;
+
+    protected static function booted(): void
+    {
+        static::saving(fn (self $user) => static::guardUnique($user, 'phone', 'This phone number already belongs to another member.'));
+    }
 
     /**
      * Every permission this user can actually exercise, by name.

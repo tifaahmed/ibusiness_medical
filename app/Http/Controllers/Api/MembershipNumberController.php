@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Membership;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MembershipNumberController extends Controller
 {
@@ -69,6 +71,63 @@ class MembershipNumberController extends Controller
                         ?: $membership->company?->getTranslation('name', 'en'),
                     'partner_name' => $membership->partner?->title,
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * Is this phone (users.phone) or national ID (memberships.national_id)
+     * already taken? Soft-deleted rows do not count, matching the unique
+     * rules on the store/update requests. Used by the admin form to warn
+     * before save; the request rules remain the real gate.
+     */
+    public function checkField(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'field' => ['required', 'in:phone,national_id'],
+            'value' => ['required', 'string', 'max:20'],
+            'exclude_membership_id' => ['nullable', 'integer'],
+            'exclude_user_id' => ['nullable', 'integer'],
+        ]);
+
+        try {
+            if ($data['field'] === 'phone') {
+                $user = User::query()
+                    ->where('phone', $data['value'])
+                    ->when($request->filled('exclude_user_id'), fn ($q) => $q->where('id', '!=', (int) $data['exclude_user_id']))
+                    ->first();
+                $membership = $user?->membership;
+            } else {
+                $membership = Membership::query()
+                    ->where('national_id', $data['value'])
+                    ->when($request->filled('exclude_membership_id'), fn ($q) => $q->where('id', '!=', (int) $data['exclude_membership_id']))
+                    ->when($request->filled('exclude_user_id'), fn ($q) => $q->where('user_id', '!=', (int) $data['exclude_user_id']))
+                    ->with('user')
+                    ->first();
+                $user = $membership?->user;
+            }
+        } catch (\Throwable $e) {
+            Log::error('Member field uniqueness check failed', [
+                'route' => $request->path(),
+                'field' => $data['field'],
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json(['message' => 'Check failed'], 500);
+        }
+
+        if (!$user) {
+            return response()->json(['unique' => true]);
+        }
+
+        return response()->json([
+            'unique' => false,
+            'member' => [
+                'name' => $user->name,
+                'phone' => $user->phone,
+                'slug' => $user->slug,
+                'membership_number' => $membership?->membership_number,
             ],
         ]);
     }
