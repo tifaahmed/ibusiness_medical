@@ -1945,6 +1945,7 @@ return [
         'log_payment_refunded' => 'Payment refunded',
         'log_refund_failed' => 'Refund failed',
         'log_receipt_emailed' => 'Receipt emailed',
+        'log_payment_type_changed' => 'Switched to online payment',
         'delivery_pending' => 'Pending',
         'delivery_processing' => 'Processing',
         'delivery_on_delivery' => 'On Delivery',

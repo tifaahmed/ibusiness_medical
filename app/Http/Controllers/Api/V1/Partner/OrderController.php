@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Partner;
 
 use App\Actions\Payment\SendOrderReceipt;
 use App\Actions\Payment\StartPaymobPayment;
+use App\Actions\Payment\SwitchOrderToOnlinePayment;
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\DeliveryStatusEnum;
 use App\Enums\Order\PaymentStatusEnum;
@@ -44,6 +45,7 @@ class OrderController extends Controller
         private readonly UpsertMemberAddressFromOrderAction $syncMemberAddressAction,
         private readonly StartPaymobPayment $startPayment,
         private readonly SendOrderReceipt $sendReceipt,
+        private readonly SwitchOrderToOnlinePayment $switchToOnline,
     ) {}
 
     /**
@@ -307,6 +309,30 @@ class OrderController extends Controller
 
         if ($order === null) {
             return response()->json(['message' => 'No order with that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        /*
+         * "Pay online instead": a cash-on-delivery or wallet-transfer order the
+         * buyer asks to pay by card. Only on an explicit `switch_to_online` —
+         * a plain "pay now" must never quietly change how an order is paid.
+         */
+        if (! $order->isOnlinePayment() && $request->boolean('switch_to_online')) {
+            try {
+                $switched = $this->switchToOnline->handle($order, $request);
+            } catch (Throwable $exception) {
+                Log::error('Order could not be switched to online payment.', [
+                    'route' => $request->path(),
+                    'order_code' => $order->order_code,
+                    'message' => $exception->getMessage(),
+                    'trace' => $exception->getTraceAsString(),
+                ]);
+
+                return response()->json(['message' => 'The order could not be switched to online payment.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            if (! $switched) {
+                return response()->json(['message' => 'This order can no longer be paid online.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
         }
 
         if (! $order->isOnlinePayment() || ! in_array($order->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true)) {

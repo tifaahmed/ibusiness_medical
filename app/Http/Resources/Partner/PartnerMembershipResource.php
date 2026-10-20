@@ -43,6 +43,10 @@ class PartnerMembershipResource extends JsonResource
                 : null,
             'member' => [
                 'name' => $this->user?->name,
+                /* The storefront's checkout fills its phone field from this, as it does the address below. */
+                'phone' => $this->user?->phone,
+                /* Likewise its email field, where the purchase receipt is mailed. */
+                'email' => $this->user?->email,
                 'avatar_url' => $this->absoluteImageUrl($this->user, 'avatar'),
             ],
             'family_members' => $this->whenLoaded('familyMembers', fn () => $this->familyMembers

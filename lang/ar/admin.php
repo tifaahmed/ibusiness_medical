@@ -1936,6 +1936,7 @@ return [
         'log_payment_refunded' => 'تم استرداد الدفع',
         'log_refund_failed' => 'فشل الاسترداد',
         'log_receipt_emailed' => 'إرسال الإيصال بالبريد',
+        'log_payment_type_changed' => 'تحويل إلى الدفع الإلكتروني',
         'delivery_pending' => 'قيد الانتظار',
         'delivery_processing' => 'جاري التجهيز',
         'delivery_on_delivery' => 'قيد التوصيل',
