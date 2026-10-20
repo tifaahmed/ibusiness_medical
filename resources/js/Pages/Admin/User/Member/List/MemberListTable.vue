@@ -34,6 +34,34 @@
                       </svg>
                     </button>
                   </th>
+                  <th v-if="cols.national_id" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-36 sm:w-44 text-center">
+                    <button
+                      type="button"
+                      data-slot="button"
+                      @click="toggleSortByNationalId"
+                      :class="[
+                        'inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm transition-all outline-none h-auto p-0 font-semibold hover:bg-transparent hover:text-accent-foreground',
+                        sort === 'national_id' ? 'text-golden-yellow' : ''
+                      ]"
+                      :title="sort === 'national_id' ? (direction === 'asc' ? (t.sorted_asc_tooltip || 'Sorted low to high') : (t.sorted_desc_tooltip || 'Sorted high to low')) : (t.sort_by_national_id_tooltip || 'Sort by National ID')"
+                    >
+                      {{ t.column_national_id || 'National ID' }}
+                      <svg v-if="sort === 'national_id' && direction === 'asc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                        <path d="m3 8 4-4 4 4"></path>
+                        <path d="M7 4v16"></path>
+                      </svg>
+                      <svg v-else-if="sort === 'national_id' && direction === 'desc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                        <path d="m21 16-4 4-4-4"></path>
+                        <path d="M17 20V4"></path>
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                        <path d="m21 16-4 4-4-4"></path>
+                        <path d="M17 20V4"></path>
+                        <path d="m3 8 4-4 4 4"></path>
+                        <path d="M7 4v16"></path>
+                      </svg>
+                    </button>
+                  </th>
                   <th v-if="cols.status" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-28 text-center">
                     {{ t.column_status || 'Status' }}
                   </th>
@@ -212,6 +240,7 @@
                 :key="member.id"
                 data-slot="table-row"
                 class="data-[state=selected]:bg-muted border-b border-border transition-colors hover:bg-muted/50"
+                :style="duplicateRowStyle(member)"
               >
                 <td v-if="cols.details" data-slot="table-cell" class="p-2 sm:p-3 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] min-w-[220px]">
                   <div class="flex items-start gap-2 sm:gap-3">
@@ -252,6 +281,20 @@
                       </div>
                     </div>
                   </div>
+                </td>
+                <td v-if="cols.national_id" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
+                  <span
+                    v-if="member.membership?.national_id"
+                    :class="['inline-flex items-center gap-1 font-mono text-xs text-foreground', duplicateColor(member) ? 'rounded px-1.5 py-0.5 font-semibold' : '']"
+                    :style="duplicateBadgeStyle(member)"
+                    :title="member.membership.national_id"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-60 shrink-0">
+                      <rect width="18" height="14" x="3" y="5" rx="2"></rect><circle cx="9" cy="11" r="2"></circle><path d="M14 10h4"></path><path d="M14 14h4"></path>
+                    </svg>
+                    {{ member.membership.national_id }}
+                  </span>
+                  <span v-else class="text-xs text-muted-foreground">—</span>
                 </td>
                 <td v-if="cols.status" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex flex-col items-center gap-1.5">
@@ -662,6 +705,7 @@ const STORAGE_KEY = 'member_table_columns';
 
 const defaultCols = {
   details: true,
+  national_id: true,
   status: true,
   partner: true,
   creator: true,
@@ -681,6 +725,7 @@ const defaultCols = {
 
 const columnOptions = [
   { key: 'details', label: 'User Details' },
+  { key: 'national_id', label: 'National ID' },
   { key: 'status', label: 'Status' },
   { key: 'partner', label: 'Partner' },
   { key: 'creator', label: 'Creator' },
@@ -837,6 +882,36 @@ const toggleSortByName = () => cycleSort('name');
 const toggleSortByCreatedAt = () => cycleSort('created_at');
 const toggleSortByUpdatedAt = () => cycleSort('updated_at');
 const toggleSortByRegistrationDate = () => cycleSort('registration_date');
+const toggleSortByNationalId = () => cycleSort('national_id');
+
+// Rows on this page that share a National ID get the same tint, and each
+// shared ID gets its own hue (golden-angle steps keep neighbours apart), so a
+// clash is readable at a glance. Computed from the visible rows only.
+const duplicateHues = computed(() => {
+  const counts = new Map();
+  for (const m of props.members?.data ?? []) {
+    const id = m.membership?.national_id;
+    if (id) counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const hues = new Map();
+  let i = 0;
+  for (const [id, n] of counts) {
+    if (n > 1) hues.set(id, (i++ * 137.508 + 20) % 360);
+  }
+  return hues;
+});
+const duplicateColor = (member) => {
+  const hue = duplicateHues.value.get(member.membership?.national_id);
+  return hue === undefined ? null : hue;
+};
+const duplicateRowStyle = (member) => {
+  const hue = duplicateColor(member);
+  return hue === null ? undefined : { backgroundColor: `hsl(${hue} 80% 50% / 0.14)` };
+};
+const duplicateBadgeStyle = (member) => {
+  const hue = duplicateColor(member);
+  return hue === null ? undefined : { backgroundColor: `hsl(${hue} 80% 50% / 0.35)`, boxShadow: `inset 0 0 0 1px hsl(${hue} 80% 40% / 0.8)` };
+};
 const toggleSortByDaysCovered = () => cycleSort('days_covered');
 const toggleSortByOutstandingDays = () => cycleSort('outstanding_days');
 

@@ -291,17 +291,17 @@
       </div>
 
       <!-- Relatives waiting for approval, and trial cards -->
-      <div :class="['min-w-0 sm:col-span-2 lg:col-span-1', showAdvanced ? '' : 'hidden sm:block']">
+      <div :class="['min-w-0 col-span-full', showAdvanced ? '' : 'hidden sm:block']">
         <div class="flex flex-col gap-1.5 sm:gap-2 w-full">
           <label data-slot="label" class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1">
             {{ t.attention_label || 'Needs attention' }}
           </label>
-          <div class="flex gap-2 w-full">
+          <div class="flex flex-wrap gap-2 w-full">
             <button
               data-slot="button"
               @click="handleToggleFilter('pending_relatives', 1)"
               :title="t.pending_relatives_hint || 'Cards with a relative added by the member that is waiting for approval.'"
-              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.pending_relatives === 1 || filters.pending_relatives === '1' || filters.pending_relatives === true ? 'bg-primary text-primary-foreground' : '']"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.pending_relatives === 1 || filters.pending_relatives === '1' || filters.pending_relatives === true ? 'bg-primary text-primary-foreground' : '']"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path>
@@ -312,7 +312,7 @@
               data-slot="button"
               @click="handleToggleFilter('is_trial', 1)"
               :title="t.trial_hint || 'Free trial cards issued from the app or the website.'"
-              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.is_trial === 1 || filters.is_trial === '1' || filters.is_trial === true ? 'bg-primary text-primary-foreground' : '']"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.is_trial === 1 || filters.is_trial === '1' || filters.is_trial === true ? 'bg-primary text-primary-foreground' : '']"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
                 <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
@@ -323,7 +323,7 @@
               data-slot="button"
               @click="handleToggleFilter('dup_phone', 1)"
               :title="t.dup_phone_hint || 'Cards whose phone number is shared with another member.'"
-              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_phone === 1 || filters.dup_phone === '1' || filters.dup_phone === true ? 'bg-primary text-primary-foreground' : '']"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_phone === 1 || filters.dup_phone === '1' || filters.dup_phone === true ? 'bg-primary text-primary-foreground' : '']"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
@@ -334,7 +334,7 @@
               data-slot="button"
               @click="handleToggleFilter('dup_national_id', 1)"
               :title="t.dup_national_id_hint || 'Cards whose National ID is shared with another card.'"
-              :class="['flex-1 cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_national_id === 1 || filters.dup_national_id === '1' || filters.dup_national_id === true ? 'bg-primary text-primary-foreground' : '']"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.dup_national_id === 1 || filters.dup_national_id === '1' || filters.dup_national_id === true ? 'bg-primary text-primary-foreground' : '']"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>

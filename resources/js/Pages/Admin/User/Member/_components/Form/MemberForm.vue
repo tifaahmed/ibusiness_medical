@@ -21,29 +21,47 @@
               :placeholder="t.member?.name_placeholder || 'Enter member name'"
               required
             />
-            <FormInput
-              v-model="phone"
-              :label="t.common?.phone || 'Phone'"
-              type="tel"
-              inputmode="numeric"
-              :maxlength="PHONE_LENGTH"
-              :counter-max="PHONE_LENGTH"
-              :error="memberStore.validationErrors?.phone || phoneHint"
-              :placeholder="t.member?.phone_placeholder || 'Enter phone number'"
-              required
-            />
+            <div>
+              <FormInput
+                v-model="phone"
+                :label="t.common?.phone || 'Phone'"
+                type="tel"
+                inputmode="numeric"
+                :maxlength="PHONE_LENGTH"
+                :counter-max="PHONE_LENGTH"
+                :error="memberStore.validationErrors?.phone || phoneHint || phoneCheck.message.value"
+                :placeholder="t.member?.phone_placeholder || 'Enter phone number'"
+                required
+              />
+              <div v-if="phoneCheck.status.value === 'checking' || phoneCheck.status.value === 'ok' || phoneCheck.canRecheck.value" class="mt-1 flex items-center gap-2 text-xs">
+                <span v-if="phoneCheck.status.value === 'checking'" class="text-muted-foreground">{{ t.member?.checking || 'Checking…' }}</span>
+                <span v-else-if="phoneCheck.status.value === 'ok'" class="text-green-600">{{ t.member?.phone_available || 'Phone is available.' }}</span>
+                <button v-if="phoneCheck.canRecheck.value" type="button" class="rounded border border-border px-2 py-0.5 text-xs text-foreground hover:bg-muted" @click="phoneCheck.run()">
+                  {{ t.member?.recheck || 'Recheck' }}
+                </button>
+              </div>
+            </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <FormInput
-              v-model="nationalId"
-              :label="t.member?.national_id || 'National ID Number'"
-              inputmode="numeric"
-              :maxlength="NATIONAL_ID_LENGTH"
-              :counter-max="NATIONAL_ID_LENGTH"
-              :error="memberStore.validationErrors?.national_id"
-              :placeholder="t.member?.national_id_placeholder || 'Enter 14-digit National ID number'"
-              required
-            />
+            <div>
+              <FormInput
+                v-model="nationalId"
+                :label="t.member?.national_id || 'National ID Number'"
+                inputmode="numeric"
+                :maxlength="NATIONAL_ID_LENGTH"
+                :counter-max="NATIONAL_ID_LENGTH"
+                :error="memberStore.validationErrors?.national_id || nationalIdCheck.message.value"
+                :placeholder="t.member?.national_id_placeholder || 'Enter 14-digit National ID number'"
+                required
+              />
+              <div v-if="nationalIdCheck.status.value === 'checking' || nationalIdCheck.status.value === 'ok' || nationalIdCheck.canRecheck.value" class="mt-1 flex items-center gap-2 text-xs">
+                <span v-if="nationalIdCheck.status.value === 'checking'" class="text-muted-foreground">{{ t.member?.checking || 'Checking…' }}</span>
+                <span v-else-if="nationalIdCheck.status.value === 'ok'" class="text-green-600">{{ t.member?.national_id_available || 'National ID is available.' }}</span>
+                <button v-if="nationalIdCheck.canRecheck.value" type="button" class="rounded border border-border px-2 py-0.5 text-xs text-foreground hover:bg-muted" @click="nationalIdCheck.run()">
+                  {{ t.member?.recheck || 'Recheck' }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -587,6 +605,65 @@ watch(() => form.value.membership_number, (raw) => {
     }
   }, 400);
 });
+// Live uniqueness check for phone / national ID. Fires once the value reaches
+// its full length; a taken value or a failed request leaves a small "Recheck"
+// button so the admin can retry after fixing the other record or the network.
+function useUniqueCheck(field, valueRef, length, takenText, failedText) {
+  const status = ref('idle'); // idle | checking | ok | taken | error
+  const message = computed(() => {
+    if (status.value === 'taken') return takenText();
+    if (status.value === 'error') return failedText();
+    return '';
+  });
+  const canRecheck = computed(() => status.value === 'taken' || status.value === 'error');
+  let timer = null;
+  let seq = 0;
+
+  const run = async () => {
+    const value = valueRef.value;
+    if (value.length !== length) { status.value = 'idle'; return; }
+    const mine = ++seq;
+    status.value = 'checking';
+    try {
+      const params = { field, value };
+      if (editingMembershipId.value) params.exclude_membership_id = editingMembershipId.value;
+      if (editingUserId.value) params.exclude_user_id = editingUserId.value;
+      const { data } = await axios.get('/api/member-field/check', { params });
+      if (mine !== seq) return;
+      status.value = data?.unique === false ? 'taken' : 'ok';
+    } catch (e) {
+      if (mine !== seq) return;
+      status.value = 'error';
+      axios.post('/api/v1/client-errors', {
+        message: `Member ${field} uniqueness check failed: ${e?.message || e}`,
+        stack: e?.stack,
+        route: window.location.pathname,
+        extra: { field, step: 'member-form-unique-check' },
+      }).catch(() => {});
+    }
+  };
+
+  watch(valueRef, () => {
+    if (timer) clearTimeout(timer);
+    seq++;
+    status.value = 'idle';
+    if (valueRef.value.length === length) timer = setTimeout(run, 300);
+  });
+
+  return { status, message, canRecheck, run };
+}
+
+const phoneCheck = useUniqueCheck(
+  'phone', phone, PHONE_LENGTH,
+  () => t.value.member?.phone_taken || 'This phone number already belongs to another member.',
+  () => t.value.member?.check_failed || 'Could not check right now.',
+);
+const nationalIdCheck = useUniqueCheck(
+  'national_id', nationalId, NATIONAL_ID_LENGTH,
+  () => t.value.member?.national_id_taken || 'This National ID already belongs to another card.',
+  () => t.value.member?.check_failed || 'Could not check right now.',
+);
+
 </script>
 
 <style lang="scss" scoped></style>

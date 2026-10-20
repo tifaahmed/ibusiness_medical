@@ -1294,6 +1294,7 @@ return [
         ],
         'table' => [
             'column_user_details' => 'User Details',
+            'column_national_id' => 'National ID',
             'column_status' => 'Status',
             'column_completed' => 'Completed',
             'column_partner' => 'Partner',
