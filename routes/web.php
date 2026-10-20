@@ -315,7 +315,7 @@ Route::post('/partner-offer/{partnerOffer}/request', [PartnerOfferRequestControl
 Route::post('/membership/lookup', [MembershipController::class, 'lookup'])->name('guest.membership.lookup');
 Route::get('/card-back/{cardTemplate}.png', \App\Http\Controllers\CardTemplateBackImageController::class)->name('card-template.back');
 Route::get('/membership/{membership}', [MembershipController::class, 'show'])->name('guest.membership.show');
-Route::post('/membership/{membership}/subscribe', [MembershipController::class, 'subscribe'])->middleware('throttle:10,1')->name('guest.membership.subscribe');
+Route::post('/membership/{membership}/subscribe', [MembershipController::class, 'subscribe'])->middleware('throttle:10,1,web.guest.membership.subscribe')->name('guest.membership.subscribe');
 Route::get('/membership/{membership}/usage/create', GuestMembershipUsageCreateController::class)->name('guest.membership-usage.create');
 Route::post('/membership/{membership}/usage', GuestMembershipUsageStoreController::class)->name('guest.membership-usage.store');
 

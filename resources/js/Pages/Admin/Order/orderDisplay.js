@@ -58,6 +58,7 @@ export const logActionClass = {
     payment_refunded: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-500',
     refund_failed: 'border-red-500/30 bg-red-500/10 text-red-500',
     receipt_emailed: 'border-teal-500/30 bg-teal-500/10 text-teal-500',
+    payment_type_changed: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-500',
     viewed: 'border-border bg-muted/50 text-muted-foreground',
     edit_viewed: 'border-border bg-muted/50 text-muted-foreground',
 };

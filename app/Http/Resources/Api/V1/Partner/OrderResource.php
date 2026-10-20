@@ -62,6 +62,8 @@ class OrderResource extends JsonResource
             'can_pay_online' => $this->isOnlinePayment()
                 && PaymobClient::isConfigured()
                 && in_array($this->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true),
+            /* Whether the buyer may swap cash on delivery / a transfer for paying online — see `Order::canSwitchToOnline()`. */
+            'can_switch_to_online' => PaymobClient::isConfigured() && $this->canSwitchToOnline(),
             /* What delivery was charged at on this order, already included in
                `total_amount`. The buyer's half of the three columns. */
             'delivery_price' => (float) $this->delivery_price,

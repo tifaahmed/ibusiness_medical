@@ -187,10 +187,10 @@ const logsAsc = computed(() => [...(props.order.logs || [])].sort((a, b) => a.id
 
 /** Which audit actions belong to which tag. */
 const RELATED = {
-  payment: ["created", "payment_status_changed", "payment_initiated", "payment_callback", "payment_checked", "payment_accepted", "payment_rejected", "payment_refunded", "refund_failed", "receipt_emailed", "canceled"],
+  payment: ["created", "payment_status_changed", "payment_initiated", "payment_callback", "payment_checked", "payment_accepted", "payment_rejected", "payment_refunded", "refund_failed", "receipt_emailed", "payment_type_changed", "canceled"],
   delivery: ["created", "delivery_status_changed", "shipped"],
   order: ["created", "order_status_changed", "canceled"],
-  type: ["created", "payment_initiated", "payment_accepted", "payment_rejected", "payment_refunded"],
+  type: ["created", "payment_type_changed", "payment_initiated", "payment_accepted", "payment_rejected", "payment_refunded"],
   source: ["created"],
 };
 

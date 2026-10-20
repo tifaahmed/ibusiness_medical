@@ -254,6 +254,26 @@ class Order extends Model implements HasMedia
     }
 
     /**
+     * Whether the buyer may still swap cash on delivery / a wallet transfer for
+     * paying online with Paymob — see `SwitchOrderToOnlinePayment`.
+     *
+     * Only while nothing has been paid or claimed and nothing has left: no money
+     * in, no receipt filed (a receipt says "I already transferred", and paying
+     * online on top of it is paying twice), not handed to the courier, and the
+     * order not cancelled.
+     */
+    public function canSwitchToOnline(): bool
+    {
+        return in_array($this->payment_type, [PaymentTypeEnum::COD, PaymentTypeEnum::TRANSFER_WALLET], true)
+            && $this->payment_status === PaymentStatusEnum::PENDING
+            && (float) $this->total_paid <= 0
+            && ! $this->isShipped()
+            && in_array($this->delivery_status, [DeliveryStatusEnum::PENDING, DeliveryStatusEnum::PROCESSING], true)
+            && $this->order_status !== OrderStatusEnum::FAILED
+            && $this->getMedia(self::RECEIPT_COLLECTION)->isEmpty();
+    }
+
+    /**
      * Whether this order has already been handed to ABS.
      *
      * The AWB is the whole answer: it exists only because ABS accepted the

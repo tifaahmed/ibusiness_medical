@@ -71,10 +71,10 @@ Route::prefix('v1')
          * request is the credential, checked before anything touches an order.
          */
         Route::post('/paymob/callback', [V1PaymobCallbackController::class, 'callback'])
-            ->middleware('throttle:120,1')
+            ->middleware('throttle:120,1,api.paymob.callback')
             ->name('paymob.callback');
         Route::get('/paymob/return/{code}', [V1PaymobCallbackController::class, 'return'])
-            ->middleware('throttle:60,1')
+            ->middleware('throttle:60,1,api.paymob.return')
             ->name('paymob.return');
 
         /*
@@ -82,10 +82,10 @@ Route::prefix('v1')
          * and a way to pay for it, without signing in. See `CardSubscriptionController`.
          */
         Route::get('/card/{number}/status', [V1CardSubscriptionController::class, 'status'])
-            ->middleware('throttle:60,1')
+            ->middleware('throttle:60,1,api.card.status')
             ->name('card.status');
         Route::post('/card/{number}/subscribe', [V1CardSubscriptionController::class, 'subscribe'])
-            ->middleware('throttle:10,1')
+            ->middleware('throttle:10,1,api.card.subscribe')
             ->name('card.subscribe');
 
         Route::get('/home', V1HomeController::class)->name('home');
@@ -137,10 +137,10 @@ Route::prefix('v1')
              * thing added; the per-number limits live in `MemberOtp`.
              */
             Route::post('/auth/otp', [V1PartnerOtpAuthController::class, 'request'])
-                ->middleware('throttle:10,1')
+                ->middleware('throttle:10,1,api.auth.otp.request')
                 ->name('auth.otp.request');
             Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
-                ->middleware('throttle:10,1')
+                ->middleware('throttle:10,1,api.auth.otp.verify')
                 ->name('auth.otp.verify');
             Route::get('/me', function (Request $request) {
                 $user = $request->user();
@@ -178,21 +178,21 @@ Route::prefix('v1')
              * The member price still comes from the card number in the body.
              */
             Route::post('/orders', [V1PartnerOrderController::class, 'store'])
-                ->middleware([\App\Http\Middleware\StampMobileOrder::class, 'throttle:10,1'])
+                ->middleware([\App\Http\Middleware\StampMobileOrder::class, 'throttle:10,1,api.orders.store'])
                 ->name('orders.store');
             Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
-                ->middleware('throttle:60,1')
+                ->middleware('throttle:60,1,api.orders.show')
                 ->name('orders.show');
             Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:20,1,api.orders.receipt')
                 ->name('orders.receipt');
             /* Open the online payment again for an order not yet paid (declined card, closed page). */
             Route::post('/orders/{orderCode}/pay', [V1PartnerOrderController::class, 'pay'])
-                ->middleware('throttle:10,1')
+                ->middleware('throttle:10,1,api.orders.pay')
                 ->name('orders.pay');
 
             Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:20,1,api.card.show')
                 ->name('card.show');
 
             Route::get('/map-pins', [V1MobileFacilityController::class, 'pins'])->name('map-pins');
@@ -332,11 +332,11 @@ Route::prefix('v1')
                  * this application — see `App\Support\OtpSettings`.
                  */
                 Route::post('/auth/otp', [V1PartnerOtpAuthController::class, 'request'])
-                    ->middleware('throttle:30,1')
+                    ->middleware('throttle:30,1,api.partner.auth.otp.request')
                     ->name('auth.otp.request');
 
                 Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
-                    ->middleware('throttle:20,1')
+                    ->middleware('throttle:20,1,api.partner.auth.otp.verify')
                     ->name('auth.otp.verify');
 
                 /*
@@ -351,7 +351,7 @@ Route::prefix('v1')
                  * after an outage, not an attack.
                  */
                 Route::post('/contact-messages', [V1PartnerContactMessageController::class, 'store'])
-                    ->middleware('throttle:60,1')
+                    ->middleware('throttle:60,1,api.contact-messages.store')
                     ->name('contact-messages.store');
 
                 /*
@@ -377,7 +377,7 @@ Route::prefix('v1')
                  * attacker can enumerate at.
                  */
                 Route::post('/orders', [V1PartnerOrderController::class, 'store'])
-                    ->middleware(['throttle:30,1', \App\Http\Middleware\ApplyShopDelivery::class])
+                    ->middleware(['throttle:30,1,api.partner.orders.store', \App\Http\Middleware\ApplyShopDelivery::class])
                     ->name('orders.store');
 
                 /*
@@ -407,15 +407,15 @@ Route::prefix('v1')
                 Route::get('/contact-settings', fn () => response()->json(\App\Support\ShopContact::current()))->name('contact-settings');
 
                 Route::post('/orders/{orderCode}/pay', [V1PartnerOrderController::class, 'pay'])
-                    ->middleware('throttle:10,1')
+                    ->middleware('throttle:10,1,api.partner.orders.pay')
                     ->name('orders.pay');
 
                 Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
-                    ->middleware('throttle:60,1')
+                    ->middleware('throttle:60,1,api.partner.orders.show')
                     ->name('orders.show');
 
                 Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
-                    ->middleware('throttle:20,1')
+                    ->middleware('throttle:20,1,api.partner.orders.receipt')
                     ->name('orders.receipt');
 
                 Route::get('/memberships/{membership}/card/back', [V1MembershipCardController::class, 'showBack'])
@@ -445,7 +445,7 @@ Route::prefix('v1')
              * far as the pattern is concerned.
              */
             Route::post('/orders/claim', [V1MemberOrderController::class, 'claim'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:20,1,api.orders.claim')
                 ->name('orders.claim');
 
             Route::get('/orders/{orderCode}', [V1MemberOrderController::class, 'show'])->name('orders.show');
@@ -465,11 +465,11 @@ Route::prefix('v1')
              */
             Route::get('/membership', [V1MemberMembershipController::class, 'show'])->name('me.membership.show');
             Route::post('/membership/trial', [V1MemberMembershipController::class, 'trial'])
-                ->middleware('throttle:5,1')->name('me.membership.trial');
+                ->middleware('throttle:5,1,api.me.membership.trial')->name('me.membership.trial');
             Route::post('/membership/subscribe', [V1MemberMembershipController::class, 'subscribe'])
-                ->middleware('throttle:10,1')->name('me.membership.subscribe');
+                ->middleware('throttle:10,1,api.me.membership.subscribe')->name('me.membership.subscribe');
             Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])
-                ->middleware('throttle:5,1')->name('me.membership.relatives-request');
+                ->middleware('throttle:5,1,api.me.membership.relatives-request')->name('me.membership.relatives-request');
 
             /*
              * The addresses on the member's own card: read, and save one — see
@@ -477,21 +477,21 @@ Route::prefix('v1')
              */
             Route::get('/addresses', [V1MemberAddressController::class, 'index'])->name('addresses.index');
             Route::post('/addresses', [V1MemberAddressController::class, 'store'])
-                ->middleware('throttle:20,1')->name('addresses.store');
+                ->middleware('throttle:20,1,api.addresses.store')->name('addresses.store');
 
             // Any relative, with national ID + both ID faces + photo; waits for staff approval.
             Route::post('/family/members', [V1MemberFamilyController::class, 'storeMember'])
-                ->middleware('throttle:10,1')
+                ->middleware('throttle:10,1,api.family.members.store')
                 ->name('family.members.store');
             Route::post('/family/children', [V1MemberFamilyController::class, 'storeChild'])
-                ->middleware('throttle:10,1')
+                ->middleware('throttle:10,1,api.family.children.store')
                 ->name('family.children.store');
             Route::put('/family/children/{familyMember}', [V1MemberFamilyController::class, 'updateChild'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:20,1,api.family.children.update')
                 ->whereNumber('familyMember')
                 ->name('family.children.update');
             Route::delete('/family/children/{familyMember}', [V1MemberFamilyController::class, 'destroyChild'])
-                ->middleware('throttle:20,1')
+                ->middleware('throttle:20,1,api.family.children.destroy')
                 ->whereNumber('familyMember')
                 ->name('family.children.destroy');
 

@@ -66,6 +66,9 @@ class OrderLog extends Model
     /** The purchase receipt was mailed (or could not be) to the buyer. */
     public const ACTION_RECEIPT_EMAILED = 'receipt_emailed';
 
+    /** The buyer swapped cash on delivery / a wallet transfer for paying online. */
+    public const ACTION_PAYMENT_TYPE_CHANGED = 'payment_type_changed';
+
     /**
      * How long the same admin's repeat visit to the same order is folded into
      * the visit already logged. Without it, one admin refreshing an order page
