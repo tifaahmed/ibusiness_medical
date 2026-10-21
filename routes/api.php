@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\LoginController as ApiLoginController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\V1\Guest\AboutController as V1AboutController;
 use App\Http\Controllers\Api\V1\Guest\AuthController as V1AuthController;
+use App\Http\Controllers\Api\V1\Guest\CardSubscriptionController as V1CardSubscriptionController;
 use App\Http\Controllers\Api\V1\Guest\ClientErrorController as V1ClientErrorController;
 use App\Http\Controllers\Api\V1\Guest\ContactController as V1ContactController;
 use App\Http\Controllers\Api\V1\Guest\FacilityBranchCardController as V1FacilityBranchCardController;
@@ -29,20 +30,19 @@ use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchM
 use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
 use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
+use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
+use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
+use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
+use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
 use App\Http\Controllers\Api\V1\Mobile\FacilityController as V1MobileFacilityController;
 use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductController;
 use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
-use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
-use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
-use App\Http\Controllers\Api\V1\Guest\CardSubscriptionController as V1CardSubscriptionController;
-use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
-use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Partner\ContactMessageController as V1PartnerContactMessageController;
-use App\Http\Controllers\Api\V1\Paymob\PaymobCallbackController as V1PaymobCallbackController;
 use App\Http\Controllers\Api\V1\Partner\MembershipController as V1PartnerMembershipController;
 use App\Http\Controllers\Api\V1\Partner\OrderController as V1PartnerOrderController;
 use App\Http\Controllers\Api\V1\Partner\OtpAuthController as V1PartnerOtpAuthController;
+use App\Http\Controllers\Api\V1\Paymob\PaymobCallbackController as V1PaymobCallbackController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -139,6 +139,9 @@ Route::prefix('v1')
             Route::post('/auth/otp', [V1PartnerOtpAuthController::class, 'request'])
                 ->middleware('throttle:10,1,api.auth.otp.request')
                 ->name('auth.otp.request');
+            Route::post('/auth/phone-check', [V1PartnerOtpAuthController::class, 'lookup'])
+                ->middleware('throttle:20,1,api.auth.phone.check')
+                ->name('auth.phone.check');
             Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
                 ->middleware('throttle:10,1,api.auth.otp.verify')
                 ->name('auth.otp.verify');
@@ -338,6 +341,10 @@ Route::prefix('v1')
                 Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
                     ->middleware('throttle:20,1,api.partner.auth.otp.verify')
                     ->name('auth.otp.verify');
+                /* Whether a phone already holds a card — so a storefront can offer the free trial to a new number before spending an SMS. */
+                Route::post('/auth/phone-check', [V1PartnerOtpAuthController::class, 'lookup'])
+                    ->middleware('throttle:60,1,api.partner.auth.phone.check')
+                    ->name('auth.phone.check');
 
                 /*
                  * Enquiries from a partner storefront's public forms. Key-gated
@@ -399,7 +406,7 @@ Route::prefix('v1')
                         /* Extra fee on a cash-on-delivery order; 0 = none, and clients show nothing. */
                         'codFee' => \App\Support\ShopDelivery::codFee(),
                         'paymobEnabled' => \App\Services\Paymob\PaymobClient::isConfigured(),
-                       
+
                     ]);
                 })->name('shop-settings');
 
@@ -466,6 +473,8 @@ Route::prefix('v1')
             Route::get('/membership', [V1MemberMembershipController::class, 'show'])->name('me.membership.show');
             Route::post('/membership/trial', [V1MemberMembershipController::class, 'trial'])
                 ->middleware('throttle:5,1,api.me.membership.trial')->name('me.membership.trial');
+            Route::post('/membership/trial/check-national-id', [V1MemberMembershipController::class, 'checkNationalId'])
+                ->middleware('throttle:30,1,api.me.membership.trial-check')->name('me.membership.trial-check');
             Route::post('/membership/subscribe', [V1MemberMembershipController::class, 'subscribe'])
                 ->middleware('throttle:10,1,api.me.membership.subscribe')->name('me.membership.subscribe');
             Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])

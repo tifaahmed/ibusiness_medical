@@ -87,6 +87,20 @@ class TrialCardTest extends TestCase
 
     // ---- Creating the trial --------------------------------------------
 
+    public function test_a_national_id_can_be_checked_before_the_trial_is_requested(): void
+    {
+        $this->trialCard('01012345678', '29001011234567');
+
+        $this->member('01122334455');
+
+        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '29001011234567'])
+            ->assertOk()->assertJsonPath('data.available', false);
+        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '29102021234567'])
+            ->assertOk()->assertJsonPath('data.available', true);
+        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '11111111111111'])
+            ->assertUnprocessable();
+    }
+
     public function test_a_trial_card_needs_only_a_name_and_an_id_and_lasts_a_month(): void
     {
         $user = $this->member();
@@ -111,6 +125,92 @@ class TrialCardTest extends TestCase
         $this->assertSame($membership->membership_number, $response->json('data.membership_number'));
         $this->assertDatabaseHas('trial_claims', ['national_id' => '29001011234567', 'phone' => '01012345678', 'membership_id' => $membership->id]);
         $this->assertSame(0, $membership->familyMembers()->count());
+    }
+
+    public function test_the_trial_saves_the_gender_when_one_is_sent(): void
+    {
+        $user = $this->member();
+
+        $this->startTrial(['gender' => 'female'])->assertCreated();
+        $this->assertSame('female', $user->fresh()->gender);
+    }
+
+    public function test_an_unknown_gender_is_rejected(): void
+    {
+        $this->member();
+
+        $this->startTrial(['gender' => 'robot'])->assertUnprocessable();
+    }
+
+    public function test_phone_check_tells_a_new_number_from_a_card_holder_without_sending_a_code(): void
+    {
+        [, $membership] = $this->trialCard('01012345678');
+        $placeholder = User::factory()->create(['phone' => '01199999999']);
+        $placeholder->memberships()->create(['membership_number' => 'REG-ABC123', 'slug' => 'REG-ABC123', 'is_active' => false, 'is_visible' => false]);
+
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '01012345678'])->assertOk()->assertJsonPath('data.has_card', true);
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '01199999999'])->assertOk()->assertJsonPath('data.has_card', false);
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '01555555555'])->assertOk()->assertJsonPath('data.has_card', false);
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '123'])->assertUnprocessable();
+        $this->assertNotNull($membership);
+    }
+
+    private function adminWith(string $permission = 'manage memberships'): User
+    {
+        $admin = User::factory()->create();
+        $role = Role::findOrCreate(UserRoleEnum::ADMIN.'-trial', 'web');
+        $role->givePermissionTo(Permission::findOrCreate($permission, 'web'));
+        $admin->assignRole($role);
+
+        return $admin;
+    }
+
+    public function test_an_admin_can_take_the_trial_mark_off_by_hand_and_the_expiry_is_kept(): void
+    {
+        [$user, $membership] = $this->trialCard();
+        $expiry = $membership->expiration_date->toDateTimeString();
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($this->adminWith())->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+            ->post(route('admin.user.membership.remove-trial', $user->slug))
+            ->assertRedirect()->assertSessionHas('success');
+
+        $membership->refresh();
+        $this->assertSame(Membership::PLAN_FULL, $membership->plan);
+        $this->assertFalse($membership->isTrial());
+        $this->assertSame($expiry, $membership->expiration_date->toDateTimeString(), 'only the mark changes');
+        $this->assertDatabaseHas('member_logs', ['membership_id' => $membership->id]);
+
+        // Idempotent: a second press changes nothing.
+        $this->post(route('admin.user.membership.remove-trial', $user->slug))->assertRedirect();
+        $this->assertSame(Membership::PLAN_FULL, $membership->fresh()->plan);
+    }
+
+    public function test_removing_the_trial_needs_the_membership_permission(): void
+    {
+        [$user, $membership] = $this->trialCard();
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($this->adminWith('view memberships'))->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+            ->post(route('admin.user.membership.remove-trial', $user->slug))
+            ->assertForbidden();
+
+        $this->assertSame(Membership::PLAN_TRIAL, $membership->fresh()->plan);
+    }
+
+    public function test_confirming_a_payment_removes_the_trial_on_its_own(): void
+    {
+        [, $membership] = $this->trialCard();
+        $subscription = MembershipSubscription::query()->create([
+            'membership_id' => $membership->id, 'method' => 'vodafone_cash', 'amount' => 600, 'months' => 12, 'status' => MembershipSubscription::STATUS_PENDING,
+        ]);
+
+        $this->assertTrue(app(\App\Actions\Membership\ActivateSubscription::class)->handle($subscription, $this->adminWith()->id));
+
+        $membership->refresh();
+        $this->assertSame(Membership::PLAN_FULL, $membership->plan);
+        $this->assertFalse($membership->isTrial());
+        $this->assertTrue((bool) $membership->is_paid);
     }
 
     public function test_a_phone_signup_placeholder_is_upgraded_not_duplicated(): void
@@ -347,7 +447,7 @@ class TrialCardTest extends TestCase
         $admin->assignRole($role);
 
         $this->app['auth']->forgetGuards();
-        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
             ->get(route('admin.subscription.index'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('subscriptions.data', 1)->where('subscriptions.data.0.receipts.0.name', 'receipt.jpg'));
@@ -482,6 +582,80 @@ class TrialCardTest extends TestCase
         $this->actingAs($admin)->get(route('admin.user.membership.list', ['pending_relatives' => 1]))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('users.data', 1)->where('users.data.0.membership.pending_relatives', 1));
+    }
+
+    /** A card whose owner has one subscription in the given state, method and channel. */
+    private function cardWithSubscription(string $phone, string $nid, string $method, string $channel, string $status = MembershipSubscription::STATUS_ACCEPTED): array
+    {
+        [$user, $membership] = $this->trialCard($phone, $nid);
+        $this->app['auth']->forgetGuards();
+
+        $subscription = $membership->subscriptions()->create([
+            'method' => $method, 'channel' => $channel, 'status' => $status, 'amount' => 600, 'months' => 12,
+            'reference' => '0100'.substr($phone, -7), 'paid_at' => $status === MembershipSubscription::STATUS_ACCEPTED ? now() : null,
+        ]);
+
+        return [$user, $membership, $subscription];
+    }
+
+    public function test_the_member_list_filters_members_who_paid_by_method_and_from_the_app(): void
+    {
+        $this->cardWithSubscription('01011111111', '29001010000011', MembershipSubscription::METHOD_PAYMOB, 'mobile');
+        $this->cardWithSubscription('01022222222', '29001010000022', MembershipSubscription::METHOD_VODAFONE, 'mobile');
+        $this->cardWithSubscription('01033333333', '29001010000033', MembershipSubscription::METHOD_INSTAPAY, 'website');
+        $this->cardWithSubscription('01044444444', '29001010000044', MembershipSubscription::METHOD_VODAFONE, 'mobile', MembershipSubscription::STATUS_PENDING);
+        $this->trialCard('01055555555', '29001010000055'); // never paid
+
+        $admin = $this->adminWith();
+        $count = fn (array $query) => $this->actingAs($admin)->get(route('admin.user.membership.list', $query))->assertOk()->viewData('page')['props']['users']['data'];
+
+        $this->assertCount(3, $count(['paid_via' => 'any']), 'every confirmed payment; a pending receipt and a trial that never paid are not "paid"');
+        $this->assertCount(2, $count(['paid_app' => 1]), 'only payments made from the mobile app');
+        $this->assertCount(1, $count(['paid_via' => 'paymob']));
+        $this->assertCount(1, $count(['paid_via' => 'instapay']));
+        $this->assertCount(1, $count(['paid_via' => 'vodafone_cash']), 'the pending Vodafone receipt does not count');
+        $this->assertCount(1, $count(['paid_via' => 'vodafone_cash', 'paid_app' => 1]));
+        $this->assertCount(0, $count(['paid_via' => 'instapay', 'paid_app' => 1]), 'that Instapay payment came from the website');
+        $this->assertCount(0, $count(['paid_via' => 'cash_on_delivery']));
+        $this->assertCount(5, $count(['paid_via' => 'nonsense']), 'an unknown value is ignored, not a filter');
+    }
+
+    public function test_the_show_page_lists_the_subscription_payments_with_their_receipts(): void
+    {
+        Storage::fake('public');
+        [$user, $membership, $subscription] = $this->cardWithSubscription('01011111111', '29001010000011', MembershipSubscription::METHOD_INSTAPAY, 'mobile');
+        $subscription->addMedia(UploadedFile::fake()->image('receipt.jpg'))->toMediaCollection(MembershipSubscription::RECEIPT_COLLECTION);
+        $subscription->forceFill(['confirmed_by' => $this->adminWith()->id, 'confirmed_at' => now()])->save();
+
+        $this->actingAs($this->adminWith())->get(route('admin.user.membership.show', $user->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('user.memberships.0.plan', Membership::PLAN_TRIAL)
+                ->has('user.memberships.0.subscriptions', 1)
+                ->where('user.memberships.0.subscriptions.0.method', 'instapay')
+                ->where('user.memberships.0.subscriptions.0.channel', 'mobile')
+                ->where('user.memberships.0.subscriptions.0.status', 'accepted')
+                ->where('user.memberships.0.subscriptions.0.amount', 600)
+                ->where('user.memberships.0.subscriptions.0.receipts.0.name', 'receipt.jpg')
+                ->where('user.memberships.0.subscriptions.0.confirmed_by', fn ($name) => filled($name)));
+    }
+
+    public function test_a_payment_remembers_whether_it_came_from_the_app_or_the_website(): void
+    {
+        Storage::fake('public');
+        [, $membership] = $this->trialCard();
+
+        $this->withHeader('User-Agent', 'okhttp/4.9 Deilar-Android')->post('/api/v1/membership/subscribe', [
+            'method' => 'instapay', 'reference' => '010', 'receipts' => [UploadedFile::fake()->image('a.jpg')],
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $this->assertSame('mobile', $membership->subscriptions()->latest('id')->value('channel'));
+
+        $membership->subscriptions()->delete();
+
+        $this->withHeader('User-Agent', 'GuzzleHttp/7.8 PHP/8.3')->post('/api/v1/membership/subscribe', [
+            'method' => 'vodafone_cash', 'reference' => '010', 'receipts' => [UploadedFile::fake()->image('b.jpg')],
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $this->assertSame('website', $membership->subscriptions()->latest('id')->value('channel'));
     }
 
     public function test_the_member_status_reports_how_complete_the_profile_is(): void

@@ -390,6 +390,16 @@
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     {{ member.membership?.state === 'trial_expired' ? (t.trial_expired || 'Trial ended') : (t.trial || 'Trial') }}
+                    <!-- Takes the trial mark off by hand; paying through the app does it on its own. -->
+                    <button
+                      v-if="member.slug"
+                      type="button"
+                      class="ms-0.5 rounded px-1 font-semibold hover:bg-black/10 dark:hover:bg-white/10"
+                      :title="t.remove_trial || 'Remove trial'"
+                      @click.stop="removeTrial(member)"
+                    >
+                      ✕
+                    </button>
                   </span>
                   <!-- Relatives the member added that wait for an admin. -->
                   <span
@@ -936,6 +946,11 @@ const getCardGeneratorUrl = (member) => {
   if (member.membership?.company_name) params.set('status', member.membership.company_name);
   if (member.membership?.partner_id) params.set('partner', String(member.membership.partner_id));
   return `${route('admin.card-generator')}?${params.toString()}`;
+};
+
+const removeTrial = (member) => {
+  if (!window.confirm(t.value.remove_trial_confirm || 'Remove the trial mark from this member? The expiry date stays as it is.')) return;
+  router.post(route('admin.user.membership.remove-trial', member.slug), {}, { preserveScroll: true });
 };
 
 const getShowRoute = (slug) => {

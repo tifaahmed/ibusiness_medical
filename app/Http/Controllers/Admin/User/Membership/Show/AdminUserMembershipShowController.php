@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Show;
 
-use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Concerns\ProvidesCardTemplates;
+use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\User\Membership\Show\AdminUserMembershipShowResource;
 use App\Models\User;
@@ -14,8 +14,8 @@ use Inertia\Response;
 
 class AdminUserMembershipShowController extends BaseController
 {
-    use ScopesByMembershipCreator;
     use ProvidesCardTemplates;
+    use ScopesByMembershipCreator;
 
     /**
      * Display the specified user and membership.
@@ -39,6 +39,7 @@ class AdminUserMembershipShowController extends BaseController
                 'city',
                 'cardLayouts.cardTemplate',
                 'memberPayments',
+                'subscriptions' => fn ($sq) => $sq->with(['confirmer:id,name', 'media'])->latest('id'),
             ]);
             $query->orderBy('created_at', 'desc');
         }];

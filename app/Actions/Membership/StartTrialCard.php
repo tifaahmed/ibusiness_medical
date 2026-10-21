@@ -13,7 +13,6 @@ use App\Support\PhoneNumbers;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -121,11 +120,17 @@ class StartTrialCard
         }
     }
 
+    /** Whether somebody else already holds this national ID — the same test the trial itself applies. */
+    public function nationalIdTaken(User $user, string $nationalId): bool
+    {
+        return TrialClaim::query()->where('national_id', $nationalId)->exists()
+            || Membership::withTrashed()->where('national_id', $nationalId)->where('user_id', '!=', $user->id)->exists()
+            || FamilyMember::withTrashed()->where('national_id', $nationalId)->exists();
+    }
+
     private function assertNotTaken(User $user, string $phone, string $nationalId): void
     {
-        if (TrialClaim::query()->where('national_id', $nationalId)->exists()
-            || Membership::withTrashed()->where('national_id', $nationalId)->where('user_id', '!=', $user->id)->exists()
-            || FamilyMember::withTrashed()->where('national_id', $nationalId)->exists()) {
+        if ($this->nationalIdTaken($user, $nationalId)) {
             throw $this->refuse('national_id', self::REASON_ID_TAKEN, 'This ID number already has a card. Please contact customer service.');
         }
 

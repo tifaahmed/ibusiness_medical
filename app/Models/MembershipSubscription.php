@@ -45,7 +45,7 @@ class MembershipSubscription extends Model implements HasMedia
     public const RECEIPT_COLLECTION = 'receipt';
 
     protected $fillable = [
-        'membership_id', 'method', 'status', 'amount', 'months', 'reference', 'notes', 'email',
+        'membership_id', 'method', 'channel', 'status', 'amount', 'months', 'reference', 'notes', 'email',
         'paymob_attempts', 'paymob_reference', 'paymob_order_id', 'paymob_transaction_id', 'paymob_response_code',
         'paid_at', 'confirmed_by', 'confirmed_at', 'rejection_reason', 'receipt_emailed_at', 'ip_address',
     ];

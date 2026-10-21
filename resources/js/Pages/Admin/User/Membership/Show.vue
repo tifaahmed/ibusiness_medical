@@ -519,6 +519,47 @@
         </div>
       </div>
 
+      <!-- Subscription payments made through the app / website: method, state, amount, receipts. -->
+      <div v-for="membership in user.memberships" :key="'subs-' + membership.id" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="subscription-payments">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+            {{ t.member?.subscription_payments || 'Subscription payments' }} — {{ membership.membership_number }}
+          </h3>
+          <span v-if="membership.plan === 'trial'" class="rounded-md bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 px-2 py-0.5 text-xs font-medium">{{ t.member?.on_trial || 'On free trial' }}</span>
+        </div>
+        <div v-if="membership.subscriptions?.length" class="space-y-3">
+          <div v-for="sub in membership.subscriptions" :key="sub.id" class="rounded-lg border border-border/60 p-3 space-y-2 text-xs sm:text-sm">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold text-white">{{ formatAmount(sub.amount) }} {{ t.member?.currency || 'EGP' }}</span>
+              <span class="text-muted-foreground">· {{ sub.months }} {{ t.member?.payment_months || 'Months' }}</span>
+              <span class="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">{{ subscriptionMethodLabel(sub.method) }}</span>
+              <span v-if="sub.channel" class="rounded-md bg-muted px-1.5 py-0.5 text-xs">{{ sub.channel === 'mobile' ? (t.member?.channel_mobile || 'Mobile app') : (t.member?.channel_website || 'Website') }}</span>
+              <span :class="['rounded-md px-1.5 py-0.5 text-xs font-medium', subscriptionStatusClass(sub.status)]">{{ subscriptionStatusLabel(sub.status) }}</span>
+              <span class="ms-auto text-muted-foreground whitespace-nowrap">{{ sub.created_at }}</span>
+            </div>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-muted-foreground">
+              <div v-if="sub.reference"><dt class="inline font-medium">{{ t.member?.payment_reference || 'Reference' }}:</dt> <dd class="inline text-white" dir="ltr">{{ sub.reference }}</dd></div>
+              <div v-if="sub.email"><dt class="inline font-medium">{{ t.member?.payment_email || 'Email' }}:</dt> <dd class="inline text-white" dir="ltr">{{ sub.email }}</dd></div>
+              <div v-if="sub.paid_at"><dt class="inline font-medium">{{ t.member?.payment_paid_at || 'Paid at' }}:</dt> <dd class="inline text-white">{{ sub.paid_at }}</dd></div>
+              <div v-if="sub.confirmed_by"><dt class="inline font-medium">{{ t.member?.payment_confirmed_by || 'Confirmed by' }}:</dt> <dd class="inline text-white">{{ sub.confirmed_by }} ({{ sub.confirmed_at }})</dd></div>
+              <div v-if="sub.paymob_transaction_id"><dt class="inline font-medium">Paymob {{ t.member?.payment_transaction || 'transaction' }}:</dt> <dd class="inline text-white" dir="ltr">{{ sub.paymob_transaction_id }}</dd></div>
+              <div v-if="sub.paymob_reference"><dt class="inline font-medium">Paymob {{ t.member?.payment_reference || 'Reference' }}:</dt> <dd class="inline text-white" dir="ltr">{{ sub.paymob_reference }}</dd></div>
+              <div v-if="sub.paymob_response_code"><dt class="inline font-medium">{{ t.member?.payment_response || 'Gateway response' }}:</dt> <dd class="inline text-white" dir="ltr">{{ sub.paymob_response_code }}</dd></div>
+              <div v-if="sub.rejection_reason" class="text-red-400"><dt class="inline font-medium">{{ t.member?.payment_rejected || 'Rejected' }}:</dt> <dd class="inline">{{ sub.rejection_reason }}</dd></div>
+            </dl>
+            <!-- Receipts open in a new browser tab. -->
+            <div v-if="sub.receipts?.length" class="flex flex-wrap gap-2 pt-1">
+              <a v-for="receipt in sub.receipts" :key="receipt.id" :href="receipt.url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted/40">
+                🧾 {{ receipt.name }} ↗
+              </a>
+            </div>
+          </div>
+          <Link :href="route('admin.subscription.index', { status: '' })" class="inline-block text-xs text-blue-400 hover:underline">{{ t.member?.open_payments_queue || 'Open the payments queue' }}</Link>
+        </div>
+        <div v-else class="text-sm text-muted-foreground">{{ t.member?.no_subscription_payments || 'No subscription payments for this membership yet.' }}</div>
+      </div>
+
       <!-- Payments Section — hidden per admin request -->
       <template v-if="false">
       <div v-for="membership in user.memberships" :key="'payments-' + membership.id" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4">
@@ -701,6 +742,24 @@ const props = defineProps({
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
+
+const SUBSCRIPTION_METHODS = {
+  paymob: ['member.method_paymob', 'Online (Paymob)'],
+  vodafone_cash: ['member.method_vodafone_cash', 'Vodafone Cash'],
+  instapay: ['member.method_instapay', 'Instapay'],
+  cash_on_delivery: ['member.method_cod', 'Cash on delivery'],
+};
+const SUBSCRIPTION_STATUSES = {
+  pending: ['member.status_pending', 'Pending', 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'],
+  accepted: ['member.status_accepted', 'Paid', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
+  rejected: ['member.status_rejected', 'Rejected', 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+  refunded: ['member.status_refunded', 'Refunded', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'],
+  canceled: ['member.status_canceled', 'Canceled', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'],
+};
+const lookup = (path) => path.split('.').reduce((o, k) => o?.[k], t.value);
+const subscriptionMethodLabel = (m) => (SUBSCRIPTION_METHODS[m] ? lookup(SUBSCRIPTION_METHODS[m][0]) || SUBSCRIPTION_METHODS[m][1] : m);
+const subscriptionStatusLabel = (s) => (SUBSCRIPTION_STATUSES[s] ? lookup(SUBSCRIPTION_STATUSES[s][0]) || SUBSCRIPTION_STATUSES[s][1] : s);
+const subscriptionStatusClass = (s) => SUBSCRIPTION_STATUSES[s]?.[2] || 'bg-muted';
 
 const showCardModal = ref(false);
 const showQRCodeModal = ref(false);

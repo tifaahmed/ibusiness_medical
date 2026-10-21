@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\List;
 
+use App\Enums\Contact\ContactChannelEnum;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\User\Membership\List\AdminUserMembershipListCollection;
@@ -10,6 +11,7 @@ use App\Models\Company;
 use App\Models\MemberActiveHistory;
 use App\Models\Membership;
 use App\Models\MembershipCard;
+use App\Models\MembershipSubscription;
 use App\Models\Partner;
 use App\Models\Sales;
 use App\Models\User;
@@ -18,7 +20,6 @@ use App\Support\OtpSettings;
 use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,7 +63,7 @@ class AdminUserMembershipListController extends BaseController
         $cardPatchMembershipIds = MembershipCard::query()
             ->whereNotNull('membership_ids')
             ->lazyById(200)
-            ->flatMap(fn(MembershipCard $card) => $card->membership_ids ?? [])
+            ->flatMap(fn (MembershipCard $card) => $card->membership_ids ?? [])
             ->unique()
             ->values()
             ->toArray();
@@ -89,68 +90,68 @@ class AdminUserMembershipListController extends BaseController
         $users = User::query()
             ->whereNull('deleted_at')
             ->whereHas('memberships', $listingFilter)
-            ->when($creatorFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($creatorFilter, $listingFilter) {
+            ->when($creatorFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($creatorFilter, $listingFilter) {
                 $mq->where('created_by', $creatorFilter);
                 $listingFilter($mq);
             }))
-            ->when($partnerIdFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($partnerIdFilter, $listingFilter) {
+            ->when($partnerIdFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($partnerIdFilter, $listingFilter) {
                 $mq->where('partner_id', $partnerIdFilter);
                 $listingFilter($mq);
             }))
-            ->when($saleIdFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($saleIdFilter, $listingFilter) {
+            ->when($saleIdFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($saleIdFilter, $listingFilter) {
                 $mq->where('sales_id', $saleIdFilter);
                 $listingFilter($mq);
             }))
-            ->when($companyIdFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($companyIdFilter, $listingFilter) {
+            ->when($companyIdFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($companyIdFilter, $listingFilter) {
                 $mq->where('company_id', $companyIdFilter);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['search']), fn($q) => $q->where('name', 'like', '%' . $filters['search'] . '%'))
-            ->when(!empty($filters['email']), fn($q) => $q->where('email', 'like', '%' . $filters['email'] . '%'))
-            ->when(!empty($filters['phone']), fn($q) => $q->where('phone', 'like', '%' . $filters['phone'] . '%'))
-            ->when(!empty($membershipNumberFilter), function ($q) use ($membershipNumberFilter, $listingFilter) {
+            ->when(! empty($filters['search']), fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+            ->when(! empty($filters['email']), fn ($q) => $q->where('email', 'like', '%'.$filters['email'].'%'))
+            ->when(! empty($filters['phone']), fn ($q) => $q->where('phone', 'like', '%'.$filters['phone'].'%'))
+            ->when(! empty($membershipNumberFilter), function ($q) use ($membershipNumberFilter, $listingFilter) {
                 $q->whereHas('memberships', function ($mq) use ($membershipNumberFilter, $listingFilter) {
                     $mq->where('membership_number', $membershipNumberFilter);
                     $listingFilter($mq);
                 });
             })
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
-            ->when(!empty($filters['registration_date_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
+            ->when(! empty($filters['registration_date_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('registration_date', '>=', $filters['registration_date_from']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['registration_date_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['registration_date_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('registration_date', '<=', $filters['registration_date_to']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['expiration_date_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['expiration_date_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('expiration_date', '>=', $filters['expiration_date_from']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['expiration_date_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['expiration_date_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('expiration_date', '<=', $filters['expiration_date_to']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_changer']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['last_activation_changer']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereHas('activeHistories', function ($ahq) use ($filters) {
-                    $ahq->whereHas('changer', fn($cq) => $cq->where('name', 'like', '%' . $filters['last_activation_changer'] . '%'));
+                    $ahq->whereHas('changer', fn ($cq) => $cq->where('name', 'like', '%'.$filters['last_activation_changer'].'%'));
                 });
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['last_activation_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereHas('activeHistories', function ($ahq) use ($filters) {
                     $ahq->whereDate('created_at', '>=', $filters['last_activation_from']);
                 });
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['last_activation_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereHas('activeHistories', function ($ahq) use ($filters) {
                     $ahq->whereDate('created_at', '<=', $filters['last_activation_to']);
                 });
                 $listingFilter($mq);
             }))
-            ->when($filters['outstanding_days_from'] !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when($filters['outstanding_days_from'] !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
                     SELECT SUM(DATEDIFF(to_date, from_date) + 1)
                     FROM member_payments
@@ -158,7 +159,7 @@ class AdminUserMembershipListController extends BaseController
                 ), 0) >= ?', [(int) $filters['outstanding_days_from']]);
                 $listingFilter($mq);
             }))
-            ->when($filters['outstanding_days_to'] !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when($filters['outstanding_days_to'] !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
                     SELECT SUM(DATEDIFF(to_date, from_date) + 1)
                     FROM member_payments
@@ -166,64 +167,68 @@ class AdminUserMembershipListController extends BaseController
                 ), 0) <= ?', [(int) $filters['outstanding_days_to']]);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_active'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_active'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', true);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_active'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_active'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', false);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', true);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_paid'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_paid'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_paid', true);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_paid'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_paid'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_paid', false);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_paid', true);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_from_card_patch'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
+            ->when($filters['is_from_card_patch'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_from_card_patch'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
+            ->when($filters['is_from_card_patch'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereNotIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when($filters['has_custom_card'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
+            ->when($filters['has_custom_card'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $customCardMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when($filters['has_custom_card'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
+            ->when($filters['has_custom_card'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
                 $mq->whereNotIn('id', $customCardMembershipIds);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($customCardMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $customCardMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when($filters['pending_relatives'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
-                $mq->whereHas('familyMembers', fn($f) => $f->where('approval_status', 'pending'));
+            ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+                $mq->whereHas('familyMembers', fn ($f) => $f->where('approval_status', 'pending'));
                 $listingFilter($mq);
             }))
-            ->when($filters['is_trial'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_trial'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('plan', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_trial'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_trial'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('plan', '!=', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
             }))
-            ->when($filters['dup_phone'] === true, fn($q) => $q->whereIn('phone', $this->duplicatedValues('users', 'phone')))
-            ->when($filters['dup_national_id'] === true, fn($q) => $q->whereHas('memberships', fn($mq) => $mq->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id'))))
+            ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+                $mq->whereHas('subscriptions', fn ($sq) => $this->paidSubscriptions($sq, $filters));
+                $listingFilter($mq);
+            }))
+            ->when($filters['dup_phone'] === true, fn ($q) => $q->whereIn('phone', $this->duplicatedValues('users', 'phone')))
+            ->when($filters['dup_national_id'] === true, fn ($q) => $q->whereHas('memberships', fn ($mq) => $mq->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id'))))
             ->with(['memberships' => function ($q) use ($isActiveFilter, $partnerIdFilter, $creatorFilter, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $listingFilter) {
                 if ($isActiveFilter === true) {
                     $q->active();
@@ -243,7 +248,7 @@ class AdminUserMembershipListController extends BaseController
                 if ($companyIdFilter !== null) {
                     $q->where('company_id', $companyIdFilter);
                 }
-                if (!empty($membershipNumberFilter)) {
+                if (! empty($membershipNumberFilter)) {
                     $q->where('membership_number', $membershipNumberFilter);
                 }
                 // Active first, then newest, so the resource's first() picks the
@@ -252,10 +257,10 @@ class AdminUserMembershipListController extends BaseController
                 $q->ordered();
                 $q->with(['company', 'partner', 'creator:id,name,email', 'latestActiveHistory', 'sales', 'memberPayments']);
             }])
-            ->when($sort === 'name', fn($q) => $q->orderBy('name', $direction))
-            ->when($sort === 'created_at', fn($q) => $q->orderBy('users.created_at', $direction))
-            ->when($sort === 'updated_at', fn($q) => $q->orderBy('users.updated_at', $direction))
-            ->when($sort === 'registration_date', fn($q) => $q->orderBy(
+            ->when($sort === 'name', fn ($q) => $q->orderBy('name', $direction))
+            ->when($sort === 'created_at', fn ($q) => $q->orderBy('users.created_at', $direction))
+            ->when($sort === 'updated_at', fn ($q) => $q->orderBy('users.updated_at', $direction))
+            ->when($sort === 'registration_date', fn ($q) => $q->orderBy(
                 Membership::select('registration_date')
                     ->whereColumn('user_id', 'users.id')
                     ->whereNotNull('completed_at')
@@ -264,7 +269,7 @@ class AdminUserMembershipListController extends BaseController
                     ->limit(1),
                 $direction
             ))
-            ->when($sort === 'national_id', fn($q) => $q->orderBy(
+            ->when($sort === 'national_id', fn ($q) => $q->orderBy(
                 Membership::select('national_id')
                     ->whereColumn('user_id', 'users.id')
                     ->whereNotNull('completed_at')
@@ -273,7 +278,7 @@ class AdminUserMembershipListController extends BaseController
                     ->limit(1),
                 $direction
             ))
-            ->when($sort === 'days_covered', fn($q) => $q->orderByRaw('(SELECT COALESCE(SUM(DATEDIFF(mp.to_date, mp.from_date) + 1), 0)
+            ->when($sort === 'days_covered', fn ($q) => $q->orderByRaw('(SELECT COALESCE(SUM(DATEDIFF(mp.to_date, mp.from_date) + 1), 0)
                     FROM member_payments mp
                     WHERE mp.membership_id = (
                         SELECT m2.id FROM memberships m2
@@ -281,9 +286,9 @@ class AdminUserMembershipListController extends BaseController
                         AND m2.completed_at IS NOT NULL
                         ORDER BY m2.is_active DESC, m2.id DESC
                         LIMIT 1
-                    )) ' . $direction)
+                    )) '.$direction)
             )
-            ->when($sort === 'outstanding_days', fn($q) => $q->orderByRaw('(DATEDIFF(CURDATE(), (
+            ->when($sort === 'outstanding_days', fn ($q) => $q->orderByRaw('(DATEDIFF(CURDATE(), (
                     SELECT m3.registration_date FROM memberships m3
                     WHERE m3.user_id = users.id
                     AND m3.completed_at IS NOT NULL
@@ -299,9 +304,9 @@ class AdminUserMembershipListController extends BaseController
                         ORDER BY m4.is_active DESC, m4.id DESC
                         LIMIT 1
                     )
-                ), 0)) ' . $direction)
+                ), 0)) '.$direction)
             )
-            ->when($sort === null, fn($q) => $q->latest())
+            ->when($sort === null, fn ($q) => $q->latest())
             ->paginate($request->input('per_page', 15))->withQueryString();
 
         // Partner dropdown: limit to partners that appear in the admin's
@@ -312,11 +317,13 @@ class AdminUserMembershipListController extends BaseController
         $partners = Partner::query()
             ->whereIn('id', Membership::query()
                 ->whereNotNull('partner_id')
-                ->where(function ($mq) use ($listingFilter) { $listingFilter($mq); })
+                ->where(function ($mq) use ($listingFilter) {
+                    $listingFilter($mq);
+                })
                 ->select('partner_id'))
             ->orderBy('title')
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'value' => $p->id,
                 'label' => $p->title,
             ])->toArray();
@@ -326,10 +333,12 @@ class AdminUserMembershipListController extends BaseController
         $companies = Company::query()
             ->whereIn('id', Membership::query()
                 ->whereNotNull('company_id')
-                ->where(function ($mq) use ($listingFilter) { $listingFilter($mq); })
+                ->where(function ($mq) use ($listingFilter) {
+                    $listingFilter($mq);
+                })
                 ->select('company_id'))
             ->get()
-            ->map(fn($c) => [
+            ->map(fn ($c) => [
                 'value' => $c->id,
                 'label' => $c->getTranslation('name', app()->getLocale())
                     ?: ($c->getTranslation('name', 'ar') ?: ($c->getTranslation('name', 'en') ?: "#{$c->id}")),
@@ -342,20 +351,22 @@ class AdminUserMembershipListController extends BaseController
         // visible memberships. A creator-only admin sees just themselves.
         $creatorIdsQuery = Membership::query()
             ->whereNotNull('created_by')
-            ->where(function ($mq) use ($listingFilter) { $listingFilter($mq); })
+            ->where(function ($mq) use ($listingFilter) {
+                $listingFilter($mq);
+            })
             ->select('created_by')
             ->distinct();
         $creators = User::whereIn('id', $creatorIdsQuery)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
-            ->map(fn($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
+            ->map(fn ($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
             ->toArray();
 
         // Sales dropdown: all sales records with translated names
         $salesOptions = Sales::query()
             ->orderBy('id')
             ->get()
-            ->map(fn($s) => [
+            ->map(fn ($s) => [
                 'value' => $s->id,
                 'label' => $s->getTranslation('name', app()->getLocale())
                     ?: $s->getTranslation('name', 'ar')
@@ -381,7 +392,7 @@ class AdminUserMembershipListController extends BaseController
             ->orderBy('created_at', 'desc')
             ->limit(2000)
             ->get(['id', 'name', 'slug', 'created_at'])
-            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'slug' => $u->slug])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'slug' => $u->slug])
             ->toArray();
 
         $userPhones = User::query()
@@ -392,7 +403,7 @@ class AdminUserMembershipListController extends BaseController
             ->orderBy('phone')
             ->limit(2000)
             ->get(['id', 'name', 'phone'])
-            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'phone' => $u->phone])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'phone' => $u->phone])
             ->toArray();
 
         $userEmails = User::query()
@@ -403,61 +414,64 @@ class AdminUserMembershipListController extends BaseController
             ->orderBy('email')
             ->limit(2000)
             ->get(['id', 'name', 'email'])
-            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email])
             ->toArray();
 
         // The creator filter is only useful when the visible set can include
         // multiple creators. A creator-only admin only ever sees their own
         // rows — hide the filter. A mixed-scope (creator + partner) admin
         // does see other creators in the partner slice, so allow it.
-        $canFilterByCreator = !$creatorScoped || $partnerScoped;
+        $canFilterByCreator = ! $creatorScoped || $partnerScoped;
 
         // Chart data: membership counts grouped by day and by month,
         // respecting all active filters so the chart stays in sync.
         $chartMembershipQuery = Membership::query()
-            ->where(function ($mq) use ($listingFilter) { $listingFilter($mq); })
-            ->whereHas('user', fn($q) => $q->whereNull('deleted_at'))
-            ->when(!empty($filters['search']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('name', 'like', '%'.$filters['search'].'%')))
-            ->when(!empty($filters['email']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('email', 'like', '%'.$filters['email'].'%')))
-            ->when(!empty($filters['phone']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('phone', 'like', '%'.$filters['phone'].'%')))
-            ->when($creatorFilter !== null, fn($q) => $q->where('created_by', $creatorFilter))
-            ->when($partnerIdFilter !== null, fn($q) => $q->where('partner_id', $partnerIdFilter))
-            ->when($saleIdFilter !== null, fn($q) => $q->where('sales_id', $saleIdFilter))
-            ->when($companyIdFilter !== null, fn($q) => $q->where('company_id', $companyIdFilter))
-            ->when(!empty($membershipNumberFilter), fn($q) => $q->where('membership_number', $membershipNumberFilter))
-            ->when($filters['is_active'] === true, fn($q) => $q->where('is_active', true))
-            ->when($filters['is_active'] === false, fn($q) => $q->where('is_active', false))
-            ->when($filters['is_paid'] === true, fn($q) => $q->where('is_paid', true))
-            ->when($filters['is_paid'] === false, fn($q) => $q->where('is_paid', false))
-            ->when(!empty($filters['registration_date_from']), fn($q) => $q->whereDate('registration_date', '>=', $filters['registration_date_from']))
-            ->when(!empty($filters['registration_date_to']), fn($q) => $q->whereDate('registration_date', '<=', $filters['registration_date_to']))
-            ->when(!empty($filters['expiration_date_from']), fn($q) => $q->whereDate('expiration_date', '>=', $filters['expiration_date_from']))
-            ->when(!empty($filters['expiration_date_to']), fn($q) => $q->whereDate('expiration_date', '<=', $filters['expiration_date_to']))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereHas('user', fn($uq) => $uq->whereDate('created_at', '>=', $filters['created_from'])))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereHas('user', fn($uq) => $uq->whereDate('created_at', '<=', $filters['created_to'])))
-            ->when(!empty($filters['last_activation_changer']), fn($q) => $q->whereHas('activeHistories', fn($ahq) => $ahq->whereHas('changer', fn($cq) => $cq->where('name', 'like', '%'.$filters['last_activation_changer'].'%'))))
-            ->when(!empty($filters['last_activation_from']), fn($q) => $q->whereHas('activeHistories', fn($ahq) => $ahq->whereDate('created_at', '>=', $filters['last_activation_from'])))
-            ->when(!empty($filters['last_activation_to']), fn($q) => $q->whereHas('activeHistories', fn($ahq) => $ahq->whereDate('created_at', '<=', $filters['last_activation_to'])))
-            ->when($filters['outstanding_days_from'] !== null, fn($q) => $q->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
+            ->where(function ($mq) use ($listingFilter) {
+                $listingFilter($mq);
+            })
+            ->whereHas('user', fn ($q) => $q->whereNull('deleted_at'))
+            ->when(! empty($filters['search']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%'.$filters['search'].'%')))
+            ->when(! empty($filters['email']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('email', 'like', '%'.$filters['email'].'%')))
+            ->when(! empty($filters['phone']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%'.$filters['phone'].'%')))
+            ->when($creatorFilter !== null, fn ($q) => $q->where('created_by', $creatorFilter))
+            ->when($partnerIdFilter !== null, fn ($q) => $q->where('partner_id', $partnerIdFilter))
+            ->when($saleIdFilter !== null, fn ($q) => $q->where('sales_id', $saleIdFilter))
+            ->when($companyIdFilter !== null, fn ($q) => $q->where('company_id', $companyIdFilter))
+            ->when(! empty($membershipNumberFilter), fn ($q) => $q->where('membership_number', $membershipNumberFilter))
+            ->when($filters['is_active'] === true, fn ($q) => $q->where('is_active', true))
+            ->when($filters['is_active'] === false, fn ($q) => $q->where('is_active', false))
+            ->when($filters['is_paid'] === true, fn ($q) => $q->where('is_paid', true))
+            ->when($filters['is_paid'] === false, fn ($q) => $q->where('is_paid', false))
+            ->when(! empty($filters['registration_date_from']), fn ($q) => $q->whereDate('registration_date', '>=', $filters['registration_date_from']))
+            ->when(! empty($filters['registration_date_to']), fn ($q) => $q->whereDate('registration_date', '<=', $filters['registration_date_to']))
+            ->when(! empty($filters['expiration_date_from']), fn ($q) => $q->whereDate('expiration_date', '>=', $filters['expiration_date_from']))
+            ->when(! empty($filters['expiration_date_to']), fn ($q) => $q->whereDate('expiration_date', '<=', $filters['expiration_date_to']))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereDate('created_at', '>=', $filters['created_from'])))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereDate('created_at', '<=', $filters['created_to'])))
+            ->when(! empty($filters['last_activation_changer']), fn ($q) => $q->whereHas('activeHistories', fn ($ahq) => $ahq->whereHas('changer', fn ($cq) => $cq->where('name', 'like', '%'.$filters['last_activation_changer'].'%'))))
+            ->when(! empty($filters['last_activation_from']), fn ($q) => $q->whereHas('activeHistories', fn ($ahq) => $ahq->whereDate('created_at', '>=', $filters['last_activation_from'])))
+            ->when(! empty($filters['last_activation_to']), fn ($q) => $q->whereHas('activeHistories', fn ($ahq) => $ahq->whereDate('created_at', '<=', $filters['last_activation_to'])))
+            ->when($filters['outstanding_days_from'] !== null, fn ($q) => $q->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
                 SELECT SUM(DATEDIFF(to_date, from_date) + 1)
                 FROM member_payments
                 WHERE membership_id = memberships.id
             ), 0) >= ?', [(int) $filters['outstanding_days_from']]))
-            ->when($filters['outstanding_days_to'] !== null, fn($q) => $q->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
+            ->when($filters['outstanding_days_to'] !== null, fn ($q) => $q->whereRaw('DATEDIFF(CURDATE(), registration_date) - COALESCE((
                 SELECT SUM(DATEDIFF(to_date, from_date) + 1)
                 FROM member_payments
                 WHERE membership_id = memberships.id
             ), 0) <= ?', [(int) $filters['outstanding_days_to']]))
-            ->when($filters['is_from_card_patch'] === true, fn($q) => $q->whereIn('id', $cardPatchMembershipIds))
-            ->when($filters['is_from_card_patch'] === false, fn($q) => $q->whereNotIn('id', $cardPatchMembershipIds))
-            ->when($filters['has_custom_card'] === true, fn($q) => $q->whereIn('id', $customCardMembershipIds))
-            ->when($filters['has_custom_card'] === false, fn($q) => $q->whereNotIn('id', $customCardMembershipIds))
-            ->when($filters['pending_relatives'] === true, fn($q) => $q->whereHas('familyMembers', fn($f) => $f->where('approval_status', 'pending')))
-            ->when($filters['is_trial'] === true, fn($q) => $q->where('plan', Membership::PLAN_TRIAL))
-            ->when($filters['is_trial'] === false, fn($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
-            ->when($filters['dup_phone'] === true, fn($q) => $q->whereHas('user', fn($uq) => $uq->whereIn('phone', $this->duplicatedValues('users', 'phone'))))
-            ->when($filters['dup_national_id'] === true, fn($q) => $q->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id')))
-            ->when(!empty($filters['chart_days']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('created_at', '>=', now()->subDays((int)$filters['chart_days']))));
+            ->when($filters['is_from_card_patch'] === true, fn ($q) => $q->whereIn('id', $cardPatchMembershipIds))
+            ->when($filters['is_from_card_patch'] === false, fn ($q) => $q->whereNotIn('id', $cardPatchMembershipIds))
+            ->when($filters['has_custom_card'] === true, fn ($q) => $q->whereIn('id', $customCardMembershipIds))
+            ->when($filters['has_custom_card'] === false, fn ($q) => $q->whereNotIn('id', $customCardMembershipIds))
+            ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('familyMembers', fn ($f) => $f->where('approval_status', 'pending')))
+            ->when($filters['is_trial'] === true, fn ($q) => $q->where('plan', Membership::PLAN_TRIAL))
+            ->when($filters['is_trial'] === false, fn ($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
+            ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('subscriptions', fn ($sq) => $this->paidSubscriptions($sq, $filters)))
+            ->when($filters['dup_phone'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereIn('phone', $this->duplicatedValues('users', 'phone'))))
+            ->when($filters['dup_national_id'] === true, fn ($q) => $q->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id')))
+            ->when(! empty($filters['chart_days']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('created_at', '>=', now()->subDays((int) $filters['chart_days']))));
 
         $dailyCounts = (clone $chartMembershipQuery)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
@@ -475,14 +489,16 @@ class AdminUserMembershipListController extends BaseController
         // status within the visible membership set.
         $changerIdsQuery = MemberActiveHistory::query()
             ->whereHas('membership', function ($mq) use ($listingFilter) {
-                $mq->where(function ($mq2) use ($listingFilter) { $listingFilter($mq2); });
+                $mq->where(function ($mq2) use ($listingFilter) {
+                    $listingFilter($mq2);
+                });
             })
             ->select('changed_by')
             ->distinct();
         $lastActivationChangerOptions = User::whereIn('id', $changerIdsQuery)
             ->orderBy('name')
             ->get(['name'])
-            ->map(fn($u) => ['value' => $u->name, 'label' => $u->name])
+            ->map(fn ($u) => ['value' => $u->name, 'label' => $u->name])
             ->toArray();
 
         return Inertia::render('Admin/User/Membership/List', [
@@ -557,6 +573,8 @@ class AdminUserMembershipListController extends BaseController
             'has_custom_card' => $request->has('has_custom_card') ? (bool) $request->input('has_custom_card') : null,
             'pending_relatives' => $request->has('pending_relatives') ? (bool) $request->input('pending_relatives') : null,
             'is_trial' => $request->has('is_trial') ? (bool) $request->input('is_trial') : null,
+            'paid_via' => in_array($request->input('paid_via'), ['any', ...MembershipSubscription::methods()], true) ? $request->input('paid_via') : null,
+            'paid_app' => $request->has('paid_app') ? (bool) $request->input('paid_app') : null,
             'dup_phone' => $request->has('dup_phone') ? (bool) $request->input('dup_phone') : null,
             'dup_national_id' => $request->has('dup_national_id') ? (bool) $request->input('dup_national_id') : null,
             'last_activation_changer' => $request->input('last_activation_changer', ''),
@@ -566,5 +584,22 @@ class AdminUserMembershipListController extends BaseController
             'outstanding_days_to' => $request->filled('outstanding_days_to') ? (int) $request->input('outstanding_days_to') : null,
             'chart_days' => $request->input('chart_days'),
         ];
+    }
+
+    /** Whether the "paid through the app / website payment" filters are in use. */
+    private function hasPaidFilter(array $filters): bool
+    {
+        return ($filters['paid_via'] ?? null) !== null || ($filters['paid_app'] ?? null) === true;
+    }
+
+    /**
+     * Subscriptions that were PAID (accepted — a verified Paymob callback or an admin's confirm),
+     * optionally by one method and/or made from the mobile app.
+     */
+    private function paidSubscriptions($query, array $filters)
+    {
+        return $query->where('status', MembershipSubscription::STATUS_ACCEPTED)
+            ->when(! in_array($filters['paid_via'] ?? null, [null, 'any'], true), fn ($q) => $q->where('method', $filters['paid_via']))
+            ->when(($filters['paid_app'] ?? null) === true, fn ($q) => $q->where('channel', ContactChannelEnum::MOBILE->value));
     }
 }

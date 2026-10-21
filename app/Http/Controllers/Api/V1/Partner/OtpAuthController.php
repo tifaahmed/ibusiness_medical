@@ -134,6 +134,36 @@ class OtpAuthController extends Controller
     }
 
     /**
+     * Whether a phone already holds a card — so the app can offer the free trial to a visitor
+     * whose number is new, BEFORE spending an SMS on them.
+     *
+     * Answers only yes/no (never whose number, never a name) and sits behind its own per-IP
+     * throttle. A sign-up placeholder (`REG-`) is not a card: that phone still gets the offer.
+     */
+    public function lookup(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:32'],
+        ]);
+
+        if (PhoneNumbers::national($validated['phone']) === null) {
+            return response()->json([
+                'reason' => 'invalid_phone',
+                'message' => __('auth.otp.invalid_phone'),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $member = $this->otp->findMember($validated['phone']);
+
+        $hasCard = $member instanceof User
+            && $member->memberships()
+                ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')
+                ->exists();
+
+        return response()->json(['data' => ['has_card' => $hasCard]]);
+    }
+
+    /**
      * Exchange a phone and a correct code for an API token.
      */
     public function verify(Request $request): JsonResponse

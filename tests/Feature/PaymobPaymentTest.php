@@ -415,7 +415,7 @@ class PaymobPaymentTest extends TestCase
         ]);
         $admin = $this->admin();
 
-        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
             ->post(route('admin.order.payment.check', $order->order_code))
             ->assertRedirect()->assertSessionHas('success');
 
@@ -443,7 +443,7 @@ class PaymobPaymentTest extends TestCase
         Http::fake(['*/void_refund/refund' => Http::response($refundTxn)]);
         $admin = $this->admin();
 
-        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+        $this->actingAs($admin)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
             ->post(route('admin.order.payment.refund', $order->order_code), ['amount' => 250, 'reason' => 'customer changed mind'])
             ->assertRedirect()->assertSessionHas('success');
 
@@ -469,7 +469,7 @@ class PaymobPaymentTest extends TestCase
         $this->postCallback($this->signedCallback($order))->assertOk();
         Http::fake();
 
-        $this->actingAs($this->admin())->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+        $this->actingAs($this->admin())->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
             ->post(route('admin.order.payment.refund', $order->order_code), ['amount' => 9999])
             ->assertSessionHasErrors('amount');
 
@@ -482,7 +482,7 @@ class PaymobPaymentTest extends TestCase
         $this->postCallback($this->signedCallback($order))->assertOk();
         Http::fake(['*/void_refund/refund' => Http::response(['detail' => 'insufficient balance'], 400)]);
 
-        $this->actingAs($this->admin())->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+        $this->actingAs($this->admin())->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
             ->post(route('admin.order.payment.refund', $order->order_code), ['amount' => 50])
             ->assertSessionHas('error');
 

@@ -101,6 +101,33 @@ class AdminUserMembershipShowResource extends JsonResource
                                 'created_at' => $mp->created_at?->format('Y-m-d H:i:s'),
                             ])->toArray()
                             : [],
+                        'plan' => $membership->plan,
+                        'state' => $membership->state(),
+                        /* Every attempt to pay for this card through the app or the website: how, how much, what state, the receipts. */
+                        'subscriptions' => $membership->relationLoaded('subscriptions')
+                            ? $membership->subscriptions->map(fn ($s) => [
+                                'id' => $s->id,
+                                'method' => $s->method,
+                                'channel' => $s->channel,
+                                'status' => $s->status,
+                                'amount' => (float) $s->amount,
+                                'months' => $s->months,
+                                'reference' => $s->reference,
+                                'notes' => $s->notes,
+                                'email' => $s->email,
+                                'paymob_reference' => $s->paymob_reference,
+                                'paymob_order_id' => $s->paymob_order_id,
+                                'paymob_transaction_id' => $s->paymob_transaction_id,
+                                'paymob_response_code' => $s->paymob_response_code,
+                                'rejection_reason' => $s->rejection_reason,
+                                'receipts' => $s->getMedia(\App\Models\MembershipSubscription::RECEIPT_COLLECTION)
+                                    ->map(fn ($m) => ['id' => $m->id, 'url' => $m->getUrl(), 'name' => $m->file_name])->values()->all(),
+                                'confirmed_by' => $s->confirmer?->name,
+                                'confirmed_at' => $s->confirmed_at?->format('Y-m-d H:i'),
+                                'paid_at' => $s->paid_at?->format('Y-m-d H:i'),
+                                'created_at' => $s->created_at?->format('Y-m-d H:i'),
+                            ])->values()->all()
+                            : [],
                         'created_at' => $membership->created_at?->format('Y-m-d H:i:s'),
                         'updated_at' => $membership->updated_at?->format('Y-m-d H:i:s'),
                         'created_by' => $membership->created_by,

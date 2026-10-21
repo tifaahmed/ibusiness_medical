@@ -319,6 +319,25 @@
               </svg>
               <span>{{ t.trial || 'Trial' }}</span>
             </button>
+            <!-- Members whose subscription payment was confirmed: from the mobile app, and/or by one method. -->
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('paid_app', 1)"
+              :title="t.paid_hint || 'Members whose subscription payment was confirmed.'"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.paid_app === 1 || filters.paid_app === '1' || filters.paid_app === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <span>📱 {{ t.paid_app || 'Paid from the app' }}</span>
+            </button>
+            <button
+              v-for="via in PAID_VIA"
+              :key="via"
+              data-slot="button"
+              @click="handleToggleFilter('paid_via', via)"
+              :title="t.paid_hint || 'Members whose subscription payment was confirmed.'"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.paid_via === via ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <span>{{ t['paid_' + (via === 'any' ? 'any' : via)] || via }}</span>
+            </button>
             <button
               data-slot="button"
               @click="handleToggleFilter('dup_phone', 1)"
@@ -773,6 +792,9 @@ const userEmails = computed(() => page.props.userEmails || []);
 // Translations namespace for this page — keyed under admin.member_list.filters
 const t = computed(() => page.props.translations?.admin?.member_list?.filters || {});
 
+/** Subscription payment filters: any confirmed payment, or one method. */
+const PAID_VIA = ['any', 'paymob', 'vodafone_cash', 'instapay', 'cash_on_delivery'];
+
 const emit = defineEmits(['filter-change']);
 
 const props = defineProps({
@@ -789,6 +811,8 @@ const props = defineProps({
     has_custom_card: null,
     pending_relatives: null,
     is_trial: null,
+    paid_via: null,
+    paid_app: null,
     dup_phone: null,
     dup_national_id: null,
     partner_id: null,
@@ -840,6 +864,8 @@ const getInitialFilters = () => {
       has_custom_card: normalizeBool(props.initialFilters.has_custom_card),
       pending_relatives: normalizeBool(props.initialFilters.pending_relatives),
       is_trial: normalizeBool(props.initialFilters.is_trial),
+      paid_via: props.initialFilters.paid_via || null,
+      paid_app: normalizeBool(props.initialFilters.paid_app),
       dup_phone: normalizeBool(props.initialFilters.dup_phone),
       dup_national_id: normalizeBool(props.initialFilters.dup_national_id),
       partner_id: normalizePartnerId(props.initialFilters.partner_id),
@@ -878,6 +904,8 @@ const getInitialFilters = () => {
       has_custom_card: urlParams.get('has_custom_card') !== null ? Number(urlParams.get('has_custom_card')) : null,
       pending_relatives: urlParams.get('pending_relatives') !== null ? Number(urlParams.get('pending_relatives')) : null,
       is_trial: urlParams.get('is_trial') !== null ? Number(urlParams.get('is_trial')) : null,
+      paid_via: urlParams.get('paid_via') || null,
+      paid_app: urlParams.get('paid_app') !== null ? Number(urlParams.get('paid_app')) : null,
       dup_phone: urlParams.get('dup_phone') !== null ? Number(urlParams.get('dup_phone')) : null,
       dup_national_id: urlParams.get('dup_national_id') !== null ? Number(urlParams.get('dup_national_id')) : null,
       partner_id: normalizePartnerId(urlParams.get('partner_id')),
@@ -928,6 +956,8 @@ const hasActiveFilters = computed(() => {
     || (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined)
     || (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined)
     || (filters.value.is_trial !== null && filters.value.is_trial !== undefined)
+    || !!filters.value.paid_via
+    || (filters.value.paid_app !== null && filters.value.paid_app !== undefined)
     || (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined)
     || (filters.value.dup_national_id !== null && filters.value.dup_national_id !== undefined)
     || filters.value.partner_id
@@ -959,6 +989,8 @@ const advancedActiveCount = computed(() => {
   if (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined) n++;
   if (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined) n++;
   if (filters.value.is_trial !== null && filters.value.is_trial !== undefined) n++;
+  if (filters.value.paid_via) n++;
+  if (filters.value.paid_app !== null && filters.value.paid_app !== undefined) n++;
   if (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined) n++;
   if (filters.value.dup_national_id !== null && filters.value.dup_national_id !== undefined) n++;
   if (filters.value.partner_id) n++;
@@ -1300,6 +1332,12 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.is_trial !== null && currentFilters.is_trial !== undefined) {
     params.is_trial = currentFilters.is_trial;
   }
+  if (currentFilters.paid_via) {
+    params.paid_via = currentFilters.paid_via;
+  }
+  if (currentFilters.paid_app !== null && currentFilters.paid_app !== undefined) {
+    params.paid_app = currentFilters.paid_app;
+  }
   if (currentFilters.dup_phone !== null && currentFilters.dup_phone !== undefined) {
     params.dup_phone = currentFilters.dup_phone;
   }
@@ -1380,6 +1418,8 @@ watch(() => props.initialFilters, (newFilters) => {
       has_custom_card: normalizeBool(newFilters.has_custom_card, filters.value.has_custom_card),
       pending_relatives: normalizeBool(newFilters.pending_relatives, filters.value.pending_relatives),
       is_trial: normalizeBool(newFilters.is_trial, filters.value.is_trial),
+      paid_via: newFilters.paid_via ?? filters.value.paid_via ?? null,
+      paid_app: normalizeBool(newFilters.paid_app, filters.value.paid_app),
       dup_phone: normalizeBool(newFilters.dup_phone, filters.value.dup_phone),
       dup_national_id: normalizeBool(newFilters.dup_national_id, filters.value.dup_national_id),
       partner_id: normalizePartnerId(newFilters.partner_id),

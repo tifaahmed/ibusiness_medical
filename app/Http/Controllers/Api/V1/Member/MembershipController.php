@@ -50,6 +50,7 @@ class MembershipController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:3', 'max:190'],
             'national_id' => ['required', 'regex:/^[23]\d{13}$/'],
+            'gender' => ['sometimes', 'nullable', 'in:male,female'],
         ], [
             'national_id.regex' => 'The national ID must be 14 digits.',
         ]);
@@ -75,7 +76,25 @@ class MembershipController extends Controller
             return response()->json(['message' => 'The card could not be created. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
+        if (! empty($validated['gender'])) {
+            $user->forceFill(['gender' => $validated['gender']])->save();
+        }
+
         return response()->json(['data' => MembershipStatus::forMember($user->refresh())], Response::HTTP_CREATED);
+    }
+
+    /** Whether a national ID is free to claim a trial with — asked while the member is still typing it. */
+    public function checkNationalId(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'national_id' => ['required', 'regex:/^[23]\d{13}$/'],
+        ], [
+            'national_id.regex' => 'The national ID must be 14 digits.',
+        ]);
+
+        return response()->json(['data' => [
+            'available' => ! $this->trial->nationalIdTaken($request->user(), $validated['national_id']),
+        ]]);
     }
 
     /** Start paying: Paymob returns a checkout URL; the others reach customer services. */

@@ -71,7 +71,7 @@ class StartSubscription
                 'months' => MembershipPlan::months(),
                 'email' => $email,
                 'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
-            'ip_address' => $request?->ip(),
+                'ip_address' => $request?->ip(),
             ]);
 
         if (filled($email) && $subscription->email !== $email) {
@@ -141,6 +141,7 @@ class StartSubscription
                 'months' => MembershipPlan::months(),
                 'reference' => $reference,
                 'email' => $email,
+                'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
                 'ip_address' => $request?->ip(),
             ]);
 
