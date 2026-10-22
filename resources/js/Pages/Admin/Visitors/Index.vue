@@ -18,10 +18,13 @@
           </div>
         </div>
 
+        <VisitsCharts />
+
         <div class="rounded-xl border border-border bg-card p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <input v-model="f.search" type="search" placeholder="Search phone, email, name, IP…" class="h-8 rounded-md border border-border bg-transparent px-2 text-sm min-w-0" @keyup.enter="apply" />
           <select v-model="f.source" class="h-8 rounded-md border border-border bg-card px-2 text-sm min-w-0" @change="apply">
             <option value="all">All sources</option>
+            <option value="mobile">Mobile app (Android + iOS)</option>
             <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
           </select>
           <select v-model="f.identified" class="h-8 rounded-md border border-border bg-card px-2 text-sm min-w-0" @change="apply">
@@ -76,6 +79,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Pages/_components/Pagination.vue';
 import SourceBadge from './_components/SourceBadge.vue';
 import VisitorWho from './_components/VisitorWho.vue';
+import VisitsCharts from './_components/VisitsCharts.vue';
 
 const props = defineProps({
   visitors: { type: Object, required: true },

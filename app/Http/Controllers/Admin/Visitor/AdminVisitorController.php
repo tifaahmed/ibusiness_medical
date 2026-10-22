@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Visitor;
 
+use App\Actions\Visitor\SummariseVisits;
 use App\Enums\Visitor\VisitSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Governorate;
@@ -12,6 +13,8 @@ use App\Support\VisitorPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +28,7 @@ class AdminVisitorController extends Controller
         $query = Visitor::query()
             ->with(['user:id,name,phone,email', 'governorate', 'city'])
             ->when(! $request->boolean('bots'), fn (Builder $q) => $q->fromPeople())
-            ->when($request->filled('source') && $request->input('source') !== 'all', fn (Builder $q) => $q->where('source', $request->input('source')))
+            ->when(VisitSourceEnum::forFilter($request->input('source')), fn (Builder $q, array $sources) => $q->whereIn('source', $sources))
             ->when($request->input('identified') === 'yes', fn (Builder $q) => $q->where(fn ($w) => $w->whereNotNull('user_id')->orWhereNotNull('phone')->orWhereNotNull('email')))
             ->when($request->input('identified') === 'member', fn (Builder $q) => $q->whereNotNull('user_id'))
             ->when($request->input('identified') === 'no', fn (Builder $q) => $q->whereNull('user_id')->whereNull('phone')->whereNull('email'))
@@ -67,6 +70,22 @@ class AdminVisitorController extends Controller
         ]);
     }
 
+    /** JSON for the charts at the top of the Visitors page (the website dashboard's charts, moved here). */
+    public function stats(Request $request, SummariseVisits $summary): JsonResponse
+    {
+        try {
+            return response()->json($summary->handle(
+                (int) $request->integer('days', SummariseVisits::DEFAULT_DAYS),
+                $request->boolean('unique'),
+                $request->input('source'),
+            ) + ['dayOptions' => SummariseVisits::DAY_OPTIONS]);
+        } catch (Throwable $e) {
+            Log::error('Visit charts failed', ['route' => 'admin.visitors.stats', 'query' => $request->query(), 'exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['message' => 'Could not load the visit charts.'], 500);
+        }
+    }
+
     /** JSON for the product page's "Visitors" tab. */
     public function product(Request $request, string $product): JsonResponse
     {
@@ -74,7 +93,7 @@ class AdminVisitorController extends Controller
 
         $base = PageVisit::query()->where('product_id', $product->id)
             ->when(! $request->boolean('bots'), fn (Builder $q) => $q->fromPeople())
-            ->when($request->filled('source') && $request->input('source') !== 'all', fn (Builder $q) => $q->where('source', $request->input('source')))
+            ->when(VisitSourceEnum::forFilter($request->input('source')), fn (Builder $q, array $sources) => $q->whereIn('source', $sources))
             ->when($request->input('identified') === 'yes', fn (Builder $q) => $q->whereHas('visitor', fn ($v) => $v->where(fn ($w) => $w->whereNotNull('user_id')->orWhereNotNull('phone')->orWhereNotNull('email'))))
             ->when($request->input('identified') === 'member', fn (Builder $q) => $q->whereNotNull('user_id'));
 

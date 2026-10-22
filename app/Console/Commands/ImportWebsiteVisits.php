@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Facility;
 use App\Models\Product;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,7 @@ use Throwable;
  *
  *   php artisan visits:import-website --dry
  *   php artisan visits:import-website --connection=website --chunk=2000
+ *   php artisan visits:import-website --since=2026-10-22 --until="2026-10-22 14:44:12"
  */
 class ImportWebsiteVisits extends Command
 {
@@ -28,6 +30,8 @@ class ImportWebsiteVisits extends Command
         {--table=page_visits : table name on that connection}
         {--chunk=1000 : rows per batch}
         {--since= : only rows visited on/after this date (Y-m-d)}
+        {--until= : only rows visited BEFORE this moment (Y-m-d H:i:s) — set it to when the website started relaying, so a relayed visit is not copied twice}
+        {--timezone=UTC : the website\'s app timezone — its visited_at is converted from this into ours}
         {--dry : read and count, write nothing}';
 
     protected $description = 'Import the website\'s old page_visits into visitors / page_visits (re-runnable)';
@@ -41,7 +45,7 @@ class ImportWebsiteVisits extends Command
         try {
             $source = DB::connection($conn);
             $source->getPdo();
-            $total = $source->table($table)->when($this->option('since'), fn ($q, $d) => $q->where('visited_at', '>=', $d))->count();
+            $total = $source->table($table)->when($this->option('since'), fn ($q, $d) => $q->where('visited_at', '>=', $d))->when($this->option('until'), fn ($q, $d) => $q->where('visited_at', '<', $d))->count();
         } catch (Throwable $e) {
             Log::error('visits:import-website could not read the source', ['connection' => $conn, 'exception' => $e->getMessage()]);
             $this->error("Cannot read {$conn}.{$table}: ".$e->getMessage());
@@ -55,7 +59,7 @@ class ImportWebsiteVisits extends Command
         $productIds = [];
         $facilityIds = [];
 
-        $query = $source->table($table)->when($this->option('since'), fn ($q, $d) => $q->where('visited_at', '>=', $d))->orderBy('id');
+        $query = $source->table($table)->when($this->option('since'), fn ($q, $d) => $q->where('visited_at', '>=', $d))->when($this->option('until'), fn ($q, $d) => $q->where('visited_at', '<', $d))->orderBy('id');
 
         try {
             $query->chunkById((int) $this->option('chunk'), function ($rows) use ($dry, &$imported, &$skipped, &$productIds, &$facilityIds, $bar) {
@@ -133,7 +137,7 @@ class ImportWebsiteVisits extends Command
                     'ip_address' => $r->ip_address,
                     'user_agent' => $r->user_agent,
                     'is_bot' => (bool) $r->is_bot,
-                    'visited_at' => $r->visited_at,
+                    'visited_at' => Carbon::parse($r->visited_at, $this->option('timezone'))->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s'),
                     'legacy_id' => $r->id,
                     'created_at' => $now,
                     'updated_at' => $now,

@@ -32,4 +32,22 @@ enum VisitSourceEnum: string
     {
         return __('admin.visitors.source_'.$this->value);
     }
+
+    /** A filter value meaning "either app": Android and iOS together, to set the apps against the website. */
+    public const MOBILE = 'mobile';
+
+    /**
+     * The sources a filter value stands for: one source, both apps for
+     * `mobile`, or null (no filter) for anything else, `all` included.
+     *
+     * @return array<int, string>|null
+     */
+    public static function forFilter(?string $filter): ?array
+    {
+        return match (true) {
+            $filter === self::MOBILE => [self::ANDROID->value, self::IOS->value],
+            in_array($filter, self::values(), true) => [$filter],
+            default => null,
+        };
+    }
 }

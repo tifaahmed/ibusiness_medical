@@ -22,6 +22,7 @@
     <div class="flex flex-wrap gap-2 items-center">
       <select v-model="filters.source" class="h-8 rounded-md border border-border bg-card px-2 text-xs" @change="load(1)">
         <option value="all">All sources</option>
+        <option value="mobile">Mobile app (Android + iOS)</option>
         <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
       </select>
       <select v-model="filters.identified" class="h-8 rounded-md border border-border bg-card px-2 text-xs" @change="load(1)">

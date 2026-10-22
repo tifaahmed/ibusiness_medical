@@ -29,7 +29,9 @@ class RecordVisitAction
      */
     public function handle(array $d, ?User $verifiedUser = null): PageVisit
     {
-        $visitedAt = ! empty($d['visited_at']) ? Carbon::parse($d['visited_at']) : now();
+        // Into OUR timezone: the website sends UTC (`…+00:00`), and a Carbon is saved as its own
+        // wall time, so an unconverted one lands three hours off from everything else here.
+        $visitedAt = ! empty($d['visited_at']) ? Carbon::parse($d['visited_at'])->setTimezone(config('app.timezone')) : now();
         if ($visitedAt->isFuture()) {
             $visitedAt = now();
         }

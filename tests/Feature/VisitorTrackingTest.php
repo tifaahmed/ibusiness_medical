@@ -127,6 +127,36 @@ class VisitorTrackingTest extends TestCase
         $this->actingAs($admin)->get(route('admin.visitors.show', Visitor::first()))->assertOk();
     }
 
+    public function test_charts_split_website_android_and_ios_and_group_the_apps_as_mobile(): void
+    {
+        $product = $this->product();
+        $this->web(['subject_type' => 'product', 'subject_slug' => 'honey'])->assertCreated();
+        $this->web(['subject_type' => 'product', 'subject_slug' => 'honey'])->assertCreated();
+        $this->postJson('/api/v1/mobile/visits', ['visitor_key' => 'android-visitor-0001', 'platform' => 'android', 'page' => 'product', 'subject_type' => 'product', 'subject_slug' => 'honey'])->assertCreated();
+        $this->postJson('/api/v1/mobile/visits', ['visitor_key' => 'ios-visitor-0001', 'platform' => 'ios', 'page' => 'home'])->assertCreated();
+
+        $admin = User::factory()->create();
+        $role = Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web');
+        $role->givePermissionTo(Permission::findOrCreate('view visitors', 'web'));
+        $admin->assignRole($role);
+
+        $all = $this->actingAs($admin)->getJson(route('admin.visitors.stats'))->assertOk();
+        $all->assertJsonPath('total', 4)->assertJsonPath('perProduct.0.id', $product->id)->assertJsonPath('perProduct.0.count', 3);
+        $this->assertEqualsCanonicalizing(['web', 'android', 'ios'], array_keys($all->json('perDayBySource')));
+        $this->assertSame(['web' => 2, 'android' => 1, 'ios' => 1], collect($all->json('perSource'))->pluck('count', 'source')->all());
+
+        $this->actingAs($admin)->getJson(route('admin.visitors.stats', ['source' => 'mobile']))->assertOk()->assertJsonPath('total', 2);
+        $this->actingAs($admin)->getJson(route('admin.visitors.stats', ['source' => 'ios']))->assertOk()->assertJsonPath('total', 1);
+        $this->actingAs($admin)->getJson(route('admin.visitors.stats', ['unique' => 1]))->assertOk()->assertJsonPath('total', 3);
+        $this->actingAs($admin)->getJson(route('admin.product.visitors', $product->slug).'?source=mobile')->assertOk()->assertJsonPath('stats.views', 1);
+
+        // The website dashboard reads the same numbers over the key-gated partner route.
+        config(['services.partner_api.key' => 'k']);
+        $this->getJson('/api/v1/partner/visits/summary?source=web')->assertUnauthorized();
+        $this->withHeaders(['X-Api-Key' => 'k'])->getJson('/api/v1/partner/visits/summary?source=web&days=7')
+            ->assertOk()->assertJsonPath('data.total', 2)->assertJsonPath('data.days', 7);
+    }
+
     public function test_import_copies_old_website_visits_once(): void
     {
         $product = $this->product();

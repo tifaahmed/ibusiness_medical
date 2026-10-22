@@ -368,6 +368,10 @@ Route::prefix('v1')
                 Route::post('/visits', [\App\Http\Controllers\Api\V1\VisitController::class, 'store'])
                     ->middleware('throttle:600,1,api.partner.visits.store')
                     ->name('visits.store');
+                /* The website dashboard's visit charts, now computed here. */
+                Route::get('/visits/summary', [\App\Http\Controllers\Api\V1\VisitController::class, 'summary'])
+                    ->middleware('throttle:60,1,api.partner.visits.summary')
+                    ->name('visits.summary');
 
                 Route::post('/contact-messages', [V1PartnerContactMessageController::class, 'store'])
                     ->middleware('throttle:60,1,api.contact-messages.store')

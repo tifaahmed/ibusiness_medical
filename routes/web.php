@@ -859,6 +859,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // ---- Visitors: who opened the website / apps, and which products they looked at ----
     Route::middleware('permission:view visitors')->group(function () {
         Route::get('/admin/visitors', [AdminVisitorController::class, 'index'])->name('admin.visitors.index');
+        Route::get('/admin/visitors/stats', [AdminVisitorController::class, 'stats'])->name('admin.visitors.stats');
         Route::get('/admin/visitors/{visitor}', [AdminVisitorController::class, 'show'])->name('admin.visitors.show');
         Route::get('/admin/product/{product}/visitors', [AdminVisitorController::class, 'product'])->name('admin.product.visitors');
     });
