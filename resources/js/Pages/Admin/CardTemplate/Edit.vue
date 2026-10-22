@@ -68,7 +68,7 @@
             </div>
             <p class="text-[11px] text-muted-foreground truncate">{{ sampleLabel }}</p>
           </div>
-          <div class="rounded-md border border-border bg-muted/30 aspect-[1.586/1] flex items-center justify-center overflow-hidden">
+          <div class="rounded-md border border-border bg-muted/30 aspect-[8.5/5.5] flex items-center justify-center overflow-hidden">
             <img v-if="sampleUrl" :src="sampleUrl" alt="" class="w-full h-full object-contain" />
             <span v-else class="text-[11px] text-muted-foreground">No sample yet</span>
           </div>
@@ -414,7 +414,7 @@ const artworkPreview = ref(null);
 const sampleCardFile = ref(null);
 const sampleCardPreview = ref(null);
 const sampleCleared = ref(false);
-const aspect = ref(1.586);
+const aspect = ref(8.5 / 5.5);
 // shallowRef so Vue doesn't deep-watch the canvas pixel buffer.
 const renderedCanvas = shallowRef(null);
 
@@ -577,7 +577,7 @@ onBeforeUnmount(() => {
 function measureArtwork(url) {
   const img = new Image();
   img.onload = () => {
-    if (img.width && img.height) aspect.value = img.width / img.height;
+    /* card is always 8.5 × 5.5 cm */
   };
   img.src = url;
 }

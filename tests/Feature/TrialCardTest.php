@@ -45,6 +45,8 @@ class TrialCardTest extends TestCase
     {
         parent::setUp();
 
+        $this->showAllPaymentMethods();
+
         Cache::flush();
         config([
             'services.paymob.secret_key' => 'egy_sk_test',
@@ -123,6 +125,7 @@ class TrialCardTest extends TestCase
         $this->assertSame('29001011234567', $membership->national_id);
         $this->assertSame('Mona Hassan', $user->fresh()->name);
         $this->assertSame($membership->membership_number, $response->json('data.membership_number'));
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $membership->membership_number, 'a trial card number is six plain digits; the dash is only printed on the card');
         $this->assertDatabaseHas('trial_claims', ['national_id' => '29001011234567', 'phone' => '01012345678', 'membership_id' => $membership->id]);
         $this->assertSame(0, $membership->familyMembers()->count());
     }

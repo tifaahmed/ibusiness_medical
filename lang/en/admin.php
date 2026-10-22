@@ -1315,6 +1315,8 @@ return [
             'pending_relatives_hint' => 'Relatives the member added that no admin has approved yet.',
             'trial' => 'Trial',
             'trial_hint' => 'Free trial cards issued from the app or the website.',
+            'static_otp' => 'Static OTP',
+            'static_otp_hint' => 'Members who sign in with a fixed code an admin set, so no SMS is sent to them.',
             'trial_expired' => 'Trial ended',
             'remove_trial' => 'Remove trial',
             'remove_trial_confirm' => 'Remove the trial mark from this member? The expiry date stays as it is.',
@@ -1691,6 +1693,13 @@ return [
     ],
 
     // Contact Messages
+    'visitors' => [
+        'title' => 'Visitors',
+        'source_web' => 'Website',
+        'source_android' => 'Android app',
+        'source_ios' => 'iOS app',
+    ],
+
     'contact_messages' => [
         'title' => 'Contact Messages',
         'management' => 'Contact Messages Management',
@@ -1735,6 +1744,21 @@ return [
         'change_status_to' => 'Change status to',
         'add_note' => 'Add a note to all selected',
         'note_placeholder' => 'Optional note…',
+        'suggestions' => [
+            'called_no_answer' => 'Called, no answer',
+            'call_back_later' => 'Customer asked to be called back later',
+            'waiting_documents' => 'Waiting for the customer\'s documents',
+            'card_issued' => 'Card issued',
+            'question_answered' => 'Question answered',
+            'request_completed' => 'Request completed',
+            'duplicate' => 'Duplicate of another message',
+            'no_response' => 'No response from the customer',
+            'customer_cancelled' => 'Customer cancelled the request',
+            'added_by_mistake' => 'Added by mistake',
+            'wrong_number' => 'Wrong or invalid phone number',
+            'spam' => 'Spam / fake enquiry',
+            'not_eligible' => 'Does not meet the requirements',
+        ],
         'apply' => 'Apply',
         'clear_selection' => 'Clear selection',
         'confirm_bulk_title' => 'Confirm bulk update',

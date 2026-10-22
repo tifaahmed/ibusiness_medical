@@ -63,6 +63,24 @@ return [
             ]) : [],
         ],
 
+        /*
+         * The website's own database — read only by `php artisan visits:import-website`
+         * to carry the old page_visits over. Leave WEBSITE_DB_DATABASE unset anywhere
+         * that import is not run.
+         */
+        'website' => [
+            'driver' => 'mysql',
+            'host' => env('WEBSITE_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('WEBSITE_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('WEBSITE_DB_DATABASE'),
+            'username' => env('WEBSITE_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('WEBSITE_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

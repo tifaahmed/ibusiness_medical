@@ -20,6 +20,13 @@ class MobileApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->showAllPaymentMethods();
+    }
+
     private function facility(string $name, array $attrs = []): Facility
     {
         $type = FacilityType::firstOrCreate(['slug' => 'labs'], ['name' => ['en' => 'Labs', 'ar' => 'معامل']]);

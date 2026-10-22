@@ -8,6 +8,7 @@ use App\Support\OtpSettings;
 use App\Support\PhoneNumbers;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The one-time code behind the storefront's phone login.
@@ -67,6 +68,17 @@ class MemberOtp
             return null;
         }
 
+        /* The common case: the number is stored the way it was typed. An index hit, unlike the digit-by-digit comparison below. */
+        $exact = User::query()
+            ->whereHas('memberships')
+            ->with('membership')
+            ->whereIn('phone', [$national, ltrim($national, '0'), '20'.ltrim($national, '0'), '+20'.ltrim($national, '0')])
+            ->first();
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
         return User::query()
             /*
              * `memberships`, not `membership`. The singular relation is scoped
@@ -82,7 +94,7 @@ class MemberOtp
              * number typed as +20 106 258 7475 find one stored as 01062587475.
              */
             ->whereRaw(
-                "REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') IN (?, ?, ?)",
+                User::phoneDigitsSql().' IN (?, ?, ?)',
                 [$national, ltrim($national, '0'), '20'.ltrim($national, '0')]
             )
             ->first();
@@ -145,20 +157,36 @@ class MemberOtp
 
         $ttl = OtpSettings::ttlMinutes() * 60;
 
-        if ($bySms) {
-            $result = $this->sms->send($phone, OtpSettings::message($code));
-
-            if (! $result['sent']) {
-                return $this->failure($result['error'] ?? 'The code could not be sent.');
-            }
-        }
-
-        Cache::put($this->key($phone), [
+        $issue = [
             'hash' => Hash::make($code),
             'attempts' => 0,
             'issued_at' => now()->timestamp,
             'delivery' => $bySms ? 'sms' : 'fixed',
-        ], $ttl);
+        ];
+
+        Cache::put($this->key($phone), $issue, $ttl);
+
+        /*
+         * The gateway is the slow part of signing in (a second or three, more
+         * when it is struggling), and the visitor is waiting on it. The code
+         * is already stored, so the SMS goes out right AFTER the response is
+         * sent. If the gateway then refuses, the issue is forgotten so the
+         * member can ask again straight away instead of waiting out a cooldown
+         * for a message that never left.
+         */
+        if ($bySms) {
+            $message = OtpSettings::message($code);
+            $key = $this->key($phone);
+
+            defer(function () use ($phone, $message, $key) {
+                $result = $this->sms->send($phone, $message);
+
+                if (! $result['sent']) {
+                    Cache::forget($key);
+                    Log::error('Login code could not be sent.', ['phone' => $this->maskPhone($phone), 'error' => $result['error'] ?? null]);
+                }
+            });
+        }
 
         return [
             'delivery' => $bySms ? 'sms' : 'fixed',

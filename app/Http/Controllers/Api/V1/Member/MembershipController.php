@@ -80,6 +80,30 @@ class MembershipController extends Controller
             $user->forceFill(['gender' => $validated['gender']])->save();
         }
 
+        /*
+         * Draw the card's two faces right after the answer has gone out, so the
+         * picture is already there when the app asks for it a moment later —
+         * the member never waits on the artwork to be painted. Front first: it
+         * is what they look at. A failure here only costs the first view a
+         * render on demand, so it is logged and left.
+         */
+        $card = $membership;
+        defer(function () use ($card) {
+            try {
+                $service = new \App\Services\CardGenerationService;
+                $card->load(['user', 'partner', 'company', 'cardLayouts.cardTemplate']);
+                /* Same lock the card endpoint takes, so a request arriving mid-render waits instead of drawing it twice. */
+                \Illuminate\Support\Facades\Cache::lock('card-render:'.$card->id.':front:full', 30)->block(15, fn () => $service->generate($card, 'full'));
+                $service->generateBack($card, 'full');
+            } catch (Throwable $exception) {
+                Log::error('Trial card artwork could not be pre-rendered.', [
+                    'membership_id' => $card->id,
+                    'message' => $exception->getMessage(),
+                    'trace' => $exception->getTraceAsString(),
+                ]);
+            }
+        });
+
         return response()->json(['data' => MembershipStatus::forMember($user->refresh())], Response::HTTP_CREATED);
     }
 
@@ -107,6 +131,7 @@ class MembershipController extends Controller
             'method' => ['required', Rule::in(MembershipSubscription::methods())],
             'email' => ['nullable', 'email:rfc', 'max:190'],
             'return_url' => ['nullable', 'string', 'max:500'],
+            'paymob_channel' => ['nullable', Rule::in(\App\Services\Paymob\PaymobClient::CHANNELS)],
             'reference' => ['nullable', 'string', 'max:190'],
             'receipts' => ['nullable', 'array', 'max:10'],
             'receipts.*' => ['file', 'mimes:jpeg,png,jpg,webp,pdf', 'max:8192'],

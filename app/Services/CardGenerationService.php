@@ -22,6 +22,9 @@ class CardGenerationService
     /** Export width in px. Height follows the artwork's own aspect ratio. */
     public const CARD_W = 1579;
 
+    /** 8.5 × 5.5 cm print size: 1579 × 5.5 / 8.5. */
+    public const CARD_H = 1022;
+
     /** Must match CardTemplateLayoutDefaults::EDITOR_WIDTH. */
     public const EDITOR_WIDTH = 700;
 
@@ -150,6 +153,14 @@ class CardGenerationService
         if (! $image) {
             return null;
         }
+        // Every card is 8.5 × 5.5 cm whatever the artwork's own shape.
+        if (imagesx($image) !== self::CARD_W || imagesy($image) !== self::CARD_H) {
+            $fitted = imagecreatetruecolor(self::CARD_W, self::CARD_H);
+            imagealphablending($fitted, false);
+            imagesavealpha($fitted, true);
+            imagecopyresampled($fitted, $image, 0, 0, 0, 0, self::CARD_W, self::CARD_H, imagesx($image), imagesy($image));
+            $image = $fitted;
+        }
         imagesavealpha($image, true);
         imagealphablending($image, true);
 
@@ -223,7 +234,9 @@ class CardGenerationService
             if (! isset($fields[$key]) || empty($values[$key])) {
                 continue;
             }
-            $this->drawTextField($image, $fields[$key], (string) $values[$key], $width);
+            /* The printed number reads 123-456; the dash is style only — the stored number, barcode and QR stay plain digits. */
+            $text = $key === 'membership_number' ? Membership::displayNumber((string) $values[$key]) : (string) $values[$key];
+            $this->drawTextField($image, $fields[$key], $text, $width);
         }
 
         $filename = 'cards/card-'.$membership->id.'-'.time().'.png';

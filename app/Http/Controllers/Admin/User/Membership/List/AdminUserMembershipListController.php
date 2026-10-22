@@ -219,6 +219,8 @@ class AdminUserMembershipListController extends BaseController
                 $mq->where('plan', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
             }))
+            ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereNotNull('otp_fixed_code')->where('otp_fixed_code', '!=', ''))
+            ->when($filters['has_static_otp'] === false, fn ($q) => $q->where(fn ($w) => $w->whereNull('otp_fixed_code')->orWhere('otp_fixed_code', '')))
             ->when($filters['is_trial'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('plan', '!=', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
@@ -468,6 +470,8 @@ class AdminUserMembershipListController extends BaseController
             ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('familyMembers', fn ($f) => $f->where('approval_status', 'pending')))
             ->when($filters['is_trial'] === true, fn ($q) => $q->where('plan', Membership::PLAN_TRIAL))
             ->when($filters['is_trial'] === false, fn ($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
+            ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereNotNull('otp_fixed_code')->where('otp_fixed_code', '!=', '')))
+            ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where(fn ($w) => $w->whereNull('otp_fixed_code')->orWhere('otp_fixed_code', ''))))
             ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('subscriptions', fn ($sq) => $this->paidSubscriptions($sq, $filters)))
             ->when($filters['dup_phone'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereIn('phone', $this->duplicatedValues('users', 'phone'))))
             ->when($filters['dup_national_id'] === true, fn ($q) => $q->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id')))
@@ -573,6 +577,7 @@ class AdminUserMembershipListController extends BaseController
             'has_custom_card' => $request->has('has_custom_card') ? (bool) $request->input('has_custom_card') : null,
             'pending_relatives' => $request->has('pending_relatives') ? (bool) $request->input('pending_relatives') : null,
             'is_trial' => $request->has('is_trial') ? (bool) $request->input('is_trial') : null,
+            'has_static_otp' => $request->has('has_static_otp') ? (bool) $request->input('has_static_otp') : null,
             'paid_via' => in_array($request->input('paid_via'), ['any', ...MembershipSubscription::methods()], true) ? $request->input('paid_via') : null,
             'paid_app' => $request->has('paid_app') ? (bool) $request->input('paid_app') : null,
             'dup_phone' => $request->has('dup_phone') ? (bool) $request->input('dup_phone') : null,

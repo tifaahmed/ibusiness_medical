@@ -15,9 +15,9 @@ import QRCode from 'qrcode';
 import { publicMembershipBaseUrl, withSlugQuery } from '@/composables/usePublicMembershipUrl.js';
 import { drawBarcode } from './code128.js';
 
-/** Export width in px. Height follows the artwork's own aspect ratio. */
+/** Export size in px — the 8.5 × 5.5 cm print shape, whatever the artwork's own ratio. */
 export const CARD_W = 1579;
-export const CARD_H = 996;
+export const CARD_H = 1022; // 8.5 × 5.5 cm
 
 /** Must match CardTemplateLayoutDefaults::EDITOR_WIDTH. */
 const EDITOR_WIDTH = 700;
@@ -259,7 +259,7 @@ export async function measureCardSize(template) {
   const bg = await loadImage(template?.card_empty_url || FALLBACK_TEMPLATE_IMAGE);
   return {
     width: CARD_W,
-    height: bg && bg.width && bg.height ? Math.round(CARD_W / (bg.width / bg.height)) : CARD_H,
+    height: CARD_H,
   };
 }
 
@@ -417,9 +417,7 @@ export async function renderCardCanvas({
   const bg = await loadImage(template?.card_empty_url || FALLBACK_TEMPLATE_IMAGE);
 
   const width = CARD_W;
-  const height = bg && bg.width && bg.height
-    ? Math.round(width / (bg.width / bg.height))
-    : CARD_H;
+  const height = CARD_H;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;

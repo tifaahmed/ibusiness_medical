@@ -38,6 +38,10 @@ final class MembershipStatus
             'months' => MembershipPlan::months(),
             /* Whether "buy now with Paymob" may be drawn; the contact options are always available. */
             'can_pay_online' => MembershipPlan::canPayOnline(),
+            /* Every way of paying the admin has switched on, in display order; draw exactly these. */
+            'payment_methods' => PaymentMethods::subscriptionMethods(),
+            /* Which online buttons to draw: `card`, `wallet` or both (empty when it cannot be sold online). */
+            'online_channels' => MembershipPlan::canPayOnline() ? PaymentMethods::onlineChannels() : [],
             'contact' => ShopContact::current(),
         ];
     }

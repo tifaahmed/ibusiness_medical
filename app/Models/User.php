@@ -37,6 +37,22 @@ class User extends Authenticatable implements HasMedia
     use SoftDeletes;
     use TwoFactorAuthenticatable;
 
+    /**
+     * The phone with spaces, dashes, plus signs and brackets removed, as SQL.
+     * The indexed `phone_digits` column when the migration has run (an index
+     * hit), the same expression computed per row when it has not.
+     */
+    public static function phoneDigitsSql(): string
+    {
+        static $column = null;
+
+        $column ??= \Illuminate\Support\Facades\Schema::hasColumn('users', 'phone_digits');
+
+        return $column
+            ? 'phone_digits'
+            : "REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '')";
+    }
+
     protected static function booted(): void
     {
         static::saving(fn (self $user) => static::guardUnique($user, 'phone', 'This phone number already belongs to another member.'));

@@ -10,7 +10,20 @@
       />
 
       <div class="max-w-7xl mx-auto mt-2">
-        <div class="space-y-3">
+        <div v-if="canViewVisitors" class="mb-3 flex gap-1 border-b border-border">
+          <button
+            v-for="tab in [{ key: 'details', label: 'Details' }, { key: 'visitors', label: 'Visitors' }]"
+            :key="tab.key"
+            type="button"
+            class="px-4 py-2 text-sm font-medium -mb-px border-b-2 cursor-pointer"
+            :class="activeTab === tab.key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'"
+            @click="activeTab = tab.key"
+          >{{ tab.label }}</button>
+        </div>
+
+        <ProductVisitorsTab v-if="canViewVisitors && activeTab === 'visitors'" :slug="product.slug" />
+
+        <div v-show="activeTab === 'details'" class="space-y-3">
           <div class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
             <div class="p-3 border-b border-border">
               <h2 class="text-lg font-semibold">Product Information</h2>
@@ -186,6 +199,7 @@ import ProductLayout from "./ProductLayout.vue";
 import ImageLightbox from "@/Components/ui/ImageLightbox.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { computed, ref } from "vue";
+import ProductVisitorsTab from "@/Pages/Admin/Visitors/_components/ProductVisitorsTab.vue";
 
 const props = defineProps({
   product: {
@@ -195,6 +209,8 @@ const props = defineProps({
 });
 
 const page = usePage();
+const activeTab = ref('details');
+const canViewVisitors = computed(() => (page.props.authUserPermissions || []).includes('view visitors'));
 const locale = page.props.locale || 'ar';
 
 const getTranslatedName = (name) => {

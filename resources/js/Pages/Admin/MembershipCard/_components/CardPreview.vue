@@ -27,12 +27,12 @@ const props = defineProps({
    */
   values: { type: Object, default: null },
   /**
-   * Any CSS width. Defaults to the 9cm print width so batch previews stay
+   * Any CSS width. Defaults to the 8.5cm print width so batch previews stay
    * true-to-print; pass '100%' (or a px value) to show the card larger, e.g.
    * in the template layout editor. Height always follows the rendered card's
    * own aspect ratio, so the preview is never stretched.
    */
-  displayWidth: { type: String, default: '9cm' },
+  displayWidth: { type: String, default: '8.5cm' },
 });
 
 const emit = defineEmits(['rendered']);

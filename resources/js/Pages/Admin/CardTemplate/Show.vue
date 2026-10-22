@@ -44,7 +44,7 @@
 
             <div>
               <label class="text-xs font-medium text-muted-foreground">Artwork</label>
-              <div class="mt-1 rounded-lg border border-border bg-muted/40 aspect-[1.586/1] flex items-center justify-center overflow-hidden">
+              <div class="mt-1 rounded-lg border border-border bg-muted/40 aspect-[8.5/5.5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="artwork"
                   :src="artwork"

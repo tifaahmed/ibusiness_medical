@@ -6,10 +6,29 @@ use App\Http\Controllers\Controller;
 use App\Models\Membership;
 use App\Services\CardGenerationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class MembershipCardController extends Controller
 {
+    /** The artwork only changes when the card or its template does: let the phone keep it, and re-check quietly in the background. */
+    private const CACHE = 'public, max-age=600, stale-while-revalidate=86400';
+
+    /**
+     * Render once, even when the app asks for the same card twice at the same
+     * moment (it does — right after the trial is created, while the pre-render
+     * is still running): the second request waits for the first instead of
+     * drawing the same picture again.
+     */
+    private function once(string $key, \Closure $render): mixed
+    {
+        try {
+            return Cache::lock('card-render:'.$key, 30)->block(15, $render);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return $render();
+        }
+    }
+
     public function show(Request $request, string $membership)
     {
         $membershipModel = Membership::visible()
@@ -34,16 +53,21 @@ class MembershipCardController extends Controller
                 return response()->file($path, [
                     'Content-Type' => 'image/png',
                     'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                    'Cache-Control' => self::CACHE,
                 ]);
             }
         }
 
-        $service = new CardGenerationService;
-        $url = $service->generate($membershipModel, $mode);
+        $this->once($membershipModel->id.':front:'.$mode, function () use ($membershipModel, $mode) {
+            $fresh = $membershipModel->cardLayouts()->where('mode', $mode)->first();
 
-        if (! $url) {
-            return response()->json(['error' => 'Failed to generate card'], 500);
-        }
+            /* Another request finished it while this one waited. */
+            if ($fresh && $fresh->generated_image_path && file_exists(Storage::disk('public')->path($fresh->generated_image_path))) {
+                return true;
+            }
+
+            return (new CardGenerationService)->generate($membershipModel, $mode);
+        });
 
         $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
 
@@ -63,6 +87,7 @@ class MembershipCardController extends Controller
         return response()->file($path, [
             'Content-Type' => 'image/png',
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => self::CACHE,
         ]);
     }
 
@@ -106,6 +131,7 @@ class MembershipCardController extends Controller
         return response()->file($path, [
             'Content-Type' => 'image/png',
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => self::CACHE,
         ]);
     }
 

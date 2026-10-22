@@ -286,7 +286,7 @@
       <div v-if="previewOpen" class="rounded-xl border border-border bg-card text-card-foreground p-4 sm:p-6 space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold">Preview ({{ previewItems.length }} cards)</h2>
-          <div class="text-xs text-muted-foreground">Each card: 9cm × 5.6cm — 10 per A4 page</div>
+          <div class="text-xs text-muted-foreground">Each card: 8.5cm × 5.5cm — 10 per A4 page</div>
         </div>
 
         <div class="overflow-x-auto rounded-md border border-border max-h-72 overflow-y-auto">

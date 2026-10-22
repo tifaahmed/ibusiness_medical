@@ -161,7 +161,7 @@
             The finished card as it will be shown — click the card or the button to flip it. It follows every edit above, saved or not.
           </p>
           <div class="mx-auto max-w-3xl cursor-pointer [perspective:1400px]" @click="flipped = !flipped">
-            <div class="live-flip relative w-full" :class="{ flipped }" :style="{ aspectRatio: '1579 / 996' }">
+            <div class="live-flip relative w-full" :class="{ flipped }" :style="{ aspectRatio: '1579 / 1022' }">
               <div class="live-face overflow-hidden rounded-xl border border-border bg-white shadow-md">
                 <img :src="frontSrc" alt="Card front" class="h-full w-full object-contain" />
               </div>

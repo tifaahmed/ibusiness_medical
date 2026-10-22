@@ -34,7 +34,7 @@
           :key="tpl.id"
           class="rounded-xl border border-border bg-card text-card-foreground overflow-hidden flex flex-col"
         >
-          <div class="relative bg-muted/40 aspect-[1.586/1] [perspective:1000px]">
+          <div class="relative bg-muted/40 aspect-[8.5/5.5] [perspective:1000px]">
             <div class="flip-inner absolute inset-0" :class="{ flipped: flipped[tpl.id] }">
               <div class="flip-face flex items-center justify-center overflow-hidden">
                 <img

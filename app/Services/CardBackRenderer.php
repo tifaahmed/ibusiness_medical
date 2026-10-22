@@ -26,7 +26,7 @@ class CardBackRenderer
 {
     private const W = CardGenerationService::CARD_W;
 
-    private const H = 996;
+    private const H = CardGenerationService::CARD_H;
 
     private const DEFAULT_LOGO = 'images/logo/dielar.png';
 

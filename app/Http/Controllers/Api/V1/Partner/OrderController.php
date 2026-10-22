@@ -286,7 +286,13 @@ class OrderController extends Controller
         $payment = null;
 
         if ($order->isOnlinePayment()) {
-            $payment = $this->openPayment($order, $request);
+            $request->validate(['paymob_channel' => ['nullable', 'in:card,wallet']]);
+
+        if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'))) {
+            return response()->json(['message' => 'This way of paying online is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $payment = $this->openPayment($order, $request);
         } else {
             /* Cash on delivery / transfer: the receipt of the order goes out now, when there is an address. */
             $this->sendReceipt->handle($order, null, $request);

@@ -548,8 +548,8 @@ async function downloadCardPdf(m) {
     contact: props.card?.layout_overrides?.contact_text ?? null,
     });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    const pdf = new jsPDF({ unit: 'cm', format: [9.0, 5.6], orientation: 'landscape' });
-    pdf.addImage(dataUrl, 'JPEG', 0, 0, 9.0, 5.6, undefined, 'FAST');
+    const pdf = new jsPDF({ unit: 'cm', format: [8.5, 5.5], orientation: 'landscape' });
+    pdf.addImage(dataUrl, 'JPEG', 0, 0, 8.5, 5.5, undefined, 'FAST');
     const blob = pdf.output('blob');
 
     const rawName = String(m.membership_number ?? `card-${m.id}`);

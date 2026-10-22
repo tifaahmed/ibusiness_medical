@@ -30,6 +30,8 @@ class PartnerOrderPricingTest extends TestCase
     {
         parent::setUp();
 
+        $this->showAllPaymentMethods();
+
         config(['services.partner_api.key' => 'partner-test-key']);
 
         /* No delivery unless a test sets it, so the price tests read the lines alone. */

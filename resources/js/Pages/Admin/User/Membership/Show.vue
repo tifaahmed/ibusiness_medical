@@ -471,7 +471,7 @@
                 <span v-else class="text-xs text-amber-400">Default layout</span>
               </div>
               <div class="card-flip-outer" @click="openAdminCardPopup(membership, 'minimal')">
-                <div class="card-flip-container-admin" :style="{ aspectRatio: '1063 / 650' }">
+                <div class="card-flip-container-admin" :style="{ aspectRatio: '8.5 / 5.5' }">
                   <div class="card-flip-inner-admin" :class="{ flipped: flipState[membership.id + '-minimal'] }">
                     <div class="card-face-admin card-face-front">
                       <CardPreview
@@ -672,7 +672,7 @@
         <div class="flex justify-center mb-3">
           <div class="w-full max-w-lg">
             <div class="card-flip-outer">
-              <div class="card-flip-container-admin" :style="{ aspectRatio: '1063 / 650' }">
+              <div class="card-flip-container-admin" :style="{ aspectRatio: '8.5 / 5.5' }">
                 <div class="card-flip-inner-admin" :class="{ flipped: flipState['popup'] }">
                   <div class="card-face-admin card-face-front">
                     <div class="bg-white rounded-md p-2 flex justify-center">

@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\Company\Show\AdminCompanyShowController;
 use App\Http\Controllers\Admin\Company\Store\AdminCompanyStoreController;
 use App\Http\Controllers\Admin\Company\Update\AdminCompanyUpdateController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
+use App\Http\Controllers\Admin\Visitor\AdminVisitorController;
 use App\Http\Controllers\Admin\Contract\Create\AdminContractCreateController;
 use App\Http\Controllers\Admin\Contract\Delete\AdminContractDeleteController;
 use App\Http\Controllers\Admin\Contract\Edit\AdminContractEditController;
@@ -853,6 +854,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage store categories|manage own store categories|view store categories')->group(function () {
         Route::get('/admin/store-category', AdminStoreCategoryListController::class)->name('admin.store-category.list');
         Route::get('/admin/store-category/{storeCategory}', AdminStoreCategoryShowController::class)->name('admin.store-category.show');
+    });
+
+    // ---- Visitors: who opened the website / apps, and which products they looked at ----
+    Route::middleware('permission:view visitors')->group(function () {
+        Route::get('/admin/visitors', [AdminVisitorController::class, 'index'])->name('admin.visitors.index');
+        Route::get('/admin/visitors/{visitor}', [AdminVisitorController::class, 'show'])->name('admin.visitors.show');
+        Route::get('/admin/product/{product}/visitors', [AdminVisitorController::class, 'product'])->name('admin.product.visitors');
     });
 
     // ---- Product (manage products OR own) ----

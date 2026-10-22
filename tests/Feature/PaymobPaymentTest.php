@@ -39,6 +39,8 @@ class PaymobPaymentTest extends TestCase
     {
         parent::setUp();
 
+        $this->showAllPaymentMethods();
+
         config([
             'services.partner_api.key' => 'partner-test-key',
             'services.paymob.secret_key' => 'egy_sk_test_secret_value',
@@ -54,6 +56,7 @@ class PaymobPaymentTest extends TestCase
         SiteSettings::put(ShopDelivery::COST, 20, Setting::TYPE_NUMBER);
         SiteSettings::put(ShopDelivery::PRICE, 50, Setting::TYPE_NUMBER);
         SiteSettings::put(ShopDelivery::THRESHOLD, '', Setting::TYPE_NUMBER);
+        SiteSettings::put(ShopDelivery::WALLET, '01000000000');
     }
 
     private function product(): Product

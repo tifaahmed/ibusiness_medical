@@ -139,7 +139,7 @@ class MemberRegistration
 
         return User::query()
             ->whereRaw(
-                "REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') IN (?, ?, ?)",
+                User::phoneDigitsSql().' IN (?, ?, ?)',
                 [$national, ltrim($national, '0'), '20'.ltrim($national, '0')]
             )
             ->first();

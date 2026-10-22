@@ -253,7 +253,7 @@ class PartnerPhoneLoginTest extends TestCase
     }
 
     /** @test */
-    public function a_gateway_refusal_issues_nothing(): void
+    public function a_gateway_refusal_forgets_the_code_so_the_member_can_ask_again(): void
     {
         Http::fake(['*' => Http::response('ERROR - HTTP18')]);
 
@@ -262,11 +262,10 @@ class PartnerPhoneLoginTest extends TestCase
 
         $member = $this->member('01062587475');
 
-        $this->requestCode($member->phone)
-            ->assertStatus(503)
-            ->assertJsonPath('reason', 'send_failed');
+        // The SMS leaves after the answer has gone (the visitor is not kept waiting on the gateway) ...
+        $this->requestCode($member->phone)->assertOk();
 
-        // Nothing was stored, so there is no code to guess at afterwards.
+        // ... and when the gateway refuses, nothing stays stored: no code to guess, no cooldown to sit out.
         $this->verifyCode($member->phone, '1234')
             ->assertStatus(422)
             ->assertJsonPath('reason', 'expired');

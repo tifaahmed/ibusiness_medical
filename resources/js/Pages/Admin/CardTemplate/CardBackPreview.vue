@@ -5,7 +5,7 @@
   <div
     ref="stageRef"
     class="back-preview relative w-full select-none overflow-hidden bg-white"
-    :style="{ aspectRatio: '1579 / 996' }"
+    :style="{ aspectRatio: '1579 / 1022' }"
   >
     <img v-if="background" :src="background" alt="" class="pointer-events-none absolute inset-0 h-full w-full" style="object-fit: fill" />
 

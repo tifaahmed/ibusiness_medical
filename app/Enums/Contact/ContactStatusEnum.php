@@ -41,7 +41,11 @@ enum ContactStatusEnum: string
     public static function getOptions(): array
     {
         return collect(self::cases())
-            ->mapWithKeys(fn (self $case) => [$case->value => ['value' => $case->value, 'label' => $case->label()]])
+            ->mapWithKeys(fn (self $case) => [$case->value => [
+                'value' => $case->value,
+                'label' => $case->label(),
+                'suggestions' => $case->noteSuggestions(),
+            ]])
             ->all();
     }
 
@@ -57,5 +61,34 @@ enum ContactStatusEnum: string
     public function label(): string
     {
         return __('admin.contact_messages.'.$this->value);
+    }
+
+    /**
+     * One-click note texts offered next to the note box once this status is
+     * chosen. To add or drop one, edit the slugs here; the wording lives in
+     * `admin.contact_messages.suggestions.<slug>` (en + ar).
+     *
+     * @return array<int, string>
+     */
+    public function suggestionKeys(): array
+    {
+        return match ($this) {
+            self::NEW => [],
+            self::IN_PROGRESS => ['called_no_answer', 'call_back_later', 'waiting_documents'],
+            self::RESOLVED => ['card_issued', 'question_answered', 'request_completed'],
+            self::CLOSED => ['duplicate', 'no_response', 'customer_cancelled'],
+            self::REJECTED => ['added_by_mistake', 'wrong_number', 'spam', 'not_eligible'],
+        };
+    }
+
+    /**
+     * @return array<int, string> translated for whoever is reading now
+     */
+    public function noteSuggestions(): array
+    {
+        return array_map(
+            fn (string $key) => __('admin.contact_messages.suggestions.'.$key),
+            $this->suggestionKeys(),
+        );
     }
 }

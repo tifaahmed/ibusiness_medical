@@ -228,7 +228,7 @@
         </div>
         <p class="text-[11px] text-muted-foreground">{{ t.live_render_hint || 'The real canvas output, exactly as this card will print.' }}</p>
         <div class="max-w-3xl [perspective:1400px]">
-          <div class="gen-flip relative w-full" :class="{ flipped: cardFlipped }" :style="{ aspectRatio: '1579 / 996' }">
+          <div class="gen-flip relative w-full" :class="{ flipped: cardFlipped }" :style="{ aspectRatio: '1579 / 1022' }">
             <div class="gen-face">
               <CardPreview
                 :membership="previewMembership"
@@ -475,7 +475,7 @@ const error = ref('');
 const savedAt = ref('');
 const selected = ref(null);
 const stageRef = ref(null);
-const aspect = ref(1.586);
+const aspect = ref(8.5 / 5.5);
 const renderedCanvas = shallowRef(null);
 
 const { width: stageWidth } = useElementSize(stageRef);
@@ -709,7 +709,7 @@ watch(
 // Track the artwork's proportions so the stage matches the card.
 function measureArtwork(url) {
   const img = new Image();
-  img.onload = () => { if (img.width && img.height) aspect.value = img.width / img.height; };
+  img.onload = () => { /* card is always 8.5 × 5.5 cm */ };
   img.src = url;
 }
 measureArtwork(artworkUrl.value);

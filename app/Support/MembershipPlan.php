@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Setting;
-use App\Services\Paymob\PaymobClient;
 
 /**
  * What a membership costs and how long a trial lasts. Edited at /admin/setting.
@@ -42,7 +41,7 @@ final class MembershipPlan
     /** Whether "buy with Paymob" can be offered at all. */
     public static function canPayOnline(): bool
     {
-        return self::price() > 0 && PaymobClient::isConfigured();
+        return self::price() > 0 && PaymentMethods::online();
     }
 
     /** @return array<int, array{slug: string, name: array<string, string>, value: string, value_type: string}> */

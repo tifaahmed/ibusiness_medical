@@ -140,7 +140,11 @@ return [
         'api_key' => env('PAYMOB_API_KEY'),
         'hmac' => env('PAYMOB_HMAC_SECRET'),
         /* PAYMOB_INTEGRATION_IDS wins; PAYMOB_CARD_INTEGRATION_ID (one card integration) is the shorter way to say the same for a single method. */
-        'integration_ids' => array_values(array_filter(array_map('trim', explode(',', (string) (env('PAYMOB_INTEGRATION_IDS') ?: env('PAYMOB_CARD_INTEGRATION_ID', '')))))),
+        'integration_ids' => array_values(array_filter(array_map('trim', explode(',', (string) (env('PAYMOB_INTEGRATION_IDS') ?: trim(env('PAYMOB_CARD_INTEGRATION_ID', '').','.env('PAYMOB_WALLET_INTEGRATION_ID', ''), ',')))))),
+        /* The two ways of paying online, each its own Paymob integration, so a client can open the card page or the wallet page directly.
+           Card falls back to every integration above (the old single-list setup); wallet has no fallback — no id, no wallet button. */
+        'card_integration_ids' => array_values(array_filter(array_map('trim', explode(',', (string) (env('PAYMOB_CARD_INTEGRATION_ID') ?: env('PAYMOB_CARD_INTEGRATION_IDS', '')))))),
+        'wallet_integration_ids' => array_values(array_filter(array_map('trim', explode(',', (string) (env('PAYMOB_WALLET_INTEGRATION_ID') ?: env('PAYMOB_WALLET_INTEGRATION_IDS', '')))))),
         /* Hosted-iframe id from the old flow. Not used by the Unified Checkout we open; kept so the value has a home. */
         'iframe_id' => env('PAYMOB_IFRAME_ID'),
         'currency' => env('PAYMOB_CURRENCY', 'EGP'),

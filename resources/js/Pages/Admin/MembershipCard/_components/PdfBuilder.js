@@ -5,22 +5,22 @@ import { renderCardCanvas } from './cardRenderer.js';
 // A4 portrait dimensions in cm.
 const PAGE_W = 21.0;
 const PAGE_H = 29.7;
-const CARD_W = 9.0;
-const CARD_H = 5.6;
+const CARD_W = 8.5;
+const CARD_H = 5.5;
 const COLS = 2;
 const ROWS = 5;
 const CARDS_PER_PAGE = COLS * ROWS;
 // White-space gutters between cards. Vertical room on A4 is tight
-// (5 × 5.6 = 28cm of 29.7cm), so the vertical gap stays small.
+// (5 × 5.5 = 27.5cm of 29.7cm), so the vertical gap stays small.
 const GAP_X = 0.5; // gap between the two columns
 const GAP_Y = 0.3; // gap between rows
-const MARGIN_X = (PAGE_W - COLS * CARD_W - (COLS - 1) * GAP_X) / 2; // 1.25cm
-const MARGIN_Y = (PAGE_H - ROWS * CARD_H - (ROWS - 1) * GAP_Y) / 2; // 0.25cm
+const MARGIN_X = (PAGE_W - COLS * CARD_W - (COLS - 1) * GAP_X) / 2; // 2cm
+const MARGIN_Y = (PAGE_H - ROWS * CARD_H - (ROWS - 1) * GAP_Y) / 2; // 0.35cm
 
 /**
  * Render every membership once and produce BOTH:
  *  - a multi-page A4 PDF with 10 cards per page (with gutters), and
- *  - a zip of single-card PDFs (one PDF per card, sized 9×5.6 cm).
+ *  - a zip of single-card PDFs (one PDF per card, sized 8.5×5.5 cm).
  *
  * Each card is rasterised exactly once and shared between the two outputs.
  *

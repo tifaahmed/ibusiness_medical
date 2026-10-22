@@ -21,6 +21,13 @@ class MemberOrderHistoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->showAllPaymentMethods();
+    }
+
     /** @test */
     public function a_member_sees_only_their_own_orders(): void
     {

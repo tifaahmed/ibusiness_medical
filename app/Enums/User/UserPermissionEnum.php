@@ -258,6 +258,8 @@ enum UserPermissionEnum
 
     public const VIEW_SETTINGS = 'view settings';
 
+    public const VIEW_VISITORS = 'view visitors';
+
     /**
      * Permissions that do not have a paired full/own counterpart. Kept
      * separate from pairs() so they don't get listed twice or rejected by
@@ -360,6 +362,7 @@ enum UserPermissionEnum
             self::VIEW_SALES,
             self::VIEW_NEWS_TICKERS,
             self::VIEW_SETTINGS,
+            self::VIEW_VISITORS,
         ];
     }
 

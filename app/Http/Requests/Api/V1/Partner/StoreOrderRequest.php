@@ -5,7 +5,7 @@ namespace App\Http\Requests\Api\V1\Partner;
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Models\Order;
-use App\Services\Paymob\PaymobClient;
+use App\Support\PaymentMethods;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -90,10 +90,16 @@ class StoreOrderRequest extends FormRequest
 
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            /* Which online channel the buyer picked: card or wallet. Absent = whatever is on. */
+            'paymob_channel' => ['nullable', 'string', Rule::in(\App\Services\Paymob\PaymobClient::CHANNELS), function (string $attribute, mixed $value, \Closure $fail) {
+                if (! PaymentMethods::channelAllowed($value)) {
+                    $fail('This way of paying online is not available right now.');
+                }
+            }],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
-                /* Offering "pay online" with no gateway behind it would take an order that can never be paid. */
-                if ($value === PaymentTypeEnum::PAYMOB->value && ! PaymobClient::isConfigured()) {
-                    $fail('Online payment is not available right now.');
+                /* Only what the admin shows (and what can actually work: a gateway for "online", a wallet number for a transfer). */
+                if (! in_array($value, PaymentMethods::orderTypes(), true)) {
+                    $fail('This payment method is not available right now.');
                 }
             }],
 

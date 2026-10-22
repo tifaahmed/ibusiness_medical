@@ -121,9 +121,16 @@ Route::prefix('v1')
                     ->json([
                         'min_version_code' => (int) config('mobile_app.min_version_code'),
                         'store_url' => (string) config('mobile_app.store_url'),
+                        'ios_min_build' => (int) config('mobile_app.ios_min_build'),
+                        'ios_store_url' => (string) config('mobile_app.ios_store_url'),
                     ])
                     ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             })->name('app-config');
+
+            /* Page/screen views from the apps (platform android|ios). Public like the rest; identity only from the bearer token. */
+            Route::post('/visits', [\App\Http\Controllers\Api\V1\VisitController::class, 'store'])
+                ->middleware('throttle:120,1,api.mobile.visits.store')
+                ->name('visits.store');
 
             Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
             Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
@@ -206,7 +213,7 @@ Route::prefix('v1')
             Route::get('/shop', function () {
                 $delivery = \App\Support\ShopDelivery::current();
 
-                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'cod_fee' => \App\Support\ShopDelivery::codFee(), 'paymob_enabled' => \App\Services\Paymob\PaymobClient::isConfigured(), 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
+                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'cod_fee' => \App\Support\ShopDelivery::codFee(), 'paymob_enabled' => \App\Support\PaymentMethods::online(), 'payment_methods' => \App\Support\PaymentMethods::flags(), 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
                     ->header('Cache-Control', 'public, max-age=60');
             })->name('shop');
 
@@ -357,6 +364,11 @@ Route::prefix('v1')
                  * queues and retries these, so a burst is a backlog draining
                  * after an outage, not an attack.
                  */
+                /* Page views from the website; the visitor's own ip / user agent come in the body. */
+                Route::post('/visits', [\App\Http\Controllers\Api\V1\VisitController::class, 'store'])
+                    ->middleware('throttle:600,1,api.partner.visits.store')
+                    ->name('visits.store');
+
                 Route::post('/contact-messages', [V1PartnerContactMessageController::class, 'store'])
                     ->middleware('throttle:60,1,api.contact-messages.store')
                     ->name('contact-messages.store');
@@ -405,7 +417,8 @@ Route::prefix('v1')
                         'freeDeliveryThreshold' => $delivery['threshold'],
                         /* Extra fee on a cash-on-delivery order; 0 = none, and clients show nothing. */
                         'codFee' => \App\Support\ShopDelivery::codFee(),
-                        'paymobEnabled' => \App\Services\Paymob\PaymobClient::isConfigured(),
+                        'paymobEnabled' => \App\Support\PaymentMethods::online(),
+                        'paymentMethods' => \App\Support\PaymentMethods::flags(),
 
                     ]);
                 })->name('shop-settings');

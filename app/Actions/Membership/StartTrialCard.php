@@ -138,7 +138,7 @@ class StartTrialCard
 
         $otherAccountWithCard = User::query()
             ->where('id', '!=', $user->id)
-            ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') IN (?, ?, ?)", [$phone, ltrim($phone, '0'), '20'.ltrim($phone, '0')])
+            ->whereRaw(User::phoneDigitsSql().' IN (?, ?, ?)', [$phone, ltrim($phone, '0'), '20'.ltrim($phone, '0')])
             ->whereHas('memberships', fn ($q) => $q->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%'))
             ->exists();
 
@@ -155,17 +155,9 @@ class StartTrialCard
         return $exception;
     }
 
-    /** A card number nobody holds, in the same 4-digit series as every other card. */
+    /** A card number nobody holds: six digits (the card prints it as 123-456; the dash is never stored). */
     private function newNumber(): string
     {
-        for ($attempt = 0; $attempt < 50; $attempt++) {
-            $number = (string) random_int(1000, 9999);
-
-            if (! $this->numberInUse($number)) {
-                return $number;
-            }
-        }
-
         do {
             $number = (string) random_int(100000, 999999);
         } while ($this->numberInUse($number));

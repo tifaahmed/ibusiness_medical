@@ -1309,6 +1309,8 @@ return [
             'pending_relatives_hint' => 'أقارب أضافهم العضو ولم يوافق عليهم أي مشرف بعد.',
             'trial' => 'تجريبي',
             'trial_hint' => 'كروت تجريبية مجانية صدرت من التطبيق أو الموقع.',
+            'static_otp' => 'رمز ثابت',
+            'static_otp_hint' => 'أعضاء يدخلون برمز ثابت حدده المسؤول، فلا تُرسل لهم رسالة.',
             'trial_expired' => 'انتهت التجربة',
             'remove_trial' => 'إلغاء التجربة',
             'remove_trial_confirm' => 'إلغاء علامة التجربة عن هذا العضو؟ يبقى تاريخ الانتهاء كما هو.',
@@ -1684,6 +1686,13 @@ return [
     ],
 
     // Contact Messages
+    'visitors' => [
+        'title' => 'الزوار',
+        'source_web' => 'الموقع',
+        'source_android' => 'تطبيق أندرويد',
+        'source_ios' => 'تطبيق iOS',
+    ],
+
     'contact_messages' => [
         'title' => 'رسائل التواصل',
         'management' => 'إدارة رسائل التواصل',
@@ -1728,6 +1737,21 @@ return [
         'change_status_to' => 'تغيير الحالة إلى',
         'add_note' => 'إضافة ملاحظة لكل المحدد',
         'note_placeholder' => 'ملاحظة اختيارية…',
+        'suggestions' => [
+            'called_no_answer' => 'تم الاتصال ولم يتم الرد',
+            'call_back_later' => 'طلب العميل الاتصال به لاحقاً',
+            'waiting_documents' => 'في انتظار مستندات العميل',
+            'card_issued' => 'تم إصدار البطاقة',
+            'question_answered' => 'تمت الإجابة عن الاستفسار',
+            'request_completed' => 'تم تنفيذ الطلب',
+            'duplicate' => 'مكرر لرسالة أخرى',
+            'no_response' => 'لا يوجد رد من العميل',
+            'customer_cancelled' => 'ألغى العميل الطلب',
+            'added_by_mistake' => 'تمت الإضافة عن طريق الخطأ',
+            'wrong_number' => 'رقم الهاتف خاطئ أو غير صالح',
+            'spam' => 'رسالة مزعجة / استفسار وهمي',
+            'not_eligible' => 'لا يستوفي الشروط',
+        ],
         'apply' => 'تطبيق',
         'clear_selection' => 'إلغاء التحديد',
         'confirm_bulk_title' => 'تأكيد التحديث الجماعي',

@@ -51,6 +51,50 @@ class PaymobClient
             && config('services.paymob.integration_ids') !== [];
     }
 
+    public const CHANNEL_CARD = 'card';
+
+    public const CHANNEL_WALLET = 'wallet';
+
+    public const CHANNELS = [self::CHANNEL_CARD, self::CHANNEL_WALLET];
+
+    /**
+     * The Paymob integration ids behind one way of paying online. Card falls
+     * back to the whole list for installs that only ever set PAYMOB_INTEGRATION_IDS.
+     *
+     * @return list<string>
+     */
+    public static function integrationIds(string $channel): array
+    {
+        $all = array_values(config('services.paymob.integration_ids') ?? []);
+
+        return $channel === self::CHANNEL_WALLET
+            ? array_values(config('services.paymob.wallet_integration_ids') ?? [])
+            : (array_values(config('services.paymob.card_integration_ids') ?? []) ?: $all);
+    }
+
+    /** Whether a channel can be opened at all: gateway keys plus an integration id behind it. */
+    public static function channelConfigured(string $channel): bool
+    {
+        return filled(config('services.paymob.secret_key'))
+            && filled(config('services.paymob.public_key'))
+            && self::integrationIds($channel) !== [];
+    }
+
+    /**
+     * The ids a payment is offered with: the channel the buyer chose, or — when
+     * the client names none — every channel the admin has switched on.
+     *
+     * @return list<int>
+     */
+    private function paymentMethods(): array
+    {
+        $requested = $this->request?->input('paymob_channel');
+        $channels = in_array($requested, self::CHANNELS, true) ? [$requested] : \App\Support\PaymentMethods::onlineChannels();
+        $ids = array_merge(...array_map(fn (string $c) => self::integrationIds($c), $channels ?: self::CHANNELS));
+
+        return array_values(array_unique(array_map('intval', $ids ?: config('services.paymob.integration_ids'))));
+    }
+
     /**
      * Open a payment for an order and return the hosted checkout URL.
      *
@@ -70,7 +114,7 @@ class PaymobClient
         $body = [
             'amount' => $amount,
             'currency' => config('services.paymob.currency'),
-            'payment_methods' => array_map('intval', config('services.paymob.integration_ids')),
+            'payment_methods' => $this->paymentMethods(),
             'items' => $this->items($order, $amount),
             'billing_data' => $this->billing($order),
             'customer' => [
@@ -115,7 +159,7 @@ class PaymobClient
         $body = [
             'amount' => $amount,
             'currency' => config('services.paymob.currency'),
-            'payment_methods' => array_map('intval', config('services.paymob.integration_ids')),
+            'payment_methods' => $this->paymentMethods(),
             'items' => [[
                 'name' => 'Deilar membership '.$subscription->months.' months',
                 'amount' => $amount,

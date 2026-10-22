@@ -1,6 +1,6 @@
 <template>
   <div class="guest-card-flip-wrapper" @click="handleCardClick">
-    <div class="card-flip-container" :style="{ aspectRatio: '1579 / 996' }">
+    <div class="card-flip-container" :style="{ aspectRatio: '1579 / 1022' }">
       <div class="card-flip-inner" :class="{ flipped: isFlipped }">
         <div class="card-face card-front">
           <img
@@ -13,7 +13,7 @@
             v-else
             ref="canvasRef"
             width="1579"
-            height="996"
+            height="1022"
             class="guest-card-canvas"
           ></canvas>
         </div>
@@ -75,7 +75,7 @@
           <div
             class="card-flip-container card-fs-flip"
             :class="{ 'fs-dragging': dragging }"
-            :style="[{ aspectRatio: '1579 / 996' }, fsTransformStyle]"
+            :style="[{ aspectRatio: '1579 / 1022' }, fsTransformStyle]"
             @mousedown="onDragStart"
             @touchstart.prevent="onDragStart"
           >
@@ -91,7 +91,7 @@
                   v-else
                   ref="fsCanvasRef"
                   width="1579"
-                  height="996"
+                  height="1022"
                   class="guest-card-canvas"
                 ></canvas>
               </div>
@@ -154,7 +154,7 @@ import { membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 import { renderCardCanvas } from "@/Pages/Admin/MembershipCard/_components/cardRenderer.js";
 
 const CW = 1579;
-const CH = 996;
+const CH = 1022;
 const DPR = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 2;
 const BG_VERSION = "20260810a";
 const BG_FULL = `/images/cards/deilar-card-blank.png?v=${BG_VERSION}`;

@@ -206,6 +206,11 @@
             <label class="block text-xs font-medium mb-1">{{ t.add_note || 'Add a note to all selected' }}</label>
             <textarea v-model="bulk.note" rows="1" maxlength="5000" :placeholder="t.note_placeholder || 'Optional note…'"
               class="w-full rounded-md border border-border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"></textarea>
+            <div v-if="bulkSuggestions.length" class="mt-1.5 flex flex-wrap gap-1">
+              <button v-for="text in bulkSuggestions" :key="text" type="button" @click="bulk.note = text"
+                class="rounded-full border border-border px-2 py-0.5 text-[11px] hover:bg-muted cursor-pointer max-w-full truncate"
+                :class="bulk.note === text ? 'bg-primary/10 border-primary/40' : ''">{{ text }}</button>
+            </div>
           </div>
           <button @click="openConfirm" :disabled="!bulk.status && !bulk.note.trim()"
             class="h-8 rounded-md px-3 text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50 cursor-pointer">{{ t.apply || 'Apply' }}</button>
@@ -243,6 +248,7 @@
                     </th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.name || 'Name' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.phone || 'Phone' }}</th>
+                    <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap min-w-[14rem]">{{ t.message || 'Message' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.source || 'Came through' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-center align-middle font-medium whitespace-nowrap">{{ t.status || 'Status' }}</th>
                     <th class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap">{{ t.date || 'Date' }}</th>
@@ -264,6 +270,11 @@
                       <span class="text-foreground text-xs" dir="ltr">{{ msg.phone }}</span>
                       <span v-if="msg.is_member === true" class="ms-1 inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">✓ {{ t.member || 'Member' }}</span>
                       <span v-else-if="msg.is_member === false" class="ms-1 inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">{{ t.not_member_badge || 'Not a member' }}</span>
+                    </td>
+                    <td class="p-2 sm:p-3 align-middle max-w-xs">
+                      <span v-if="msg.subject" class="block text-xs font-medium text-foreground truncate" :title="msg.subject">{{ msg.subject }}</span>
+                      <span v-if="msg.message" class="block text-xs text-muted-foreground line-clamp-2 break-words" :title="msg.message">{{ msg.message }}</span>
+                      <span v-if="!msg.subject && !msg.message" class="text-muted-foreground">—</span>
                     </td>
                     <td class="p-2 sm:p-3 align-middle text-center">
                       <span :class="sourceBadgeClass(msg.source)">{{ msg.source_label }}</span>
@@ -369,6 +380,7 @@ const bulkStatusOptions = computed(() => [
   { value: '', label: t.value.keep_status || '— keep current —' },
   ...props.statuses.map(s => ({ value: s.value, label: t.value[s.value] || s.label })),
 ]);
+const bulkSuggestions = computed(() => props.statuses.find(s => s.value === bulk.value.status)?.suggestions || []);
 const bulkStatusLabel = computed(() => bulkStatusOptions.value.find(o => o.value === bulk.value.status)?.label || '');
 const openConfirm = () => { bulkError.value = ''; confirming.value = true; };
 

@@ -12,6 +12,7 @@ use App\Models\MembershipSubscription;
 use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
 use App\Support\MembershipPlan;
+use App\Support\PaymentMethods;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -44,8 +45,12 @@ class StartSubscription
             throw ValidationException::withMessages(['method' => ['Unknown payment method.']]);
         }
 
-        if ($method === MembershipSubscription::METHOD_PAYMOB && ! MembershipPlan::canPayOnline()) {
-            throw ValidationException::withMessages(['method' => ['Online payment is not available right now. Please contact customer service.']]);
+        if (! in_array($method, PaymentMethods::subscriptionMethods(), true)) {
+            throw ValidationException::withMessages(['method' => ['This payment method is not available right now. Please contact customer service.']]);
+        }
+
+        if ($method === MembershipSubscription::METHOD_PAYMOB && ! PaymentMethods::channelAllowed($request?->input('paymob_channel'))) {
+            throw ValidationException::withMessages(['method' => ['This way of paying online is not available right now.']]);
         }
 
         if (in_array($method, MembershipSubscription::RECEIPT_METHODS, true) && $receipts === []) {

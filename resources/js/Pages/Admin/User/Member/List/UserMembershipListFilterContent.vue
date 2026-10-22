@@ -319,6 +319,18 @@
               </svg>
               <span>{{ t.trial || 'Trial' }}</span>
             </button>
+            <!-- Members who sign in with a fixed code set by an admin instead of an SMS. -->
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('has_static_otp', 1)"
+              :title="t.static_otp_hint || 'Members who sign in with a fixed code an admin set, so no SMS is sent to them.'"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.has_static_otp === 1 || filters.has_static_otp === '1' || filters.has_static_otp === true ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>{{ t.static_otp || 'Static OTP' }}</span>
+            </button>
             <!-- Members whose subscription payment was confirmed: from the mobile app, and/or by one method. -->
             <button
               data-slot="button"
@@ -811,6 +823,7 @@ const props = defineProps({
     has_custom_card: null,
     pending_relatives: null,
     is_trial: null,
+    has_static_otp: null,
     paid_via: null,
     paid_app: null,
     dup_phone: null,
@@ -864,6 +877,7 @@ const getInitialFilters = () => {
       has_custom_card: normalizeBool(props.initialFilters.has_custom_card),
       pending_relatives: normalizeBool(props.initialFilters.pending_relatives),
       is_trial: normalizeBool(props.initialFilters.is_trial),
+      has_static_otp: normalizeBool(props.initialFilters.has_static_otp),
       paid_via: props.initialFilters.paid_via || null,
       paid_app: normalizeBool(props.initialFilters.paid_app),
       dup_phone: normalizeBool(props.initialFilters.dup_phone),
@@ -904,6 +918,7 @@ const getInitialFilters = () => {
       has_custom_card: urlParams.get('has_custom_card') !== null ? Number(urlParams.get('has_custom_card')) : null,
       pending_relatives: urlParams.get('pending_relatives') !== null ? Number(urlParams.get('pending_relatives')) : null,
       is_trial: urlParams.get('is_trial') !== null ? Number(urlParams.get('is_trial')) : null,
+      has_static_otp: urlParams.get('has_static_otp') !== null ? Number(urlParams.get('has_static_otp')) : null,
       paid_via: urlParams.get('paid_via') || null,
       paid_app: urlParams.get('paid_app') !== null ? Number(urlParams.get('paid_app')) : null,
       dup_phone: urlParams.get('dup_phone') !== null ? Number(urlParams.get('dup_phone')) : null,
@@ -956,6 +971,7 @@ const hasActiveFilters = computed(() => {
     || (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined)
     || (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined)
     || (filters.value.is_trial !== null && filters.value.is_trial !== undefined)
+    || (filters.value.has_static_otp !== null && filters.value.has_static_otp !== undefined)
     || !!filters.value.paid_via
     || (filters.value.paid_app !== null && filters.value.paid_app !== undefined)
     || (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined)
@@ -989,6 +1005,7 @@ const advancedActiveCount = computed(() => {
   if (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined) n++;
   if (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined) n++;
   if (filters.value.is_trial !== null && filters.value.is_trial !== undefined) n++;
+  if (filters.value.has_static_otp !== null && filters.value.has_static_otp !== undefined) n++;
   if (filters.value.paid_via) n++;
   if (filters.value.paid_app !== null && filters.value.paid_app !== undefined) n++;
   if (filters.value.dup_phone !== null && filters.value.dup_phone !== undefined) n++;
@@ -1332,6 +1349,9 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.is_trial !== null && currentFilters.is_trial !== undefined) {
     params.is_trial = currentFilters.is_trial;
   }
+  if (currentFilters.has_static_otp !== null && currentFilters.has_static_otp !== undefined) {
+    params.has_static_otp = currentFilters.has_static_otp;
+  }
   if (currentFilters.paid_via) {
     params.paid_via = currentFilters.paid_via;
   }
@@ -1418,6 +1438,7 @@ watch(() => props.initialFilters, (newFilters) => {
       has_custom_card: normalizeBool(newFilters.has_custom_card, filters.value.has_custom_card),
       pending_relatives: normalizeBool(newFilters.pending_relatives, filters.value.pending_relatives),
       is_trial: normalizeBool(newFilters.is_trial, filters.value.is_trial),
+      has_static_otp: normalizeBool(newFilters.has_static_otp, filters.value.has_static_otp),
       paid_via: newFilters.paid_via ?? filters.value.paid_via ?? null,
       paid_app: normalizeBool(newFilters.paid_app, filters.value.paid_app),
       dup_phone: normalizeBool(newFilters.dup_phone, filters.value.dup_phone),

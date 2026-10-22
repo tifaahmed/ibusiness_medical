@@ -406,6 +406,17 @@ class Membership extends Model implements HasMedia
     /**
      * Boot the model.
      */
+    /**
+     * How a card number is PRINTED: six digits get a dash after the first three
+     * (123456 -> 123-456). Only styling — the stored number, the barcode, the QR
+     * and every lookup keep the plain digits; older 4-digit and imported
+     * numbers are shown as they are.
+     */
+    public static function displayNumber(string $number): string
+    {
+        return preg_match('/^\d{6}$/', $number) === 1 ? substr($number, 0, 3).'-'.substr($number, 3) : $number;
+    }
+
     protected static function boot()
     {
         parent::boot();

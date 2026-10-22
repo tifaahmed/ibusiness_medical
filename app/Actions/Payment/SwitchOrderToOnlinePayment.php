@@ -30,7 +30,7 @@ class SwitchOrderToOnlinePayment
      */
     public function handle(Order $order, ?Request $request = null): bool
     {
-        if (! PaymobClient::isConfigured()) {
+        if (! \App\Support\PaymentMethods::online()) {
             return false;
         }
 

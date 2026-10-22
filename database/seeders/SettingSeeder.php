@@ -78,7 +78,7 @@ class SettingSeeder extends Seeder
          * deploy — and listed by `OtpSettings` rather than here so the defaults
          * that class reads and the rows an install starts with cannot drift.
          */
-        $settings = [...$settings, ...OtpSettings::seedRows(), ...ShopDelivery::seedRows(), ...ShopContact::seedRows(), ...\App\Support\ContactAlert::seedRows()];
+        $settings = [...$settings, ...OtpSettings::seedRows(), ...ShopDelivery::seedRows(), ...ShopContact::seedRows(), ...\App\Support\ContactAlert::seedRows(), ...\App\Support\PaymentMethods::seedRows()];
 
         foreach ($settings as $setting) {
             Setting::query()->firstOrCreate(
