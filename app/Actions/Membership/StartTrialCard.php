@@ -18,19 +18,17 @@ use Illuminate\Validation\ValidationException;
 /**
  * Issues a free, self-service trial card to a phone that has just proved it.
  *
- * Needs three things only — the phone (already proven by the sign-in code), a
- * name and a national ID — and returns a working card that expires after the
+ * Needs two things only — the phone (already proven by the sign-in code) and a
+ * name — and returns a working card that expires after the
  * trial period. The card holds ONLY the owner: relatives are added by customer
  * services during the trial, or by the member once they have paid.
  *
- * The phone and the ID are unique across the whole system. That is enforced
- * three ways, because each alone leaves a hole:
- *  - `trial_claims` (DB unique indexes) — survives deleted cards, and wins any race;
- *  - existing cards and relatives carrying the same ID — covers everything issued
- *    before this ledger existed;
+ * The phone is unique across the whole system: one trial per phone, ever. Enforced
+ * two ways, because each alone leaves a hole:
+ *  - `trial_claims` (DB unique index) — survives deleted cards, and wins any race;
  *  - another account with the same phone that already holds a card.
- * Because sign-in is by phone, a second device simply signs into the SAME account;
- * a different phone with the same ID is what gets refused.
+ * Because sign-in is by phone, a second device simply signs into the SAME account.
+ * The national ID is no longer asked for (it can be added later in the profile).
  */
 class StartTrialCard
 {
@@ -41,9 +39,8 @@ class StartTrialCard
 
     public const REASON_PHONE_TAKEN = 'phone_taken';
 
-    public function handle(User $user, string $name, string $nationalId, ?Request $request = null): Membership
+    public function handle(User $user, string $name, ?Request $request = null): Membership
     {
-        $nationalId = preg_replace('/\D/', '', $nationalId) ?? '';
         $phone = PhoneNumbers::national((string) $user->phone);
 
         if ($phone === null) {
@@ -56,10 +53,10 @@ class StartTrialCard
             throw $this->refuse('phone', self::REASON_HAS_CARD, 'You already have a card.');
         }
 
-        $this->assertNotTaken($user, $phone, $nationalId);
+        $this->assertNotTaken($user, $phone);
 
         try {
-            return DB::transaction(function () use ($user, $name, $nationalId, $phone, $existing, $request) {
+            return DB::transaction(function () use ($user, $name, $phone, $existing, $request) {
                 $number = $this->newNumber();
                 $now = now();
 
@@ -68,7 +65,6 @@ class StartTrialCard
                 $attributes = [
                     'membership_number' => $number,
                     'slug' => $number,
-                    'national_id' => $nationalId,
                     'registration_date' => $now,
                     'expiration_date' => $now->copy()->addMonthsNoOverflow(MembershipPlan::trialMonths()),
                     'trial_started_at' => $now,
@@ -86,7 +82,6 @@ class StartTrialCard
                 $membership->forceFill($attributes)->save();
 
                 TrialClaim::query()->create([
-                    'national_id' => $nationalId,
                     'phone' => $phone,
                     'membership_id' => $membership->id,
                     'user_id' => $user->id,
@@ -111,9 +106,9 @@ class StartTrialCard
                 return $membership->refresh();
             });
         } catch (QueryException $exception) {
-            /* Lost a race on the unique indexes: somebody else claimed the phone or the ID a moment ago. */
+            /* Lost a race on the unique index: somebody else claimed the phone a moment ago. */
             if (str_contains($exception->getMessage(), 'trial_claims')) {
-                throw $this->refuse('national_id', self::REASON_ID_TAKEN, 'This ID or phone number already has a card.');
+                throw $this->refuse('phone', self::REASON_PHONE_TAKEN, 'This phone number already has a card.');
             }
 
             throw $exception;
@@ -128,12 +123,8 @@ class StartTrialCard
             || FamilyMember::withTrashed()->where('national_id', $nationalId)->exists();
     }
 
-    private function assertNotTaken(User $user, string $phone, string $nationalId): void
+    private function assertNotTaken(User $user, string $phone): void
     {
-        if ($this->nationalIdTaken($user, $nationalId)) {
-            throw $this->refuse('national_id', self::REASON_ID_TAKEN, 'This ID number already has a card. Please contact customer service.');
-        }
-
         $claimedPhone = TrialClaim::query()->where('phone', $phone)->exists();
 
         $otherAccountWithCard = User::query()

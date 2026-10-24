@@ -75,35 +75,20 @@ class TrialCardTest extends TestCase
     {
         return $this->postJson('/api/v1/membership/trial', array_merge([
             'name' => 'Mona Hassan',
-            'national_id' => '29001011234567',
         ], $overrides));
     }
 
     private function trialCard(string $phone = '01012345678', string $nid = '29001011234567'): array
     {
         $user = $this->member($phone);
-        $this->startTrial(['national_id' => $nid])->assertCreated();
+        $this->startTrial()->assertCreated();
 
         return [$user->refresh(), $user->memberships()->latest('id')->first()];
     }
 
     // ---- Creating the trial --------------------------------------------
 
-    public function test_a_national_id_can_be_checked_before_the_trial_is_requested(): void
-    {
-        $this->trialCard('01012345678', '29001011234567');
-
-        $this->member('01122334455');
-
-        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '29001011234567'])
-            ->assertOk()->assertJsonPath('data.available', false);
-        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '29102021234567'])
-            ->assertOk()->assertJsonPath('data.available', true);
-        $this->postJson('/api/v1/membership/trial/check-national-id', ['national_id' => '11111111111111'])
-            ->assertUnprocessable();
-    }
-
-    public function test_a_trial_card_needs_only_a_name_and_an_id_and_lasts_a_month(): void
+    public function test_a_trial_card_needs_only_a_name_and_lasts_a_month(): void
     {
         $user = $this->member();
 
@@ -122,11 +107,11 @@ class TrialCardTest extends TestCase
         $this->assertTrue($membership->is_active && $membership->is_visible);
         $this->assertNotNull($membership->completed_at, 'the admin list hides rows with no completed_at');
         $this->assertTrue($membership->expiration_date->between(now()->addDays(27), now()->addDays(32)));
-        $this->assertSame('29001011234567', $membership->national_id);
+        $this->assertNull($membership->national_id, 'the trial never asks for a national ID');
         $this->assertSame('Mona Hassan', $user->fresh()->name);
         $this->assertSame($membership->membership_number, $response->json('data.membership_number'));
         $this->assertMatchesRegularExpression('/^\d{6}$/', $membership->membership_number, 'a trial card number is six plain digits; the dash is only printed on the card');
-        $this->assertDatabaseHas('trial_claims', ['national_id' => '29001011234567', 'phone' => '01012345678', 'membership_id' => $membership->id]);
+        $this->assertDatabaseHas('trial_claims', ['phone' => '01012345678', 'membership_id' => $membership->id]);
         $this->assertSame(0, $membership->familyMembers()->count());
     }
 
@@ -231,19 +216,7 @@ class TrialCardTest extends TestCase
         $this->assertStringStartsNotWith('REG-', $user->memberships()->first()->membership_number);
     }
 
-    public function test_the_id_number_cannot_get_a_second_card_from_another_phone(): void
-    {
-        $this->trialCard('01012345678', '29001011234567');
-
-        $this->member('01123456789');
-        $this->startTrial(['national_id' => '29001011234567'])
-            ->assertUnprocessable()
-            ->assertJsonPath('reason', 'national_id_taken');
-
-        $this->assertSame(1, Membership::query()->count());
-    }
-
-    public function test_the_phone_cannot_get_a_second_card_with_another_id(): void
+    public function test_the_phone_cannot_get_a_second_card_from_another_account_row(): void
     {
         $this->trialCard('01012345678', '29001011234567');
 
@@ -251,7 +224,7 @@ class TrialCardTest extends TestCase
         $second = User::factory()->create(['phone' => '+201012345678', 'name' => null]);
         Sanctum::actingAs($second);
 
-        $this->startTrial(['national_id' => '29505051234567'])
+        $this->startTrial()
             ->assertUnprocessable()
             ->assertJsonPath('reason', 'phone_taken');
     }
@@ -270,26 +243,9 @@ class TrialCardTest extends TestCase
         [$user, $membership] = $this->trialCard();
         $membership->forceDelete();
 
-        $this->member('01199999999');
-        $this->startTrial(['national_id' => '29001011234567'])->assertUnprocessable()->assertJsonPath('reason', 'national_id_taken');
+        $this->startTrial()->assertUnprocessable()->assertJsonPath('reason', 'phone_taken');
 
         $this->assertSame(1, TrialClaim::query()->count());
-    }
-
-    public function test_an_id_already_on_a_relative_is_refused(): void
-    {
-        $owner = User::factory()->create();
-        $card = Membership::query()->create(['user_id' => $owner->id, 'membership_number' => '5555', 'slug' => '5555', 'registration_date' => now(), 'is_active' => true, 'is_visible' => true]);
-        FamilyMember::query()->create(['membership_id' => $card->id, 'name' => 'Existing Son', 'relationship' => 'son', 'national_id' => '30001011234567', 'is_active' => true]);
-
-        $this->member();
-        $this->startTrial(['national_id' => '30001011234567'])->assertUnprocessable()->assertJsonPath('reason', 'national_id_taken');
-    }
-
-    public function test_a_malformed_id_is_rejected(): void
-    {
-        $this->member();
-        $this->startTrial(['national_id' => '123'])->assertUnprocessable()->assertJsonValidationErrors('national_id');
     }
 
     // ---- Expiry & the scan ---------------------------------------------

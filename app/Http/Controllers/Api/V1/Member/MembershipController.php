@@ -42,7 +42,7 @@ class MembershipController extends Controller
         return response()->json(['data' => MembershipStatus::forMember($request->user())]);
     }
 
-    /** A free trial card from a phone, a name and a national ID — nothing else. */
+    /** A free trial card from a phone and a name — nothing else. */
     public function trial(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -50,14 +50,11 @@ class MembershipController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:3', 'max:190'],
-            'national_id' => ['required', 'regex:/^[23]\d{13}$/'],
             'gender' => ['sometimes', 'nullable', 'in:male,female'],
-        ], [
-            'national_id.regex' => 'The national ID must be 14 digits.',
         ]);
 
         try {
-            $membership = $this->trial->handle($user, $validated['name'], $validated['national_id'], $request);
+            $membership = $this->trial->handle($user, $validated['name'], $request);
         } catch (ValidationException $exception) {
             Log::info('Trial card refused.', ['user_id' => $user->id, 'reason' => $exception->errorBag, 'errors' => array_keys($exception->errors())]);
 

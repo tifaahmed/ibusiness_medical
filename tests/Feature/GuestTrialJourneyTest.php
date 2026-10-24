@@ -102,13 +102,13 @@ class GuestTrialJourneyTest extends TestCase
         $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => self::PHONE])->assertJsonPath('data.has_card', true);
         $this->assertTrue(Membership::earnsMemberPrice($card->membership_number), 'a running trial earns the member price');
 
-        // 5. One trial per phone and per ID, ever.
+        // 5. One trial per phone, ever.
         $this->asMember($token)->postJson('/api/v1/membership/trial', ['name' => 'Mona Hassan', 'national_id' => '29001011234567'])
             ->assertUnprocessable()->assertJsonPath('reason', 'already_has_card');
 
+        // A different phone is a different person: the national ID is not part of the trial any more.
         $other = $this->signIn('01123456789');
-        $this->asMember($other)->postJson('/api/v1/membership/trial', ['name' => 'Someone Else', 'national_id' => '29001011234567'])
-            ->assertUnprocessable()->assertJsonPath('reason', 'national_id_taken');
+        $this->asMember($other)->postJson('/api/v1/membership/trial', ['name' => 'Someone Else'])->assertCreated();
 
         // 6. The 30 days pass without paying: expired, red sign data, and no discount any more.
         $card->forceFill(['expiration_date' => now()->subDay()])->save();
@@ -121,11 +121,10 @@ class GuestTrialJourneyTest extends TestCase
         $this->getJson('/api/v1/mobile/card/'.$card->membership_number)->assertOk()->assertJsonPath('status.expired', true);
     }
 
-    public function test_the_trial_needs_a_real_national_id_and_a_known_gender(): void
+    public function test_the_trial_needs_a_known_gender(): void
     {
         $token = $this->signIn();
 
-        $this->asMember($token)->postJson('/api/v1/membership/trial', ['name' => 'Mona Hassan', 'national_id' => '123'])->assertUnprocessable();
         $this->asMember($token)->postJson('/api/v1/membership/trial', ['name' => 'Mona Hassan', 'national_id' => '29001011234567', 'gender' => 'x'])->assertUnprocessable();
         $this->assertSame(0, Membership::query()->where('is_active', true)->count(), 'a refused request activates nothing');
     }
