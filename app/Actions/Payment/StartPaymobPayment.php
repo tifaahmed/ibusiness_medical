@@ -23,7 +23,7 @@ class StartPaymobPayment
     private const RETURN_TTL_HOURS = 48;
 
     /**
-     * @return array{checkout_url: string, client_secret: string, reference: string}
+     * @return array{checkout_url: string, client_secret: string, form: string, reference: string}
      *
      * @throws PaymobException
      */
@@ -71,7 +71,7 @@ class StartPaymobPayment
             'duration_ms' => $intention['log']->duration_ms,
         ], $request);
 
-        return ['checkout_url' => $intention['checkout_url'], 'client_secret' => $intention['client_secret'], 'reference' => $reference];
+        return ['checkout_url' => $intention['checkout_url'], 'client_secret' => $intention['client_secret'], 'form' => $intention['form'], 'reference' => $reference];
     }
 
     public static function returnKey(string $orderCode): string

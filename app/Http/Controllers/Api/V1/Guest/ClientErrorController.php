@@ -32,10 +32,22 @@ class ClientErrorController extends Controller
         }
 
         try {
-            ClientErrorLog::create([
+            $log = ClientErrorLog::create([
                 ...$validator->validated(),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+            ]);
+
+            // Also to the permanent failure file, so app/website crashes sit next to the API failures.
+            Log::channel('failures')->warning('Client error: '.mb_substr($request->input('message'), 0, 300), [
+                'kind' => 'client',
+                'client_error_log_id' => $log->id,
+                'platform' => $request->input('platform'),
+                'app_version' => $request->input('app_version'),
+                'route' => $request->input('route'),
+                'fatal' => (bool) $request->input('fatal'),
+                'extra' => $request->input('extra'),
+                'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),
             ]);
 
             return response()->json(['success' => true], 201);

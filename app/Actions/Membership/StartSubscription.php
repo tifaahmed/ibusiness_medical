@@ -34,7 +34,7 @@ class StartSubscription
 
     /**
      * @param  list<UploadedFile>  $receipts
-     * @return array{subscription: MembershipSubscription, checkout_url: ?string, client_secret: ?string, public_key: ?string}
+     * @return array{subscription: MembershipSubscription, checkout_url: ?string, client_secret: ?string, public_key: ?string, form: ?string}
      *
      * @throws ValidationException
      * @throws PaymobException
@@ -78,6 +78,17 @@ class StartSubscription
                 'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
                 'ip_address' => $request?->ip(),
             ]);
+
+        /*
+         * Nothing is paid on an open attempt yet, so it follows today's price: a
+         * reused payment kept the amount it was opened with, and a price edited in
+         * between was charged at the old figure.
+         */
+        $price = MembershipPlan::price();
+        $months = MembershipPlan::months();
+        if ((float) $subscription->amount !== $price || (int) $subscription->months !== $months) {
+            $subscription->forceFill(['amount' => $price, 'months' => $months])->save();
+        }
 
         if (filled($email) && $subscription->email !== $email) {
             $subscription->forceFill(['email' => $email])->save();
@@ -129,6 +140,7 @@ class StartSubscription
             'checkout_url' => $intention['checkout_url'],
             'client_secret' => $intention['client_secret'],
             'public_key' => config('services.paymob.public_key'),
+            'form' => $intention['form'],
         ];
     }
 
@@ -178,6 +190,6 @@ class StartSubscription
             'receipts' => count($receipts),
         ], $request);
 
-        return ['subscription' => $subscription, 'checkout_url' => null, 'client_secret' => null, 'public_key' => null];
+        return ['subscription' => $subscription, 'checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'form' => null];
     }
 }

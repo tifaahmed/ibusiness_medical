@@ -8,6 +8,7 @@ use App\Mail\SubscriptionReceiptMail;
 use App\Models\ContactMessage;
 use App\Models\FamilyMember;
 use App\Models\MemberPayment;
+use App\Models\MemberLog;
 use App\Models\Membership;
 use App\Models\MembershipSubscription;
 use App\Models\OrderPaymentLog;
@@ -265,14 +266,48 @@ class TrialCardTest extends TestCase
         $this->assertSame(1, $user->memberships()->count());
     }
 
-    public function test_deleting_the_card_does_not_hand_back_a_free_trial(): void
+    public function test_once_the_card_is_deleted_the_same_phone_and_id_can_start_a_trial_again(): void
     {
-        [$user, $membership] = $this->trialCard();
+        [$user, $membership] = $this->trialCard('01012345678', '29001011234567');
         $membership->forceDelete();
+        $user->forceDelete();
 
-        $this->member('01199999999');
+        $this->member('01012345678');
+        $this->startTrial(['national_id' => '29001011234567'])->assertCreated();
+
+        // The stale claim was freed and its history kept on the new card's log.
+        $claim = TrialClaim::query()->sole();
+        $this->assertNotNull($claim->membership_id);
+        $log = MemberLog::query()->where('membership_id', $claim->membership_id)->where('action', MemberLog::ACTION_CREATED)->latest('id')->first();
+        $this->assertSame('29001011234567', $log->new_values['released_trial_claims'][0]['national_id']);
+    }
+
+    public function test_a_soft_deleted_card_does_not_block_the_phone_or_the_id(): void
+    {
+        [, $membership] = $this->trialCard('01012345678', '29001011234567');
+        $membership->delete();
+
+        // Another phone with the same ID, and the same ID on a new account: both free now.
+        $this->member('01123456789');
+        $this->startTrial(['national_id' => '29001011234567'])->assertCreated();
+        $this->assertSame(1, TrialClaim::query()->count());
+    }
+
+    public function test_an_id_on_a_registration_placeholder_is_not_a_card(): void
+    {
+        $other = User::factory()->create(['phone' => '01155555555']);
+        Membership::query()->create(['user_id' => $other->id, 'membership_number' => 'REG-PLACEHOLDR', 'slug' => 'REG-PLACEHOLDR', 'national_id' => '29001011234567', 'registration_date' => now()]);
+
+        $this->member();
+        $this->startTrial(['national_id' => '29001011234567'])->assertCreated();
+    }
+
+    public function test_a_live_card_still_blocks_its_phone_and_id(): void
+    {
+        $this->trialCard('01012345678', '29001011234567');
+
+        $this->member('01123456789');
         $this->startTrial(['national_id' => '29001011234567'])->assertUnprocessable()->assertJsonPath('reason', 'national_id_taken');
-
         $this->assertSame(1, TrialClaim::query()->count());
     }
 
@@ -408,6 +443,43 @@ class TrialCardTest extends TestCase
         $this->sendCallback($this->signed($sub, ['amount_cents' => 100]))->assertOk();
 
         $this->assertSame(Membership::PLAN_TRIAL, $membership->fresh()->plan);
+        $this->assertSame(MembershipSubscription::STATUS_PENDING, $sub->fresh()->status);
+    }
+
+    public function test_a_wallet_payment_is_sent_to_the_hosted_page_and_a_card_to_the_embedded_form(): void
+    {
+        // Pixel cannot draw a mobile wallet: mounted with a wallet-only secret it shows an empty form.
+        config(['services.paymob.card_integration_ids' => ['111'], 'services.paymob.wallet_integration_ids' => ['222']]);
+        [, $membership] = $this->trialCard();
+        $this->fakeIntention();
+
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe", ['paymob_channel' => 'wallet'])
+            ->assertCreated()
+            ->assertJsonPath('data.form', 'redirect');
+        Http::assertSent(fn ($request) => ($request->data()['payment_methods'] ?? null) === [222]);
+
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe", ['paymob_channel' => 'card'])
+            ->assertCreated()
+            ->assertJsonPath('data.form', 'pixel');
+    }
+
+    public function test_a_reused_open_payment_follows_a_price_changed_since_it_was_opened(): void
+    {
+        [, $membership] = $this->trialCard();
+        $this->fakeIntention();
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe")->assertCreated();
+        $sub = MembershipSubscription::query()->firstOrFail();
+        $this->assertSame('600.00', $sub->amount);
+
+        SiteSettings::put(MembershipPlan::PRICE, 5, Setting::TYPE_NUMBER);
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe")->assertCreated();
+
+        $this->assertSame(1, MembershipSubscription::query()->count(), 'still one open payment, not a new one');
+        $this->assertSame('5.00', $sub->fresh()->amount);
+        Http::assertSent(fn ($request) => ($request->data()['amount'] ?? null) === 500);
+
+        // A link opened at the old price can no longer extend the card.
+        $this->sendCallback($this->signed($sub, ['amount_cents' => 60000]))->assertOk();
         $this->assertSame(MembershipSubscription::STATUS_PENDING, $sub->fresh()->status);
     }
 

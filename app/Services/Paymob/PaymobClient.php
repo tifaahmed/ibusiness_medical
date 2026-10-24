@@ -57,6 +57,31 @@ class PaymobClient
 
     public const CHANNELS = [self::CHANNEL_CARD, self::CHANNEL_WALLET];
 
+    /** The client mounts Paymob's embedded Pixel form with `client_secret` + `public_key`. */
+    public const FORM_PIXEL = 'pixel';
+
+    /**
+     * The client opens `checkout_url` (Paymob's hosted page). Pixel draws cards,
+     * Apple Pay and Google Pay only, so a wallet-only payment mounted in it shows
+     * an empty form.
+     */
+    public const FORM_REDIRECT = 'redirect';
+
+    /**
+     * Which form can take a payment offered on these integration ids: the hosted
+     * page when every one of them is a mobile wallet, else Pixel.
+     *
+     * @param  list<int|string>  $ids
+     */
+    public static function formFor(array $ids): string
+    {
+        $wallet = array_map('intval', self::integrationIds(self::CHANNEL_WALLET));
+
+        return $ids !== [] && $wallet !== [] && array_diff(array_map('intval', $ids), $wallet) === []
+            ? self::FORM_REDIRECT
+            : self::FORM_PIXEL;
+    }
+
     /**
      * The Paymob integration ids behind one way of paying online. Card falls
      * back to the whole list for installs that only ever set PAYMOB_INTEGRATION_IDS.
@@ -103,7 +128,7 @@ class PaymobClient
      * plus one line each for delivery and the cash fee, and fall back to a
      * single line if rounding ever makes them disagree.
      *
-     * @return array{checkout_url: string, client_secret: string, intention_id: ?string, log: OrderPaymentLog}
+     * @return array{checkout_url: string, client_secret: string, form: string, intention_id: ?string, log: OrderPaymentLog}
      *
      * @throws PaymobException
      */
@@ -142,7 +167,7 @@ class PaymobClient
      * Open a payment for a membership subscription. Same gateway call and the
      * same logging as an order; only the thing being bought differs.
      *
-     * @return array{checkout_url: string, client_secret: string, intention_id: ?string, log: OrderPaymentLog}
+     * @return array{checkout_url: string, client_secret: string, form: string, intention_id: ?string, log: OrderPaymentLog}
      *
      * @throws PaymobException
      */
@@ -190,7 +215,7 @@ class PaymobClient
 
     /**
      * @param  array<string, mixed>  $body
-     * @return array{checkout_url: string, client_secret: string, intention_id: ?string, log: OrderPaymentLog}
+     * @return array{checkout_url: string, client_secret: string, form: string, intention_id: ?string, log: OrderPaymentLog}
      */
     private function openIntention(Order|MembershipSubscription $order, array $body): array
     {
@@ -219,6 +244,7 @@ class PaymobClient
                 .'/unifiedcheckout/?publicKey='.urlencode((string) config('services.paymob.public_key'))
                 .'&clientSecret='.urlencode($secret),
             'client_secret' => $secret,
+            'form' => self::formFor($body['payment_methods'] ?? []),
             'intention_id' => $response->json('id') !== null ? (string) $response->json('id') : null,
             'log' => $log,
         ];

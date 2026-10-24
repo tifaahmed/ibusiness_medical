@@ -185,6 +185,8 @@ class MembershipController extends Controller
                 /* For the embedded card form (Paymob Pixel); the hosted page above is the fallback. */
                 'client_secret' => $result['client_secret'],
                 'public_key' => $result['public_key'],
+                /* `pixel` = mount the embedded form; `redirect` = open checkout_url (wallets: Pixel cannot draw them). */
+                'form' => $result['form'],
                 'status' => MembershipStatus::forMember($user),
             ],
         ], Response::HTTP_CREATED);

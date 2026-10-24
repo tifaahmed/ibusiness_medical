@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\CacheControl::class,
         ]);
 
+        // Global (not in the api group) so it also sees 401s from auth, 429s from throttles and 404s for unknown URLs.
+        $middleware->append(\App\Http\Middleware\LogApiFailures::class);
+
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

@@ -13,6 +13,7 @@ use App\Support\PhoneNumbers;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,12 +24,14 @@ use Illuminate\Validation\ValidationException;
  * trial period. The card holds ONLY the owner: relatives are added by customer
  * services during the trial, or by the member once they have paid.
  *
- * The phone and the ID are unique across the whole system. That is enforced
- * three ways, because each alone leaves a hole:
- *  - `trial_claims` (DB unique indexes) — survives deleted cards, and wins any race;
- *  - existing cards and relatives carrying the same ID — covers everything issued
- *    before this ledger existed;
- *  - another account with the same phone that already holds a card.
+ * The phone and the ID may hold one card each. "Taken" means a card that EXISTS
+ * holds it — a deleted card (soft or hard) or an inert `REG-` placeholder does
+ * not count, so a member whose card was deleted can start a trial again:
+ *  - `trial_claims` whose card still exists (DB unique indexes win any race; a
+ *    claim whose card is gone is released — logged on the new card, then freed);
+ *  - live cards and live relatives carrying the same ID — covers everything
+ *    issued before this ledger existed;
+ *  - another account with the same phone that holds a live card.
  * Because sign-in is by phone, a second device simply signs into the SAME account;
  * a different phone with the same ID is what gets refused.
  */
@@ -85,6 +88,8 @@ class StartTrialCard
                 $membership = $existing ?? new Membership(['user_id' => $user->id]);
                 $membership->forceFill($attributes)->save();
 
+                $released = $this->releaseStaleClaims($phone, $nationalId);
+
                 TrialClaim::query()->create([
                     'national_id' => $nationalId,
                     'phone' => $phone,
@@ -104,7 +109,7 @@ class StartTrialCard
                         'membership_number' => $number,
                         'expiration_date' => $membership->expiration_date->toDateString(),
                         'source' => Membership::SOURCE_SELF_SERVICE,
-                    ],
+                    ] + ($released ? ['released_trial_claims' => $released] : []),
                     request: $request,
                 );
 
@@ -123,9 +128,31 @@ class StartTrialCard
     /** Whether somebody else already holds this national ID — the same test the trial itself applies. */
     public function nationalIdTaken(User $user, string $nationalId): bool
     {
-        return TrialClaim::query()->where('national_id', $nationalId)->exists()
-            || Membership::withTrashed()->where('national_id', $nationalId)->where('user_id', '!=', $user->id)->exists()
-            || FamilyMember::withTrashed()->where('national_id', $nationalId)->exists();
+        return TrialClaim::query()->holdingCard()->where('national_id', $nationalId)->exists()
+            || Membership::query()->where('national_id', $nationalId)->where('user_id', '!=', $user->id)
+                ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')->exists()
+            || FamilyMember::query()->where('national_id', $nationalId)->exists();
+    }
+
+    /**
+     * Frees the claims on this phone / ID whose card no longer exists, so the
+     * unique indexes let the new claim in. Only stale rows are touched — a claim
+     * whose card is alive is never removed — and each freed row is returned to be
+     * kept in the new card's log, so the history of the earlier trial survives.
+     */
+    private function releaseStaleClaims(string $phone, string $nationalId): array
+    {
+        $stale = TrialClaim::query()->stale()
+            ->where(fn ($q) => $q->where('phone', $phone)->orWhere('national_id', $nationalId))
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($stale as $claim) {
+            Log::warning('Stale trial claim released', ['trial_claim' => $claim->toArray()]);
+            $claim->delete();
+        }
+
+        return $stale->map(fn (TrialClaim $c) => $c->only(['id', 'national_id', 'phone', 'membership_id', 'user_id', 'ip_address', 'created_at']))->all();
     }
 
     private function assertNotTaken(User $user, string $phone, string $nationalId): void
@@ -134,7 +161,7 @@ class StartTrialCard
             throw $this->refuse('national_id', self::REASON_ID_TAKEN, 'This ID number already has a card. Please contact customer service.');
         }
 
-        $claimedPhone = TrialClaim::query()->where('phone', $phone)->exists();
+        $claimedPhone = TrialClaim::query()->holdingCard()->where('phone', $phone)->exists();
 
         $otherAccountWithCard = User::query()
             ->where('id', '!=', $user->id)
