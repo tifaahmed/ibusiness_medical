@@ -159,7 +159,7 @@
       "Bash(ln -sf /opt/alt/alt-nodejs22/root/usr/bin/npx ~/.local/bin/npx)",
       "Bash(touch ~/.local/bin/_t)",
       "Bash(mount)",
-      "Bash(printf '\\\\n# Node.js 22 \\(alt-nodejs22\\) — provides node, npm, npx on the PATH\\\\nexport PATH=\"/opt/alt/alt-nodejs22/root/usr/bin:$PATH\"\\\\n')",
+      "Bash(printf '\\\\n# Node.js 22 \\(alt-nodejs22\\) \u2014 provides node, npm, npx on the PATH\\\\nexport PATH=\"/opt/alt/alt-nodejs22/root/usr/bin:$PATH\"\\\\n')",
       "Bash(bin/php -l app/Http/Middleware/SecurityHeaders.php)",
       "Bash(bin/artisan config:clear)",
       "Bash(bin/artisan about *)",
@@ -199,6 +199,20 @@
       "Bash(echo \"---exit $?\")",
       "Bash(./bin/artisan migrate:status)",
       "Bash(echo \"BUILD_EXIT=$?\")"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && echo \"== API / app / server failures (storage/logs/failures.log) \u2014 review and fix, then: bin/php artisan logs:failures --mark-reviewed ==\" && bin/php artisan logs:failures --limit=15 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "Reading failure log..."
+          }
+        ]
+      }
     ]
   }
 }

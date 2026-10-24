@@ -116,7 +116,43 @@ class AuthController extends Controller
         ]);
     }
 
+    /*
+     * Every refusal is logged — a 422 is the usual answer when "saving my
+     * details does nothing" in the app, and without this line there is no
+     * trace of which field was refused or why. Only the field NAMES sent are
+     * logged, not their values (phones, IDs, emails stay out of the log).
+     */
     public function updateProfile(Request $request): JsonResponse
+    {
+        $context = fn (): array => [
+            'route' => 'api.v1.profile.update',
+            'user_id' => $request->user()?->id,
+            'fields' => array_keys($request->except(['password', 'token'])),
+            'locale' => app()->getLocale(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),
+        ];
+
+        try {
+            $response = $this->applyProfileUpdate($request);
+        } catch (ValidationException $e) {
+            Log::warning('Profile update rejected', $context() + ['errors' => $e->errors()]);
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Profile update failed', $context() + [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+
+        if ($response->getStatusCode() >= 400) {
+            Log::warning('Profile update rejected', $context() + ['response' => $response->getData(true)]);
+        }
+
+        return $response;
+    }
+
+    private function applyProfileUpdate(Request $request): JsonResponse
     {
         $user = $request->user();
 

@@ -354,7 +354,7 @@ class OrderController extends Controller
      * What a client needs to take the payment: the embeddable form's secret (Paymob Pixel mounts with
      * the public key + this one-order, one-hour secret), and the hosted page as a fallback.
      *
-     * @return array{checkout_url: ?string, client_secret: ?string, public_key: ?string, message: ?string}
+     * @return array{checkout_url: ?string, client_secret: ?string, public_key: ?string, form: ?string, message: ?string}
      */
     private function openPayment(Order $order, Request $request): array
     {
@@ -370,6 +370,8 @@ class OrderController extends Controller
                 'checkout_url' => $started['checkout_url'],
                 'client_secret' => $started['client_secret'],
                 'public_key' => config('services.paymob.public_key'),
+                /* `pixel` = mount the embedded form; `redirect` = open checkout_url (wallets: Pixel cannot draw them). */
+                'form' => $started['form'],
                 'message' => null,
             ];
         } catch (PaymobException $exception) {
@@ -380,7 +382,7 @@ class OrderController extends Controller
                 'trace' => $exception->getTraceAsString(),
             ]);
 
-            return ['checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'message' => 'The payment page could not be opened. Please try again.'];
+            return ['checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'form' => null, 'message' => 'The payment page could not be opened. Please try again.'];
         }
     }
 

@@ -54,7 +54,7 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env('LOG_STACK', 'single,failures_errors')),
             'ignore_exceptions' => false,
         ],
 
@@ -69,7 +69,7 @@ return [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'days' => env('LOG_DAILY_DAYS', 14),
+            'days' => env('LOG_DAILY_DAYS', 1),
             'replace_placeholders' => true,
         ],
 
@@ -123,6 +123,27 @@ return [
          * as well as this server's — under a shared trace id. laravel.log is
          * far too noisy to follow a single upload through.
          */
+        /*
+         * The PERMANENT failure file: every API answer of 400+ (LogApiFailures),
+         * every app/website crash report (ClientErrorController) and — through
+         * `failures_errors` in the stack — every error-level line from anywhere.
+         * Not rotated and never pruned, so a failure can be fixed days later;
+         * read it with `php artisan logs:failures`. One JSON object per line.
+         */
+        'failures' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/failures.log'),
+            'level' => 'debug',
+            'formatter' => \Monolog\Formatter\JsonFormatter::class,
+        ],
+
+        'failures_errors' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/failures.log'),
+            'level' => 'error',
+            'formatter' => \Monolog\Formatter\JsonFormatter::class,
+        ],
+
         'migration' => [
             'driver' => 'daily',
             'path' => storage_path('logs/facility-migration.log'),

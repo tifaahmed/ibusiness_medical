@@ -73,7 +73,7 @@ class CardSubscriptionController extends Controller
             return response()->json(['message' => 'Something went wrong. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        return response()->json(['data' => ['checkout_url' => $result['checkout_url'], 'client_secret' => $result['client_secret'], 'public_key' => $result['public_key']]], Response::HTTP_CREATED);
+        return response()->json(['data' => ['checkout_url' => $result['checkout_url'], 'client_secret' => $result['client_secret'], 'public_key' => $result['public_key'], 'form' => $result['form']]], Response::HTTP_CREATED);
     }
 
     private function find(string $number): Membership
