@@ -104,6 +104,23 @@
               </dl>
             </div>
 
+            <div v-if="store.sales_name || store.contracted_at || store.managers?.length || store.contract" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
+              <h3 class="flex items-center gap-2 text-sm font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                Sales &amp; contacts
+              </h3>
+              <p v-if="store.contracted_at" class="text-sm"><span class="text-muted-foreground">Contracted:</span> <span class="font-medium" dir="ltr">{{ store.contracted_at }}</span></p>
+              <p v-if="store.sales_name" class="text-sm"><span class="text-muted-foreground">Sales:</span> <span class="font-medium">{{ store.sales_name }}</span></p>
+              <div v-for="m in store.managers" :key="m.id" class="rounded-lg border border-border bg-accent/30 p-2 text-sm">
+                <p class="font-medium">{{ m.name }}<span v-if="m.position" class="font-normal text-muted-foreground"> — {{ m.position }}</span></p>
+                <p v-for="(p, i) in m.phones" :key="i" dir="ltr" class="text-xs text-muted-foreground">{{ p.number || p }}</p>
+              </div>
+              <a v-if="store.contract" :href="store.contract.url" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>
+                Contract — {{ store.contract.file_name }}
+              </a>
+            </div>
+
             <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
               <h3 class="text-sm font-semibold">Branches</h3>
               <p v-if="store.online_only" class="text-sm text-muted-foreground">Online store only — no physical branches.</p>

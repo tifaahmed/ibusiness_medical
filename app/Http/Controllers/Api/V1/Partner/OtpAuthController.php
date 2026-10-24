@@ -160,7 +160,9 @@ class OtpAuthController extends Controller
                 ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')
                 ->exists();
 
-        return response()->json(['data' => ['has_card' => $hasCard]]);
+        /* `registered`: the phone already has an account (even with no card yet, or only a sign-up placeholder), so the
+           client sends it a code and signs it in instead of treating it as a stranger. Still yes/no, no names. */
+        return response()->json(['data' => ['has_card' => $hasCard, 'registered' => $member instanceof User]]);
     }
 
     /**

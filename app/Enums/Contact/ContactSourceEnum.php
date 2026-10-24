@@ -21,6 +21,8 @@ enum ContactSourceEnum: string
     case SUBSCRIPTION_REQUEST = 'subscription_request';
     /** A relative added by the card owner that waits for an admin's approval. */
     case PENDING_RELATIVE = 'pending_relative';
+    /** A member asking an admin to change the national ID on their card, with the new number and photos of the ID. */
+    case NATIONAL_ID_CHANGE = 'national_id_change';
 
     /**
      * @return array<int, string>

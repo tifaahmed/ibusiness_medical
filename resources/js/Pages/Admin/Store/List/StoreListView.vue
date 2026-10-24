@@ -14,6 +14,26 @@
                 <span class="text-sm sm:text-base truncate min-w-0">Stores</span>
               </div>
             </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+            <StoreExportMenu :search="search" :options="exportOptions" />
+            <Link
+              v-if="canManage"
+              :href="route('admin.store.migration.page')"
+              class="inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-md border bg-background text-xs sm:text-sm font-medium hover:bg-muted"
+              title="Move stores with their images between servers, or take a full copy"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg>
+              <span class="hidden sm:inline">Migration</span>
+            </Link>
+            <Link
+              v-if="canManage"
+              :href="route('admin.store.import.page')"
+              class="inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-md border bg-background text-xs sm:text-sm font-medium hover:bg-muted"
+              title="Import stores from a spreadsheet"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+              <span class="hidden sm:inline">Import</span>
+            </Link>
             <Link
               v-if="canManage"
               :href="route('admin.store.create')"
@@ -24,6 +44,7 @@
               </svg>
               Add Store
             </Link>
+            </div>
           </div>
         </div>
 
@@ -100,11 +121,13 @@ import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Pages/_components/Pagination.vue';
+import StoreExportMenu from '../_components/StoreExportMenu.vue';
 
 const props = defineProps({
   stores: { type: Object, required: true },
   filters: { type: Object, default: () => ({ search: '' }) },
   canManage: { type: Boolean, default: false },
+  exportOptions: { type: Object, default: () => ({ categories: [], sales: [], governorates: [], cities: [], columns: [] }) },
 });
 
 const search = ref(props.filters.search || '');

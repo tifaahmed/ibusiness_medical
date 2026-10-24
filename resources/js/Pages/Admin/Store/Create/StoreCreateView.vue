@@ -18,6 +18,7 @@
             :tag-color-options="tagColorOptions"
             :governorates="governorates"
             :cities="cities"
+            :sales-options="salesOptions"
             :ai-enabled="aiEnabled"
           />
 
@@ -72,6 +73,7 @@ defineProps({
   tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
+  salesOptions: { type: Array, default: () => [] },
   aiEnabled: { type: Boolean, default: false },
 });
 
@@ -97,6 +99,11 @@ const form = useForm({
   shipping_governorate_ids: [],
   offer_percent_from: '',
   offer_percent_to: '',
+  sales_id: '',
+  contracted_at: '',
+  managers: [],
+  contract: null,
+  contract_delete: false,
   logo: null,
   header: null,
   seo_image: null,

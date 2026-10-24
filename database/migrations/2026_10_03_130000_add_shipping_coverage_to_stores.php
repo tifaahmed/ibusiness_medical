@@ -8,17 +8,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('stores', function (Blueprint $table) {
-            // true = ships to every governorate (the pivot is ignored);
-            // false = only the governorates listed in store_governorate.
-            $table->boolean('ships_everywhere')->default(true)->after('coupons');
-        });
+        // Guarded so a re-run after a partial or hand-applied change is harmless.
+        if (! Schema::hasColumn('stores', 'ships_everywhere')) {
+            Schema::table('stores', function (Blueprint $table) {
+                // true = ships to every governorate (the pivot is ignored);
+                // false = only the governorates listed in store_governorate.
+                $table->boolean('ships_everywhere')->default(true)->after('coupons');
+            });
+        }
 
-        Schema::create('store_governorate', function (Blueprint $table) {
-            $table->foreignId('store_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('governorate_id')->constrained()->cascadeOnDelete();
-            $table->primary(['store_id', 'governorate_id']);
-        });
+        if (! Schema::hasTable('store_governorate')) {
+            Schema::create('store_governorate', function (Blueprint $table) {
+                $table->foreignId('store_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('governorate_id')->constrained()->cascadeOnDelete();
+                $table->primary(['store_id', 'governorate_id']);
+            });
+        }
     }
 
     public function down(): void

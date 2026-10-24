@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Store\Update;
 
+use App\Actions\Store\SyncStoreContacts;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Store\UpdateStoreRequest;
 use App\Models\Store;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminStoreUpdateController extends BaseController
 {
-    public function __invoke(UpdateStoreRequest $request, Store $store): RedirectResponse
+    public function __invoke(UpdateStoreRequest $request, Store $store, SyncStoreContacts $contacts): RedirectResponse
     {
         $validated = $request->validated();
 
@@ -25,6 +26,8 @@ class AdminStoreUpdateController extends BaseController
         try {
             $store->update([
                 'title' => $validated['title'],
+                'sales_id' => $validated['sales_id'] ?? null,
+                'contracted_at' => $validated['contracted_at'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'short_description' => $validated['short_description'] ?? null,
                 'youtube_link' => $validated['youtube_link'] ?? null,
@@ -119,6 +122,8 @@ class AdminStoreUpdateController extends BaseController
                     'sort_order' => $sortOrder++,
                 ]);
             }
+
+            $contacts->handle($store, $validated);
 
             $store->attachEditorImages($validated['editor_gallery_paths'] ?? []);
 

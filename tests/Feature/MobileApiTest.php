@@ -104,6 +104,60 @@ class MobileApiTest extends TestCase
     }
 
     /** @test */
+    public function the_members_own_city_then_governorate_come_first_then_the_nearest(): void
+    {
+        $near = $this->facility('Near Elsewhere');
+        $this->branch($near, 30.05, 31.24);
+        $governorate = \App\Models\Governorate::factory()->create();
+        $city = \App\Models\City::factory()->create(['governorate_id' => $governorate->id]);
+        $sameGov = $this->facility('Same Governorate');
+        $this->branch($sameGov, 30.9, 31.9)->update(['governorate_id' => $governorate->id]);
+        $sameCity = $this->facility('Same City');
+        $this->branch($sameCity, 31.2, 29.9)->update(['governorate_id' => $governorate->id, 'city_id' => $city->id]);
+
+        $this->getJson("/api/v1/mobile/facilities?lat=30.04&lng=31.23&home_governorate_id={$governorate->id}&home_city_id={$city->id}")
+            ->assertOk()
+            ->assertJsonPath('data.0.slug', $sameCity->slug)
+            ->assertJsonPath('data.1.slug', $sameGov->slug)
+            ->assertJsonPath('data.2.slug', $near->slug);
+
+        // Without the member's area: plain nearest-first.
+        $this->getJson('/api/v1/mobile/facilities?lat=30.04&lng=31.23')->assertJsonPath('data.0.slug', $near->slug);
+    }
+
+    /** @test */
+    public function the_search_box_finds_a_facility_by_its_branch_address_city_or_phone(): void
+    {
+        $governorate = \App\Models\Governorate::factory()->create(['name' => ['en' => 'Giza', 'ar' => 'الجيزة']]);
+        $inGiza = $this->facility('Alpha Clinic');
+        $this->branch($inGiza, 30.0, 31.2)->update(['governorate_id' => $governorate->id, 'address' => ['en' => '5 Nile Street', 'ar' => '٥ شارع النيل'], 'phone' => ['01001234567']]);
+        $elsewhere = $this->facility('Beta Clinic');
+        $this->branch($elsewhere, 31.2, 29.9);
+
+        foreach (['Giza', 'الجيزة', 'Nile Street', 'alpha', '0100123'] as $typed) {
+            $slugs = collect($this->getJson('/api/v1/mobile/facilities?q='.urlencode($typed))->assertOk()->json('data'))->pluck('slug')->all();
+            $this->assertSame([$inGiza->slug], $slugs, "searching \"{$typed}\"");
+        }
+
+        // Every word has to match somewhere: a second word that matches nothing finds nothing.
+        $this->getJson('/api/v1/mobile/facilities?q='.urlencode('Giza nowhereville'))->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    /** @test */
+    public function map_pins_can_be_searched_on_the_branch_itself(): void
+    {
+        $governorate = \App\Models\Governorate::factory()->create(['name' => ['en' => 'Giza', 'ar' => 'الجيزة']]);
+        $facility = $this->facility('Alpha Clinic');
+        $giza = $this->branch($facility, 30.0, 31.2);
+        $giza->update(['governorate_id' => $governorate->id]);
+        $cairo = $this->branch($facility, 30.05, 31.24);
+
+        $ids = collect($this->getJson('/api/v1/mobile/map-pins?lat=30.04&lng=31.23&q=Giza')->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertSame([$giza->id], $ids);
+    }
+
+    /** @test */
     public function a_radius_drops_facilities_beyond_it(): void
     {
         $this->branch($this->facility('Far Clinic'), 31.2, 29.9);

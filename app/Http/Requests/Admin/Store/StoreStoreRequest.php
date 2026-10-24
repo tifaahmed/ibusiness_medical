@@ -27,6 +27,7 @@ class StoreStoreRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->cleanStoreExtras();
+        $this->cleanStoreManagers();
 
         // An online-only store has no branches: whatever the form still holds
         // is dropped before validation, so a hidden half-filled branch cannot
@@ -49,7 +50,7 @@ class StoreStoreRequest extends FormRequest
 
     public function rules(): array
     {
-        return array_merge($this->storeExtrasRules(), [
+        return array_merge($this->storeExtrasRules(), $this->storeContactRules(), [
             'title' => ['required', 'array'],
             'title.*' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'array'],
@@ -92,7 +93,7 @@ class StoreStoreRequest extends FormRequest
 
     public function messages(): array
     {
-        return array_merge($this->storeExtrasMessages(), [
+        return array_merge($this->storeExtrasMessages(), $this->storeContactMessages(), [
             'title.required' => 'The title field is required.',
             'title.*.required' => 'Each language title is required.',
             'branches.*.governorate_id.required' => 'Choose the branch governorate.',

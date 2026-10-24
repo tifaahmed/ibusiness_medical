@@ -9,15 +9,23 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('store_category_store', function (Blueprint $table) {
-            $table->foreignId('store_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('store_category_id')->constrained()->cascadeOnDelete();
-            $table->primary(['store_id', 'store_category_id']);
-        });
+        // Guarded so a re-run after a partial or hand-applied change is harmless.
+        if (! Schema::hasTable('store_category_store')) {
+            Schema::create('store_category_store', function (Blueprint $table) {
+                $table->foreignId('store_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('store_category_id')->constrained()->cascadeOnDelete();
+                $table->primary(['store_id', 'store_category_id']);
+            });
+        }
 
-        // A store used to hold exactly one category; carry it over.
+        // Nothing to carry over or drop once the single-category column is gone.
+        if (! Schema::hasColumn('stores', 'store_category_id')) {
+            return;
+        }
+
+        // A store used to hold exactly one category; carry it over (skipping pairs already there).
         DB::table('stores')->whereNotNull('store_category_id')->get(['id', 'store_category_id'])
-            ->each(fn ($s) => DB::table('store_category_store')->insert([
+            ->each(fn ($s) => DB::table('store_category_store')->insertOrIgnore([
                 'store_id' => $s->id,
                 'store_category_id' => $s->store_category_id,
             ]));

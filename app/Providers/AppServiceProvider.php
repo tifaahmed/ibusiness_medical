@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Route::model('change', \App\Models\NationalIdChangeRequest::class);
+
         Vite::prefetch(concurrency: 3);
 
         // Silent unless a bulk tool names itself — see App\Support\FacilityAudit.

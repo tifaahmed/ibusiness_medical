@@ -25,6 +25,22 @@ class Sales extends Model implements HasMedia
         'created_by',
     ];
 
+    /**
+     * Every rep as a select option; `name` carries both languages, `label` is
+     * the single-language fallback.
+     *
+     * @return array<int, array{value: int, label: string, name: array<string, string>}>
+     */
+    public static function pickerOptions(): array
+    {
+        return static::query()->orderBy('id')->get()
+            ->map(fn (Sales $sale) => [
+                'value' => $sale->id,
+                'label' => $sale->displayName(),
+                'name' => $sale->nameTranslations(),
+            ])->all();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

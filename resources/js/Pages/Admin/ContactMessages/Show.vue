@@ -118,6 +118,55 @@
               </div>
             </div>
 
+            <!-- A member's request to change the national ID on their card: nothing changes until it is approved here. -->
+            <div v-if="idChange" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-amber-400/50 shadow-sm">
+              <div class="p-3 border-b border-border flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-foreground">{{ t.national_id_change || 'National ID change request' }}</h2>
+                <span :class="['text-xs font-bold px-2 py-0.5 rounded-md', idChange.status === 'approved' ? 'bg-emerald-500/15 text-emerald-500' : idChange.status === 'rejected' ? 'bg-red-500/15 text-red-500' : 'bg-amber-500/15 text-amber-500']">
+                  {{ idChange.status }}
+                </span>
+              </div>
+              <div class="p-3 space-y-3">
+                <div class="grid grid-cols-2 gap-3 text-sm" dir="ltr">
+                  <div>
+                    <label class="text-xs font-medium text-muted-foreground block">Current</label>
+                    <p class="font-mono">{{ idChange.current_national_id || '—' }}</p>
+                  </div>
+                  <div>
+                    <label class="text-xs font-medium text-muted-foreground block">New</label>
+                    <p class="font-mono font-bold text-amber-400">{{ idChange.new_national_id }}</p>
+                  </div>
+                </div>
+                <p v-if="idChange.note" class="text-sm whitespace-pre-wrap">{{ idChange.note }}</p>
+
+                <div v-if="idChange.front_url || idChange.back_url" class="grid grid-cols-2 gap-3">
+                  <a v-if="idChange.front_url" :href="idChange.front_url" target="_blank" rel="noreferrer" class="block space-y-1">
+                    <span class="text-xs text-muted-foreground">Front</span>
+                    <img :src="idChange.front_url" alt="ID front" class="w-full rounded-lg border border-border object-contain bg-black/5" />
+                  </a>
+                  <a v-if="idChange.back_url" :href="idChange.back_url" target="_blank" rel="noreferrer" class="block space-y-1">
+                    <span class="text-xs text-muted-foreground">Back</span>
+                    <img :src="idChange.back_url" alt="ID back" class="w-full rounded-lg border border-border object-contain bg-black/5" />
+                  </a>
+                </div>
+                <p v-else class="text-xs text-muted-foreground">No ID photos were attached.</p>
+
+                <p v-if="idChange.review_note" class="text-xs text-muted-foreground">{{ idChange.review_note }}</p>
+
+                <div v-if="canManage && idChange.status === 'pending'" class="space-y-2">
+                  <textarea v-model="reviewNote" rows="2" maxlength="500" class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" :placeholder="t.review_note || 'Note for the record (optional)'"></textarea>
+                  <div class="flex gap-2">
+                    <button type="button" class="flex-1 h-9 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50" :disabled="deciding" @click="decide(idChange.approve_url)">
+                      {{ t.approve || 'Approve and change the ID' }}
+                    </button>
+                    <button type="button" class="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50" :disabled="deciding" @click="decide(idChange.reject_url)">
+                      {{ t.reject || 'Reject' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Working the enquiry -->
             <div v-if="canManage" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
               <div class="p-3 border-b border-border">
@@ -236,7 +285,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Select from '@/Components/ui/Select.vue';
@@ -252,7 +301,16 @@ const props = defineProps({
   // page with no right to change anything. The manage card is hidden for them
   // rather than shown and rejected.
   canManage: { type: Boolean, default: false },
+  // Set when this enquiry is a member's national-ID change request.
+  idChange: { type: Object, default: null },
 });
+
+const reviewNote = ref('');
+const deciding = ref(false);
+const decide = (url) => {
+  deciding.value = true;
+  router.post(url, { review_note: reviewNote.value || null }, { preserveScroll: true, onFinish: () => { deciding.value = false; } });
+};
 
 const form = useForm({
   status: props.message.status,

@@ -181,4 +181,18 @@ class GuestTrialJourneyTest extends TestCase
         $this->withHeader('X-Api-Key', 'partner-test-key')->postJson('/api/v1/partner/auth/phone-check', ['phone' => self::PHONE])
             ->assertOk()->assertJsonPath('data.has_card', true);
     }
+
+    /** @test */
+    public function the_phone_check_says_whether_a_phone_is_registered_even_without_a_card(): void
+    {
+        // A sign-up placeholder (`REG-`): registered, but not a card.
+        $user = \App\Models\User::factory()->create(['phone' => '01055556666']);
+        \App\Models\Membership::factory()->create(['user_id' => $user->id, 'membership_number' => 'REG-TESTCASE']);
+
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '01055556666'])
+            ->assertOk()->assertJsonPath('data.has_card', false)->assertJsonPath('data.registered', true);
+
+        $this->postJson('/api/v1/mobile/auth/phone-check', ['phone' => '01077778888'])
+            ->assertOk()->assertJsonPath('data.has_card', false)->assertJsonPath('data.registered', false);
+    }
 }

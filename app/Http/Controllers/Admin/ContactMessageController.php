@@ -519,7 +519,32 @@ class ContactMessageController extends Controller
                 ->get(['id', 'name'])
                 ->map(fn (Sales $sales) => ['value' => $sales->id, 'label' => $sales->name]),
             'canManage' => $this->canManage($request),
+            /* The national-ID change this message carries (photos, numbers, status), when it is one. */
+            'idChange' => $this->idChangeFor($contactMessage),
         ]);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function idChangeFor(ContactMessage $message): ?array
+    {
+        if ($message->source !== ContactSourceEnum::NATIONAL_ID_CHANGE) {
+            return null;
+        }
+
+        $change = \App\Models\NationalIdChangeRequest::query()->where('contact_message_id', $message->id)->first();
+
+        return $change === null ? null : [
+            'id' => $change->id,
+            'status' => $change->status,
+            'current_national_id' => $change->current_national_id,
+            'new_national_id' => $change->new_national_id,
+            'note' => $change->note,
+            'review_note' => $change->review_note,
+            'front_url' => $change->front_path ? route('admin.national-id-changes.image', [$change, 'front']) : null,
+            'back_url' => $change->back_path ? route('admin.national-id-changes.image', [$change, 'back']) : null,
+            'approve_url' => route('admin.national-id-changes.approve', $change),
+            'reject_url' => route('admin.national-id-changes.reject', $change),
+        ];
     }
 
     public function update(Request $request, ContactMessage $contactMessage): RedirectResponse

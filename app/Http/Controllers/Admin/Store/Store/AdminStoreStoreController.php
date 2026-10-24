@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Store\Store;
 
+use App\Actions\Store\SyncStoreContacts;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Store\StoreStoreRequest;
 use App\Models\Store;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 
 class AdminStoreStoreController extends BaseController
 {
-    public function __invoke(StoreStoreRequest $request): RedirectResponse
+    public function __invoke(StoreStoreRequest $request, SyncStoreContacts $contacts): RedirectResponse
     {
         $validated = $request->validated();
 
@@ -24,6 +25,8 @@ class AdminStoreStoreController extends BaseController
         try {
             $store = Store::create([
                 'title' => $validated['title'],
+                'sales_id' => $validated['sales_id'] ?? null,
+                'contracted_at' => $validated['contracted_at'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'short_description' => $validated['short_description'] ?? null,
                 'youtube_link' => $validated['youtube_link'] ?? null,
@@ -95,6 +98,8 @@ class AdminStoreStoreController extends BaseController
                     'sort_order' => $sortOrder++,
                 ]);
             }
+
+            $contacts->handle($store, $validated);
 
             $store->attachEditorImages($validated['editor_gallery_paths'] ?? []);
 

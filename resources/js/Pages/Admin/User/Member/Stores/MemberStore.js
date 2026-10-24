@@ -11,7 +11,7 @@ import { validateMemberForm } from '../validation/memberValidation';
 const FORM_FIELD_KEYS = [
     'id', 'slug', 'name', 'email', 'phone', 'password', 'password_confirmation',
     'avatar', 'avatar_url', 'membership_number', 'national_id', 'registration_date',
-    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'payment_type',
+    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'payment_type',
     'membership_completed_at', 'has_member_payments', 'initial_payment_amount',
     'initial_payment_type', 'initial_payment_months_paid', 'initial_payment_from_date',
     'initial_payment_to_date', 'initial_payment_notes', 'job_title', 'company_id',
@@ -79,6 +79,7 @@ export const useMemberStore = defineStore('member', {
             is_active: false,  // Default to false - will be set properly in setMember
             is_visible: true,  // Default to true
             is_paid: false,  // Default to false
+            is_trial: false, // plan = trial; sent on edit only
             payment_type: '',
             membership_completed_at: null,  // read-only, from server
             has_member_payments: false,     // read-only, from server — gates the edit-mode Payment card
@@ -157,6 +158,7 @@ export const useMemberStore = defineStore('member', {
             this.form.is_active = true;  // Default to true for new members
             this.form.is_visible = true;  // Default to true for new members
             this.form.is_paid = false;  // Default to false for new members
+            this.form.is_trial = false;
             this.form.payment_type = '';
             this.form.membership_completed_at = null;
             this.form.has_member_payments = false;
@@ -211,6 +213,7 @@ export const useMemberStore = defineStore('member', {
             this.form.is_active = Boolean(member.membership?.is_active);
             this.form.is_visible = Boolean(member.membership?.is_visible ?? true);
             this.form.is_paid = Boolean(member.membership?.is_paid);
+            this.form.is_trial = Boolean(member.membership?.is_trial);
             this.form.payment_type = member.membership?.payment_type || '';
             this.form.membership_completed_at = member.membership?.completed_at || null;
             this.form.has_member_payments = Boolean(member.membership?.has_member_payments);
@@ -278,6 +281,7 @@ export const useMemberStore = defineStore('member', {
                     is_active: this.form.is_active,
                     is_visible: this.form.is_visible,
                     is_paid: this.form.is_paid,
+                    is_trial: this.form.is_trial,
                     payment_type: this.form.payment_type,
                     company_id: this.form.company_id,
                     sales_id: this.form.sales_id,
@@ -487,6 +491,7 @@ export const useMemberStore = defineStore('member', {
                     is_active: this.form.is_active,
                     is_visible: this.form.is_visible,
                     is_paid: this.form.is_paid,
+                    is_trial: this.form.is_trial,
                     payment_type: this.form.payment_type,
                     company_id: this.form.company_id,
                     sales_id: this.form.sales_id,

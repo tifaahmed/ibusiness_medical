@@ -53,6 +53,8 @@ class Store extends Model implements HasMedia
         'meta_description',
         'meta_keywords',
         'slug',
+        'sales_id',
+        'contracted_at',
         'youtube_link',
         'websites',
         'app_store_url',
@@ -69,6 +71,7 @@ class Store extends Model implements HasMedia
 
     protected $casts = [
         'online_only' => 'boolean',
+        'contracted_at' => 'date:Y-m-d',
         'websites' => 'array',
         'social_links' => 'array',
         'coupons' => 'array',
@@ -132,6 +135,37 @@ class Store extends Model implements HasMedia
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** The sales representative who owns this store's account. */
+    public function sales(): BelongsTo
+    {
+        return $this->belongsTo(Sales::class);
+    }
+
+    /** The people to contact at the store. */
+    public function managers(): HasMany
+    {
+        return $this->hasMany(StoreManager::class)->orderBy('id');
+    }
+
+    /**
+     * Signed contract document (PDF or image), kept in its own media collection.
+     */
+    public function getContractAttribute(): ?array
+    {
+        $media = $this->getFirstMedia('contract');
+
+        if (! $media) {
+            return null;
+        }
+
+        return [
+            'url' => $media->getUrl(),
+            'file_name' => $media->file_name,
+            'mime_type' => $media->mime_type,
+            'size' => $media->size,
+        ];
     }
 
     /**

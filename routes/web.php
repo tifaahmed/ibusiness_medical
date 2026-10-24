@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\Company\Show\AdminCompanyShowController;
 use App\Http\Controllers\Admin\Company\Store\AdminCompanyStoreController;
 use App\Http\Controllers\Admin\Company\Update\AdminCompanyUpdateController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
+use App\Http\Controllers\Admin\NationalIdChangeController as AdminNationalIdChangeController;
 use App\Http\Controllers\Admin\Visitor\AdminVisitorController;
 use App\Http\Controllers\Admin\Contract\Create\AdminContractCreateController;
 use App\Http\Controllers\Admin\Contract\Delete\AdminContractDeleteController;
@@ -353,6 +354,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::put('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'update'])->name('admin.contact-messages.update');
         Route::delete('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'destroy'])->name('admin.contact-messages.destroy');
         Route::post('/admin/contact-messages/bulk-update', [AdminContactMessageController::class, 'bulkUpdate'])->name('admin.contact-messages.bulk-update');
+        Route::post('/admin/national-id-changes/{change}/approve', [AdminNationalIdChangeController::class, 'approve'])->name('admin.national-id-changes.approve');
+        Route::post('/admin/national-id-changes/{change}/reject', [AdminNationalIdChangeController::class, 'reject'])->name('admin.national-id-changes.reject');
     });
 
     // Read side: whoever can manage them can obviously read them, plus the
@@ -360,6 +363,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage contact messages|manage memberships|view contact messages')->group(function () {
         Route::get('/admin/contact-messages', [AdminContactMessageController::class, 'index'])->name('admin.contact-messages.index');
         Route::get('/admin/contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('admin.contact-messages.show');
+        Route::get('/admin/national-id-changes/{change}/{side}', [AdminNationalIdChangeController::class, 'image'])->name('admin.national-id-changes.image');
     });
 
     // ---- Card Templates (reusable card designs backing every generated card) ----
@@ -894,9 +898,27 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage stores|manage own stores')->group(function () {
         Route::get('/admin/store/create', AdminStoreCreateController::class)->name('admin.store.create');
         Route::post('/admin/store', AdminStoreStoreController::class)->name('admin.store.store');
+        // Spreadsheet import (upsert only) — static paths, registered before /admin/store/{store}.
+        // Migration packages (data + images, in parts, restored in steps) — full stores permission only.
+        Route::get('/admin/store/migration', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'page'])->name('admin.store.migration.page');
+        Route::get('/admin/store/migration/plan', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'plan'])->name('admin.store.migration.plan');
+        Route::get('/admin/store/migration/export', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'export'])->name('admin.store.migration.export');
+        Route::get('/admin/store/migration/packages', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'packages'])->name('admin.store.migration.packages.index');
+        Route::get('/admin/store/migration/packages/download', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'download'])->name('admin.store.migration.packages.download');
+        Route::delete('/admin/store/migration/packages', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'destroy'])->name('admin.store.migration.packages.destroy');
+        Route::post('/admin/store/migration/begin', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'begin'])->middleware('throttle:20,1,admin.store.migration.begin')->name('admin.store.migration.begin');
+        Route::post('/admin/store/migration/step', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'step'])->middleware('throttle:240,1,admin.store.migration.step')->name('admin.store.migration.step');
+        Route::post('/admin/store/migration/finish', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'finish'])->name('admin.store.migration.finish');
+        Route::post('/admin/store/migration/cancel', [\App\Http\Controllers\Admin\Store\Migration\AdminStoreMigrationController::class, 'cancel'])->name('admin.store.migration.cancel');
+        Route::get('/admin/store/import/template/blank', [\App\Http\Controllers\Admin\Store\Import\AdminStoreImportTemplateController::class, 'blank'])->name('admin.store.import.template.blank');
+        Route::get('/admin/store/import/template/example', [\App\Http\Controllers\Admin\Store\Import\AdminStoreImportTemplateController::class, 'example'])->name('admin.store.import.template.example');
+        Route::get('/admin/store/import', \App\Http\Controllers\Admin\Store\Import\AdminStoreImportPageController::class)->name('admin.store.import.page');
+        Route::post('/admin/store/import/preview', \App\Http\Controllers\Admin\Store\Import\AdminStoreImportPreviewController::class)->middleware('throttle:30,1,admin.store.import.preview')->name('admin.store.import.preview');
+        Route::post('/admin/store/import/commit', \App\Http\Controllers\Admin\Store\Import\AdminStoreImportCommitController::class)->middleware('throttle:10,1,admin.store.import.commit')->name('admin.store.import.commit');
         Route::get('/admin/store/{store}/edit', AdminStoreEditController::class)->name('admin.store.edit');
         Route::put('/admin/store/{store}', AdminStoreUpdateController::class)->name('admin.store.update');
         Route::delete('/admin/store/{store}', AdminStoreDeleteController::class)->name('admin.store.destroy');
+        Route::post('/admin/store/{store}/manager/{manager}/restore', \App\Http\Controllers\Admin\Store\Manager\AdminStoreManagerRestoreController::class)->name('admin.store.manager.restore');
     });
     // Description-editor image upload, shared by the product, store and facility forms.
     Route::post('/admin/editor-image', AdminProductEditorImageUploadController::class)
@@ -904,6 +926,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         ->name('admin.editor-image');
     Route::middleware('permission:manage stores|manage own stores|view stores')->group(function () {
         Route::get('/admin/store', AdminStoreListController::class)->name('admin.store.list');
+        Route::get('/admin/store/export', \App\Http\Controllers\Admin\Store\Export\AdminStoreExportController::class)->name('admin.store.export');
         Route::get('/admin/store/{store}', AdminStoreShowController::class)->name('admin.store.show');
     });
 

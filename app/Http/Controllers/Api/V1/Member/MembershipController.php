@@ -9,6 +9,7 @@ use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Membership;
+use App\Models\NationalIdChangeRequest;
 use App\Models\MembershipSubscription;
 use App\Models\User;
 use App\Services\Paymob\PaymobException;
@@ -238,5 +239,82 @@ class MembershipController extends Controller
         }
 
         return response()->json(['data' => ['requested' => true, 'already_open' => $already]]);
+    }
+    /**
+     * Ask an admin to change the national ID on the card. The ID cannot be edited directly once it is set:
+     * the member sends the number they want, optionally with photos of both sides of the ID card, and it
+     * lands in the contact inbox (and the admin's approve/reject page). Nothing changes until an admin approves.
+     */
+    public function requestNationalIdChange(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'national_id' => ['required', 'regex:/^[23]\d{13}$/'],
+            'front' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:6144'],
+            'back' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:6144'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ], [
+            'national_id.regex' => 'The national ID must be 14 digits starting with 2 or 3.',
+        ]);
+
+        $membership = $user->memberships()->latest('id')->first();
+
+        if ($membership === null) {
+            return response()->json(['message' => 'Create your card first.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($membership->national_id === $validated['national_id']) {
+            return response()->json(['message' => 'This is already your national ID.', 'reason' => 'same_national_id'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($this->trial->nationalIdTaken($user, $validated['national_id'])) {
+            return response()->json(['message' => 'This national ID already belongs to another card. Please contact customer service.', 'reason' => 'national_id_taken'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $open = NationalIdChangeRequest::query()->where('user_id', $user->id)->where('status', NationalIdChangeRequest::PENDING)->first();
+
+        if ($open !== null) {
+            return response()->json(['message' => 'You already have a request waiting for review.', 'reason' => 'already_open'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        try {
+            $change = NationalIdChangeRequest::create([
+                'user_id' => $user->id,
+                'membership_id' => $membership->id,
+                'current_national_id' => $membership->national_id,
+                'new_national_id' => $validated['national_id'],
+                'front_path' => $request->file('front')?->store('national-id-changes', 'local'),
+                'back_path' => $request->file('back')?->store('national-id-changes', 'local'),
+                'note' => $validated['note'] ?? null,
+            ]);
+
+            $message = $this->inbox->handle([
+                'phone' => (string) $user->phone,
+                'name' => $user->name,
+                'email' => $user->email,
+                'subject' => 'National ID change — card '.$membership->membership_number,
+                'message' => 'Card '.$membership->membership_number.' asks to change the national ID from '.($membership->national_id ?: '—').' to '.$validated['national_id'].'.'
+                    .($change->front_path || $change->back_path ? ' ID photos attached.' : ' No ID photos attached.')
+                    .(filled($validated['note'] ?? null) ? ' Note: '.$validated['note'] : '')
+                    .' Request #'.$change->id,
+                'source' => ContactSourceEnum::NATIONAL_ID_CHANGE->value,
+                'channel' => ContactChannelEnum::fromRequest($request)->value,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            ]);
+
+            $change->update(['contact_message_id' => $message->id ?? null]);
+        } catch (Throwable $exception) {
+            Log::error('National ID change request could not be filed.', [
+                'route' => $request->path(), 'user_id' => $user->id,
+                'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json(['message' => 'Your request could not be sent. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json(['data' => ['requested' => true, 'status' => $change->status]], Response::HTTP_CREATED);
     }
 }

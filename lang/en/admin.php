@@ -1775,6 +1775,7 @@ return [
         'relative_request' => 'Add-relatives request',
         'subscription_request' => 'Subscription payment request',
         'pending_relative' => 'Relative awaiting approval',
+        'national_id_change' => 'National ID change request',
         'commercial_register' => 'Commercial register',
         'visitor' => 'Visitor',
         'ip_address' => 'IP address',

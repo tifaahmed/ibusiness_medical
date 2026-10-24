@@ -104,7 +104,7 @@ const form = useForm({
 const debugLog = ref(null);
 
 function submit() {
-  const url = route("admin.admin-users.update", props.admin.id);
+  const url = route("admin.admin-users.update", props.admin.id, false);
   debugLog.value = buildDebugLog({ method: "PUT", url, fields: form.data() });
 
   form.put(url, {

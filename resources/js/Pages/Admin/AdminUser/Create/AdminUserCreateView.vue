@@ -141,7 +141,7 @@ const debugLog = ref(null);
 
 function submit(afterSave = "return") {
   form.after_save = afterSave;
-  const url = route("admin.admin-users.store");
+  const url = route("admin.admin-users.store", undefined, false);
   debugLog.value = buildDebugLog({ method: "POST", url, fields: form.data() });
 
   form.post(url, {

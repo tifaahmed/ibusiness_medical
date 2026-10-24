@@ -23,53 +23,57 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->string('customer_email')->nullable()->after('customer_phone');
-            $table->decimal('cod_fee', 10, 2)->default(0)->after('delivery_profit');
-            $table->unsignedInteger('paymob_attempts')->default(0);
-            /* The reference sent as `special_reference`: the order code on the first attempt, `CODE-2`… after. */
-            $table->string('paymob_reference')->nullable();
-            $table->string('paymob_order_id')->nullable()->index();
-            $table->string('paymob_transaction_id')->nullable()->index();
-            /* The gateway's own code for the last outcome (txn_response_code, or the HTTP/err code). */
-            $table->string('paymob_response_code', 64)->nullable();
-            $table->decimal('refunded_amount', 10, 2)->default(0);
-            $table->timestamp('paid_at')->nullable();
-            $table->timestamp('refunded_at')->nullable();
-            $table->timestamp('receipt_emailed_at')->nullable();
-        });
+        // Each column is guarded so a re-run after a partial or hand-applied change is harmless.
+        $add = fn (string $column, callable $define) => Schema::hasColumn('orders', $column)
+            || Schema::table('orders', fn (Blueprint $table) => $define($table));
 
-        Schema::create('order_payment_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('admin_id')->nullable()->constrained('users')->nullOnDelete();
-            /* Groups the exchanges of one flow (create → callback → inquiry…). */
-            $table->uuid('correlation_id')->index();
-            $table->string('event', 48)->index();
-            /* out = we called the gateway, in = the gateway (or the buyer's browser) called us. */
-            $table->string('direction', 3);
-            $table->string('method', 8)->nullable();
-            $table->text('url')->nullable();
-            $table->json('request_headers')->nullable();
-            $table->longText('request_body')->nullable();
-            $table->unsignedSmallInteger('http_status')->nullable();
-            $table->json('response_headers')->nullable();
-            $table->longText('response_body')->nullable();
-            /* The gateway's code for this exchange (txn_response_code, error code…). */
-            $table->string('gateway_code', 64)->nullable();
-            /* Transaction / refund id, so a repeated callback can be recognised. */
-            $table->string('gateway_ref')->nullable()->index();
-            $table->boolean('success')->nullable();
-            $table->text('error_message')->nullable();
-            $table->timestamp('started_at', 6)->nullable();
-            $table->timestamp('finished_at', 6)->nullable();
-            $table->unsignedInteger('duration_ms')->nullable();
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->timestamps();
+        $add('customer_email', fn ($t) => $t->string('customer_email')->nullable()->after('customer_phone'));
+        $add('cod_fee', fn ($t) => $t->decimal('cod_fee', 10, 2)->default(0)->after('delivery_profit'));
+        $add('paymob_attempts', fn ($t) => $t->unsignedInteger('paymob_attempts')->default(0));
+        /* The reference sent as `special_reference`: the order code on the first attempt, `CODE-2`… after. */
+        $add('paymob_reference', fn ($t) => $t->string('paymob_reference')->nullable());
+        $add('paymob_order_id', fn ($t) => $t->string('paymob_order_id')->nullable()->index());
+        $add('paymob_transaction_id', fn ($t) => $t->string('paymob_transaction_id')->nullable()->index());
+        /* The gateway's own code for the last outcome (txn_response_code, or the HTTP/err code). */
+        $add('paymob_response_code', fn ($t) => $t->string('paymob_response_code', 64)->nullable());
+        $add('refunded_amount', fn ($t) => $t->decimal('refunded_amount', 10, 2)->default(0));
+        $add('paid_at', fn ($t) => $t->timestamp('paid_at')->nullable());
+        $add('refunded_at', fn ($t) => $t->timestamp('refunded_at')->nullable());
+        $add('receipt_emailed_at', fn ($t) => $t->timestamp('receipt_emailed_at')->nullable());
 
-            $table->index(['order_id', 'id']);
-        });
+        if (! Schema::hasTable('order_payment_logs')) {
+            Schema::create('order_payment_logs', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
+                $table->foreignId('admin_id')->nullable()->constrained('users')->nullOnDelete();
+                /* Groups the exchanges of one flow (create → callback → inquiry…). */
+                $table->uuid('correlation_id')->index();
+                $table->string('event', 48)->index();
+                /* out = we called the gateway, in = the gateway (or the buyer's browser) called us. */
+                $table->string('direction', 3);
+                $table->string('method', 8)->nullable();
+                $table->text('url')->nullable();
+                $table->json('request_headers')->nullable();
+                $table->longText('request_body')->nullable();
+                $table->unsignedSmallInteger('http_status')->nullable();
+                $table->json('response_headers')->nullable();
+                $table->longText('response_body')->nullable();
+                /* The gateway's code for this exchange (txn_response_code, error code…). */
+                $table->string('gateway_code', 64)->nullable();
+                /* Transaction / refund id, so a repeated callback can be recognised. */
+                $table->string('gateway_ref')->nullable()->index();
+                $table->boolean('success')->nullable();
+                $table->text('error_message')->nullable();
+                $table->timestamp('started_at', 6)->nullable();
+                $table->timestamp('finished_at', 6)->nullable();
+                $table->unsignedInteger('duration_ms')->nullable();
+                $table->string('ip_address', 45)->nullable();
+                $table->text('user_agent')->nullable();
+                $table->timestamps();
+
+                $table->index(['order_id', 'id']);
+            });
+        }
 
         /* Enum columns only need widening on MySQL; other drivers store them as text. */
         if (DB::getDriverName() === 'mysql') {

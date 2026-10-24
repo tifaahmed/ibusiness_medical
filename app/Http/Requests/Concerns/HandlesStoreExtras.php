@@ -47,6 +47,65 @@ trait HandlesStoreExtras
         ]);
     }
 
+    /**
+     * Drop the blank manager cards the form leaves behind and type each phone
+     * list. Needs {@see NormalisesBranchPhones} on the request as well.
+     */
+    protected function cleanStoreManagers(): void
+    {
+        $managers = $this->input('managers');
+        if (! is_array($managers)) {
+            return;
+        }
+
+        $clean = [];
+        foreach ($managers as $manager) {
+            if (! is_array($manager)) {
+                continue;
+            }
+            $phones = $this->normalisedPhones($manager['phones'] ?? null);
+            $name = trim((string) ($manager['name'] ?? ''));
+            $position = trim((string) ($manager['position'] ?? ''));
+
+            if ($name === '' && $position === '' && $phones === []) {
+                continue;
+            }
+
+            $clean[] = [
+                'id' => $manager['id'] ?? null,
+                'name' => $name,
+                'position' => $position === '' ? null : $position,
+                'phones' => $phones,
+            ];
+        }
+
+        $this->merge(['managers' => $clean]);
+    }
+
+    protected function storeContactRules(): array
+    {
+        return [
+            'sales_id' => ['nullable', 'integer', 'exists:sales,id'],
+            'contracted_at' => ['nullable', 'date'],
+            'managers' => ['nullable', 'array', 'max:50'],
+            'managers.*.id' => ['nullable', \Illuminate\Validation\Rule::exists('store_managers', 'id')->whereNull('deleted_at')],
+            'managers.*.name' => ['required', 'string', 'max:255'],
+            'managers.*.position' => ['nullable', 'string', 'max:255'],
+            'contract' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,avif,pdf', 'max:10240'],
+            'contract_delete' => ['nullable', 'boolean'],
+            ...$this->phoneRules('managers.*.phones'),
+        ];
+    }
+
+    protected function storeContactMessages(): array
+    {
+        return [
+            'sales_id.exists' => 'The selected sales representative is invalid.',
+            'managers.*.name.required' => 'Each contact needs a name.',
+            ...$this->phoneMessages('managers.*.phones'),
+        ];
+    }
+
     protected function storeExtrasRules(): array
     {
         return [

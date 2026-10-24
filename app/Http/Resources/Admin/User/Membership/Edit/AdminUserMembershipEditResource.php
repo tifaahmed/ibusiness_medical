@@ -39,6 +39,7 @@ class AdminUserMembershipEditResource extends JsonResource
                     'is_active' => (bool) $membership->is_active,
                     'is_visible' => (bool) $membership->is_visible,
                     'is_paid' => (bool) $membership->is_paid,
+                    'is_trial' => $membership->isTrial(),
                     'payment_type' => $membership->payment_type,
                     'completed_at' => $membership->completed_at?->format('Y-m-d H:i:s'),
                     'has_member_payments' => ($membership->member_payments_count ?? 0) > 0,

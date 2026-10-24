@@ -1768,6 +1768,7 @@ return [
         'relative_request' => 'طلب إضافة أقارب',
         'subscription_request' => 'طلب دفع اشتراك',
         'pending_relative' => 'قريب في انتظار الموافقة',
+        'national_id_change' => 'طلب تغيير الرقم القومي',
         'commercial_register' => 'السجل التجاري',
         'visitor' => 'الزائر',
         'ip_address' => 'عنوان IP',

@@ -54,6 +54,13 @@ class AdminStoreListController extends BaseController
         return Inertia::render('Admin/Store/List/StoreListView', [
             'stores' => $stores,
             'filters' => ['search' => $search],
+            'exportOptions' => [
+                'categories' => \App\Models\StoreCategory::query()->orderBy('id')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->getTranslations('name')])->values(),
+                'sales' => \App\Models\Sales::pickerOptions(),
+                'governorates' => \App\Models\Governorate::query()->orderBy('id')->get()->map(fn ($g) => ['id' => $g->id, 'name' => $g->getTranslations('name')])->values(),
+                'cities' => \App\Models\City::query()->orderBy('id')->get()->map(fn ($c) => ['id' => $c->id, 'governorate_id' => $c->governorate_id, 'name' => $c->getTranslations('name')])->values(),
+                'columns' => collect(\App\Support\StoreSpreadsheet::storeColumns())->map(fn ($d, $k) => ['key' => $k, 'label' => $d['label']])->values(),
+            ],
             'canManage' => $request->user()?->hasAnyPermission([
                 UserPermissionEnum::MANAGE_STORES,
                 UserPermissionEnum::MANAGE_OWN_STORES,

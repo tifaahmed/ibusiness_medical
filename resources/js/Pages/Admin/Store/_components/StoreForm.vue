@@ -508,6 +508,137 @@
     </div>
     </div>
 
+    <!-- Sales & contract tab -->
+    <div v-show="activeTab === 'contacts'" class="space-y-4">
+      <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
+        <h3 class="flex items-center gap-2 text-sm font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+          Sales representative
+        </h3>
+        <FormSearchableSelect
+          v-model="form.sales_id"
+          label="Sales"
+          :options="salesSelectOptions"
+          :error="form.errors.sales_id"
+          placeholder="Select sales (optional)"
+        />
+        <div class="space-y-1">
+          <label class="text-xs font-medium">Contracted date</label>
+          <input
+            v-model="form.contracted_at"
+            type="date" dir="ltr"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:max-w-xs"
+          />
+          <p v-if="form.errors.contracted_at" class="text-xs text-destructive">{{ form.errors.contracted_at }}</p>
+        </div>
+      </div>
+
+      <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            Store contacts
+          </h3>
+          <button
+            type="button"
+            @click="addManager"
+            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background text-xs font-medium hover:bg-muted"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+            Add contact
+          </button>
+        </div>
+
+        <div v-if="!form.managers.length" class="py-6 text-center text-sm text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2 opacity-50"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+          No contacts yet — click "Add contact" to add a manager.
+        </div>
+
+        <div
+          v-for="(manager, index) in form.managers"
+          :key="manager.id || `new-${index}`"
+          class="rounded-lg border border-border bg-accent/30 p-3 space-y-3"
+        >
+          <div class="flex items-start gap-3">
+            <div class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="space-y-1">
+                <label class="text-xs font-medium">Name</label>
+                <input
+                  v-model="manager.name"
+                  type="text" maxlength="255"
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+                <p v-if="form.errors[`managers.${index}.name`]" class="text-xs text-destructive">{{ form.errors[`managers.${index}.name`] }}</p>
+              </div>
+              <div class="space-y-1">
+                <label class="text-xs font-medium">Position</label>
+                <input
+                  v-model="manager.position"
+                  type="text" maxlength="255"
+                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+                <p v-if="form.errors[`managers.${index}.position`]" class="text-xs text-destructive">{{ form.errors[`managers.${index}.position`] }}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded-md p-2 text-destructive hover:bg-destructive/10"
+              title="Remove contact"
+              @click="removeManager(index)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+            </button>
+          </div>
+          <BranchPhonesInput
+            v-model="manager.phones"
+            label="Phone numbers"
+            :errors="form.errors"
+            :error-prefix="`managers.${index}.phones`"
+          />
+        </div>
+      </div>
+
+      <div v-if="storeId && trashed.length" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
+        <button type="button" class="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" @click="showTrashed = !showTrashed">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="showTrashed ? 'rotate-90' : ''" class="transition-transform"><path d="m9 18 6-6-6-6" /></svg>
+          Removed contacts ({{ trashed.length }})
+        </button>
+        <div v-if="showTrashed" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div v-for="m in trashed" :key="m.id" class="flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium line-through decoration-white/40">{{ m.name }}</p>
+              <p v-if="m.position" class="truncate text-xs text-muted-foreground">{{ m.position }}</p>
+            </div>
+            <button
+              type="button"
+              :disabled="restoringId === m.id"
+              class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-600/10 disabled:opacity-50 dark:text-emerald-400"
+              @click="restoreManager(m)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+              Restore
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-3">
+        <h3 class="flex items-center gap-2 text-sm font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><path d="M9 13h6" /><path d="M9 17h3" /></svg>
+          Contract
+        </h3>
+        <p class="text-xs text-muted-foreground">The signed contract, as an image or a PDF (up to 10 MB).</p>
+        <ContractFileInput
+          :max-size="10"
+          :initial-contract="existingContract"
+          @file-selected="(f) => { form.contract = f; form.contract_delete = false; contractError = ''; }"
+          @existing-removed="() => { form.contract_delete = true; }"
+          @error="(err) => contractError = err"
+        />
+        <p v-if="form.errors.contract || contractError" class="text-sm text-destructive">{{ form.errors.contract || contractError }}</p>
+      </div>
+    </div>
+
     <!-- SEO tab -->
     <div v-show="activeTab === 'seo'" class="space-y-4">
       <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-5">
@@ -606,6 +737,9 @@ import axios from 'axios';
 import { useEditorImageUpload } from '@/composables/useEditorImageUpload';
 import { useNotification } from '@/composables/useNotification';
 import ImageFileInput from '@/Components/form/ImageFileInput.vue';
+import ContractFileInput from '@/Components/form/ContractFileInput.vue';
+import { FormSearchableSelect } from '@/Components/form';
+import { bilingualLabel } from '@/lib/lookupNames';
 import StoreGalleryInput from '@/Components/form/StoreGalleryInput.vue';
 import BranchPhonesInput from '@/Components/form/BranchPhonesInput.vue';
 import FormTranslatableInput from '@/Components/form/FormTranslatableInput.vue';
@@ -633,6 +767,11 @@ const props = defineProps({
   existingHeader: { type: String, default: '' },
   existingSeoImage: { type: String, default: '' },
   existingGallery: { type: Array, default: () => [] },
+  existingContract: { type: Object, default: null },
+  // Edit page only: with a store to attach to, removed contacts can be restored.
+  storeId: { type: Number, default: null },
+  trashedManagers: { type: Array, default: () => [] },
+  salesOptions: { type: Array, default: () => [] },
   aiEnabled: { type: Boolean, default: false },
 });
 
@@ -672,9 +811,12 @@ const generateSeo = async () => {
 const activeTab = ref('general');
 const seoFields = ['meta_title', 'meta_description', 'meta_keywords'];
 const isSeoKey = (k) => seoFields.some(f => k === f || k.startsWith(`${f}.`));
+const contactFields = ['sales_id', 'contracted_at', 'managers', 'contract', 'contract_delete'];
+const isContactKey = (k) => contactFields.some(f => k === f || k.startsWith(`${f}.`));
 const errorList = computed(() => Object.entries(props.form.errors || {}).map(([key, message]) => ({ key, message })));
 const formTabs = computed(() => [
-  { key: 'general', label: 'Details', hasError: errorList.value.some(e => !isSeoKey(e.key)) },
+  { key: 'general', label: 'Details', hasError: errorList.value.some(e => !isSeoKey(e.key) && !isContactKey(e.key)) },
+  { key: 'contacts', label: 'Sales & contract', hasError: errorList.value.some(e => isContactKey(e.key)) },
   { key: 'seo', label: 'SEO', hasError: errorList.value.some(e => isSeoKey(e.key)) },
 ]);
 const counterClass = (value, max) => {
@@ -690,6 +832,35 @@ const seoPreview = computed(() => {
     url: `${window.location.origin}/stores/…`,
   };
 });
+
+/* ---- Sales, contacts and contract ------------------------------------------ */
+const salesSelectOptions = computed(() =>
+  props.salesOptions.map(o => ({ value: o.value, label: bilingualLabel(o.name || o.label, locale.value) }))
+);
+const contractError = ref('');
+const trashed = ref([...props.trashedManagers]);
+const showTrashed = ref(false);
+const restoringId = ref(null);
+const restoreManager = async (m) => {
+  if (restoringId.value) return;
+  restoringId.value = m.id;
+  try {
+    const { data } = await axios.post(route('admin.store.manager.restore', [props.storeId, m.id]));
+    trashed.value = trashed.value.filter(x => x.id !== m.id);
+    props.form.managers.push(data.manager);
+    useNotification().success(data.message || 'Contact restored.');
+  } catch (e) {
+    useNotification().error(e?.response?.data?.message || 'Failed to restore the contact. Please try again.');
+  } finally {
+    restoringId.value = null;
+  }
+};
+// A contact removed from the form but not yet saved is not in the database yet; once
+// the save lands, the page reloads and it appears in the removed list.
+const addManager = () => props.form.managers.push({ id: null, name: '', position: '', phones: [] });
+const removeManager = (index) => {
+  if (window.confirm('Remove this contact?')) props.form.managers.splice(index, 1);
+};
 
 // Local copy so a tag created or renamed in the popup shows at once.
 const tagList = ref([...props.tags]);

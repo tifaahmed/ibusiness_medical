@@ -107,6 +107,10 @@ class AuthController extends Controller
                  * fields being counted.
                  */
                 'registration' => app(RegistrationProgress::class)->for($user),
+                /* The latest national-ID change request, so the app can say it is waiting / was refused. */
+                'national_id_change' => ($change = \App\Models\NationalIdChangeRequest::query()->where('user_id', $user->id)->latest('id')->first())
+                    ? ['status' => $change->status, 'new_national_id' => $change->new_national_id, 'review_note' => $change->review_note, 'created_at' => $change->created_at?->toIso8601String()]
+                    : null,
             ],
         ]);
     }
@@ -151,6 +155,19 @@ class AuthController extends Controller
             'city_id' => 'sometimes|nullable|integer|exists:cities,id',
         ]);
 
+        /*
+         * A national ID that is already on the card is never edited here: the member files a change request
+         * (POST /membership/national-id-change) and an admin approves it. Setting it for the first time is fine.
+         */
+        $current = $user->memberships()->latest('id')->first();
+        if ($request->filled('national_id') && filled($current?->national_id) && $request->input('national_id') !== $current->national_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The national ID cannot be changed here. Send a change request with your ID card photos.',
+                'reason' => 'national_id_locked',
+            ], 422);
+        }
+
         if ($request->has('name')) {
             $user->name = $request->name;
         }
@@ -174,6 +191,11 @@ class AuthController extends Controller
             }
 
             foreach (['national_id', 'governorate_id', 'city_id'] as $field) {
+                // A set national ID stays as it is (checked above); clearing it is not allowed either.
+                if ($field === 'national_id' && filled($membership->national_id)) {
+                    continue;
+                }
+
                 if ($request->has($field)) {
                     $membership->{$field} = $request->input($field);
                 }

@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('membership_subscriptions', 'channel')) {
+            return;
+        }
+
         Schema::table('membership_subscriptions', function (Blueprint $table) {
             $table->string('channel', 16)->nullable()->after('method')->index();
         });

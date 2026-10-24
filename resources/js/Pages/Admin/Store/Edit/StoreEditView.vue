@@ -18,6 +18,10 @@
             :tag-color-options="tagColorOptions"
             :governorates="governorates"
             :cities="cities"
+            :sales-options="salesOptions"
+            :existing-contract="store.contract"
+            :store-id="store.id"
+            :trashed-managers="store.trashed_managers"
             :ai-enabled="aiEnabled"
             :existing-logo="store.logo"
             :existing-header="store.header"
@@ -77,6 +81,7 @@ const props = defineProps({
   tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
+  salesOptions: { type: Array, default: () => [] },
   aiEnabled: { type: Boolean, default: false },
 });
 
@@ -102,6 +107,11 @@ const form = useForm({
   shipping_governorate_ids: [...(props.store.shipping_governorate_ids || [])],
   offer_percent_from: props.store.offer_percent_from ?? '',
   offer_percent_to: props.store.offer_percent_to ?? '',
+  sales_id: props.store.sales_id ?? '',
+  contracted_at: props.store.contracted_at || '',
+  managers: (props.store.managers || []).map(m => ({ id: m.id, name: m.name || '', position: m.position || '', phones: m.phones || [] })),
+  contract: null,
+  contract_delete: false,
   logo: null,
   logo_delete: false,
   header: null,

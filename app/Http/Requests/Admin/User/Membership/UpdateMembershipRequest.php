@@ -107,6 +107,13 @@ class UpdateMembershipRequest extends FormRequest
         } else {
             $this->merge(['is_paid' => false]);
         }
+
+        // is_trial is the one checkbox where "not sent" must NOT mean "unchecked":
+        // a client that predates it (or a partial update) would otherwise turn
+        // every trial card it touches into a full one. Only an explicit value acts.
+        if ($this->has('is_trial')) {
+            $this->merge(['is_trial' => filter_var($this->input('is_trial'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)]);
+        }
     }
 
     /**
@@ -191,6 +198,7 @@ class UpdateMembershipRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
+            'is_trial' => ['nullable', 'boolean'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
             'job_title' => ['nullable', 'array'],
             'job_title.ar' => ['nullable', 'string', 'max:255'],

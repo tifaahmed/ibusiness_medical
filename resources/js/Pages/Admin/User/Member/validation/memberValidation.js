@@ -64,6 +64,9 @@ export const memberSchema = z.object({
     is_paid: z.boolean()
         .optional()
         .default(false),
+    is_trial: z.boolean()
+        .optional()
+        .default(false),
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
@@ -208,6 +211,9 @@ export const memberUpdateSchema = z.object({
     is_paid: z.boolean()
         .optional()
         .default(false),
+    is_trial: z.boolean()
+        .optional()
+        .default(false),
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
@@ -316,6 +322,7 @@ export const validateMemberForm = (memberData, isUpdate = false) => {
             is_active: typeof memberData.is_active === 'boolean' ? memberData.is_active : (memberData.is_active === 'true' || memberData.is_active === true || memberData.is_active === 1),
             is_visible: typeof memberData.is_visible === 'boolean' ? memberData.is_visible : (memberData.is_visible === 'true' || memberData.is_visible === true || memberData.is_visible === 1),
             is_paid: typeof memberData.is_paid === 'boolean' ? memberData.is_paid : (memberData.is_paid === 'true' || memberData.is_paid === true || memberData.is_paid === 1),
+            is_trial: typeof memberData.is_trial === 'boolean' ? memberData.is_trial : (memberData.is_trial === 'true' || memberData.is_trial === true || memberData.is_trial === 1),
             payment_type: memberData.payment_type?.toString() || '',
             company_id: memberData.company_id ?? null,
             sales_id: memberData.sales_id ?? null,

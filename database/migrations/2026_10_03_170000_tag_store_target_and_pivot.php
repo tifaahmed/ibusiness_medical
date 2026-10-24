@@ -9,11 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('store_tag', function (Blueprint $table) {
-            $table->foreignId('store_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('tag_id')->constrained()->cascadeOnDelete();
-            $table->primary(['store_id', 'tag_id']);
-        });
+        // Guarded so a re-run after a partial or hand-applied change is harmless.
+        if (! Schema::hasTable('store_tag')) {
+            Schema::create('store_tag', function (Blueprint $table) {
+                $table->foreignId('store_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('tag_id')->constrained()->cascadeOnDelete();
+                $table->primary(['store_id', 'tag_id']);
+            });
+        }
 
         // "services" was replaced by "stores" as a tag target.
         DB::table('tags')->whereNotNull('applies_to')->get(['id', 'applies_to'])->each(function ($tag) {

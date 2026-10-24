@@ -13,7 +13,7 @@ class AdminStoreEditController extends BaseController
 {
     public function __invoke(Store $store): Response
     {
-        $store->load(['branches.governorate', 'branches.city', 'galleries']);
+        $store->load(['branches.governorate', 'branches.city', 'galleries', 'managers']);
 
         return Inertia::render('Admin/Store/Edit/StoreEditView', [
             'store' => [
@@ -38,6 +38,20 @@ class AdminStoreEditController extends BaseController
                 'shipping_governorate_ids' => $store->shippingGovernorates()->pluck('governorates.id')->all(),
                 'offer_percent_from' => $store->offer_percent_from,
                 'offer_percent_to' => $store->offer_percent_to,
+                'sales_id' => $store->sales_id,
+                'contracted_at' => $store->contracted_at?->toDateString(),
+                'trashed_managers' => $store->managers()->onlyTrashed()->get()->map(fn (\App\Models\StoreManager $m) => [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'position' => $m->position,
+                ])->values(),
+                'managers' => $store->managers->map(fn (\App\Models\StoreManager $m) => [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'position' => $m->position,
+                    'phones' => $m->phones ?? [],
+                ])->values(),
+                'contract' => $store->contract,
                 'logo' => $store->logo,
                 'seo_image' => $store->seo_image,
                 'header' => $store->header,
@@ -55,6 +69,7 @@ class AdminStoreEditController extends BaseController
                     'phone' => $branch->phone,
                 ]),
             ],
+            'salesOptions' => \App\Models\Sales::pickerOptions(),
             'aiEnabled' => \App\Services\BranchGeocoder::isConfigured(),
             'tags' => \App\Models\Tag::forPicker('stores', $store->tags()->pluck('tags.id')->all()),
             'tagIconOptions' => \App\Enums\Tag\TagEnum::getIconOptions(),

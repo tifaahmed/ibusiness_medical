@@ -80,6 +80,11 @@ class UpdateUserMembershipAction
             // Get is_paid value from request, default to false if not provided
             $isPaid = isset($validated['is_paid']) ? (bool) $validated['is_paid'] : false;
 
+            // Trial flag: null = the form did not send it, so the card's plan is left alone.
+            $isTrial = array_key_exists('is_trial', $validated) && $validated['is_trial'] !== null
+                ? (bool) $validated['is_trial']
+                : null;
+
             // Payment type: null when unpaid, from request when paid (default monthly if partner)
             $paymentType = null;
             if ($isPaid) {
@@ -133,6 +138,13 @@ class UpdateUserMembershipAction
                     'governorate_id' => $validated['governorate_id'] ?? null,
                     'city_id' => $validated['city_id'] ?? null,
                 ]);
+
+                if ($isTrial !== null && $existingMembership->isTrial() !== $isTrial) {
+                    $existingMembership->forceFill($isTrial
+                        ? ['plan' => Membership::PLAN_TRIAL, 'trial_started_at' => $existingMembership->trial_started_at ?? now()]
+                        : ['plan' => Membership::PLAN_FULL]
+                    )->save();
+                }
 
                 $updatedMembership = $existingMembership;
                 $membershipWasCreated = false;
@@ -263,6 +275,7 @@ class UpdateUserMembershipAction
             'is_active' => (bool) $membership->is_active,
             'is_visible' => (bool) $membership->is_visible,
             'is_paid' => (bool) $membership->is_paid,
+            'is_trial' => $membership->isTrial(),
             'payment_type' => $membership->payment_type,
             'job_title' => $this->normalizeTranslatable($membership->getRawOriginal('job_title')),
             'company_id' => $membership->company_id,

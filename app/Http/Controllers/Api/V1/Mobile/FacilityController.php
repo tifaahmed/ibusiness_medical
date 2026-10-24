@@ -76,6 +76,9 @@ class FacilityController extends Controller
             'type' => ['nullable', 'integer'],
             'governorate_id' => ['nullable', 'integer'],
             'city_id' => ['nullable', 'integer'],
+            /* The member's own area: facilities with a branch in this city come first, then in this governorate, then the rest (each group in its usual order). */
+            'home_governorate_id' => ['nullable', 'integer'],
+            'home_city_id' => ['nullable', 'integer'],
             'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:radius_km,lng'],
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km,lat'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
@@ -90,20 +93,25 @@ class FacilityController extends Controller
         $governorateId = ! empty($v['governorate_id']) ? (int) $v['governorate_id'] : null;
         $cityId = ! empty($v['city_id']) ? (int) $v['city_id'] : null;
         $hasPoint = $lat !== null && $lng !== null;
+        $homeGovernorateId = ! empty($v['home_governorate_id']) ? (int) $v['home_governorate_id'] : null;
+        $homeCityId = ! empty($v['home_city_id']) ? (int) $v['home_city_id'] : null;
 
         $query = Facility::query()
             ->select(['facilities.id', 'facilities.slug', 'facilities.name', 'facilities.facility_type_id', 'facilities.discount_percent'])
             ->with(['media' => fn ($q) => $q->whereIn('collection_name', ['logo', 'mobile_logo'])])
-            ->when(! empty($v['q']), function ($q) use ($v) {
-                $name = DirectorySearch::translated('name', app()->getLocale());
-
-                foreach (DirectorySearch::words($v['q']) as $word) {
-                    $q->where(fn ($w) => $w->whereRaw("{$name} like ?", ['%'.$word.'%'])->orWhere('slug', 'like', '%'.$word.'%'));
-                }
-            })
+            ->when(! empty($v['q']), fn ($q) => $this->matchingTyped($q, (string) $v['q']))
             ->when(! empty($v['type']), fn ($q) => $q->where('facilities.facility_type_id', (int) $v['type']))
             ->when($governorateId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId)))
             ->when($cityId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('city_id', $cityId)));
+
+        // Own city first, then own governorate, then everything else; skipped for "biggest discount" and when an area is filtered.
+        if (($homeGovernorateId || $homeCityId) && ! $governorateId && ! $cityId && ($v['sort'] ?? null) !== 'discount') {
+            $query->orderByRaw(
+                'case when '.($homeCityId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.city_id = ?)' : '0 = 1').' then 0 '
+                .'when '.($homeGovernorateId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.governorate_id = ?)' : '0 = 1').' then 1 else 2 end',
+                array_values(array_filter([$homeCityId, $homeGovernorateId])),
+            );
+        }
 
         if ($hasPoint) {
             $query->leftJoinSub(
@@ -161,6 +169,81 @@ class FacilityController extends Controller
         return $this->respond($request, ['data' => $data, 'has_more' => $page->hasMorePages()], $hasPoint ? 30 : 120);
     }
 
+    /**
+     * Free-text search: a facility matches when every typed word is found in its name or slug,
+     * or in one of its branches' names, addresses, cities or governorates; or when the typed
+     * digits are part of a branch phone number. Arabic and English are both matched.
+     */
+    private function matchingTyped($query, string $term)
+    {
+        $words = DirectorySearch::words($term);
+        $digits = DirectorySearch::digits($term);
+        $locales = ['ar', 'en'];
+
+        $anyLocale = function ($builder, string $column, string $word) use ($locales): void {
+            foreach ($locales as $locale) {
+                $builder->orWhereRaw(DirectorySearch::translated($column, $locale).' like ?', ['%'.$word.'%']);
+            }
+        };
+
+        return $query->where(function ($outer) use ($words, $digits, $anyLocale): void {
+            $outer->where(function ($byText) use ($words, $anyLocale): void {
+                foreach ($words as $word) {
+                    $byText->where(function ($w) use ($word, $anyLocale): void {
+                        $anyLocale($w, 'name', $word);
+                        $w->orWhereRaw(DirectorySearch::plain('slug').' like ?', ['%'.$word.'%'])
+                            ->orWhereHas('branches', function ($b) use ($word, $anyLocale): void {
+                                $b->where(function ($x) use ($word, $anyLocale): void {
+                                    $anyLocale($x, 'name', $word);
+                                    $anyLocale($x, 'address', $word);
+                                    $x->orWhereHas('city', fn ($c) => $c->where(fn ($y) => $anyLocale($y, 'name', $word)))
+                                        ->orWhereHas('governorate', fn ($g) => $g->where(fn ($y) => $anyLocale($y, 'name', $word)));
+                                });
+                            });
+                    });
+                }
+            });
+
+            if (strlen($digits) >= 3) {
+                $outer->orWhereHas('branches', fn ($b) => $b->whereRaw(DirectorySearch::digitsOf('phone').' like ?', ['%'.$digits.'%']));
+            }
+        });
+    }
+
+    /**
+     * The same free-text search for map pins, matched on the branch itself: every typed word must be
+     * in the facility's name, or the branch's name, address, city or governorate; or the digits in its phone.
+     */
+    private function matchingTypedBranch($query, string $term)
+    {
+        $words = DirectorySearch::words($term);
+        $digits = DirectorySearch::digits($term);
+
+        $anyLocale = function ($builder, string $column, string $word): void {
+            foreach (['ar', 'en'] as $locale) {
+                $builder->orWhereRaw(DirectorySearch::translated($column, $locale).' like ?', ['%'.$word.'%']);
+            }
+        };
+
+        return $query->where(function ($outer) use ($words, $digits, $anyLocale): void {
+            $outer->where(function ($byText) use ($words, $anyLocale): void {
+                foreach ($words as $word) {
+                    $byText->where(function ($w) use ($word, $anyLocale): void {
+                        $anyLocale($w, 'name', $word);
+                        $anyLocale($w, 'address', $word);
+                        $w->orWhereHas('facility', fn ($f) => $f->where(fn ($x) => $anyLocale($x, 'name', $word)))
+                            ->orWhereHas('city', fn ($c) => $c->where(fn ($x) => $anyLocale($x, 'name', $word)))
+                            ->orWhereHas('governorate', fn ($g) => $g->where(fn ($x) => $anyLocale($x, 'name', $word)));
+                    });
+                }
+            });
+
+            if (strlen($digits) >= 3) {
+                $outer->orWhereRaw(DirectorySearch::digitsOf('phone').' like ?', ['%'.$digits.'%']);
+            }
+        });
+    }
+
     public function show(Request $request, Facility $facility): JsonResponse
     {
         $facility->load([
@@ -198,6 +281,7 @@ class FacilityController extends Controller
             'lng' => ['required', 'numeric', 'between:-180,180'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'facility_type_id' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:3000'],
         ]);
 
@@ -211,6 +295,7 @@ class FacilityController extends Controller
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->when(! empty($v['facility_type_id']), fn ($q) => $q->whereHas('facility', fn ($f) => $f->where('facility_type_id', (int) $v['facility_type_id'])))
+            ->when(! empty($v['q']), fn ($q) => $this->matchingTypedBranch($q, (string) $v['q']))
             ->when(isset($v['radius_km']), fn ($q) => $q->havingRaw('distance_km <= ?', [(int) $v['radius_km']]))
             ->orderBy('distance_km')
             ->limit($limit + 1);

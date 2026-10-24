@@ -321,6 +321,16 @@
                 {{ t.member?.paid_membership_help || 'Check if this membership has been paid for.' }}
               </p>
             </div>
+            <div v-if="memberStore.form.id">
+              <FormCheckbox
+                v-model="memberStore.form.is_trial"
+                :label="t.member?.trial_membership || 'Trial Membership'"
+                :error="memberStore.validationErrors?.is_trial"
+              />
+              <p class="text-xs text-white/70 mt-1">
+                {{ t.member?.trial_membership_help || 'A free trial card: it ends on its expiry date, earns no member price once expired and cannot hold relatives. Untick to make it a regular card (the same as the ✕ on the members list).' }}
+              </p>
+            </div>
             <div v-if="false && memberStore.form.is_paid">
               <FormSelect
                 v-model="memberStore.form.payment_type"

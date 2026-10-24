@@ -496,6 +496,8 @@ Route::prefix('v1')
                 ->middleware('throttle:10,1,api.me.membership.subscribe')->name('me.membership.subscribe');
             Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])
                 ->middleware('throttle:5,1,api.me.membership.relatives-request')->name('me.membership.relatives-request');
+            Route::post('/membership/national-id-change', [V1MemberMembershipController::class, 'requestNationalIdChange'])
+                ->middleware('throttle:5,1,api.me.membership.national-id-change')->name('me.membership.national-id-change');
 
             /*
              * The addresses on the member's own card: read, and save one — see

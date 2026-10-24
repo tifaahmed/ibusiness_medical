@@ -13,6 +13,7 @@ class AdminStoreCreateController extends BaseController
     public function __invoke(): Response
     {
         return Inertia::render('Admin/Store/Create/StoreCreateView', [
+            'salesOptions' => \App\Models\Sales::pickerOptions(),
             'aiEnabled' => \App\Services\BranchGeocoder::isConfigured(),
             'tags' => \App\Models\Tag::forPicker('stores'),
             'tagIconOptions' => \App\Enums\Tag\TagEnum::getIconOptions(),
