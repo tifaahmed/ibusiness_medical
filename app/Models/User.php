@@ -95,6 +95,7 @@ class User extends Authenticatable implements HasMedia
         'phone',
         /* Asked for on the storefront's registration form, always optional. */
         'gender',
+        'date_of_birth',
         'password',
         'slug',
         'partner_id',
@@ -132,6 +133,7 @@ class User extends Authenticatable implements HasMedia
     {
         return [
             'email_verified_at' => 'datetime',
+            'date_of_birth' => 'date',
             'dashboard_blocked_at' => 'datetime',
             'password' => 'hashed',
         ];

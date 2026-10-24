@@ -82,6 +82,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'gender' => $user->gender,
+                    'date_of_birth' => $user->date_of_birth?->toDateString(),
                     'avatar_url' => get_image_url($user, 'avatar'),
                     'membership' => $membership ? [
                         'id' => $membership->id,
@@ -144,6 +145,7 @@ class AuthController extends Controller
              * of a validation error.
              */
             'gender' => 'sometimes|nullable|string|in:male,female',
+            'date_of_birth' => 'sometimes|nullable|date|before:today|after:1900-01-01',
             'national_id' => 'sometimes|nullable|string|max:14',
             'governorate_id' => 'sometimes|nullable|integer|exists:governorates,id',
             /*
@@ -179,6 +181,9 @@ class AuthController extends Controller
         }
         if ($request->has('gender')) {
             $user->gender = $request->input('gender');
+        }
+        if ($request->has('date_of_birth')) {
+            $user->date_of_birth = $request->input('date_of_birth');
         }
         $user->save();
 

@@ -25,4 +25,19 @@ class ProfileEmailTest extends TestCase
         $this->getJson('/api/v1/profile')->assertOk()->assertJsonPath('data.user.email', 'mona@example.com');
         $this->assertSame('mona@example.com', $user->fresh()->email);
     }
+
+    /** @test */
+    public function the_date_of_birth_is_saved_and_read_back_and_a_future_one_is_refused(): void
+    {
+        $user = User::factory()->create(['phone' => '01011113333']);
+        Membership::factory()->create(['user_id' => $user->id, 'national_id' => null]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/v1/profile', ['date_of_birth' => '1995-06-15'])->assertOk();
+        $this->getJson('/api/v1/profile')->assertOk()->assertJsonPath('data.user.date_of_birth', '1995-06-15');
+
+        $this->putJson('/api/v1/profile', ['date_of_birth' => now()->addDay()->toDateString()])->assertUnprocessable();
+        $this->putJson('/api/v1/profile', ['date_of_birth' => null])->assertOk();
+        $this->getJson('/api/v1/profile')->assertJsonPath('data.user.date_of_birth', null);
+    }
 }
