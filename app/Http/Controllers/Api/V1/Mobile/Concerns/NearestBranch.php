@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
  */
 trait NearestBranch
 {
-    /** Radius steps a visitor may pick, in km — same set as the web directory. */
-    protected const RADIUS_STEPS_KM = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    /** Radius steps a visitor may pick, in km — the web directory's set plus 1-5 km for the app's tight first look. */
+    protected const RADIUS_STEPS_KM = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
     /**
      * One row per owner that has a geocoded branch: its NEAREST branch's

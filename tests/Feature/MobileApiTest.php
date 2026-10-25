@@ -171,6 +171,13 @@ class MobileApiTest extends TestCase
     }
 
     /** @test */
+    public function the_map_pins_accept_a_one_km_radius(): void
+    {
+        $this->getJson('/api/v1/mobile/map-pins?lat=30.04&lng=31.23&radius_km=1')->assertOk();
+        $this->getJson('/api/v1/mobile/map-pins?lat=30.04&lng=31.23&radius_km=6')->assertStatus(422);
+    }
+
+    /** @test */
     public function a_radius_without_a_position_is_rejected(): void
     {
         $this->getJson('/api/v1/mobile/facilities?radius_km=10')->assertStatus(422);
