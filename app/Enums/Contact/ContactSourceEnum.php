@@ -19,6 +19,8 @@ enum ContactSourceEnum: string
     case RELATIVE_REQUEST = 'relative_request';
     /** A member who wants to pay for the card through customer services (cash, Vodafone Cash, Instapay). */
     case SUBSCRIPTION_REQUEST = 'subscription_request';
+    /** A member asking for their money back on a paid order that has not shipped yet. */
+    case REFUND_REQUEST = 'refund_request';
     /** A relative added by the card owner that waits for an admin's approval. */
     case PENDING_RELATIVE = 'pending_relative';
     /** A member asking an admin to change the national ID on their card, with the new number and photos of the ID. */

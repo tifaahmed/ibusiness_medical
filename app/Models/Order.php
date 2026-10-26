@@ -167,6 +167,14 @@ class Order extends Model implements HasMedia
     }
 
     /** Every exchange with the payment gateway, oldest first. */
+    /** The moves of the payment and delivery statuses, oldest first — what the buyer's status history is drawn from. */
+    public function statusLogs(): HasMany
+    {
+        return $this->hasMany(OrderLog::class)
+            ->whereIn('action', [OrderLog::ACTION_PAYMENT_STATUS_CHANGED, OrderLog::ACTION_DELIVERY_STATUS_CHANGED])
+            ->oldest('id');
+    }
+
     public function paymentLogs(): HasMany
     {
         return $this->hasMany(OrderPaymentLog::class)->orderBy('id');
@@ -281,6 +289,15 @@ class Order extends Model implements HasMedia
      * never be offered the ship button again — a second booking is a second
      * courier sent for one parcel, and a second delivery fee.
      */
+    /** Whether the buyer has already asked for this order's money back. */
+    public function refundRequested(): bool
+    {
+        return OrderLog::query()
+            ->where('order_id', $this->id)
+            ->where('action', OrderLog::ACTION_REFUND_REQUESTED)
+            ->exists();
+    }
+
     public function isShipped(): bool
     {
         return filled($this->abs_awb);

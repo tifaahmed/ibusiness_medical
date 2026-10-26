@@ -108,6 +108,8 @@ class AdminOrderShowResource extends JsonResource
                 'receipt_emailed_at' => $this->receipt_emailed_at?->format('Y-m-d H:i:s'),
                 'configured' => PaymobClient::isConfigured(),
                 'inquiry_ready' => filled(config('services.paymob.api_key')),
+                /* The buyer asked for this refund from the app/website; pressing Refund is the admin's approval. */
+                'refund_requested' => $this->refundRequested(),
                 'can_refund' => $this->isOnlinePayment()
                     && $this->payment_status === \App\Enums\Order\PaymentStatusEnum::ACCEPTED
                     && filled($this->paymob_transaction_id),

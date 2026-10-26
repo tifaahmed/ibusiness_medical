@@ -57,6 +57,11 @@ class OrderResource extends JsonResource
             /* The cash-on-delivery fee already included in `total_amount`; 0 means none, and clients hide it. */
             'cod_fee' => (float) $this->cod_fee,
             'refunded_amount' => (float) $this->refunded_amount,
+            /* A paid order that has not started shipping can ask for its money back; an admin decides (never automatic). */
+            'can_request_refund' => $this->payment_status === PaymentStatusEnum::ACCEPTED
+                && $this->delivery_status === \App\Enums\Order\DeliveryStatusEnum::PENDING
+                && ! $this->refundRequested(),
+            'refund_requested' => $this->refundRequested(),
             'paid_at' => $this->paid_at?->toAtomString(),
             /* Whether the buyer can still be sent to the gateway for this order. */
             'can_pay_online' => $this->isOnlinePayment()
@@ -101,6 +106,20 @@ class OrderResource extends JsonResource
                 'label' => $this->delivery_status->label(),
             ],
             'cancel_reason' => $this->cancel_reason,
+            /* Only on the one-order screens: how the payment and delivery statuses moved, with the date of each move. */
+            'status_history' => $this->relationLoaded('statusLogs') ? $this->statusLogs->map(function ($log) {
+                $isPayment = $log->action === \App\Models\OrderLog::ACTION_PAYMENT_STATUS_CHANGED;
+                $key = $isPayment ? 'payment_status' : 'delivery_status';
+                $enum = $isPayment ? PaymentStatusEnum::class : \App\Enums\Order\DeliveryStatusEnum::class;
+                $state = fn (?string $value) => $value === null ? null : ['value' => $value, 'label' => $enum::tryFrom($value)?->label() ?? $value];
+
+                return [
+                    'kind' => $isPayment ? 'payment' : 'delivery',
+                    'from' => $state($log->old_values[$key] ?? null),
+                    'to' => $state($log->new_values[$key] ?? null),
+                    'at' => $log->created_at?->toAtomString(),
+                ];
+            })->values() : [],
 
             /*
              * Whether the buyer still owes us proof of a transfer. Answered

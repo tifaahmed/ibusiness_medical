@@ -62,6 +62,8 @@ class TrialCardTest extends TestCase
         SiteSettings::put(MembershipPlan::PRICE, 600, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::MONTHS, 12, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::TRIAL_MONTHS, 1, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::HALF_PRICE, 350, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::HALF_MONTHS, 6, Setting::TYPE_NUMBER);
     }
 
     private function member(string $phone = '01012345678'): User
@@ -308,6 +310,7 @@ class TrialCardTest extends TestCase
     {
         [, $membership] = $this->trialCard();
         SiteSettings::put(MembershipPlan::PRICE, 0, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::HALF_PRICE, 0, Setting::TYPE_NUMBER);
 
         $this->getJson("/api/v1/card/{$membership->membership_number}/status")
             ->assertJsonPath('data.can_pay_online', false);
@@ -429,6 +432,42 @@ class TrialCardTest extends TestCase
         // A link opened at the old price can no longer extend the card.
         $this->sendCallback($this->signed($sub, ['amount_cents' => 60000]))->assertOk();
         $this->assertSame(MembershipSubscription::STATUS_PENDING, $sub->fresh()->status);
+    }
+
+    public function test_the_half_year_plan_charges_its_own_price_and_adds_six_months_and_a_member_payment(): void
+    {
+        [, $membership] = $this->trialCard();
+        $this->fakeIntention();
+
+        $this->getJson("/api/v1/card/{$membership->membership_number}/status")
+            ->assertJsonPath('data.plans.0.key', 'year')->assertJsonPath('data.plans.1.key', 'half')
+            ->assertJsonPath('data.plans.1.price', 350);
+
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe", ['plan' => 'half'])->assertCreated();
+        $sub = MembershipSubscription::query()->firstOrFail();
+        $this->assertSame('350.00', $sub->amount);
+        $this->assertSame(6, (int) $sub->months);
+        Http::assertSent(fn ($request) => ($request->data()['amount'] ?? null) === 35000);
+
+        $this->sendCallback($this->signed($sub))->assertOk();
+        $this->assertSame(MembershipSubscription::STATUS_ACCEPTED, $sub->fresh()->status);
+
+        $payment = MemberPayment::query()->where('membership_id', $membership->id)->firstOrFail();
+        $this->assertSame('350.00', $payment->amount);
+        $this->assertSame(6, (int) $payment->months_paid);
+    }
+
+    public function test_a_plan_that_is_not_on_sale_is_refused_and_no_plan_means_the_yearly_one(): void
+    {
+        [, $membership] = $this->trialCard();
+        $this->fakeIntention();
+        SiteSettings::put(MembershipPlan::HALF_PRICE, 0, Setting::TYPE_NUMBER);
+
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe", ['plan' => 'half'])->assertUnprocessable();
+        $this->assertSame(0, MembershipSubscription::query()->count());
+
+        $this->postJson("/api/v1/card/{$membership->membership_number}/subscribe")->assertCreated();
+        $this->assertSame('600.00', MembershipSubscription::query()->firstOrFail()->amount);
     }
 
     public function test_a_declined_card_can_still_succeed_on_the_next_try(): void

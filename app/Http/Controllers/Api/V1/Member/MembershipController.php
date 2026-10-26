@@ -130,6 +130,7 @@ class MembershipController extends Controller
             'email' => ['nullable', 'email:rfc', 'max:190'],
             'return_url' => ['nullable', 'string', 'max:500'],
             'paymob_channel' => ['nullable', Rule::in(\App\Services\Paymob\PaymobClient::CHANNELS)],
+            'plan' => ['nullable', Rule::in(['year', 'half'])],
             'reference' => ['nullable', 'string', 'max:190'],
             'receipts' => ['nullable', 'array', 'max:10'],
             'receipts.*' => ['file', 'mimes:jpeg,png,jpg,webp,pdf', 'max:8192'],

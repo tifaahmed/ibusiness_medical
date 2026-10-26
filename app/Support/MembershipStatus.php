@@ -36,6 +36,8 @@ final class MembershipStatus
             'days_left' => $membership?->daysLeft() ?? 0,
             'price' => MembershipPlan::price(),
             'months' => MembershipPlan::months(),
+            /* Every plan on sale — `year` and/or `half` — each with its price and months; draw these and send back `plan`. */
+            'plans' => MembershipPlan::plans(),
             /* Whether "buy now with Paymob" may be drawn; the contact options are always available. */
             'can_pay_online' => MembershipPlan::canPayOnline(),
             /* Every way of paying the admin has switched on, in display order; draw exactly these. */

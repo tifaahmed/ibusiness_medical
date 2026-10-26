@@ -174,6 +174,12 @@ class AuthController extends Controller
              */
             'job_title' => 'sometimes|nullable|string|max:255',
             /*
+             * The employer, typed as plain text. A card points at a shared Company row, so the name
+             * is matched to an existing one (same name, same language, case aside) or a new one is made.
+             * Empty clears it.
+             */
+            'company_name' => 'sometimes|nullable|string|max:255',
+            /*
              * The registration form's fields. Every one of them is optional by
              * design: somebody proves they hold a phone and is let in, and the
              * details are a nudge afterwards rather than a gate. `nullable` is
@@ -229,6 +235,18 @@ class AuthController extends Controller
         if ($membership) {
             if ($request->has('job_title')) {
                 $membership->setTranslation('job_title', app()->getLocale(), (string) $request->input('job_title'));
+            }
+
+            if ($request->has('company_name')) {
+                $name = trim((string) $request->input('company_name'));
+                $locale = app()->getLocale();
+
+                $membership->company_id = $name === ''
+                    ? null
+                    : (\App\Models\Company::query()
+                        ->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(name, ?))) = ?', ['$.'.$locale, mb_strtolower($name)])
+                        ->value('id')
+                        ?? \App\Models\Company::create(['name' => [$locale => $name], 'created_by' => $user->id])->id);
             }
 
             foreach (['national_id', 'governorate_id', 'city_id'] as $field) {

@@ -473,6 +473,9 @@ Route::prefix('v1')
                 ->name('orders.claim');
 
             Route::get('/orders/{orderCode}', [V1MemberOrderController::class, 'show'])->name('orders.show');
+            Route::post('/orders/{orderCode}/refund-request', [V1MemberOrderController::class, 'requestRefund'])
+                ->middleware('throttle:10,1,api.orders.refund-request')
+                ->name('orders.refund-request');
 
             /*
              * A member's own family, and the one thing they may add to it: a

@@ -1767,6 +1767,7 @@ return [
         'join_request' => 'طلب انضمام',
         'relative_request' => 'طلب إضافة أقارب',
         'subscription_request' => 'طلب دفع اشتراك',
+        'refund_request' => 'طلب استرداد طلب',
         'pending_relative' => 'قريب في انتظار الموافقة',
         'national_id_change' => 'طلب تغيير الرقم القومي',
         'commercial_register' => 'السجل التجاري',

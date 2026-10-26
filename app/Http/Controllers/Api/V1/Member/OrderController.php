@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1\Member;
 
+use App\Actions\Contact\RecordContactMessageAction;
+use App\Enums\Contact\ContactChannelEnum;
+use App\Enums\Contact\ContactSourceEnum;
+use App\Enums\Order\DeliveryStatusEnum;
+use App\Enums\Order\PaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Partner\OrderResource;
 use App\Models\Order;
@@ -9,6 +14,8 @@ use App\Models\OrderLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -26,6 +33,61 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class OrderController extends Controller
 {
+    public function __construct(private readonly RecordContactMessageAction $inbox) {}
+
+    /**
+     * Ask for the money back on a PAID order that has not started shipping.
+     *
+     * A request, never an automatic refund: it lands in the contact inbox and the order's log, and an admin
+     * refunds (or declines) it from the order page. One request per order.
+     */
+    public function requestRefund(Request $request, string $orderCode): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+        $validated = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+
+        $order = Order::query()->where('user_id', $member->id)->where('order_code', $orderCode)->first();
+
+        if (! $order instanceof Order) {
+            return response()->json(['message' => 'No order of yours has that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($order->payment_status !== PaymentStatusEnum::ACCEPTED || $order->delivery_status !== DeliveryStatusEnum::PENDING) {
+            return response()->json(['message' => 'Only a paid order that has not shipped can be refunded.', 'reason' => 'not_refundable'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($order->refundRequested()) {
+            return response()->json(['data' => ['requested' => true, 'already_requested' => true]]);
+        }
+
+        try {
+            $this->inbox->handle([
+                'phone' => (string) $member->phone,
+                'name' => $member->name,
+                'email' => $member->email,
+                'subject' => 'Refund request — order '.$order->order_code,
+                'message' => 'Order '.$order->order_code.' (paid '.$order->total_paid.') is still pending; the buyer asks for a refund.'
+                    .(filled($validated['note'] ?? null) ? ' Note: '.$validated['note'] : ''),
+                'source' => ContactSourceEnum::REFUND_REQUEST->value,
+                'channel' => ContactChannelEnum::fromRequest($request)->value,
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            ]);
+
+            OrderLog::record($order->id, null, OrderLog::ACTION_REFUND_REQUESTED, null, ['note' => $validated['note'] ?? null], $request);
+        } catch (Throwable $exception) {
+            Log::error('Order refund request could not be filed.', [
+                'route' => $request->path(), 'user_id' => $member->id, 'order' => $order->order_code,
+                'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json(['message' => 'Your request could not be sent. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json(['data' => ['requested' => true, 'already_requested' => false]]);
+    }
+
     /**
      * Every order belonging to this member, newest first.
      */
@@ -128,7 +190,7 @@ class OrderController extends Controller
         $order = Order::query()
             ->where('user_id', $member->id)
             ->where('order_code', $orderCode)
-            ->with('products')
+            ->with('products', 'statusLogs')
             ->first();
 
         if (! $order instanceof Order) {

@@ -44,6 +44,7 @@ class CardSubscriptionController extends Controller
             'email' => ['nullable', 'email:rfc', 'max:190'],
             'return_url' => ['nullable', 'string', 'max:500'],
             'paymob_channel' => ['nullable', 'in:card,wallet'],
+            'plan' => ['nullable', 'in:year,half'],
         ]);
 
         try {

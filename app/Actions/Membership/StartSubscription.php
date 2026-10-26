@@ -57,12 +57,19 @@ class StartSubscription
             throw ValidationException::withMessages(['receipt' => ['Please attach the transfer receipt.']]);
         }
 
+        /* The plan chosen (`plan` = year|half). A plan that is not on sale is refused, never silently swapped for another price. */
+        $plan = MembershipPlan::find($request?->input('plan'));
+        if ($plan === null) {
+            throw ValidationException::withMessages(['plan' => ['This subscription plan is not available right now.']]);
+        }
+
         return $method === MembershipSubscription::METHOD_PAYMOB
-            ? $this->online($membership, $email, $returnUrl, $request)
-            : $this->throughCustomerServices($membership, $method, $email, $receipts, $reference, $request);
+            ? $this->online($membership, $email, $returnUrl, $request, $plan)
+            : $this->throughCustomerServices($membership, $method, $email, $receipts, $reference, $request, $plan);
     }
 
-    private function online(Membership $membership, ?string $email, ?string $returnUrl, ?Request $request): array
+    /** @param array{key: string, price: float, months: int} $plan */
+    private function online(Membership $membership, ?string $email, ?string $returnUrl, ?Request $request, array $plan): array
     {
         /* A new attempt on the same open payment, rather than a pile of abandoned ones. */
         $subscription = $membership->subscriptions()
@@ -72,8 +79,8 @@ class StartSubscription
             ?? $membership->subscriptions()->create([
                 'method' => MembershipSubscription::METHOD_PAYMOB,
                 'status' => MembershipSubscription::STATUS_PENDING,
-                'amount' => MembershipPlan::price(),
-                'months' => MembershipPlan::months(),
+                'amount' => $plan['price'],
+                'months' => $plan['months'],
                 'email' => $email,
                 'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
                 'ip_address' => $request?->ip(),
@@ -84,8 +91,8 @@ class StartSubscription
          * reused payment kept the amount it was opened with, and a price edited in
          * between was charged at the old figure.
          */
-        $price = MembershipPlan::price();
-        $months = MembershipPlan::months();
+        $price = $plan['price'];
+        $months = $plan['months'];
         if ((float) $subscription->amount !== $price || (int) $subscription->months !== $months) {
             $subscription->forceFill(['amount' => $price, 'months' => $months])->save();
         }
@@ -145,7 +152,8 @@ class StartSubscription
     }
 
     /** @param list<UploadedFile> $receipts */
-    private function throughCustomerServices(Membership $membership, string $method, ?string $email, array $receipts, ?string $reference, ?Request $request): array
+    /** @param array{key: string, price: float, months: int} $plan */
+    private function throughCustomerServices(Membership $membership, string $method, ?string $email, array $receipts, ?string $reference, ?Request $request, array $plan): array
     {
         $subscription = $membership->subscriptions()
             ->where('method', $method)
@@ -154,13 +162,18 @@ class StartSubscription
             ?? $membership->subscriptions()->create([
                 'method' => $method,
                 'status' => MembershipSubscription::STATUS_PENDING,
-                'amount' => MembershipPlan::price(),
-                'months' => MembershipPlan::months(),
+                'amount' => $plan['price'],
+                'months' => $plan['months'],
                 'reference' => $reference,
                 'email' => $email,
                 'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
                 'ip_address' => $request?->ip(),
             ]);
+
+        /* An open claim follows the plan chosen now, like the online attempt above. */
+        if ((float) $subscription->amount !== $plan['price'] || (int) $subscription->months !== $plan['months']) {
+            $subscription->forceFill(['amount' => $plan['price'], 'months' => $plan['months']])->save();
+        }
 
         /* Append-only, like order receipts: more evidence never replaces earlier evidence. */
         foreach ($receipts as $file) {

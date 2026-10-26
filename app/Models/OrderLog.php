@@ -63,6 +63,9 @@ class OrderLog extends Model
     /** A refund was attempted and the gateway refused it (or could not be reached). */
     public const ACTION_REFUND_FAILED = 'refund_failed';
 
+    /** The buyer asked for a refund of a paid order that had not shipped; an admin decides. */
+    public const ACTION_REFUND_REQUESTED = 'refund_requested';
+
     /** The purchase receipt was mailed (or could not be) to the buyer. */
     public const ACTION_RECEIPT_EMAILED = 'receipt_emailed';
 

@@ -403,7 +403,7 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'order' => new OrderResource($order->load('products')),
+            'order' => new OrderResource($order->load('products', 'statusLogs')),
         ]);
     }
 
