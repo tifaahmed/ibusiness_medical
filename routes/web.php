@@ -487,6 +487,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/subscription', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'index'])->middleware('permission:manage memberships')->name('admin.subscription.index');
         Route::post('/admin/subscription/{subscription}/confirm', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'confirm'])->whereNumber('subscription')->middleware('permission:manage memberships')->name('admin.subscription.confirm');
         Route::post('/admin/subscription/{subscription}/reject', [\App\Http\Controllers\Admin\MembershipSubscriptionController::class, 'reject'])->whereNumber('subscription')->middleware('permission:manage memberships')->name('admin.subscription.reject');
+
+        /* Loyalty points: the quiz badges (what earns them, what they pay, who holds them) and points given by hand. */
+        Route::middleware('permission:manage memberships')->prefix('admin/loyalty')->name('admin.loyalty.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'index'])->name('index');
+            Route::post('/badges', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'storeBadge'])->name('badges.store');
+            Route::put('/badges/{definition}', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'updateBadge'])->whereNumber('definition')->name('badges.update');
+            Route::get('/badges/{definition}/holders', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'holders'])->whereNumber('definition')->name('badges.holders');
+            Route::post('/grants', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'grant'])->name('grants.store');
+        });
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');
         Route::delete('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberDeleteController::class)->name('admin.user.membership.family-member.destroy');

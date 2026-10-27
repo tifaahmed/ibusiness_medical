@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListControll
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
 use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
+use App\Http\Controllers\Api\V1\Member\LoyaltyController as V1MemberLoyaltyController;
 use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
@@ -131,6 +132,11 @@ Route::prefix('v1')
             Route::post('/visits', [\App\Http\Controllers\Api\V1\VisitController::class, 'store'])
                 ->middleware('throttle:120,1,api.mobile.visits.store')
                 ->name('visits.store');
+
+            /* The quiz's badges, public: what each one needs and pays (a member's own progress is `GET /loyalty`). */
+            Route::get('/loyalty/badges', [V1MemberLoyaltyController::class, 'badgeCatalog'])
+                ->middleware('throttle:60,1,api.mobile.loyalty.badges')
+                ->name('loyalty.badges');
 
             Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
             Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
@@ -501,6 +507,16 @@ Route::prefix('v1')
                 ->middleware('throttle:5,1,api.me.membership.relatives-request')->name('me.membership.relatives-request');
             Route::post('/membership/national-id-change', [V1MemberMembershipController::class, 'requestNationalIdChange'])
                 ->middleware('throttle:5,1,api.me.membership.national-id-change')->name('me.membership.national-id-change');
+
+            /*
+             * Loyalty points from the app's quiz game: the phone uploads the answers it
+             * collected (possibly offline, possibly twice) and reads the balance — see
+             * `LoyaltyController`. Points are decided by the backend (config/loyalty.php).
+             */
+            Route::get('/loyalty', [V1MemberLoyaltyController::class, 'show'])->name('me.loyalty.show');
+            Route::get('/loyalty/history', [V1MemberLoyaltyController::class, 'history'])->name('me.loyalty.history');
+            Route::post('/loyalty/quiz-answers', [V1MemberLoyaltyController::class, 'storeQuizAnswers'])
+                ->middleware('throttle:60,1,api.me.loyalty.quiz-answers')->name('me.loyalty.quiz-answers');
 
             /*
              * The addresses on the member's own card: read, and save one — see
