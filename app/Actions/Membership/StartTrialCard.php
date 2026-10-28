@@ -69,7 +69,7 @@ class StartTrialCard
                     'membership_number' => $number,
                     'slug' => $number,
                     'registration_date' => $now,
-                    'expiration_date' => $now->copy()->addMonthsNoOverflow(MembershipPlan::trialMonths()),
+                    'expiration_date' => $now->copy()->addDays(MembershipPlan::trialDays()),
                     'trial_started_at' => $now,
                     'plan' => Membership::PLAN_TRIAL,
                     'source' => Membership::SOURCE_SELF_SERVICE,

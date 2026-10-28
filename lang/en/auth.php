@@ -15,6 +15,10 @@ return [
     'otp' => [
         'invalid_phone' => 'That does not look like a phone number.',
         'unknown_phone' => 'We could not find a membership with that phone number.',
+        'unknown_card' => 'We could not find a card with that number.',
+        'card_no_phone' => 'This card has no phone number yet. Add one to sign in.',
+        'card_has_phone' => 'This card already has a phone number. It cannot be changed here.',
+        'phone_taken' => 'This phone number already belongs to another account.',
         'cooldown' => 'A code has already been sent. Please wait before asking for another.',
         'not_configured' => 'Phone sign-in is switched off at the moment.',
         'send_failed' => 'The code could not be sent. Please try again shortly.',

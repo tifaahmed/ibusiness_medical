@@ -405,6 +405,8 @@ const props = defineProps({
   lockedPartnerId: { type: Number, default: null },
   /** Card designs from /admin/card-templates, keyed by status. */
   cardTemplates: { type: Object, default: () => ({}) },
+  /** Printed card size from the project settings (cm). */
+  cardPrint: { type: Object, default: () => ({ width: 8.5, height: 5.5, back_width: 8, back_height: 5 }) },
 });
 
 const form = ref({
@@ -633,6 +635,7 @@ async function submit() {
       },
       overridesForIndex,
       contactForRender.value,
+      props.cardPrint,
     );
 
     triggerDownload(zip, `batch-${data.card.id}.zip`);

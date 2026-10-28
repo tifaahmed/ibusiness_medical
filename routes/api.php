@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\Member\LoyaltyController as V1MemberLoyaltyContr
 use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
+use App\Http\Controllers\Api\V1\Mobile\CardLoginController as V1MobileCardLoginController;
 use App\Http\Controllers\Api\V1\Mobile\FacilityController as V1MobileFacilityController;
 use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductController;
 use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
@@ -158,6 +159,15 @@ Route::prefix('v1')
             Route::post('/auth/otp/verify', [V1PartnerOtpAuthController::class, 'verify'])
                 ->middleware('throttle:10,1,api.auth.otp.verify')
                 ->name('auth.otp.verify');
+            /* Sign in by CARD NUMBER: the code goes to the phone on the card, or — if the card has none — to a phone being added to it. */
+            Route::post('/auth/card/otp', [V1MobileCardLoginController::class, 'request'])
+                ->middleware('throttle:10,1,api.auth.card.otp')->name('auth.card.otp');
+            Route::post('/auth/card/otp/verify', [V1MobileCardLoginController::class, 'verify'])
+                ->middleware('throttle:10,1,api.auth.card.verify')->name('auth.card.verify');
+            Route::post('/auth/card/phone', [V1MobileCardLoginController::class, 'requestPhone'])
+                ->middleware('throttle:10,1,api.auth.card.phone')->name('auth.card.phone');
+            Route::post('/auth/card/phone/verify', [V1MobileCardLoginController::class, 'verifyPhone'])
+                ->middleware('throttle:10,1,api.auth.card.phone.verify')->name('auth.card.phone.verify');
             Route::get('/me', function (Request $request) {
                 $user = $request->user();
                 $membership = $user->memberships()->latest('id')->first();

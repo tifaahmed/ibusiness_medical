@@ -24,7 +24,7 @@ class CardController extends Controller
     {
         $membership = Membership::visible()
             ->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))
-            ->with('user:id,name')
+            ->with('user:id,name,phone')
             ->first();
 
         abort_unless($membership, 404);
@@ -45,6 +45,8 @@ class CardController extends Controller
             'status' => \App\Support\MembershipStatus::forCard($membership),
             'valid_from' => $membership->registration_date?->format('Y-m-d'),
             'valid_to' => $membership->expiration_date?->format('Y-m-d'),
+            /* Only whether a phone is attached (never which): a card without one is asked to add it. */
+            'has_phone' => \App\Support\PhoneNumbers::national((string) $membership->user?->phone) !== null,
             'holder' => (string) ($membership->user?->name ?? ''),
             'members' => $members,
         ], 0)->header('Cache-Control', 'private, no-store');

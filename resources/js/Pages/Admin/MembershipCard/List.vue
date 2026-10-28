@@ -120,6 +120,30 @@
                     {{ t.table?.action_download || 'Download' }}
                   </a>
                   <span v-else class="text-xs text-muted-foreground">—</span>
+                  <!-- Built in the browser from the batch's own page, which starts the download by itself. -->
+                  <div class="mt-1 flex flex-wrap items-center justify-center gap-1">
+                    <Link
+                      :href="route('admin.membership-card-patches.show', { card: card.id, download: 'both' })"
+                      class="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white border border-indigo-700 hover:bg-indigo-700 px-2 py-1 text-[11px] font-medium shadow-sm transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
+                      Front &amp; back
+                    </Link>
+                    <Link
+                      :href="route('admin.membership-card-patches.show', { card: card.id, download: 'flipped' })"
+                      class="inline-flex items-center gap-1 rounded-md bg-violet-600 text-white border border-violet-700 hover:bg-violet-700 px-2 py-1 text-[11px] font-medium shadow-sm transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="m7 8-4 4 4 4"/><path d="m17 8 4 4-4 4"/></svg>
+                      Flipped backs
+                    </Link>
+                    <Link
+                      :href="route('admin.membership-card-patches.show', { card: card.id, download: 'mirror' })"
+                      class="inline-flex items-center gap-1 rounded-md bg-fuchsia-600 text-white border border-fuchsia-700 hover:bg-fuchsia-700 px-2 py-1 text-[11px] font-medium shadow-sm transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7 3 17h5z"/><path d="m16 7 5 10h-5z"/></svg>
+                      Mirror
+                    </Link>
+                  </div>
                 </td>
                 <td class="px-3 py-2 text-center">
                   <div class="inline-flex items-center gap-2">

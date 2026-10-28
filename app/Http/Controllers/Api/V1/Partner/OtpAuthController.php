@@ -239,6 +239,15 @@ class OtpAuthController extends Controller
             $registered = true;
         }
 
+        return $this->signedIn($member, $registered);
+    }
+
+    /**
+     * The sign-in answer: a fresh token, who the member is, their card and the profile progress.
+     * Shared with the card-number login (`Mobile\CardLoginController`), which proves the same thing by another road.
+     */
+    public function signedIn(User $member, bool $registered = false): JsonResponse
+    {
         $membership = $member->memberships()->latest('id')->first();
 
         /*

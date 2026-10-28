@@ -38,6 +38,33 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
             Download PDF
           </a>
+          <button
+            type="button"
+            :disabled="!!buildingBack"
+            @click="downloadBackPdf('both')"
+            class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
+            {{ buildingBack === 'both' ? `Preparing… ${backProgress}%` : 'Download front & flipped back PDF' }}
+          </button>
+          <button
+            type="button"
+            :disabled="!!buildingBack"
+            @click="downloadBackPdf('flipped')"
+            class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="m7 8-4 4 4 4"/><path d="m17 8 4 4-4 4"/></svg>
+            {{ buildingBack === 'flipped' ? `Preparing… ${backProgress}%` : 'Download flipped backs PDF' }}
+          </button>
+          <button
+            type="button"
+            :disabled="!!buildingBack"
+            @click="downloadBackPdf('mirror')"
+            class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-fuchsia-600 text-white hover:bg-fuchsia-700 disabled:opacity-50 cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7 3 17h5z"/><path d="m16 7 5 10h-5z"/></svg>
+            {{ buildingBack === 'mirror' ? `Preparing… ${backProgress}%` : 'Download mirror PDF' }}
+          </button>
           <Link :href="route('admin.membership-card-patches.list')" class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm border border-border hover:bg-muted">
             ← Back
           </Link>
@@ -419,11 +446,14 @@ import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import CardCodes from './_components/CardCodes.vue';
 import { cardPrintedNumber, renderCardCanvas } from './_components/cardRenderer.js';
+import { buildBackPdf } from './_components/PdfBuilder.js';
 
 const props = defineProps({
   card: { type: Object, required: true },
   partner: { type: Object, default: null },
   cardTemplate: { type: Object, default: null },
+  /** Printed card size from the project settings (cm). */
+  cardPrint: { type: Object, default: () => ({ width: 8.5, height: 5.5, back_width: 8, back_height: 5 }) },
 });
 
 // If a per-batch logo override was uploaded at creation, prefer it over the
@@ -500,7 +530,12 @@ function onKeydown(event) {
   else if (cardModal.value) cardModal.value = null;
   else if (detail.value) detail.value = null;
 }
-onMounted(() => window.addEventListener('keydown', onKeydown));
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown);
+  // Arriving from the batch list's "Front & back" / "Flipped backs" links.
+  const wanted = new URLSearchParams(window.location.search).get('download');
+  if (['both', 'flipped', 'mirror'].includes(wanted)) downloadBackPdf(wanted);
+});
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 const downloadingImageId = ref(null);
@@ -535,6 +570,39 @@ async function downloadCardImage(m) {
   }
 }
 
+const buildingBack = ref(null);
+const backProgress = ref(0);
+// 'both' = fronts then the mirrored backs, sheet by sheet; 'flipped' = the mirrored backs alone.
+async function downloadBackPdf(mode) {
+  if (buildingBack.value) return;
+  buildingBack.value = mode;
+  backProgress.value = 0;
+  try {
+    const blob = await buildBackPdf(
+      (props.card?.memberships || []).map(printedMembership),
+      effectivePartner.value,
+      props.cardTemplate,
+      props.cardPrint,
+      mode,
+      (p) => { backProgress.value = Math.round(p * 100); },
+      () => props.card?.layout_overrides ?? null,
+      props.card?.layout_overrides?.contact_text ?? null,
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = batchPdfDownloadName.value.replace(/\.pdf$/, mode === 'both' ? '-front-back.pdf' : mode === 'mirror' ? '-mirror.pdf' : '-flipped-backs.pdf');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    alert(e?.message || 'Could not build the PDF.');
+  } finally {
+    buildingBack.value = null;
+  }
+}
+
 const downloadingId = ref(null);
 async function downloadCardPdf(m) {
   if (downloadingId.value) return;
@@ -548,8 +616,8 @@ async function downloadCardPdf(m) {
     contact: props.card?.layout_overrides?.contact_text ?? null,
     });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    const pdf = new jsPDF({ unit: 'cm', format: [8.5, 5.5], orientation: 'landscape' });
-    pdf.addImage(dataUrl, 'JPEG', 0, 0, 8.5, 5.5, undefined, 'FAST');
+    const pdf = new jsPDF({ unit: 'cm', format: [props.cardPrint.width, props.cardPrint.height], orientation: 'landscape' });
+    pdf.addImage(dataUrl, 'JPEG', 0, 0, props.cardPrint.width, props.cardPrint.height, undefined, 'FAST');
     const blob = pdf.output('blob');
 
     const rawName = String(m.membership_number ?? `card-${m.id}`);

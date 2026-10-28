@@ -55,6 +55,7 @@ class AdminMembershipCardShowController extends BaseController
             'card' => (new AdminMembershipCardShowResource($card))->resolve($request),
             'partner' => $partnerPayload,
             'cardTemplate' => $card->cardTemplate,
+            'cardPrint' => \App\Support\CardPrint::toArray(),
         ]);
     }
 }

@@ -17,7 +17,8 @@ final class MembershipPlan
 
     public const MONTHS = 'membership_months';
 
-    public const TRIAL_MONTHS = 'membership_trial_months';
+    /** How many DAYS a free trial card lasts (it used to be months: `membership_trial_months`, now removed). */
+    public const TRIAL_DAYS = 'membership_trial_days';
 
     /** The shorter plan: its own price and months (0 price = not sold). */
     public const HALF_PRICE = 'membership_half_price';
@@ -42,9 +43,13 @@ final class MembershipPlan
         return max(1, (int) SiteSettings::get(self::MONTHS, 12));
     }
 
-    public static function trialMonths(): int
+    /**
+     * Days a NEW free trial card lasts. Read once, when the card is made, and written into its `expiration_date`:
+     * changing the setting never shortens or extends a card that already exists.
+     */
+    public static function trialDays(): int
     {
-        return max(1, (int) SiteSettings::get(self::TRIAL_MONTHS, 1));
+        return max(1, (int) SiteSettings::get(self::TRIAL_DAYS, 30));
     }
 
     public static function halfPrice(): float
@@ -104,7 +109,7 @@ final class MembershipPlan
             ['slug' => self::MONTHS, 'name' => ['en' => 'Months a paid subscription lasts', 'ar' => 'مدة الاشتراك المدفوع بالشهور'], 'value' => '12', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::HALF_PRICE, 'name' => ['en' => 'Half-year plan price (EGP, 0 = not sold)', 'ar' => 'سعر الاشتراك نصف السنوي (ج.م، 0 = غير متاح)'], 'value' => '350', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::HALF_MONTHS, 'name' => ['en' => 'Months the half-year plan lasts', 'ar' => 'مدة الاشتراك نصف السنوي بالشهور'], 'value' => '6', 'value_type' => Setting::TYPE_NUMBER],
-            ['slug' => self::TRIAL_MONTHS, 'name' => ['en' => 'Months a free trial card lasts', 'ar' => 'مدة الكارت التجريبي بالشهور'], 'value' => '1', 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::TRIAL_DAYS, 'name' => ['en' => 'Days a free trial card lasts (new cards only)', 'ar' => 'مدة الكارت التجريبي بالأيام (للكروت الجديدة فقط)'], 'value' => '30', 'value_type' => Setting::TYPE_NUMBER],
         ];
     }
 }

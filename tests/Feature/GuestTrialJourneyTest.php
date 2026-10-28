@@ -35,7 +35,7 @@ class GuestTrialJourneyTest extends TestCase
         SiteSettings::put(OtpSettings::SMS_ENABLED, false, Setting::TYPE_BOOLEAN);
         SiteSettings::put(MembershipPlan::PRICE, 600, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::MONTHS, 12, Setting::TYPE_NUMBER);
-        SiteSettings::put(MembershipPlan::TRIAL_MONTHS, 1, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::TRIAL_DAYS, 30, Setting::TYPE_NUMBER);
         SiteSettings::forget();
     }
 

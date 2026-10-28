@@ -61,7 +61,7 @@ class TrialCardTest extends TestCase
 
         SiteSettings::put(MembershipPlan::PRICE, 600, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::MONTHS, 12, Setting::TYPE_NUMBER);
-        SiteSettings::put(MembershipPlan::TRIAL_MONTHS, 1, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::TRIAL_DAYS, 30, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::HALF_PRICE, 350, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::HALF_MONTHS, 6, Setting::TYPE_NUMBER);
     }
@@ -90,6 +90,20 @@ class TrialCardTest extends TestCase
     }
 
     // ---- Creating the trial --------------------------------------------
+
+    public function test_the_trial_length_is_in_days_and_a_change_only_touches_new_cards(): void
+    {
+        SiteSettings::put(MembershipPlan::TRIAL_DAYS, 10, Setting::TYPE_NUMBER);
+        [, $first] = $this->trialCard('01011111111');
+        $this->assertTrue($first->expiration_date->isSameDay(now()->addDays(10)));
+
+        // The admin lengthens it: the card already made keeps its date, the next one gets the new length.
+        SiteSettings::put(MembershipPlan::TRIAL_DAYS, 45, Setting::TYPE_NUMBER);
+        [, $second] = $this->trialCard('01022222222');
+
+        $this->assertTrue($first->fresh()->expiration_date->isSameDay(now()->addDays(10)));
+        $this->assertTrue($second->expiration_date->isSameDay(now()->addDays(45)));
+    }
 
     public function test_a_trial_card_needs_only_a_name_and_lasts_a_month(): void
     {

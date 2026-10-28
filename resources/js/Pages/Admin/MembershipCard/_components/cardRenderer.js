@@ -160,7 +160,7 @@ export function assetUrl(src) {
   return /^([a-z]+:|\/\/|\/)/i.test(src) ? src : `/${src}`;
 }
 
-function loadImage(src) {
+export function loadImage(src) {
   const url = assetUrl(src);
   if (!url) return Promise.resolve(null);
   if (_imageCache.has(url)) return _imageCache.get(url);

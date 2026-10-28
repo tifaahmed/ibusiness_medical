@@ -61,6 +61,7 @@ class AdminMembershipCardCreateController extends BaseController
             // the `with_partner` design and leaving it empty selects
             // `no_partner`; per-batch tweaks ride on top as `layout_overrides`.
             'cardTemplates' => $this->cardTemplatesByStatus(),
+            'cardPrint' => \App\Support\CardPrint::toArray(),
         ]);
     }
 }
