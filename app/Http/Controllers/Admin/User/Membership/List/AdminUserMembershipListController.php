@@ -212,15 +212,19 @@ class AdminUserMembershipListController extends BaseController
                 $listingFilter($mq);
             }))
             ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
-                $mq->whereHas('familyMembers', fn ($f) => $f->where('approval_status', 'pending'));
+                $mq->whereHas('relatives', fn ($f) => $f->where('approval_status', 'pending'));
+                $listingFilter($mq);
+            }))
+            ->when($filters['member_type'] !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+                $mq->where('member_type', $filters['member_type']);
                 $listingFilter($mq);
             }))
             ->when($filters['is_trial'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('plan', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
             }))
-            ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereNotNull('otp_fixed_code')->where('otp_fixed_code', '!=', ''))
-            ->when($filters['has_static_otp'] === false, fn ($q) => $q->where(fn ($w) => $w->whereNull('otp_fixed_code')->orWhere('otp_fixed_code', '')))
+            ->when($filters['has_static_otp'] === true, fn ($q) => $q->withActiveFixedCode())
+            ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereNotIn('users.id', User::query()->withActiveFixedCode()->select('id')))
             ->when($filters['is_trial'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('plan', '!=', Membership::PLAN_TRIAL);
                 $listingFilter($mq);
@@ -231,7 +235,10 @@ class AdminUserMembershipListController extends BaseController
             }))
             ->when($filters['dup_phone'] === true, fn ($q) => $q->whereIn('phone', $this->duplicatedValues('users', 'phone')))
             ->when($filters['dup_national_id'] === true, fn ($q) => $q->whereHas('memberships', fn ($mq) => $mq->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id'))))
-            ->with(['memberships' => function ($q) use ($isActiveFilter, $partnerIdFilter, $creatorFilter, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $listingFilter) {
+            ->with(['memberships' => function ($q) use ($filters, $isActiveFilter, $partnerIdFilter, $creatorFilter, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $listingFilter) {
+                if ($filters['member_type'] !== null) {
+                    $q->where('member_type', $filters['member_type']);
+                }
                 if ($isActiveFilter === true) {
                     $q->active();
                 } elseif ($isActiveFilter === false) {
@@ -257,7 +264,7 @@ class AdminUserMembershipListController extends BaseController
                 // membership the admin most likely wants to see.
                 $q->orderBy('is_active', 'desc');
                 $q->ordered();
-                $q->with(['company', 'partner', 'creator:id,name,email', 'latestActiveHistory', 'sales', 'memberPayments']);
+                $q->with(['company', 'partner', 'creator:id,name,email', 'latestActiveHistory', 'sales', 'memberPayments', 'parent.user:id,name,slug']);
             }])
             ->when($sort === 'name', fn ($q) => $q->orderBy('name', $direction))
             ->when($sort === 'created_at', fn ($q) => $q->orderBy('users.created_at', $direction))
@@ -467,11 +474,12 @@ class AdminUserMembershipListController extends BaseController
             ->when($filters['is_from_card_patch'] === false, fn ($q) => $q->whereNotIn('id', $cardPatchMembershipIds))
             ->when($filters['has_custom_card'] === true, fn ($q) => $q->whereIn('id', $customCardMembershipIds))
             ->when($filters['has_custom_card'] === false, fn ($q) => $q->whereNotIn('id', $customCardMembershipIds))
-            ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('familyMembers', fn ($f) => $f->where('approval_status', 'pending')))
+            ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('relatives', fn ($f) => $f->where('approval_status', 'pending')))
+            ->when($filters['member_type'] !== null, fn ($q) => $q->where('member_type', $filters['member_type']))
             ->when($filters['is_trial'] === true, fn ($q) => $q->where('plan', Membership::PLAN_TRIAL))
             ->when($filters['is_trial'] === false, fn ($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
-            ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereNotNull('otp_fixed_code')->where('otp_fixed_code', '!=', '')))
-            ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where(fn ($w) => $w->whereNull('otp_fixed_code')->orWhere('otp_fixed_code', ''))))
+            ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->withActiveFixedCode()))
+            ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereNotIn('users.id', User::query()->withActiveFixedCode()->select('id'))))
             ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('subscriptions', fn ($sq) => $this->paidSubscriptions($sq, $filters)))
             ->when($filters['dup_phone'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereIn('phone', $this->duplicatedValues('users', 'phone'))))
             ->when($filters['dup_national_id'] === true, fn ($q) => $q->whereIn('national_id', $this->duplicatedValues('memberships', 'national_id')))
@@ -528,6 +536,7 @@ class AdminUserMembershipListController extends BaseController
                `sms_active` is the honest answer: the switch can be on while the
                gateway has no credentials, and OtpSettings treats that as
                fixed-code mode — showing "SMS on" there would be a lie. */
+            'fixedCodeMembers' => User::query()->withActiveFixedCode()->count(),
             'otpPolicy' => [
                 'sms_enabled' => SiteSettings::get(OtpSettings::SMS_ENABLED, true) === true,
                 'sms_configured' => SmsGateway::isConfigured(),
@@ -576,6 +585,7 @@ class AdminUserMembershipListController extends BaseController
             'is_from_card_patch' => $request->has('is_from_card_patch') ? (bool) $request->input('is_from_card_patch') : null,
             'has_custom_card' => $request->has('has_custom_card') ? (bool) $request->input('has_custom_card') : null,
             'pending_relatives' => $request->has('pending_relatives') ? (bool) $request->input('pending_relatives') : null,
+            'member_type' => in_array($request->input('member_type'), [Membership::TYPE_PRIMARY, Membership::TYPE_RELATIVE], true) ? $request->input('member_type') : null,
             'is_trial' => $request->has('is_trial') ? (bool) $request->input('is_trial') : null,
             'has_static_otp' => $request->has('has_static_otp') ? (bool) $request->input('has_static_otp') : null,
             'paid_via' => in_array($request->input('paid_via'), ['any', ...MembershipSubscription::methods()], true) ? $request->input('paid_via') : null,

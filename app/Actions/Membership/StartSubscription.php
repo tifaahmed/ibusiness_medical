@@ -49,7 +49,7 @@ class StartSubscription
             throw ValidationException::withMessages(['method' => ['This payment method is not available right now. Please contact customer service.']]);
         }
 
-        if ($method === MembershipSubscription::METHOD_PAYMOB && ! PaymentMethods::channelAllowed($request?->input('paymob_channel'))) {
+        if ($method === MembershipSubscription::METHOD_PAYMOB && ! PaymentMethods::channelAllowed($request?->input('paymob_channel'), PaymentMethods::CONTEXT_MEMBERSHIP)) {
             throw ValidationException::withMessages(['method' => ['This way of paying online is not available right now.']]);
         }
 

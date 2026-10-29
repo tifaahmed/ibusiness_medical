@@ -55,12 +55,9 @@ class AdminUserMembershipListResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'slug' => $this->slug,
-            /* The member's own login code, when somebody has given them one.
-               Sent in full rather than as a flag: an admin setting a fixed
-               code needs to be able to read back the one already there, and
-               it is not a secret in the sense a password is — it is a code
-               deliberately shared with the member. */
-            'otp_fixed_code' => $this->otp_fixed_code,
+            /* Only WHETHER the member skips the SMS code, and until when — the code is stored hashed and cannot be read back. */
+            'otp_fixed_code' => $this->hasActiveFixedCode(),
+            'otp_fixed_code_expires_at' => $this->otp_fixed_code_expires_at?->toIso8601String(),
             'avatar_url' => get_image_url($this->resource, 'avatar'),
             'membership' => $this->whenLoaded('memberships', function () use ($request) {
                 // Get the first membership from loaded collection
@@ -84,10 +81,20 @@ class AdminUserMembershipListResource extends JsonResource
                     'has_custom_card' => isset(self::customCardIds()[(int) $membership->id]),
                     'membership_number' => $membership->membership_number,
                     'national_id' => $membership->national_id,
-                    'plan' => $membership->plan,
+                    'plan' => $membership->isRelative() ? null : $membership->plan,
+                    'member_type' => $membership->member_type,
+                    'relationship' => $membership->relationship,
+                    'relationship_label' => \App\Enums\FamilyMember\RelationshipEnum::tryFrom((string) $membership->relationship)?->label(),
+                    'parent_member' => $membership->isRelative() && $membership->relationLoaded('parent') && $membership->parent ? [
+                        'name' => $membership->parent->user?->name,
+                        'membership_number' => $membership->parent->membership_number,
+                        'user_slug' => $membership->parent->user?->slug,
+                        'slug' => $membership->parent->slug,
+                    ] : null,
+                    'relatives_count' => $membership->isRelative() ? null : $membership->relatives()->count(),
                     'state' => $membership->state(),
                     /* Relatives the member added that no admin has approved yet. */
-                    'pending_relatives' => $membership->familyMembers()->where('approval_status', 'pending')->count(),
+                    'pending_relatives' => $membership->relatives()->where('approval_status', 'pending')->count(),
                     'slug' => $membership->slug,
                     'registration_date' => $membership->registration_date?->format('Y-m-d H:i:s'),
                     'expiration_date' => $membership->expiration_date?->format('Y-m-d H:i:s'),

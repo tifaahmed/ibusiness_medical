@@ -100,11 +100,11 @@ class AdminUserMembershipImportPreviewController extends BaseController
             // Same fallback for family photos: if we matched the membership,
             // use each existing family member's live photo URL when the row
             // doesn't carry one.
-            if ($match && $match->relationLoaded('familyMembers') === false) {
-                $match->load('familyMembers');
+            if ($match && $match->relationLoaded('relatives') === false) {
+                $match->load('relatives.user');
             }
             if (! empty($families) && $match) {
-                $existingByName = $match->familyMembers->keyBy(fn ($f) => mb_strtolower(trim((string) $f->name)));
+                $existingByName = $match->relatives->keyBy(fn ($f) => mb_strtolower(trim((string) $f->user?->name)));
                 foreach ($families as $fi => $f) {
                     if (empty($f['photo_url'])) {
                         $key = mb_strtolower(trim((string) $f['name']));

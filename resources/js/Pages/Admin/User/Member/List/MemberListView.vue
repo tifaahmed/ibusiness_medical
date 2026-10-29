@@ -18,6 +18,12 @@
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              <!-- Shown for as long as ANY member signs in without the real SMS code. -->
+              <span
+                v-if="fixedCodeMembers > 0"
+                class="rounded-md border border-amber-500/60 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
+                title="Members who sign in with a fixed code instead of an SMS code. Filter by “static OTP” to see them."
+              >⚠ {{ fixedCodeMembers }} member(s) bypass the SMS code</span>
               <!-- Turning SMS off weakens the login for every member at once,
                    so this is shown only to accounts that may change settings —
                    the same permission the route enforces. -->
@@ -339,6 +345,7 @@ const props = defineProps({
 });
 
 const otpPolicy = computed(() => props.otpPolicy);
+const fixedCodeMembers = computed(() => Number(page.props.fixedCodeMembers || 0));
 const otpButtonTitle = computed(() => (
   otpPolicy.value?.sms_active
     ? 'Members receive a real code by SMS'

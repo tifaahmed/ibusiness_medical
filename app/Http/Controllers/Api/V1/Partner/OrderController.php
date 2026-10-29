@@ -288,7 +288,7 @@ class OrderController extends Controller
         if ($order->isOnlinePayment()) {
             $request->validate(['paymob_channel' => ['nullable', 'in:card,wallet']]);
 
-        if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'))) {
+        if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'), \App\Support\PaymentMethods::CONTEXT_PRODUCTS)) {
             return response()->json(['message' => 'This way of paying online is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -343,6 +343,10 @@ class OrderController extends Controller
 
         if (! $order->isOnlinePayment() || ! in_array($order->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true)) {
             return response()->json(['message' => 'This order has nothing left to pay online.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'), \App\Support\PaymentMethods::contextOfOrder($order))) {
+            return response()->json(['message' => 'This way of paying online is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $payment = $this->openPayment($order, $request);

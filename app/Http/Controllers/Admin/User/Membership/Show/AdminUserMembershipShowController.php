@@ -44,10 +44,10 @@ class AdminUserMembershipShowController extends BaseController
             $query->orderBy('created_at', 'desc');
         }];
 
-        // Only eager load familyMembers if the table exists
-        if (Schema::hasTable('family_members')) {
-            $withRelations['memberships.familyMembers'] = function ($query) {
-                $query->orderBy('created_at', 'asc');
+        // Relatives are member rows hanging on the primary card
+        if (Schema::hasColumn('memberships', 'member_type')) {
+            $withRelations['memberships.relatives'] = function ($query) {
+                $query->with('user')->orderBy('created_at', 'asc');
             };
         }
 

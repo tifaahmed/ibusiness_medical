@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ExportsMemberColumns;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Company;
+use App\Models\Membership;
 use App\Models\MembershipCard;
 use App\Models\Partner;
 use App\Models\User;
@@ -97,7 +98,7 @@ class AdminUserMembershipExportController extends BaseController
         // Mirror the admin list view: never export in-progress (placeholder)
         // memberships, and always compose with row-level scoping when set.
         $listingFilter = function ($mq) use ($scopeFilter, $restricted) {
-            $mq->whereNotNull('completed_at');
+            $mq->whereNotNull('completed_at')->where('member_type', Membership::TYPE_PRIMARY);
             if ($restricted) {
                 $scopeFilter($mq);
             }
@@ -225,9 +226,9 @@ class AdminUserMembershipExportController extends BaseController
                 $q->orderBy('is_active', 'desc');
                 $q->ordered();
                 $q->with(['company', 'partner', 'creator:id,name,email', 'memberPayments', 'latestActiveHistory', 'sales', 'governorate', 'city']);
-                $q->withCount('familyMembers');
+                $q->withCount('relatives as family_members_count');
                 if ($includeFamily) {
-                    $q->with(['familyMembers' => fn($fq) => $fq->orderBy('created_at')]);
+                    $q->with(['relatives' => fn($fq) => $fq->with('user')->orderBy('created_at')]);
                 }
             }])
             ->latest()
@@ -626,19 +627,19 @@ class AdminUserMembershipExportController extends BaseController
         $famIndex = 0;
         foreach ($users as $user) {
             $membership = $user->memberships->first();
-            if ($membership === null || !$membership->relationLoaded('familyMembers')) {
+            if ($membership === null || !$membership->relationLoaded('relatives')) {
                 continue;
             }
-            foreach ($membership->familyMembers as $fm) {
+            foreach ($membership->relatives as $fm) {
                 $famIndex++;
                 $famSheet->setCellValue("A{$famRow}", $famIndex);
                 $famSheet->setCellValue("B{$famRow}", (string) $user->name);
                 $famSheet->setCellValue("C{$famRow}", (string) $membership->membership_number);
-                $famSheet->setCellValue("D{$famRow}", (string) $fm->name);
-                $famSheet->setCellValue("E{$famRow}", $fm->relationship?->value ?? (string) $fm->getRawOriginal('relationship'));
-                $famSheet->setCellValue("F{$famRow}", $fm->date_of_birth?->translatedFormat('d M Y') ?? '');
-                $famSheet->setCellValue("G{$famRow}", (string) ($fm->phone ?? ''));
-                $famSheet->setCellValue("H{$famRow}", (string) ($fm->email ?? ''));
+                $famSheet->setCellValue("D{$famRow}", (string) $fm->user?->name);
+                $famSheet->setCellValue("E{$famRow}", (string) $fm->relationship);
+                $famSheet->setCellValue("F{$famRow}", $fm->user?->date_of_birth?->translatedFormat('d M Y') ?? '');
+                $famSheet->setCellValue("G{$famRow}", (string) ($fm->user?->phone ?? ''));
+                $famSheet->setCellValue("H{$famRow}", (string) ($fm->user?->email ?? ''));
                 $famSheet->setCellValue("I{$famRow}", $fm->is_active ? __('admin.member_export.badge_active') : __('admin.member_export.badge_inactive'));
                 $famSheet->setCellValue("J{$famRow}", $fm->created_at?->translatedFormat('d M Y H:i') ?? '');
                 $famSheet->setCellValue("K{$famRow}", $fm->updated_at?->translatedFormat('d M Y H:i') ?? '');

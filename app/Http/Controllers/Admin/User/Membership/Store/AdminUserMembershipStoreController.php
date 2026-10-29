@@ -8,7 +8,6 @@ use App\Http\Controllers\Admin\User\Membership\Actions\Store\StoreUserMembership
 use App\Http\Controllers\Admin\User\Membership\Actions\Store\SendMembershipNotificationAction;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\User\Membership\StoreMembershipRequest;
-use App\Models\FamilyMember;
 use App\Services\MediaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -110,15 +109,15 @@ class AdminUserMembershipStoreController extends BaseController
             if ($request->has('family_members') && is_array($request->input('family_members'))) {
                 foreach ($request->input('family_members') as $index => $familyMember) {
                     try {
-                        $familyMemberModel = FamilyMember::create([
-                            'membership_id' => $membership->id,
+                        $familyMemberModel = app(\App\Actions\Membership\CreateRelative::class)->handle($membership, [
                             'name' => $familyMember['name'] ?? '',
                             'relationship' => $familyMember['relationship'] ?? '',
                             'date_of_birth' => $familyMember['date_of_birth'] ?? null,
                             'phone' => $familyMember['phone'] ?? null,
+                            'national_id' => $familyMember['national_id'] ?? null,
                             'email' => $familyMember['email'] ?? null,
                             'is_active' => isset($familyMember['is_active']) ? (bool) $familyMember['is_active'] : true,
-                        ]);
+                        ], \App\Models\Membership::ADDED_BY_ADMIN, \Illuminate\Support\Facades\Auth::id(), $request);
 
                         // Handle photo upload if provided
                         $photoKey = "family_members.{$index}.photo";
@@ -133,7 +132,7 @@ class AdminUserMembershipStoreController extends BaseController
                         \Log::info("Family member {$index} created successfully", [
                             'family_member_id' => $familyMemberModel->id,
                             'membership_id' => $membership->id,
-                            'name' => $familyMemberModel->name,
+                            'name' => $familyMemberModel->user?->name,
                         ]);
                     } catch (\Exception $e) {
                         \Log::error("Failed to create family member {$index}", [

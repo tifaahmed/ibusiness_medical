@@ -23,6 +23,10 @@ use App\Services\Paymob\PaymobClient;
  *                            Vodafone Cash with a receipt (subscriptions)
  *   payment_instapay_enabled Instapay with a receipt (subscriptions)
  *
+ * Each method also has a switch PER CONTEXT — where it is offered: shop `products`, `cards` (physical card orders) and
+ * `membership` (buying a subscription). A method shows in a context only when its main switch AND that context's switch
+ * are on (`payment_<context>_<method>_enabled`, all on by default, so nothing changes until the admin turns one off).
+ *
  * A switch only HIDES. Paymob additionally needs its gateway keys and the
  * integration id of that channel, and the
  * wallet transfer needs the shop wallet number, or there is nowhere for the
@@ -41,6 +45,41 @@ final class PaymentMethods
 
     public const INSTAPAY = 'payment_instapay_enabled';
 
+    /** Where a payment method can be offered. */
+    public const CONTEXT_PRODUCTS = 'products';
+
+    public const CONTEXT_CARDS = 'cards';
+
+    public const CONTEXT_MEMBERSHIP = 'membership';
+
+    public const CONTEXTS = [self::CONTEXT_PRODUCTS, self::CONTEXT_CARDS, self::CONTEXT_MEMBERSHIP];
+
+    /** The context's own switch of each method: main switch slug => the middle part of `payment_<context>_<part>_enabled`. */
+    private const PARTS = [
+        self::ONLINE_CARD => 'paymob_card',
+        self::ONLINE_WALLET => 'paymob_wallet',
+        self::COD => 'cod',
+        self::WALLET => 'wallet',
+        self::INSTAPAY => 'instapay',
+    ];
+
+    /** The context an order belongs to: a physical-card order is `cards`, any other is a shop order. */
+    public static function contextOfOrder(\App\Models\Order $order): string
+    {
+        return $order->source === PhysicalCard::SOURCE ? self::CONTEXT_CARDS : self::CONTEXT_PRODUCTS;
+    }
+
+    public static function contextSlug(string $context, string $mainSlug): string
+    {
+        return 'payment_'.$context.'_'.self::PARTS[$mainSlug].'_enabled';
+    }
+
+    /** The method's main switch is on AND (given a context) that context shows it too. */
+    private static function shown(string $slug, ?string $context): bool
+    {
+        return self::on($slug) && ($context === null || (bool) SiteSettings::get(self::contextSlug($context, $slug), true));
+    }
+
     /** What a fresh install shows: Paymob only. Anything else is opened by hand. */
     private const DEFAULTS = [
         self::ONLINE_CARD => true,
@@ -56,21 +95,21 @@ final class PaymentMethods
     }
 
     /** Paying online by bank card: switched on AND Paymob has a card integration. */
-    public static function onlineCard(): bool
+    public static function onlineCard(?string $context = null): bool
     {
-        return self::on(self::ONLINE_CARD) && PaymobClient::channelConfigured(PaymobClient::CHANNEL_CARD);
+        return self::shown(self::ONLINE_CARD, $context) && PaymobClient::channelConfigured(PaymobClient::CHANNEL_CARD);
     }
 
     /** Paying online from a mobile wallet: switched on AND Paymob has a wallet integration. */
-    public static function onlineWallet(): bool
+    public static function onlineWallet(?string $context = null): bool
     {
-        return self::on(self::ONLINE_WALLET) && PaymobClient::channelConfigured(PaymobClient::CHANNEL_WALLET);
+        return self::shown(self::ONLINE_WALLET, $context) && PaymobClient::channelConfigured(PaymobClient::CHANNEL_WALLET);
     }
 
     /** Any way of paying online. */
-    public static function online(): bool
+    public static function online(?string $context = null): bool
     {
-        return self::onlineCard() || self::onlineWallet();
+        return self::onlineCard($context) || self::onlineWallet($context);
     }
 
     /**
@@ -78,36 +117,36 @@ final class PaymentMethods
      *
      * @return list<string>
      */
-    public static function onlineChannels(): array
+    public static function onlineChannels(?string $context = null): array
     {
         return array_values(array_filter([
-            self::onlineCard() ? PaymobClient::CHANNEL_CARD : null,
-            self::onlineWallet() ? PaymobClient::CHANNEL_WALLET : null,
+            self::onlineCard($context) ? PaymobClient::CHANNEL_CARD : null,
+            self::onlineWallet($context) ? PaymobClient::CHANNEL_WALLET : null,
         ]));
     }
 
     /** Whether a client's `paymob_channel` (absent = "whatever is on") may be used now. */
-    public static function channelAllowed(?string $channel): bool
+    public static function channelAllowed(?string $channel, ?string $context = null): bool
     {
         return $channel === null || $channel === ''
-            ? self::online()
-            : in_array($channel, self::onlineChannels(), true);
+            ? self::online($context)
+            : in_array($channel, self::onlineChannels($context), true);
     }
 
-    public static function cod(): bool
+    public static function cod(?string $context = null): bool
     {
-        return self::on(self::COD);
+        return self::shown(self::COD, $context);
     }
 
     /** Wallet transfer for orders: on, and a wallet number to send to. */
-    public static function walletTransfer(): bool
+    public static function walletTransfer(?string $context = null): bool
     {
-        return self::on(self::WALLET) && ShopDelivery::wallet() !== null;
+        return self::shown(self::WALLET, $context) && ShopDelivery::wallet() !== null;
     }
 
-    public static function instapay(): bool
+    public static function instapay(?string $context = null): bool
     {
-        return self::on(self::INSTAPAY);
+        return self::shown(self::INSTAPAY, $context);
     }
 
     /**
@@ -115,12 +154,12 @@ final class PaymentMethods
      *
      * @return list<string>
      */
-    public static function orderTypes(): array
+    public static function orderTypes(?string $context = null): array
     {
         return array_values(array_filter([
-            self::online() ? PaymentTypeEnum::PAYMOB->value : null,
-            self::cod() ? PaymentTypeEnum::COD->value : null,
-            self::walletTransfer() ? PaymentTypeEnum::TRANSFER_WALLET->value : null,
+            self::online($context) ? PaymentTypeEnum::PAYMOB->value : null,
+            self::cod($context) ? PaymentTypeEnum::COD->value : null,
+            self::walletTransfer($context) ? PaymentTypeEnum::TRANSFER_WALLET->value : null,
         ]));
     }
 
@@ -133,9 +172,9 @@ final class PaymentMethods
     {
         return array_values(array_filter([
             MembershipPlan::canPayOnline() ? MembershipSubscription::METHOD_PAYMOB : null,
-            self::cod() ? MembershipSubscription::METHOD_COD : null,
-            self::on(self::WALLET) ? MembershipSubscription::METHOD_VODAFONE : null,
-            self::instapay() ? MembershipSubscription::METHOD_INSTAPAY : null,
+            self::cod(self::CONTEXT_MEMBERSHIP) ? MembershipSubscription::METHOD_COD : null,
+            self::shown(self::WALLET, self::CONTEXT_MEMBERSHIP) ? MembershipSubscription::METHOD_VODAFONE : null,
+            self::instapay(self::CONTEXT_MEMBERSHIP) ? MembershipSubscription::METHOD_INSTAPAY : null,
         ]));
     }
 
@@ -147,15 +186,15 @@ final class PaymentMethods
      *
      * @return array{online: bool, online_card: bool, online_wallet: bool, cod: bool, wallet: bool, instapay: bool}
      */
-    public static function flags(): array
+    public static function flags(?string $context = null): array
     {
         return [
-            'online' => self::online(),
-            'online_card' => self::onlineCard(),
-            'online_wallet' => self::onlineWallet(),
-            'cod' => self::cod(),
-            'wallet' => self::walletTransfer(),
-            'instapay' => self::instapay(),
+            'online' => self::online($context),
+            'online_card' => self::onlineCard($context),
+            'online_wallet' => self::onlineWallet($context),
+            'cod' => self::cod($context),
+            'wallet' => self::walletTransfer($context),
+            'instapay' => self::instapay($context),
         ];
     }
 
@@ -169,7 +208,33 @@ final class PaymentMethods
             'value_type' => Setting::TYPE_BOOLEAN,
         ];
 
+        $names = [
+            self::CONTEXT_PRODUCTS => ['Products (shop)', 'المنتجات (المتجر)'],
+            self::CONTEXT_CARDS => ['Physical card orders', 'طلب الكارت الفيزيكال'],
+            self::CONTEXT_MEMBERSHIP => ['Buying a membership', 'شراء العضوية'],
+        ];
+        $methods = [
+            self::ONLINE_CARD => ['bank card (Paymob)', 'البطاقة البنكية (Paymob)'],
+            self::ONLINE_WALLET => ['mobile wallet (Paymob)', 'المحفظة الإلكترونية (Paymob)'],
+            self::COD => ['cash on delivery', 'الدفع عند الاستلام'],
+            self::WALLET => ['wallet transfer / Vodafone Cash', 'تحويل محفظة / فودافون كاش'],
+            self::INSTAPAY => ['Instapay', 'إنستاباي'],
+        ];
+        $perContext = [];
+
+        foreach (self::CONTEXTS as $context) {
+            foreach ($methods as $main => [$methodEn, $methodAr]) {
+                $perContext[] = [
+                    'slug' => self::contextSlug($context, $main),
+                    'name' => ['en' => "{$names[$context][0]} — show {$methodEn}", 'ar' => "{$names[$context][1]} — إظهار {$methodAr}"],
+                    'value' => '1',
+                    'value_type' => Setting::TYPE_BOOLEAN,
+                ];
+            }
+        }
+
         return [
+            ...$perContext,
             $row(self::ONLINE_CARD, 'Show: pay online by bank card (Paymob)', 'إظهار: الدفع الإلكتروني بالبطاقة البنكية (Paymob)'),
             $row(self::ONLINE_WALLET, 'Show: pay online from a mobile wallet (Paymob, Vodafone Cash…)', 'إظهار: الدفع الإلكتروني بالمحفظة (Paymob، فودافون كاش…)'),
             $row(self::COD, 'Show: cash on delivery', 'إظهار: الدفع عند الاستلام'),

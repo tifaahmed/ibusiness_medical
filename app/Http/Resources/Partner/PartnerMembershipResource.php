@@ -49,12 +49,12 @@ class PartnerMembershipResource extends JsonResource
                 'email' => $this->user?->email,
                 'avatar_url' => $this->absoluteImageUrl($this->user, 'avatar'),
             ],
-            'family_members' => $this->whenLoaded('familyMembers', fn () => $this->familyMembers
+            'family_members' => $this->whenLoaded('relatives', fn () => $this->relatives
                 ->map(fn ($familyMember) => [
-                    'name' => $familyMember->name,
-                    'relationship' => $familyMember->relationship?->value,
-                    'relationship_label' => $familyMember->relationship?->label(),
-                    'date_of_birth' => $familyMember->date_of_birth?->toDateString(),
+                    'name' => $familyMember->user?->name,
+                    'relationship' => $familyMember->relationship,
+                    'relationship_label' => \App\Enums\FamilyMember\RelationshipEnum::tryFrom((string) $familyMember->relationship)?->label(),
+                    'date_of_birth' => $familyMember->user?->date_of_birth?->toDateString(),
                     'photo_url' => $this->absoluteImageUrl($familyMember, 'photo'),
                 ])
                 ->values()

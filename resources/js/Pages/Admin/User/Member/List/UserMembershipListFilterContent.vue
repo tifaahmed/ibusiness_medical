@@ -310,6 +310,28 @@
             </button>
             <button
               data-slot="button"
+              @click="handleToggleFilter('member_type', 'primary')"
+              :title="t.member_type_primary_hint || 'Main members (card holders)'"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.member_type === 'primary' ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>{{ t.member_type_primary || 'Primary members' }}</span>
+            </button>
+            <button
+              data-slot="button"
+              @click="handleToggleFilter('member_type', 'relative')"
+              :title="t.member_type_relative_hint || 'Relatives added to a main member'"
+              :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.member_type === 'relative' ? 'bg-primary text-primary-foreground' : '']"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span>{{ t.member_type_relative || 'Relatives' }}</span>
+            </button>
+            <button
+              data-slot="button"
               @click="handleToggleFilter('is_trial', 1)"
               :title="t.trial_hint || 'Free trial cards issued from the app or the website.'"
               :class="['flex-1 min-w-[10rem] cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 rounded-md px-3 flex items-center gap-2', filters.is_trial === 1 || filters.is_trial === '1' || filters.is_trial === true ? 'bg-primary text-primary-foreground' : '']"
@@ -822,6 +844,7 @@ const props = defineProps({
     is_from_card_patch: null,
     has_custom_card: null,
     pending_relatives: null,
+    member_type: null,
     is_trial: null,
     has_static_otp: null,
     paid_via: null,
@@ -876,6 +899,7 @@ const getInitialFilters = () => {
       is_from_card_patch: normalizeBool(props.initialFilters.is_from_card_patch),
       has_custom_card: normalizeBool(props.initialFilters.has_custom_card),
       pending_relatives: normalizeBool(props.initialFilters.pending_relatives),
+      member_type: props.initialFilters.member_type || null,
       is_trial: normalizeBool(props.initialFilters.is_trial),
       has_static_otp: normalizeBool(props.initialFilters.has_static_otp),
       paid_via: props.initialFilters.paid_via || null,
@@ -917,6 +941,7 @@ const getInitialFilters = () => {
       is_from_card_patch: urlParams.get('is_from_card_patch') !== null ? Number(urlParams.get('is_from_card_patch')) : null,
       has_custom_card: urlParams.get('has_custom_card') !== null ? Number(urlParams.get('has_custom_card')) : null,
       pending_relatives: urlParams.get('pending_relatives') !== null ? Number(urlParams.get('pending_relatives')) : null,
+      member_type: urlParams.get('member_type') || null,
       is_trial: urlParams.get('is_trial') !== null ? Number(urlParams.get('is_trial')) : null,
       has_static_otp: urlParams.get('has_static_otp') !== null ? Number(urlParams.get('has_static_otp')) : null,
       paid_via: urlParams.get('paid_via') || null,
@@ -970,6 +995,7 @@ const hasActiveFilters = computed(() => {
     || (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined)
     || (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined)
     || (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined)
+    || !!filters.value.member_type
     || (filters.value.is_trial !== null && filters.value.is_trial !== undefined)
     || (filters.value.has_static_otp !== null && filters.value.has_static_otp !== undefined)
     || !!filters.value.paid_via
@@ -1004,6 +1030,7 @@ const advancedActiveCount = computed(() => {
   if (filters.value.is_from_card_patch !== null && filters.value.is_from_card_patch !== undefined) n++;
   if (filters.value.has_custom_card !== null && filters.value.has_custom_card !== undefined) n++;
   if (filters.value.pending_relatives !== null && filters.value.pending_relatives !== undefined) n++;
+  if (filters.value.member_type) n++;
   if (filters.value.is_trial !== null && filters.value.is_trial !== undefined) n++;
   if (filters.value.has_static_otp !== null && filters.value.has_static_otp !== undefined) n++;
   if (filters.value.paid_via) n++;

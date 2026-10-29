@@ -23,6 +23,8 @@ class AdminOrderShowResource extends JsonResource
         return [
             'id' => $this->id,
             'order_code' => $this->order_code,
+            // What the order is for: 'cards' (physical cards) or 'products' (the shop).
+            'kind' => $this->source === \App\Support\PhysicalCard::SOURCE ? 'cards' : 'products',
 
             'total_paid' => $this->total_paid === null ? null : (float) $this->total_paid,
             'total_amount' => $this->total_amount === null ? null : (float) $this->total_amount,

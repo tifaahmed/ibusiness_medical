@@ -70,7 +70,8 @@ class AdminCompanyMembersExportController extends BaseController
 
         $members = $company->memberships()
             ->with(['user', 'company', 'partner', 'creator:id,name,email', 'sales', 'governorate', 'city', 'memberPayments', 'latestActiveHistory'])
-            ->withCount('familyMembers')
+            ->primary()
+            ->withCount('relatives as family_members_count')
             ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%' . $name . '%')))
             ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%' . $membershipNumber . '%'))
             ->when($phone !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%' . $phone . '%')))

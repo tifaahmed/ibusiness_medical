@@ -32,7 +32,7 @@ class AdminCompanyMembersController extends BaseController
         $membershipNumber = trim((string) $request->input('membership_number', ''));
         $phone = trim((string) $request->input('phone', ''));
 
-        $members = $company->memberships()
+        $members = $company->memberships()->primary()
             ->with('user:id,name,phone')
             ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%' . $name . '%')))
             ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%' . $membershipNumber . '%'))

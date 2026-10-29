@@ -98,6 +98,24 @@
                 no fixed code, nobody can sign in.
               </template>
             </p>
+            <template v-if="member">
+              <label class="block pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expires (optional)</label>
+              <input
+                v-model="expiresAt"
+                type="datetime-local"
+                class="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p class="text-[11px] text-muted-foreground">
+                After this time the member goes back to the real SMS code by itself.
+              </p>
+              <p
+                v-if="member.otp_fixed_code"
+                class="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-[11px] text-amber-600 dark:text-amber-400"
+              >
+                A fixed code is active for this member{{ member.otp_fixed_code_expires_at ? ` until ${new Date(member.otp_fixed_code_expires_at).toLocaleString()}` : ' with no expiry' }}.
+                It is stored hashed and cannot be read back; typing a new one replaces it.
+              </p>
+            </template>
             <p v-if="error" class="text-[11px] text-destructive">{{ error }}</p>
           </div>
 
@@ -141,6 +159,7 @@ const emit = defineEmits(['close']);
 
 const smsEnabled = ref(true);
 const code = ref('');
+const expiresAt = ref('');
 const saving = ref(false);
 const error = ref('');
 
@@ -153,7 +172,9 @@ watch(() => props.open, (isOpen) => {
   saving.value = false;
 
   if (props.member) {
-    code.value = props.member.otp_fixed_code || '';
+    // The stored code is hashed: there is nothing to show, only a new one to type.
+    code.value = '';
+    expiresAt.value = '';
   } else {
     smsEnabled.value = props.policy?.sms_enabled !== false;
     code.value = props.policy?.fixed_code || '';
@@ -180,13 +201,13 @@ const save = () => {
     : route('admin.user.membership.otp.site');
 
   const payload = props.member
-    ? { fixed_code: trimmed === '' ? null : trimmed }
+    ? { fixed_code: trimmed === '' ? null : trimmed, expires_at: trimmed !== '' && expiresAt.value ? expiresAt.value : null }
     : { sms_enabled: smsEnabled.value, fixed_code: trimmed === '' ? null : trimmed };
 
   router.put(url, payload, {
     preserveScroll: true,
     onSuccess: () => close(),
-    onError: (errors) => { error.value = errors.fixed_code || 'That could not be saved.'; },
+    onError: (errors) => { error.value = errors.fixed_code || errors.expires_at || 'That could not be saved.'; },
     onFinish: () => { saving.value = false; },
   });
 };

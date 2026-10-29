@@ -38,6 +38,7 @@
                   <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
                 </svg>
                 <span class="font-mono text-lg font-semibold break-all">{{ order.order_code }}</span>
+                <span :class="['inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-bold', order.kind === 'cards' ? 'border-amber-400/60 bg-amber-400/15 text-amber-400' : 'border-sky-400/50 bg-sky-400/10 text-sky-400']">{{ order.kind === 'cards' ? (t.order?.kind_cards || 'Physical cards') : (t.order?.kind_products || 'Products') }}</span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
                 <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', statusClass.payment[order.payment_status?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'payment'">

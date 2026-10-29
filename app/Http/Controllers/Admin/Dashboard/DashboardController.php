@@ -66,7 +66,7 @@ class DashboardController extends Controller
                 ->count();
 
             // Active members (active memberships that haven't expired, excluding trashed users)
-            $activeMembers = Membership::where('is_active', true)
+            $activeMembers = Membership::primary()->where('is_active', true)
                 ->where('expiration_date', '>', $now)
                 ->whereNotNull('completed_at')
                 ->when($restricted, fn($q) => $q->where($scopeFilter))
@@ -76,13 +76,13 @@ class DashboardController extends Controller
                 ->count();
 
             // New members this month
-            $newThisMonth = Membership::where('registration_date', '>=', $startOfMonth)
+            $newThisMonth = Membership::primary()->where('registration_date', '>=', $startOfMonth)
                 ->whereNotNull('completed_at')
                 ->when($restricted, fn($q) => $q->where($scopeFilter))
                 ->count();
 
             // New members last month (for percentage calculation)
-            $newLastMonth = Membership::whereBetween('registration_date', [$startOfLastMonth, $endOfLastMonth])
+            $newLastMonth = Membership::primary()->whereBetween('registration_date', [$startOfLastMonth, $endOfLastMonth])
                 ->whereNotNull('completed_at')
                 ->when($restricted, fn($q) => $q->where($scopeFilter))
                 ->count();
@@ -94,7 +94,7 @@ class DashboardController extends Controller
 
             // Recent members (latest 5 distinct users with their active membership)
             // Exclude trashed users and memberships
-            $recentMemberships = Membership::where('is_active', true)
+            $recentMemberships = Membership::primary()->where('is_active', true)
                 ->whereNotNull('completed_at')
                 ->when($restricted, fn($q) => $q->where($scopeFilter))
                 ->whereHas('user', function ($q) {

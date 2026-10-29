@@ -188,6 +188,7 @@ const props = defineProps({
       delivery_status: '',
       order_status: '',
       payment_type: '',
+      kind: '',
       created_from: '',
       created_to: ''
     })
@@ -213,6 +214,7 @@ const filters = ref(props.filters || {
   delivery_status: '',
   order_status: '',
   payment_type: '',
+  kind: '',
   created_from: '',
   created_to: ''
 });
@@ -329,6 +331,7 @@ const buildExportUrl = (extraParams = {}) => {
   if (f.delivery_status) params.set('delivery_status', f.delivery_status);
   if (f.order_status) params.set('order_status', f.order_status);
   if (f.payment_type) params.set('payment_type', f.payment_type);
+  if (f.kind) params.set('kind', f.kind);
   if (f.created_from) params.set('created_from', f.created_from);
   if (f.created_to) params.set('created_to', f.created_to);
   if (selectedColumns.value.length < allColumnKeys.value.length) {

@@ -112,6 +112,24 @@
         />
       </div>
 
+      <!-- Order type: shop products or physical cards -->
+      <div class="min-w-0">
+        <label
+          data-slot="label"
+          class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full ltr:justify-start rtl:justify-end ltr:text-left rtl:text-right mb-1"
+          for="order_kind"
+        >
+          {{ t.order?.kind || 'Order type' }}
+        </label>
+        <Select
+          v-model="filters.kind"
+          :options="kindOptions"
+          :placeholder="t.order?.kind_all || 'All orders'"
+          id="order_kind"
+          @change="applyFilters()"
+        />
+      </div>
+
       <!-- Created from -->
       <div class="min-w-0">
         <label
@@ -235,6 +253,11 @@ const paymentTypeOptions = computed(() => [
   { value: 'paymob', label: t.value.order?.type_paymob || 'Online (Paymob)' },
 ]);
 
+const kindOptions = computed(() => [
+  { value: 'products', label: t.value.order?.kind_products || 'Products' },
+  { value: 'cards', label: t.value.order?.kind_cards || 'Physical cards' },
+]);
+
 const getInitialFilters = () => {
   const defaults = {
     search: '',
@@ -242,6 +265,7 @@ const getInitialFilters = () => {
     delivery_status: '',
     order_status: '',
     payment_type: '',
+    kind: '',
     created_from: '',
     created_to: ''
   };
@@ -258,6 +282,7 @@ const getInitialFilters = () => {
       delivery_status: urlParams.get('delivery_status') || '',
       order_status: urlParams.get('order_status') || '',
       payment_type: urlParams.get('payment_type') || '',
+      kind: urlParams.get('kind') || '',
       created_from: urlParams.get('created_from') || '',
       created_to: urlParams.get('created_to') || ''
     };
@@ -273,6 +298,7 @@ const hasActiveFilters = computed(() => {
     || filters.value.delivery_status
     || filters.value.order_status
     || filters.value.payment_type
+    || filters.value.kind
     || filters.value.created_from
     || filters.value.created_to);
 });
@@ -291,7 +317,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', payment_status: '', delivery_status: '', order_status: '', payment_type: '', created_from: '', created_to: '' };
+  filters.value = { search: '', payment_status: '', delivery_status: '', order_status: '', payment_type: '', kind: '', created_from: '', created_to: '' };
   applyFilters();
 };
 
@@ -303,6 +329,7 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.delivery_status) params.delivery_status = currentFilters.delivery_status;
   if (currentFilters.order_status) params.order_status = currentFilters.order_status;
   if (currentFilters.payment_type) params.payment_type = currentFilters.payment_type;
+  if (currentFilters.kind) params.kind = currentFilters.kind;
   if (currentFilters.created_from) params.created_from = currentFilters.created_from;
   if (currentFilters.created_to) params.created_to = currentFilters.created_to;
 

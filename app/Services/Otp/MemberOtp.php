@@ -70,6 +70,7 @@ class MemberOtp
 
         /* The common case: the number is stored the way it was typed. An index hit, unlike the digit-by-digit comparison below. */
         $exact = User::query()
+            // A relative signs in too, with the phone saved on their own card.
             ->whereHas('memberships')
             ->with('membership')
             ->whereIn('phone', [$national, ltrim($national, '0'), '20'.ltrim($national, '0'), '+20'.ltrim($national, '0')])
@@ -101,20 +102,14 @@ class MemberOtp
     }
 
     /**
-     * The fixed code set on the member behind `$phone`, or null when there is
-     * no such member or nobody has given them one.
-     *
-     * Digits only, and an empty result reads as null: a column holding spaces
-     * or a stray letter must not become a code nobody can type. Cleared back
-     * to null, the member simply follows the site setting again.
+     * The member behind `$phone` when they carry a fixed login code that is set and has not expired, else null.
+     * The code itself is stored hashed (`otp_fixed_code_hash`): only its hash and length are ever read back.
      */
-    private function memberFixedCode(string $phone): ?string
+    private function memberWithFixedCode(string $phone): ?User
     {
-        $raw = (string) ($this->findMember($phone)?->otp_fixed_code ?? '');
+        $member = $this->findMember($phone);
 
-        $code = preg_replace('/\D+/', '', $raw) ?? '';
-
-        return $code === '' ? null : $code;
+        return $member?->hasActiveFixedCode() ? $member : null;
     }
 
     /**
@@ -140,13 +135,13 @@ class MemberOtp
          * site setting because it exists precisely to differ from it — the
          * site can be sending real codes by SMS while this one member is not.
          */
-        $memberCode = $this->memberFixedCode($phone);
+        $fixedMember = $this->memberWithFixedCode($phone);
 
-        $bySms = $memberCode === null && OtpSettings::deliversBySms();
+        $bySms = $fixedMember === null && OtpSettings::deliversBySms();
 
-        $code = $memberCode ?? ($bySms ? $this->generateCode() : OtpSettings::fixedCode());
+        $code = $fixedMember !== null ? null : ($bySms ? $this->generateCode() : OtpSettings::fixedCode());
 
-        if ($code === null) {
+        if ($fixedMember === null && $code === null) {
             /*
              * SMS is off and the fixed code has been cleared. That is an
              * administrator having closed the login, not a fault, so it is
@@ -158,7 +153,7 @@ class MemberOtp
         $ttl = OtpSettings::ttlMinutes() * 60;
 
         $issue = [
-            'hash' => Hash::make($code),
+            'hash' => $fixedMember?->otp_fixed_code_hash ?? Hash::make($code),
             'attempts' => 0,
             'issued_at' => now()->timestamp,
             'delivery' => $bySms ? 'sms' : 'fixed',
@@ -192,7 +187,7 @@ class MemberOtp
             'delivery' => $bySms ? 'sms' : 'fixed',
             'expires_in' => $ttl,
             'resend_after' => self::RESEND_AFTER_SECONDS,
-            'length' => strlen($code),
+            'length' => $fixedMember !== null ? ($fixedMember->otp_fixed_code_length ?: 4) : strlen($code),
             'error' => null,
         ];
     }
@@ -224,7 +219,10 @@ class MemberOtp
      * once, so a code read over somebody's shoulder is worth nothing the moment
      * it has been used.
      *
-     * @return array{verified: bool, reason: ?string, attempts_left: int}
+     * `sms` says the code really travelled by SMS to that phone: only then does typing it prove the phone is theirs
+     * (a fixed/admin code proves nothing about the number), and only then is the phone marked verified.
+     *
+     * @return array{verified: bool, reason: ?string, attempts_left: int, sms: bool}
      */
     public function verify(string $phone, string $code): array
     {
@@ -259,11 +257,33 @@ class MemberOtp
 
         Cache::forget($key);
 
+        $sms = ($issue['delivery'] ?? null) === 'sms';
+
+        if ($sms) {
+            $this->confirmPhone($phone);
+        }
+
         return [
             'verified' => true,
             'reason' => null,
             'attempts_left' => self::MAX_ATTEMPTS,
+            'sms' => $sms,
         ];
+    }
+
+    /** Stamp every account holding `$phone` as verified (first time only). Called once an SMS code was typed back. */
+    public function confirmPhone(string $phone): void
+    {
+        $national = PhoneNumbers::national($phone);
+
+        if ($national === null) {
+            return;
+        }
+
+        User::query()
+            ->whereNull('phone_verified_at')
+            ->whereRaw(User::phoneDigitsSql().' IN (?, ?, ?)', [$national, ltrim($national, '0'), '20'.ltrim($national, '0')])
+            ->update(['phone_verified_at' => now()]);
     }
 
     /**

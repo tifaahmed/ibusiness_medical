@@ -384,6 +384,9 @@ export const useMemberStore = defineStore('member', {
                     if (member.phone) {
                         formData.append(`family_members[${index}][phone]`, member.phone);
                     }
+                    if (member.national_id) {
+                        formData.append(`family_members[${index}][national_id]`, member.national_id);
+                    }
                     if (member.email) {
                         formData.append(`family_members[${index}][email]`, member.email);
                     }

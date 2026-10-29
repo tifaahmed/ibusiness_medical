@@ -9,7 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Support\MembershipPlan;
 use App\Enums\FamilyMember\ApprovalStatusEnum;
 use App\Enums\FamilyMember\RelationshipEnum;
-use App\Models\FamilyMember;
+use App\Actions\Membership\CreateRelative;
+use App\Actions\Membership\UpdateRelative;
 use App\Services\MediaService;
 use Illuminate\Support\Facades\Log;
 use App\Models\MemberLog;
@@ -44,6 +45,7 @@ class FamilyController extends Controller
     public function __construct(
         private MediaService $mediaService,
         private RecordContactMessageAction $inbox,
+        private CreateRelative $createRelative,
     ) {}
 
     /**
@@ -74,8 +76,8 @@ class FamilyController extends Controller
                 'can_add_children' => $this->isFather($member),
                 'family_members' => $membership === null
                     ? []
-                    : $membership->familyMembers()->orderBy('id')->get()
-                        ->map(fn (FamilyMember $familyMember) => $this->present($familyMember, $this->isFather($member)))
+                    : $membership->relatives()->with('user')->orderBy('id')->get()
+                        ->map(fn (Membership $relative) => $this->present($relative, true))
                         ->all(),
             ],
         ]);
@@ -109,7 +111,7 @@ class FamilyController extends Controller
 
         $fullName = $this->fullNameFor($member, $validated['first_name']);
 
-        $children = $membership->familyMembers()->whereIn('relationship', self::CHILD_RELATIONSHIPS);
+        $children = $membership->relatives()->whereIn('relationship', self::CHILD_RELATIONSHIPS);
 
         if ($children->count() >= self::MAX_CHILDREN) {
             throw ValidationException::withMessages([
@@ -117,21 +119,20 @@ class FamilyController extends Controller
             ]);
         }
 
-        if ($membership->familyMembers()->where('name', $fullName)->exists()) {
+        if ($membership->relatives()->whereHas('user', fn ($q) => $q->where('name', $fullName))->exists()) {
             throw ValidationException::withMessages([
                 'first_name' => ['This child has already been added.'],
             ]);
         }
 
-        $familyMember = FamilyMember::create([
-            'membership_id' => $membership->id,
+        // Anything added from the app waits for staff (CreateRelative files it pending for a member).
+        $familyMember = $this->createRelative->handle($membership, [
             'name' => $fullName,
             'relationship' => $validated['relationship'],
-            // Anything added from the app waits for staff; they flip is_active on approval.
-            'is_active' => false,
-            'approval_status' => ApprovalStatusEnum::PENDING,
-            'added_by' => FamilyMember::ADDED_BY_MEMBER,
-        ]);
+            'phone' => $validated['phone'] ?? null,
+            'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'national_id' => $validated['national_id'] ?? null,
+        ], Membership::ADDED_BY_MEMBER, null, $request);
 
         MemberLog::record(
             membershipId: $membership->id,
@@ -147,7 +148,7 @@ class FamilyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Child added.',
-            'data' => ['family_member' => $this->present($familyMember, true)],
+            'data' => ['family_member' => $this->present($familyMember->load('user'), true)],
         ], Response::HTTP_CREATED);
     }
 
@@ -165,6 +166,8 @@ class FamilyController extends Controller
             'name' => ['required', 'string', 'max:255', 'regex:'.self::FIRST_NAME_PATTERN],
             'relationship' => ['required', Rule::in(self::FIRST_DEGREE)],
             'national_id' => ['required', 'digits:14'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
             'id_front' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
             'id_back' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
             'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
@@ -182,26 +185,20 @@ class FamilyController extends Controller
             return $refusal;
         }
 
-        if ($membership->familyMembers()->where('national_id', $validated['national_id'])->exists()) {
-            throw ValidationException::withMessages([
-                'national_id' => ['This national ID has already been added.'],
-            ]);
-        }
-
         try {
-            $familyMember = FamilyMember::create([
-                'membership_id' => $membership->id,
-                'name' => preg_replace('/\s+/u', ' ', trim($validated['name'])),
+            $familyMember = $this->createRelative->handle($membership, [
+                'name' => $validated['name'],
                 'relationship' => $validated['relationship'],
                 'national_id' => $validated['national_id'],
-                'is_active' => false,
-                'approval_status' => ApprovalStatusEnum::PENDING,
-                'added_by' => FamilyMember::ADDED_BY_MEMBER,
-            ]);
+                'phone' => $validated['phone'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+            ], Membership::ADDED_BY_MEMBER, null, $request);
 
             $this->mediaService->uploadImage($familyMember, $request->file('photo'), 'photo');
             $this->mediaService->uploadImage($familyMember, $request->file('id_front'), 'national_id_front', 'local');
             $this->mediaService->uploadImage($familyMember, $request->file('id_back'), 'national_id_back', 'local');
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('Member family add failed', [
                 'user_id' => $member->id,
@@ -211,7 +208,9 @@ class FamilyController extends Controller
             ]);
 
             if (isset($familyMember)) {
+                $user = $familyMember->user;
                 $familyMember->forceDelete();
+                $user?->forceDelete();
             }
 
             return response()->json(['success' => false, 'message' => 'Could not save the family member. Please try again.'], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -231,7 +230,7 @@ class FamilyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Family member sent for approval.',
-            'data' => ['family_member' => $this->present($familyMember->fresh(), false)],
+            'data' => ['family_member' => $this->present($familyMember->fresh('user'), false)],
         ], Response::HTTP_CREATED);
     }
 
@@ -250,7 +249,7 @@ class FamilyController extends Controller
 
         $fullName = $this->fullNameFor($member, $validated['first_name']);
 
-        if ($membership->familyMembers()->where('name', $fullName)->whereKeyNot($child->id)->exists()) {
+        if ($membership->relatives()->whereHas('user', fn ($q) => $q->where('name', $fullName))->whereKeyNot($child->id)->exists()) {
             throw ValidationException::withMessages([
                 'first_name' => ['This child has already been added.'],
             ]);
@@ -258,24 +257,22 @@ class FamilyController extends Controller
 
         $before = $this->snapshot($child);
 
-        $child->update([
-            'name' => $fullName,
-            'relationship' => $validated['relationship'],
-        ]);
+        $child->user->update(['name' => $fullName]);
+        $child->update(['relationship' => $validated['relationship']]);
 
         MemberLog::record(
             membershipId: $membership->id,
             adminId: null,
             action: MemberLog::ACTION_FAMILY_UPDATED,
             oldValues: $before,
-            newValues: $this->snapshot($child->fresh()) + ['changed_by' => 'member'],
+            newValues: $this->snapshot($child->fresh('user')) + ['changed_by' => 'member'],
             request: $request,
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Child updated.',
-            'data' => ['family_member' => $this->present($child->fresh(), true)],
+            'data' => ['family_member' => $this->present($child->fresh('user'), true)],
         ]);
     }
 
@@ -293,6 +290,7 @@ class FamilyController extends Controller
 
         $before = $this->snapshot($child);
 
+        $child->user?->delete();
         $child->delete();
 
         MemberLog::record(
@@ -308,13 +306,147 @@ class FamilyController extends Controller
     }
 
     /**
-     * @return array{first_name: string, relationship: string}
+     * The card owner completes a relative's data. A relative still waiting for (or refused by) staff can be edited freely;
+     * an APPROVED one keeps its name and anything already filled in (customer service changes those), so only EMPTY phone /
+     * birth date / National ID can be added. A new phone is saved unverified.
+     */
+    public function updateRelative(Request $request, string $familyMember): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
+            'national_id' => ['sometimes', 'nullable', 'digits:14'],
+        ]);
+
+        $membership = $this->membershipOf($member);
+        $relative = $this->relativeOf($membership, $familyMember);
+        $user = $relative->user;
+
+        $changes = [];
+
+        foreach (['name' => $user?->name, 'phone' => $user?->phone, 'date_of_birth' => $user?->date_of_birth?->format('Y-m-d'), 'national_id' => $relative->national_id] as $field => $current) {
+            if (! array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            $value = is_string($validated[$field]) ? trim($validated[$field]) : $validated[$field];
+            $value = $value === '' ? null : $value;
+
+            if ($value === ($current === '' ? null : $current)) {
+                continue;
+            }
+
+            if ($this->isApproved($relative) && ($field === 'name' || filled($current))) {
+                throw ValidationException::withMessages([
+                    $field => ['This data is already approved. Please contact customer service to change it.'],
+                ]);
+            }
+
+            $changes[$field] = $value;
+        }
+
+        if ($changes === []) {
+            return response()->json(['success' => true, 'message' => 'Nothing to change.', 'data' => ['family_member' => $this->present($relative, true)]]);
+        }
+
+        $before = $this->snapshot($relative);
+
+        app(UpdateRelative::class)->handle($relative, $changes);
+
+        MemberLog::record(
+            membershipId: $membership->id,
+            adminId: null,
+            action: MemberLog::ACTION_FAMILY_UPDATED,
+            oldValues: $before,
+            newValues: $this->snapshot($relative->fresh('user')) + ['changed_by' => 'member', 'fields' => array_keys($changes)],
+            request: $request,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Relative updated.',
+            'data' => ['family_member' => $this->present($relative->fresh('user'), true)],
+        ]);
+    }
+
+    /** The card owner sets (or replaces) the profile photo of one of their relatives. A photo is not identity data, so an approved relative may get one too. */
+    public function updateRelativeAvatar(Request $request, string $familyMember): JsonResponse
+    {
+        $request->validate(['avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048']]);
+
+        /** @var User $member */
+        $member = $request->user();
+        $relative = $this->relativeOf($this->membershipOf($member), $familyMember);
+        $user = $relative->user;
+
+        abort_if($user === null, Response::HTTP_NOT_FOUND);
+
+        // Not a single-file collection and the reader takes the first media: clear the old photo or it keeps being served.
+        $user->clearMediaCollection('avatar');
+        $user->addMediaFromRequest('avatar')->toMediaCollection('avatar');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Photo updated.',
+            'data' => ['avatar_url' => get_image_url($user, 'avatar')],
+        ]);
+    }
+
+    /** The card owner removes a relative from their card (any relation, waiting or approved). */
+    public function destroyRelative(Request $request, string $familyMember): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+
+        $membership = $this->membershipOf($member);
+        $relative = $this->relativeOf($membership, $familyMember);
+
+        $before = $this->snapshot($relative);
+
+        $relative->user?->delete();
+        $relative->delete();
+
+        MemberLog::record(
+            membershipId: $membership->id,
+            adminId: null,
+            action: MemberLog::ACTION_FAMILY_DELETED,
+            oldValues: $before + ['removed_by' => 'member'],
+            newValues: null,
+            request: $request,
+        );
+
+        return response()->json(['success' => true, 'message' => 'Relative removed.']);
+    }
+
+    /** One of THIS card's relatives of any relation, or a 404. */
+    private function relativeOf(?Membership $membership, string $id): Membership
+    {
+        abort_if($membership === null || ! ctype_digit($id), Response::HTTP_NOT_FOUND);
+
+        return $membership->relatives()->with('user')->findOrFail((int) $id);
+    }
+
+    private function isApproved(Membership $relative): bool
+    {
+        return ($relative->approval_status ?: ApprovalStatusEnum::APPROVED->value) === ApprovalStatusEnum::APPROVED->value;
+    }
+
+    /**
+     * @return array{first_name: string, relationship: string, date_of_birth?: ?string, phone?: ?string, national_id?: ?string}
      */
     private function validateChild(Request $request): array
     {
         return $request->validate([
             'first_name' => ['required', 'string', 'max:60', 'regex:'.self::FIRST_NAME_PATTERN],
             'relationship' => ['required', Rule::in(self::CHILD_RELATIONSHIPS)],
+            // A child still needs at least one of the three (checked when the relative is created).
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'national_id' => ['nullable', 'digits:14'],
         ]);
     }
 
@@ -328,11 +460,11 @@ class FamilyController extends Controller
     /**
      * One of THIS membership's sons or daughters, or a 404.
      */
-    private function childOf(?Membership $membership, string $id): FamilyMember
+    private function childOf(?Membership $membership, string $id): Membership
     {
         abort_if($membership === null || ! ctype_digit($id), Response::HTTP_NOT_FOUND);
 
-        return $membership->familyMembers()
+        return $membership->relatives()->with('user')
             ->whereIn('relationship', self::CHILD_RELATIONSHIPS)
             ->findOrFail((int) $id);
     }
@@ -348,12 +480,12 @@ class FamilyController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function snapshot(FamilyMember $familyMember): array
+    private function snapshot(Membership $familyMember): array
     {
         return [
             'family_member_id' => $familyMember->id,
-            'name' => $familyMember->name,
-            'relationship' => $familyMember->relationship?->value,
+            'name' => $familyMember->user?->name,
+            'relationship' => $familyMember->relationship,
         ];
     }
 
@@ -393,7 +525,7 @@ class FamilyController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $counted = $membership->familyMembers()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)->count();
+        $counted = $membership->relatives()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)->count();
 
         if ($counted >= MembershipPlan::MAX_RELATIVES) {
             return response()->json([
@@ -411,7 +543,7 @@ class FamilyController extends Controller
      * contact inbox (and its mail), so it is not found only by chance. A mail
      * failure is the inbox action's to swallow — the relative is already saved.
      */
-    private function tellAdmins(User $member, Membership $membership, FamilyMember $familyMember, Request $request): void
+    private function tellAdmins(User $member, Membership $membership, Membership $familyMember, Request $request): void
     {
         try {
             $this->inbox->handle([
@@ -419,7 +551,7 @@ class FamilyController extends Controller
                 'name' => $member->name,
                 'email' => $member->email,
                 'subject' => 'Relative awaiting approval — card '.$membership->membership_number,
-                'message' => 'Card '.$membership->membership_number.' added '.$familyMember->name.' ('.($familyMember->relationship?->value ?? '').') and is waiting for approval.',
+                'message' => 'Card '.$membership->membership_number.' added '.$familyMember->user?->name.' ('.($familyMember->relationship ?? '').') and is waiting for approval.',
                 'source' => ContactSourceEnum::PENDING_RELATIVE->value,
                 'channel' => ContactChannelEnum::fromRequest($request)->value,
                 'ip_address' => $request->ip(),
@@ -445,17 +577,27 @@ class FamilyController extends Controller
      *
      * @return array{id: int, name: string, relationship: ?string, relationship_label: ?string, is_active: bool, approval_status: string, rejection_reason: ?string, can_edit: bool}
      */
-    private function present(FamilyMember $familyMember, bool $canEdit = false): array
+    private function present(Membership $familyMember, bool $canEdit = false): array
     {
+        $relationship = $familyMember->relationship ? RelationshipEnum::tryFrom($familyMember->relationship) : null;
+
         return [
             'id' => $familyMember->id,
-            'name' => $familyMember->name,
-            'relationship' => $familyMember->relationship?->value,
-            'relationship_label' => $familyMember->relationship?->label(),
+            'name' => $familyMember->user?->name,
+            'relationship' => $familyMember->relationship,
+            'relationship_label' => $relationship?->label(),
+            'membership_number' => $familyMember->membership_number,
+            'phone' => $familyMember->user?->phone,
+            'phone_verified' => $familyMember->user?->phone_verified_at !== null,
+            'date_of_birth' => $familyMember->user?->date_of_birth?->format('Y-m-d'),
+            'national_id' => $familyMember->national_id,
+            // The owner may fill in what is missing on any relative and remove any of them; an approved one keeps its name and filled data (staff change those).
+            'can_delete' => $canEdit,
+            'locked' => $this->isApproved($familyMember),
             'is_active' => (bool) $familyMember->is_active,
-            'approval_status' => ($familyMember->approval_status ?? ApprovalStatusEnum::APPROVED)->value,
+            'approval_status' => $familyMember->approval_status ?: ApprovalStatusEnum::APPROVED->value,
             'rejection_reason' => $familyMember->rejection_reason,
-            'can_edit' => $canEdit && in_array($familyMember->relationship?->value, self::CHILD_RELATIONSHIPS, true),
+            'can_edit' => $canEdit,
         ];
     }
 }

@@ -5,7 +5,6 @@ namespace Tests\Feature\Api;
 use App\Enums\Address\AddressTypeEnum;
 use App\Enums\FamilyMember\RelationshipEnum;
 use App\Models\Address;
-use App\Models\FamilyMember;
 use App\Models\Governorate;
 use App\Models\Membership;
 use App\Models\User;
@@ -69,11 +68,9 @@ class PartnerMembershipApiTest extends TestCase
     {
         $membership = Membership::factory()->create();
 
-        FamilyMember::factory()->for($membership)->create([
-            'name' => 'Youssef Adel',
-            'relationship' => RelationshipEnum::SON,
-        ]);
-        FamilyMember::factory()->for($membership)->inactive()->create(['name' => 'Removed Person']);
+        $create = app(\App\Actions\Membership\CreateRelative::class);
+        $create->handle($membership, ['name' => 'Youssef Adel', 'relationship' => 'son', 'date_of_birth' => '2015-01-01', 'is_active' => true]);
+        $create->handle($membership, ['name' => 'Removed Person', 'relationship' => 'son', 'date_of_birth' => '2016-01-01', 'is_active' => false]);
 
         $response = $this->lookup($membership->membership_number);
 

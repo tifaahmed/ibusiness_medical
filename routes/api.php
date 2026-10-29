@@ -30,13 +30,16 @@ use App\Http\Controllers\Api\V1\Guest\StoreBranchMapController as V1StoreBranchM
 use App\Http\Controllers\Api\V1\Guest\StoreController as V1StoreController;
 use App\Http\Controllers\Api\V1\Guest\StoreListController as V1StoreListController;
 use App\Http\Controllers\Api\V1\Guest\StoreSearchController as V1StoreSearchController;
+use App\Http\Controllers\Api\V1\Member\AccountController as V1MemberAccountController;
 use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressController;
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
+use App\Http\Controllers\Api\V1\Member\FamilyOverviewController as V1MemberFamilyOverviewController;
 use App\Http\Controllers\Api\V1\Member\LoyaltyController as V1MemberLoyaltyController;
 use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
 use App\Http\Controllers\Api\V1\Mobile\CardLoginController as V1MobileCardLoginController;
+use App\Http\Controllers\Api\V1\Mobile\PhysicalCardController as V1MobilePhysicalCardController;
 use App\Http\Controllers\Api\V1\Mobile\FacilityController as V1MobileFacilityController;
 use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductController;
 use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
@@ -162,6 +165,9 @@ Route::prefix('v1')
             /* Sign in by CARD NUMBER: the code goes to the phone on the card, or — if the card has none — to a phone being added to it. */
             Route::post('/auth/card/otp', [V1MobileCardLoginController::class, 'request'])
                 ->middleware('throttle:10,1,api.auth.card.otp')->name('auth.card.otp');
+            /* The masked phone ON a card (last 4 digits only), BEFORE any code is texted, so the holder can check it is theirs. Sends nothing. */
+            Route::post('/auth/card/phone-hint', [V1MobileCardLoginController::class, 'phoneHint'])
+                ->middleware('throttle:10,1,api.auth.card.hint')->name('auth.card.hint');
             Route::post('/auth/card/otp/verify', [V1MobileCardLoginController::class, 'verify'])
                 ->middleware('throttle:10,1,api.auth.card.verify')->name('auth.card.verify');
             Route::post('/auth/card/phone', [V1MobileCardLoginController::class, 'requestPhone'])
@@ -217,6 +223,12 @@ Route::prefix('v1')
                 ->middleware('throttle:10,1,api.orders.pay')
                 ->name('orders.pay');
 
+            /* Physical (plastic) cards for the primary member and their relatives: eligibility + prices, and the order (an ordinary `orders` row). */
+            Route::get('/physical-cards', [V1MobilePhysicalCardController::class, 'show'])
+                ->middleware(['auth:sanctum', 'throttle:60,1,api.physical.show'])->name('physical-cards.show');
+            Route::post('/physical-cards/orders', [V1MobilePhysicalCardController::class, 'store'])
+                ->middleware(['auth:sanctum', 'primary.member', 'throttle:10,1,api.physical.store'])->name('physical-cards.store');
+
             Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
                 ->middleware('throttle:20,1,api.card.show')
                 ->name('card.show');
@@ -229,7 +241,7 @@ Route::prefix('v1')
             Route::get('/shop', function () {
                 $delivery = \App\Support\ShopDelivery::current();
 
-                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'cod_fee' => \App\Support\ShopDelivery::codFee(), 'paymob_enabled' => \App\Support\PaymentMethods::online(), 'payment_methods' => \App\Support\PaymentMethods::flags(), 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
+                return response()->json(['data' => ['delivery_price' => $delivery['price'], 'cod_fee' => \App\Support\ShopDelivery::codFee(), 'paymob_enabled' => \App\Support\PaymentMethods::online(\App\Support\PaymentMethods::CONTEXT_PRODUCTS), 'payment_methods' => \App\Support\PaymentMethods::flags(\App\Support\PaymentMethods::CONTEXT_PRODUCTS), 'free_delivery_threshold' => $delivery['threshold'], 'wallet_number' => \App\Support\ShopDelivery::wallet(), 'contact' => \App\Support\ShopContact::current()]])
                     ->header('Cache-Control', 'public, max-age=60');
             })->name('shop');
 
@@ -437,8 +449,8 @@ Route::prefix('v1')
                         'freeDeliveryThreshold' => $delivery['threshold'],
                         /* Extra fee on a cash-on-delivery order; 0 = none, and clients show nothing. */
                         'codFee' => \App\Support\ShopDelivery::codFee(),
-                        'paymobEnabled' => \App\Support\PaymentMethods::online(),
-                        'paymentMethods' => \App\Support\PaymentMethods::flags(),
+                        'paymobEnabled' => \App\Support\PaymentMethods::online(\App\Support\PaymentMethods::CONTEXT_PRODUCTS),
+                        'paymentMethods' => \App\Support\PaymentMethods::flags(\App\Support\PaymentMethods::CONTEXT_PRODUCTS),
 
                     ]);
                 })->name('shop-settings');
@@ -500,6 +512,8 @@ Route::prefix('v1')
              * request.
              */
             Route::get('/family', [V1MemberFamilyController::class, 'index'])->name('family.index');
+            /* The whole family of the signed-in member (a relative sees the card they belong to), with phones, points and badges. */
+            Route::get('/family/overview', [V1MemberFamilyOverviewController::class, 'show'])->name('family.overview');
 
             /*
              * The member's own card: its state, a free trial from phone + name +
@@ -514,7 +528,7 @@ Route::prefix('v1')
             Route::post('/membership/subscribe', [V1MemberMembershipController::class, 'subscribe'])
                 ->middleware('throttle:10,1,api.me.membership.subscribe')->name('me.membership.subscribe');
             Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])
-                ->middleware('throttle:5,1,api.me.membership.relatives-request')->name('me.membership.relatives-request');
+                ->middleware(['primary.member', 'throttle:5,1,api.me.membership.relatives-request'])->name('me.membership.relatives-request');
             Route::post('/membership/national-id-change', [V1MemberMembershipController::class, 'requestNationalIdChange'])
                 ->middleware('throttle:5,1,api.me.membership.national-id-change')->name('me.membership.national-id-change');
 
@@ -538,19 +552,39 @@ Route::prefix('v1')
 
             // Any relative, with national ID + both ID faces + photo; waits for staff approval.
             Route::post('/family/members', [V1MemberFamilyController::class, 'storeMember'])
-                ->middleware('throttle:10,1,api.family.members.store')
+                ->middleware(['primary.member', 'throttle:10,1,api.family.members.store'])
                 ->name('family.members.store');
             Route::post('/family/children', [V1MemberFamilyController::class, 'storeChild'])
-                ->middleware('throttle:10,1,api.family.children.store')
+                ->middleware(['primary.member', 'throttle:10,1,api.family.children.store'])
                 ->name('family.children.store');
+            /* Complete or remove ANY relative of your own card (what is already approved stays; see FamilyController::updateRelative). */
+            Route::patch('/family/relatives/{familyMember}', [V1MemberFamilyController::class, 'updateRelative'])
+                ->middleware(['primary.member', 'throttle:20,1,api.family.relatives.update'])
+                ->whereNumber('familyMember')
+                ->name('family.relatives.update');
+            Route::post('/family/relatives/{familyMember}/avatar', [V1MemberFamilyController::class, 'updateRelativeAvatar'])
+                ->middleware(['primary.member', 'throttle:20,1,api.family.relatives.avatar'])
+                ->whereNumber('familyMember')
+                ->name('family.relatives.avatar');
+            Route::delete('/family/relatives/{familyMember}', [V1MemberFamilyController::class, 'destroyRelative'])
+                ->middleware(['primary.member', 'throttle:20,1,api.family.relatives.destroy'])
+                ->whereNumber('familyMember')
+                ->name('family.relatives.destroy');
             Route::put('/family/children/{familyMember}', [V1MemberFamilyController::class, 'updateChild'])
-                ->middleware('throttle:20,1,api.family.children.update')
+                ->middleware(['primary.member', 'throttle:20,1,api.family.children.update'])
                 ->whereNumber('familyMember')
                 ->name('family.children.update');
             Route::delete('/family/children/{familyMember}', [V1MemberFamilyController::class, 'destroyChild'])
-                ->middleware('throttle:20,1,api.family.children.destroy')
+                ->middleware(['primary.member', 'throttle:20,1,api.family.children.destroy'])
                 ->whereNumber('familyMember')
                 ->name('family.children.destroy');
+
+            /*
+             * The member deletes their own account (App Store 5.1.1(v)). A primary card's holder
+             * takes every relative on it along — see `Member\AccountController`.
+             */
+            Route::delete('/account', [V1MemberAccountController::class, 'destroy'])
+                ->middleware('throttle:3,1,api.account.destroy')->name('account.destroy');
 
             Route::get('/profile', [V1AuthController::class, 'profile'])->name('profile.show');
             Route::put('/profile', [V1AuthController::class, 'updateProfile'])->name('profile.update');

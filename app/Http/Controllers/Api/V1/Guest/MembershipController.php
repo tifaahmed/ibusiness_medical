@@ -41,8 +41,8 @@ class MembershipController extends Controller
     public function show(Request $request, string $membership): JsonResponse
     {
         $membershipModel = Membership::visible()
-            ->with(['user', 'company', 'familyMembers' => function ($query) {
-                $query->where('is_active', true)->orderBy('created_at', 'asc');
+            ->with(['user', 'company', 'relatives' => function ($query) {
+                $query->with('user')->where('is_active', true)->orderBy('created_at', 'asc');
             }, 'usages.facility', 'usages.facilityBranch', 'usages.facilityType', 'usages.media', 'cardLayouts'])
             ->where(function ($query) use ($membership) {
                 $query->where('slug', $membership)

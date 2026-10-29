@@ -105,8 +105,8 @@ class StoreMembershipTest extends TestCase
 
         $user = User::where('email', 'bob@example.com')->first();
         $this->assertNotNull($user);
-        $this->assertCount(1, $user->membership->familyMembers);
-        $this->assertEquals('Alice Smith', $user->membership->familyMembers->first()->name);
+        $this->assertCount(1, $user->membership->relatives);
+        $this->assertEquals('Alice Smith', $user->membership->relatives->first()->user->name);
     }
 
     /** @test */

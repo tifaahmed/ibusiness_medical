@@ -17,6 +17,8 @@ class AdminOrderListResource extends JsonResource
         return [
             'id' => $this->id,
             'order_code' => $this->order_code,
+            // What the order is for: 'cards' (physical cards) or 'products' (the shop).
+            'kind' => $this->source === \App\Support\PhysicalCard::SOURCE ? 'cards' : 'products',
             'total_paid' => $this->total_paid ? (float) $this->total_paid : null,
             'total_amount' => $this->total_amount !== null ? (float) $this->total_amount : null,
             'total_amount_before_discount' => $this->total_amount_before_discount !== null ? (float) $this->total_amount_before_discount : null,

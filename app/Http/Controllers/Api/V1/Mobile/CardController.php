@@ -29,11 +29,12 @@ class CardController extends Controller
 
         abort_unless($membership, 404);
 
-        $members = $membership->familyMembers()
+        $members = $membership->relatives()
+            ->with('user:id,name')
             ->where('is_active', true)
             ->orderBy('created_at')
-            ->get(['id', 'name', 'relationship'])
-            ->map(fn ($m) => ['id' => $m->id, 'name' => (string) $m->name, 'relationship' => $m->relationship->label()])
+            ->get(['id', 'user_id', 'relationship'])
+            ->map(fn ($m) => ['id' => $m->id, 'name' => (string) $m->user?->name, 'relationship' => \App\Enums\FamilyMember\RelationshipEnum::tryFrom((string) $m->relationship)?->label() ?? (string) $m->relationship])
             ->values()
             ->all();
 

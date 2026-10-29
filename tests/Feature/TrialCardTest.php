@@ -6,7 +6,6 @@ use App\Enums\Contact\ContactSourceEnum;
 use App\Enums\User\UserRoleEnum;
 use App\Mail\SubscriptionReceiptMail;
 use App\Models\ContactMessage;
-use App\Models\FamilyMember;
 use App\Models\MemberPayment;
 use App\Models\MemberLog;
 use App\Models\Membership;
@@ -129,7 +128,7 @@ class TrialCardTest extends TestCase
         $this->assertSame($membership->membership_number, $response->json('data.membership_number'));
         $this->assertMatchesRegularExpression('/^\d{6}$/', $membership->membership_number, 'a trial card number is six plain digits; the dash is only printed on the card');
         $this->assertDatabaseHas('trial_claims', ['phone' => '01012345678', 'membership_id' => $membership->id]);
-        $this->assertSame(0, $membership->familyMembers()->count());
+        $this->assertSame(0, $membership->relatives()->count());
     }
 
     public function test_the_trial_saves_the_gender_when_one_is_sent(): void
@@ -564,7 +563,7 @@ class TrialCardTest extends TestCase
         Storage::fake('public');
 
         return $this->post('/api/v1/family/members', array_merge([
-            'name' => 'Ahmed',
+            'name' => 'Ahmed Samir',
             'relationship' => 'son',
             'national_id' => (string) random_int(30000000000000, 30999999999999),
             'id_front' => UploadedFile::fake()->image('f.jpg'),
@@ -578,7 +577,7 @@ class TrialCardTest extends TestCase
         $this->trialCard();
 
         $this->addRelative()->assertForbidden()->assertJsonPath('reason', 'trial_no_relatives');
-        $this->assertSame(0, FamilyMember::query()->count());
+        $this->assertSame(0, Membership::query()->relatives()->count());
 
         $this->postJson('/api/v1/membership/relatives-request')->assertOk()->assertJsonPath('data.already_open', false);
         $this->postJson('/api/v1/membership/relatives-request')->assertOk()->assertJsonPath('data.already_open', true);
@@ -601,15 +600,15 @@ class TrialCardTest extends TestCase
 
         $this->addRelative(['relationship' => 'mother'])->assertCreated();
 
-        $relative = FamilyMember::query()->firstOrFail();
-        $this->assertSame('pending', $relative->approval_status->value);
+        $relative = Membership::query()->relatives()->firstOrFail();
+        $this->assertSame('pending', $relative->approval_status);
         $this->assertFalse($relative->is_active);
         $this->assertSame('member', $relative->added_by);
         $this->assertDatabaseHas('contact_messages', ['source' => ContactSourceEnum::PENDING_RELATIVE->value]);
 
         Cache::flush();
         $this->assertSame(1, AdminAlerts::counts()['pending_relatives']);
-        $this->assertSame(1, $membership->familyMembers()->where('approval_status', 'pending')->count());
+        $this->assertSame(1, $membership->relatives()->where('approval_status', 'pending')->count());
     }
 
     public function test_siblings_are_not_first_degree(): void
@@ -624,10 +623,10 @@ class TrialCardTest extends TestCase
         $membership = $this->paidCard();
 
         foreach (range(1, 15) as $i) {
-            FamilyMember::query()->create([
-                'membership_id' => $membership->id, 'name' => "Rel $i", 'relationship' => 'son',
+            app(\App\Actions\Membership\CreateRelative::class)->handle($membership, [
+                'name' => "Rel $i", 'relationship' => 'son',
                 'national_id' => (string) (31000000000000 + $i), 'is_active' => true,
-            ]);
+            ], Membership::ADDED_BY_ADMIN);
         }
 
         $this->addRelative()->assertUnprocessable()->assertJsonPath('reason', 'limit_reached');
@@ -644,7 +643,7 @@ class TrialCardTest extends TestCase
     public function test_the_member_list_can_be_filtered_to_cards_with_pending_relatives(): void
     {
         $withPending = $this->paidCard();
-        FamilyMember::query()->create(['membership_id' => $withPending->id, 'name' => 'Wait Son', 'relationship' => 'son', 'national_id' => '32000000000001', 'is_active' => false, 'approval_status' => 'pending', 'added_by' => 'member']);
+        app(\App\Actions\Membership\CreateRelative::class)->handle($withPending, ['name' => 'Wait Son', 'relationship' => 'son', 'national_id' => '32000000000001'], Membership::ADDED_BY_MEMBER);
 
         $other = User::factory()->create(['name' => 'No Pending']);
         Membership::query()->create(['user_id' => $other->id, 'membership_number' => '7777', 'slug' => '7777', 'registration_date' => now(), 'is_active' => true, 'is_visible' => true, 'completed_at' => now()]);

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin\User\Membership\Otp;
 
 use App\Http\Controllers\Controller as BaseController;
+use App\Enums\User\UserRoleEnum;
+use App\Models\MemberLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Support\OtpSettings;
 use App\Support\SiteSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -83,13 +86,22 @@ class AdminMembershipOtpController extends BaseController
      */
     public function member(Request $request, User $user): RedirectResponse
     {
+        /*
+         * A member who skips the SMS code is a hole in the login, so only the top
+         * administrator may open or close it — not every admin who can edit members.
+         */
+        abort_unless($request->user()?->hasRole(UserRoleEnum::SUPER_ADMIN), 403, 'Only the super admin can set a member login code.');
+
         $validated = $request->validate([
             'fixed_code' => ['nullable', 'string', 'regex:/^\d{4,8}$/'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
         ], [
             'fixed_code.regex' => 'The fixed code must be 4 to 8 digits.',
+            'expires_at.after' => 'The expiry must be in the future.',
         ]);
 
         $code = $validated['fixed_code'] ?? null;
+        $expiresAt = $code === null ? null : ($validated['expires_at'] ?? null);
 
         /*
          * An admin account has no membership, so it never resolves through
@@ -97,22 +109,44 @@ class AdminMembershipOtpController extends BaseController
          * all. Refusing is better than storing something inert that looks
          * like it works.
          */
-        if ($code !== null && ! $user->memberships()->exists()) {
+        $membership = $user->memberships()->latest('id')->first();
+
+        if ($code !== null && $membership === null) {
             return back()->withErrors([
                 'fixed_code' => 'That account has no membership, so it cannot use the storefront login.',
             ]);
         }
 
-        $user->forceFill(['otp_fixed_code' => $code])->save();
+        /* Stored HASHED: nobody, the admin who set it included, can read it back. */
+        $user->forceFill([
+            'otp_fixed_code' => null,
+            'otp_fixed_code_hash' => $code === null ? null : Hash::make($code),
+            'otp_fixed_code_length' => $code === null ? null : strlen($code),
+            'otp_fixed_code_expires_at' => $expiresAt,
+            'otp_fixed_code_set_by' => $code === null ? null : $request->user()->id,
+        ])->save();
 
-        Log::info('Member login code changed', [
+        Log::warning('Member login code changed', [
             'by' => $request->user()?->id,
             'member' => $user->id,
             'cleared' => $code === null,
+            'expires_at' => $expiresAt,
         ]);
+
+        if ($membership !== null) {
+            /* The audit trail on the member's own page. The code is never written to it. */
+            MemberLog::record(
+                membershipId: $membership->id,
+                adminId: $request->user()->id,
+                action: MemberLog::ACTION_UPDATED,
+                oldValues: null,
+                newValues: ['login_code' => $code === null ? 'cleared' : 'fixed code set', 'login_code_expires_at' => $expiresAt],
+                request: $request,
+            );
+        }
 
         return back()->with('success', $code === null
             ? $user->name.' follows the site login setting again.'
-            : $user->name.' now signs in with a fixed code.');
+            : $user->name.' now signs in with a fixed code'.($expiresAt ? ' until '.$expiresAt.'.' : '.'));
     }
 }

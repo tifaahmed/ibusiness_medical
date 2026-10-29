@@ -16,7 +16,7 @@ class AdminMemberPaymentCreateController extends BaseController
         $partnerFilter = $this->scopesPaymentsToPartner();
         $adminPartnerId = $this->currentAdminPaymentPartnerId();
 
-        $memberships = Membership::with(['user', 'memberPayments' => fn ($q) => $q->orderBy('created_at', 'desc')])
+        $memberships = Membership::primary()->with(['user', 'memberPayments' => fn ($q) => $q->orderBy('created_at', 'desc')])
             ->whereNotNull('completed_at')
             ->when($partnerFilter, fn ($q) => $q->where('partner_id', $adminPartnerId ?? -1))
             ->orderBy('membership_number')

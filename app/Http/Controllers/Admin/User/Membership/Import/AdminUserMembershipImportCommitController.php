@@ -191,7 +191,7 @@ class AdminUserMembershipImportCommitController extends BaseController
         if (empty($families)) {
             return;
         }
-        $existing = $membership->familyMembers()->get()->keyBy(fn ($f) => mb_strtolower(trim((string) $f->name)));
+        $existing = $membership->relatives()->with('user')->get()->keyBy(fn ($f) => mb_strtolower(trim((string) $f->user?->name)));
 
         foreach ($families as $f) {
             $name = trim((string) ($f['name'] ?? ''));
@@ -209,12 +209,18 @@ class AdminUserMembershipImportCommitController extends BaseController
                 'date_of_birth' => $f['date_of_birth'] ?? null,
                 'phone' => $f['phone'] ?? null,
                 'email' => $f['email'] ?? null,
+                'national_id' => $f['national_id'] ?? null,
                 'is_active' => isset($f['is_active']) ? (bool) $f['is_active'] : true,
             ];
-            if (isset($existing[$key])) {
-                $existing[$key]->update($payload);
-            } else {
-                $membership->familyMembers()->create($payload);
+            try {
+                if (isset($existing[$key])) {
+                    app(\App\Actions\Membership\UpdateRelative::class)->handle($existing[$key], $payload);
+                } else {
+                    app(\App\Actions\Membership\CreateRelative::class)->handle($membership, $payload, Membership::ADDED_BY_ADMIN, \Illuminate\Support\Facades\Auth::id());
+                }
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                // A repeated phone / National ID, or none of the three: this relative is skipped and said so, the rest of the row still imports.
+                \Illuminate\Support\Facades\Log::warning('Import: relative skipped', ['membership_id' => $membership->id, 'name' => $name, 'errors' => $e->errors()]);
             }
         }
     }

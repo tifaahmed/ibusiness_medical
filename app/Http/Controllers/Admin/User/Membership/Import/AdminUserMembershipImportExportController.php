@@ -96,6 +96,7 @@ class AdminUserMembershipImportExportController extends BaseController
         $lastActTo = $request->filled('last_activation_to') ? $request->input('last_activation_to') : null;
 
         $memberships = Membership::query()
+            ->primary()
             ->where(function ($mq) use ($listingFilter) {
                 $listingFilter($mq);
             })
@@ -122,7 +123,7 @@ class AdminUserMembershipImportExportController extends BaseController
                 'user:id,name,email,phone',
                 'company:id,name',
                 'partner:id,title',
-                'familyMembers',
+                'relatives.user',
                 'memberPayments',
             ])
             ->orderBy('id')
@@ -246,22 +247,20 @@ class AdminUserMembershipImportExportController extends BaseController
         $famDataRow = 2;
         $famIndex = 0;
         foreach ($memberships as $membership) {
-            if ($membership->familyMembers->isEmpty()) {
+            if ($membership->relatives->isEmpty()) {
                 continue;
             }
             $userName = $membership->user?->name ?? '';
-            foreach ($membership->familyMembers as $fm) {
+            foreach ($membership->relatives as $fm) {
                 $famIndex++;
                 $famRow = [
                     'Member name' => $userName,
                     'Membership #' => (string) $membership->membership_number,
-                    'Family member name' => (string) $fm->name,
-                    'Relationship' => $fm->relationship instanceof RelationshipEnum
-                        ? $fm->relationship->value
-                        : (string) $fm->getRawOriginal('relationship'),
-                    'Date of birth' => $fm->date_of_birth?->format('Y-m-d') ?? '',
-                    'Phone' => (string) ($fm->phone ?? ''),
-                    'Email' => (string) ($fm->email ?? ''),
+                    'Family member name' => (string) $fm->user?->name,
+                    'Relationship' => (string) $fm->relationship,
+                    'Date of birth' => $fm->user?->date_of_birth?->format('Y-m-d') ?? '',
+                    'Phone' => (string) ($fm->user?->phone ?? ''),
+                    'Email' => (string) ($fm->user?->email ?? ''),
                     'Status' => $fm->is_active ? 'active' : 'inactive',
                     'Photo url' => get_image_url($fm, 'photo'),
                 ];

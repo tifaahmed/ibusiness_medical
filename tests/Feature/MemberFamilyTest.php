@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Address;
-use App\Models\FamilyMember;
+use App\Actions\Membership\CreateRelative;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,19 +27,20 @@ class MemberFamilyTest extends TestCase
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
         Sanctum::actingAs($father);
 
-        $this->postJson('/api/v1/family/children', ['first_name' => '  Omar ', 'relationship' => 'son'])
+        $this->postJson('/api/v1/family/children', ['first_name' => '  Omar ', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
             ->assertCreated()
             ->assertJsonPath('data.family_member.name', 'Omar Ahmed Ali Hassan')
             ->assertJsonPath('data.family_member.relationship', 'son');
 
-        $this->assertDatabaseHas('family_members', [
-            'membership_id' => $membership->id,
-            'name' => 'Omar Ahmed Ali Hassan',
+        $this->assertDatabaseHas('memberships', [
+            'parent_membership_id' => $membership->id,
+            'member_type' => 'relative',
             'relationship' => 'son',
             // Added from the app, so it waits for staff.
             'is_active' => false,
             'approval_status' => 'pending',
         ]);
+        $this->assertDatabaseHas('users', ['name' => 'Omar Ahmed Ali Hassan']);
     }
 
     /** @test */
@@ -61,8 +62,8 @@ class MemberFamilyTest extends TestCase
             ->assertJsonPath('data.family_member.approval_status', 'pending')
             ->assertJsonPath('data.family_member.is_active', false);
 
-        $this->assertDatabaseHas('family_members', [
-            'membership_id' => $membership->id,
+        $this->assertDatabaseHas('memberships', [
+            'parent_membership_id' => $membership->id,
             'national_id' => '29801010102345',
             'approval_status' => 'pending',
             'added_by' => 'member',
@@ -93,6 +94,7 @@ class MemberFamilyTest extends TestCase
         $this->postJson('/api/v1/family/children', [
             'first_name' => 'Omar',
             'relationship' => 'son',
+            'date_of_birth' => '2015-05-05',
             'name' => 'Omar Somebody Else',
         ])->assertCreated()
             ->assertJsonPath('data.family_member.name', 'Omar Ahmed Ali Hassan');
@@ -104,10 +106,10 @@ class MemberFamilyTest extends TestCase
         [$mother, $membership] = $this->member('Mona Adel', 'female');
         Sanctum::actingAs($mother);
 
-        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son'])
+        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
             ->assertForbidden();
 
-        $this->assertDatabaseMissing('family_members', ['membership_id' => $membership->id]);
+        $this->assertDatabaseMissing('memberships', ['parent_membership_id' => $membership->id]);
     }
 
     /** @test */
@@ -116,7 +118,7 @@ class MemberFamilyTest extends TestCase
         [$father] = $this->member('', 'male');
         Sanctum::actingAs($father);
 
-        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son'])
+        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
             ->assertForbidden();
     }
 
@@ -143,7 +145,7 @@ class MemberFamilyTest extends TestCase
                 ->assertJsonValidationErrors('first_name');
         }
 
-        $this->postJson('/api/v1/family/children', ['first_name' => 'عبد الرحمن', 'relationship' => 'son'])
+        $this->postJson('/api/v1/family/children', ['first_name' => 'عبد الرحمن', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
             ->assertCreated()
             ->assertJsonPath('data.family_member.name', 'عبد الرحمن Ahmed Ali Hassan');
     }
@@ -154,8 +156,8 @@ class MemberFamilyTest extends TestCase
         [$father] = $this->member('Ahmed Ali Hassan', 'male');
         Sanctum::actingAs($father);
 
-        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son'])->assertCreated();
-        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son'])
+        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])->assertCreated();
+        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('first_name');
     }
@@ -166,8 +168,8 @@ class MemberFamilyTest extends TestCase
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
         [, $otherMembership] = $this->member('Khaled Samir', 'male', '01055555555');
 
-        FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Mona Ahmed', 'relationship' => 'wife', 'is_active' => true]);
-        FamilyMember::create(['membership_id' => $otherMembership->id, 'name' => 'Not Mine', 'relationship' => 'son', 'is_active' => true]);
+        $this->relative($membership, 'Mona Ahmed', 'wife');
+        $this->relative($otherMembership, 'Not Mine', 'son');
 
         Sanctum::actingAs($father);
 
@@ -182,7 +184,7 @@ class MemberFamilyTest extends TestCase
     public function a_father_renames_a_child_and_the_fathers_name_is_appended_again(): void
     {
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
-        $child = FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Omr Ahmed Ali Hassan', 'relationship' => 'son', 'is_active' => true]);
+        $child = $this->relative($membership, 'Omr Ahmed Ali Hassan', 'son');
         Sanctum::actingAs($father);
 
         $this->putJson("/api/v1/family/children/{$child->id}", [
@@ -193,19 +195,20 @@ class MemberFamilyTest extends TestCase
             ->assertJsonPath('data.family_member.name', 'Omar Ahmed Ali Hassan')
             ->assertJsonPath('data.family_member.relationship', 'daughter');
 
-        $this->assertDatabaseHas('family_members', ['id' => $child->id, 'name' => 'Omar Ahmed Ali Hassan', 'relationship' => 'daughter']);
+        $this->assertDatabaseHas('memberships', ['id' => $child->id, 'relationship' => 'daughter']);
+        $this->assertDatabaseHas('users', ['id' => $child->user_id, 'name' => 'Omar Ahmed Ali Hassan']);
     }
 
     /** @test */
     public function a_father_removes_a_child(): void
     {
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
-        $child = FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Omar Ahmed Ali Hassan', 'relationship' => 'son', 'is_active' => true]);
+        $child = $this->relative($membership, 'Omar Ahmed Ali Hassan', 'son');
         Sanctum::actingAs($father);
 
         $this->deleteJson("/api/v1/family/children/{$child->id}")->assertOk();
 
-        $this->assertSoftDeleted('family_members', ['id' => $child->id]);
+        $this->assertSoftDeleted('memberships', ['id' => $child->id]);
     }
 
     /** @test */
@@ -214,8 +217,8 @@ class MemberFamilyTest extends TestCase
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
         [, $otherMembership] = $this->member('Khaled Samir', 'male', '01055555555');
 
-        $stranger = FamilyMember::create(['membership_id' => $otherMembership->id, 'name' => 'Not Mine', 'relationship' => 'son', 'is_active' => true]);
-        $wife = FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Mona Ahmed', 'relationship' => 'wife', 'is_active' => true]);
+        $stranger = $this->relative($otherMembership, 'Not Mine', 'son');
+        $wife = $this->relative($membership, 'Mona Ahmed', 'wife');
         Sanctum::actingAs($father);
 
         $this->putJson("/api/v1/family/children/{$stranger->id}", ['first_name' => 'Hacked', 'relationship' => 'son'])->assertNotFound();
@@ -223,15 +226,15 @@ class MemberFamilyTest extends TestCase
         $this->putJson("/api/v1/family/children/{$wife->id}", ['first_name' => 'Hacked', 'relationship' => 'son'])->assertNotFound();
         $this->deleteJson("/api/v1/family/children/{$wife->id}")->assertNotFound();
 
-        $this->assertDatabaseHas('family_members', ['id' => $stranger->id, 'name' => 'Not Mine', 'deleted_at' => null]);
-        $this->assertDatabaseHas('family_members', ['id' => $wife->id, 'name' => 'Mona Ahmed', 'deleted_at' => null]);
+        $this->assertDatabaseHas('memberships', ['id' => $stranger->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('memberships', ['id' => $wife->id, 'deleted_at' => null]);
     }
 
     /** @test */
     public function only_a_male_member_may_change_children(): void
     {
         [$mother, $membership] = $this->member('Mona Adel', 'female');
-        $child = FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Omar Mona Adel', 'relationship' => 'son', 'is_active' => true]);
+        $child = $this->relative($membership, 'Omar Mona Adel', 'son');
         Sanctum::actingAs($mother);
 
         $this->putJson("/api/v1/family/children/{$child->id}", ['first_name' => 'Omar', 'relationship' => 'son'])->assertForbidden();
@@ -242,8 +245,8 @@ class MemberFamilyTest extends TestCase
     public function renaming_a_child_onto_a_sibling_is_refused(): void
     {
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
-        FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Omar Ahmed Ali Hassan', 'relationship' => 'son', 'is_active' => true]);
-        $other = FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Ali Ahmed Ali Hassan', 'relationship' => 'son', 'is_active' => true]);
+        $this->relative($membership, 'Omar Ahmed Ali Hassan', 'son');
+        $other = $this->relative($membership, 'Ali Ahmed Ali Hassan', 'son');
         Sanctum::actingAs($father);
 
         $this->putJson("/api/v1/family/children/{$other->id}", ['first_name' => 'Omar', 'relationship' => 'son'])
@@ -252,15 +255,16 @@ class MemberFamilyTest extends TestCase
     }
 
     /** @test */
-    public function the_family_flags_which_people_the_father_may_edit(): void
+    public function the_family_flags_every_relative_as_editable_and_removable_by_the_owner(): void
     {
         [$father, $membership] = $this->member('Ahmed Ali Hassan', 'male');
-        FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Mona Ahmed', 'relationship' => 'wife', 'is_active' => true]);
-        FamilyMember::create(['membership_id' => $membership->id, 'name' => 'Omar Ahmed Ali Hassan', 'relationship' => 'son', 'is_active' => true]);
+        $this->relative($membership, 'Mona Ahmed', 'wife');
+        $this->relative($membership, 'Omar Ahmed Ali Hassan', 'son');
         Sanctum::actingAs($father);
 
         $this->getJson('/api/v1/family')
-            ->assertJsonPath('data.family_members.0.can_edit', false)
+            ->assertJsonPath('data.family_members.0.can_edit', true)
+            ->assertJsonPath('data.family_members.0.can_delete', true)
             ->assertJsonPath('data.family_members.1.can_edit', true);
     }
 
@@ -311,7 +315,7 @@ class MemberFamilyTest extends TestCase
     public function a_guest_is_refused(): void
     {
         $this->getJson('/api/v1/family')->assertUnauthorized();
-        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son'])->assertUnauthorized();
+        $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])->assertUnauthorized();
     }
 
     /**
@@ -328,5 +332,16 @@ class MemberFamilyTest extends TestCase
         ]);
 
         return [$user->refresh(), $membership];
+    }
+
+    /** A relative on this primary card, through the same action the app and the admin use. */
+    private function relative(Membership $primary, string $name, string $relationship): Membership
+    {
+        return app(CreateRelative::class)->handle($primary, [
+            'name' => $name,
+            'relationship' => $relationship,
+            'date_of_birth' => '1990-01-01',
+            'is_active' => true,
+        ]);
     }
 }

@@ -67,8 +67,8 @@ class AdminUserMembershipEditResource extends JsonResource
                     'sales_id' => $membership->sales_id,
                     'governorate_id' => $membership->governorate_id,
                     'city_id' => $membership->city_id,
-                    'family_members' => $membership->relationLoaded('familyMembers')
-                        ? $membership->familyMembers->map(function ($familyMember) use ($request) {
+                    'family_members' => $membership->relationLoaded('relatives')
+                        ? $membership->relatives->map(function ($familyMember) use ($request) {
                             return (new FamilyMemberResource($familyMember))->toArray($request);
                         })->toArray()
                         : [],

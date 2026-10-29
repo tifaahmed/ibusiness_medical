@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Enums\Contact\ContactSourceEnum;
 use App\Models\ContactMessage;
-use App\Models\FamilyMember;
 use App\Models\MembershipSubscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -25,7 +24,7 @@ final class AdminAlerts
     public static function counts(): array
     {
         return Cache::remember('admin-alerts.counts', 60, fn () => [
-            'pending_relatives' => FamilyMember::query()->where('approval_status', 'pending')->count(),
+            'pending_relatives' => \App\Models\Membership::query()->relatives()->where('approval_status', 'pending')->count(),
             'pending_subscriptions' => MembershipSubscription::query()
                 ->where('status', MembershipSubscription::STATUS_PENDING)
                 ->where('method', '!=', MembershipSubscription::METHOD_PAYMOB)

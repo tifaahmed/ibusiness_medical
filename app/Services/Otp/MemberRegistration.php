@@ -86,6 +86,10 @@ class MemberRegistration
 
         $existing = $this->existingUser($phone);
 
+        if (! $existing instanceof User && ($restored = $this->restoreDeleted($phone)) instanceof User) {
+            return $restored;
+        }
+
         if ($existing instanceof User) {
             return DB::transaction(function () use ($existing) {
                 $this->attachPendingMembership($existing);
@@ -117,6 +121,55 @@ class MemberRegistration
             $user->save();
 
             $this->attachPendingMembership($user);
+
+            return $user->refresh();
+        });
+    }
+
+    /**
+     * A member who deleted their account from the app (`Member\AccountController`) is only HIDDEN: signing up again with the
+     * same phone brings the old account back — its cards, trial included (so a deleted account never buys a second free
+     * trial) — together with the relatives that went with it. Staff are never restored this way.
+     */
+    private function restoreDeleted(string $phone): ?User
+    {
+        $national = PhoneNumbers::national($phone);
+
+        if ($national === null) {
+            return null;
+        }
+
+        $user = User::onlyTrashed()
+            ->whereRaw(User::phoneDigitsSql().' IN (?, ?, ?)', [$national, ltrim($national, '0'), '20'.ltrim($national, '0')])
+            ->whereHas('memberships', fn ($q) => $q->onlyTrashed())
+            ->latest('deleted_at')
+            ->first();
+
+        if ($user === null || $user->roles()->exists()) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($user) {
+            $user->restore();
+
+            foreach (Membership::onlyTrashed()->where('user_id', $user->id)->whereNull('parent_membership_id')->get() as $card) {
+                $deletedAt = $card->deleted_at;
+                $card->restore();
+
+                // Only the relatives that left WITH the card (same deletion), not ones removed earlier by staff.
+                Membership::onlyTrashed()->where('parent_membership_id', $card->id)
+                    ->whereBetween('deleted_at', [$deletedAt->copy()->subMinute(), $deletedAt->copy()->addMinute()])
+                    ->get()->each(function (Membership $relative) {
+                        try {
+                            $relative->restore();
+                            if ($relative->user_id) {
+                                User::onlyTrashed()->whereKey($relative->user_id)->first()?->restore();
+                            }
+                        } catch (\Illuminate\Validation\ValidationException $e) {
+                            \Illuminate\Support\Facades\Log::warning('Relative not restored', ['membership_id' => $relative->id, 'errors' => $e->errors()]);
+                        }
+                    });
+            }
 
             return $user->refresh();
         });

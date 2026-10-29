@@ -38,11 +38,24 @@ class ActivateSubscription
 
             $membership = Membership::withTrashed()->lockForUpdate()->findOrFail($locked->membership_id);
             $wasTrial = $membership->isTrial();
+            $wasRelative = $membership->isRelative();
 
             $from = ! $wasTrial && $membership->expiration_date?->isFuture()
                 ? $membership->expiration_date->copy()
                 : now();
             $until = $from->copy()->addMonthsNoOverflow($locked->months);
+
+            /*
+             * A relative who pays becomes a PRIMARY member: no longer on somebody else's card, and free to add their own
+             * family. The card they left is remembered (`former_parent_membership_id`) so they keep seeing it.
+             */
+            if ($wasRelative) {
+                $membership->forceFill([
+                    'member_type' => Membership::TYPE_PRIMARY,
+                    'former_parent_membership_id' => $membership->parent_membership_id,
+                    'parent_membership_id' => null,
+                ]);
+            }
 
             $membership->forceFill([
                 'plan' => Membership::PLAN_FULL,
@@ -76,7 +89,7 @@ class ActivateSubscription
                 membershipId: $membership->id,
                 adminId: $adminId,
                 action: MemberLog::ACTION_UPDATED,
-                oldValues: ['plan' => $wasTrial ? Membership::PLAN_TRIAL : Membership::PLAN_FULL],
+                oldValues: ['plan' => $wasTrial ? Membership::PLAN_TRIAL : ($wasRelative ? Membership::PLAN_RELATIVE : Membership::PLAN_FULL)],
                 newValues: [
                     'plan' => Membership::PLAN_FULL,
                     'subscription_id' => $locked->id,

@@ -99,8 +99,6 @@ class User extends Authenticatable implements HasMedia
         'password',
         'slug',
         'partner_id',
-        /* A login code just for this member; null follows the site setting. */
-        'otp_fixed_code',
     ];
 
     /**
@@ -133,8 +131,10 @@ class User extends Authenticatable implements HasMedia
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'date_of_birth' => 'date',
             'dashboard_blocked_at' => 'datetime',
+            'otp_fixed_code_expires_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -156,6 +156,20 @@ class User extends Authenticatable implements HasMedia
     /**
      * Get the memberships for the user.
      */
+    /** Whether this member signs in with a fixed code right now (set, and not past its expiry). */
+    public function hasActiveFixedCode(): bool
+    {
+        return $this->otp_fixed_code_hash !== null
+            && ($this->otp_fixed_code_expires_at === null || $this->otp_fixed_code_expires_at->isFuture());
+    }
+
+    /** Members whose fixed code is set and not expired. */
+    public function scopeWithActiveFixedCode($query)
+    {
+        return $query->whereNotNull('otp_fixed_code_hash')
+            ->where(fn ($q) => $q->whereNull('otp_fixed_code_expires_at')->orWhere('otp_fixed_code_expires_at', '>', now()));
+    }
+
     public function memberships()
     {
         return $this->hasMany(Membership::class);

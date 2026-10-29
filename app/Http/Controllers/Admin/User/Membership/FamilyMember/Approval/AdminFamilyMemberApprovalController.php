@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin\User\Membership\FamilyMember\Approval;
 use App\Enums\FamilyMember\ApprovalStatusEnum;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
-use App\Models\FamilyMember;
+use App\Http\Controllers\Concerns\FindsRelatives;
+use App\Models\Membership;
 use App\Models\MemberLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class AdminFamilyMemberApprovalController extends BaseController
 {
+    use FindsRelatives;
     use ScopesByMembershipCreator;
 
     public function approve(Request $request, string $user, string $membership, string $familyMember): RedirectResponse
@@ -26,10 +28,10 @@ class AdminFamilyMemberApprovalController extends BaseController
         $model = $this->find($user, $membership, $familyMember);
         $before = $this->snapshot($model);
 
-        // is_active true also stamps approval_status (see FamilyMember::booted).
+        // is_active true also stamps approval_status (see Membership::guardRelative).
         $model->update([
             'is_active' => true,
-            'approval_status' => ApprovalStatusEnum::APPROVED,
+            'approval_status' => ApprovalStatusEnum::APPROVED->value,
             'approved_at' => now(),
             'approved_by' => Auth::id(),
             'rejection_reason' => null,
@@ -49,7 +51,7 @@ class AdminFamilyMemberApprovalController extends BaseController
 
         $model->update([
             'is_active' => false,
-            'approval_status' => ApprovalStatusEnum::REJECTED,
+            'approval_status' => ApprovalStatusEnum::REJECTED->value,
             'approved_at' => null,
             'approved_by' => Auth::id(),
             'rejection_reason' => $validated['reason'] ?? null,
@@ -73,28 +75,20 @@ class AdminFamilyMemberApprovalController extends BaseController
         return response()->file($media->getPath(), ['Cache-Control' => 'private, no-store']);
     }
 
-    private function find(string $user, string $membership, string $familyMember): FamilyMember
+    private function find(string $user, string $membership, string $familyMember): Membership
     {
-        $model = FamilyMember::with('membership')
-            ->whereHas('membership.user', fn ($q) => $q->where('slug', $user))
-            ->whereHas('membership', fn ($q) => $q->where('slug', $membership))
-            ->whereKey($familyMember)
-            ->firstOrFail();
-
-        $this->assertCanManageMembership($model->membership);
-
-        return $model;
+        return $this->findRelative($user, $membership, $familyMember);
     }
 
-    private function record(Request $request, FamilyMember $model, array $before): void
+    private function record(Request $request, Membership $model, array $before): void
     {
         try {
             MemberLog::record(
-                membershipId: $model->membership_id,
+                membershipId: $model->parent_membership_id,
                 adminId: Auth::id(),
                 action: MemberLog::ACTION_FAMILY_UPDATED,
                 oldValues: $before,
-                newValues: $this->snapshot($model->fresh()),
+                newValues: $this->snapshot($model->fresh(['user'])),
                 request: $request,
             );
         } catch (\Throwable $e) {
@@ -102,13 +96,13 @@ class AdminFamilyMemberApprovalController extends BaseController
         }
     }
 
-    private function snapshot(FamilyMember $fm): array
+    private function snapshot(Membership $fm): array
     {
         return [
             'family_member_id' => $fm->id,
-            'name' => $fm->name,
+            'name' => $fm->user?->name,
             'is_active' => (bool) $fm->is_active,
-            'approval_status' => $fm->approval_status?->value,
+            'approval_status' => $fm->approval_status,
             'rejection_reason' => $fm->rejection_reason,
         ];
     }

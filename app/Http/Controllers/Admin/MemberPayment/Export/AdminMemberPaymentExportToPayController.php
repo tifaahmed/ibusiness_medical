@@ -40,7 +40,7 @@ class AdminMemberPaymentExportToPayController extends BaseController
 
         $partnerId = $filters['partner_id'];
 
-        $memberships = Membership::query()
+        $memberships = Membership::query()->primary()
             ->whereNotNull('completed_at')
             ->when($partnerId !== null, fn($q) => $q->where('partner_id', $partnerId))
             ->whereHas('user', fn($uq) => $uq

@@ -54,6 +54,24 @@ class CardLoginController extends Controller
         return $this->send($phone, true);
     }
 
+    /** The last 4 digits of the phone on the card, so the holder can check them before a code is sent. Sends nothing. */
+    public function phoneHint(Request $request): JsonResponse
+    {
+        $membership = $this->card($request);
+
+        if (! $membership instanceof Membership) {
+            return $this->unknownCard();
+        }
+
+        $phone = (string) $membership->user?->phone;
+
+        if (PhoneNumbers::national($phone) === null) {
+            return response()->json(['reason' => 'no_phone', 'message' => __('auth.otp.card_no_phone'), 'data' => ['has_phone' => false]]);
+        }
+
+        return response()->json(['reason' => 'hint', 'data' => ['has_phone' => true, 'phone_masked' => $this->otp->maskPhone($phone)]]);
+    }
+
     /** Check the code texted to the card's phone and sign in. */
     public function verify(Request $request): JsonResponse
     {
@@ -124,6 +142,7 @@ class CardLoginController extends Controller
             }
 
             $user->phone = $national;
+            $user->phone_verified_at = $this->bySms ? now() : null;
             $user->save();
 
             return $user;
@@ -142,6 +161,7 @@ class CardLoginController extends Controller
         $number = trim((string) $request->validate(['card_number' => ['required', 'string', 'max:64']])['card_number']);
 
         return Membership::visible()
+            // A relative signs in with THEIR OWN card number too: the code goes to the phone on that card, or they add theirs once.
             ->where('membership_number', $number)
             ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')
             ->whereHas('user')
@@ -201,12 +221,17 @@ class CardLoginController extends Controller
         ]);
     }
 
+    /** The last accepted code really came by SMS (so the phone it went to is proven). */
+    private bool $bySms = false;
+
     /** A wrong, expired or exhausted code as a response; null when the code is right. */
     private function rejected(string $phone, string $code): ?JsonResponse
     {
         $result = $this->otp->verify($phone, $code);
 
         if ($result['verified']) {
+            $this->bySms = $result['sms'] ?? false;
+
             return null;
         }
 

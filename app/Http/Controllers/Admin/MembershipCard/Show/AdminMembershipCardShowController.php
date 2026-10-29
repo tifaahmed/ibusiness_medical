@@ -29,7 +29,7 @@ class AdminMembershipCardShowController extends BaseController
                 'governorate:id,name',
                 'city:id,name',
                 'company:id,name',
-                'familyMembers' => fn ($q) => $q->orderBy('id'),
+                'relatives' => fn ($q) => $q->with('user')->orderBy('id'),
             ])
             ->orderByRaw('CAST(membership_number AS UNSIGNED) ASC')
             ->get();

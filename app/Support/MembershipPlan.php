@@ -98,7 +98,7 @@ final class MembershipPlan
     /** Whether "buy with Paymob" can be offered at all. */
     public static function canPayOnline(): bool
     {
-        return self::plans() !== [] && PaymentMethods::online();
+        return self::plans() !== [] && PaymentMethods::online(PaymentMethods::CONTEXT_MEMBERSHIP);
     }
 
     /** @return array<int, array{slug: string, name: array<string, string>, value: string, value_type: string}> */

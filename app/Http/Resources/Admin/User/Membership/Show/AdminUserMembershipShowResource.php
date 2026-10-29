@@ -85,8 +85,8 @@ class AdminUserMembershipShowResource extends JsonResource
                                 return (new AddressResource($address))->toArray($request);
                             })->values()->toArray()
                             : [],
-                        'family_members' => $membership->relationLoaded('familyMembers')
-                            ? $membership->familyMembers->map(function ($familyMember) use ($request) {
+                        'family_members' => $membership->relationLoaded('relatives')
+                            ? $membership->relatives->map(function ($familyMember) use ($request) {
                                 return (new FamilyMemberResource($familyMember))->toArray($request);
                             })->toArray()
                             : [],

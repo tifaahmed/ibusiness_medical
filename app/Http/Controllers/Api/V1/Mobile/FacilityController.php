@@ -104,8 +104,8 @@ class FacilityController extends Controller
             ->when($governorateId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId)))
             ->when($cityId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('city_id', $cityId)));
 
-        // Own city first, then own governorate, then everything else; skipped for "biggest discount" and when an area is filtered.
-        if (($homeGovernorateId || $homeCityId) && ! $governorateId && ! $cityId && ($v['sort'] ?? null) !== 'discount') {
+        // Own city first, then own governorate, then everything else; only when there is no GPS point (a point ranks by distance instead), and skipped for "biggest discount" and when an area is filtered.
+        if (! $hasPoint && ($homeGovernorateId || $homeCityId) && ! $governorateId && ! $cityId && ($v['sort'] ?? null) !== 'discount') {
             $query->orderByRaw(
                 'case when '.($homeCityId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.city_id = ?)' : '0 = 1').' then 0 '
                 .'when '.($homeGovernorateId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.governorate_id = ?)' : '0 = 1').' then 1 else 2 end',

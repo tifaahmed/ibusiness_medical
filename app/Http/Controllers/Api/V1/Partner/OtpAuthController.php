@@ -237,6 +237,10 @@ class OtpAuthController extends Controller
              */
             $member = $this->registration->register($phone);
             $registered = true;
+
+            if ($result['sms'] ?? false) {
+                $this->otp->confirmPhone($phone);
+            }
         }
 
         return $this->signedIn($member, $registered);

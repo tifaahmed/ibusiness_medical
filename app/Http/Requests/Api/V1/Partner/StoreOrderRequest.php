@@ -92,13 +92,13 @@ class StoreOrderRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:2000'],
             /* Which online channel the buyer picked: card or wallet. Absent = whatever is on. */
             'paymob_channel' => ['nullable', 'string', Rule::in(\App\Services\Paymob\PaymobClient::CHANNELS), function (string $attribute, mixed $value, \Closure $fail) {
-                if (! PaymentMethods::channelAllowed($value)) {
+                if (! PaymentMethods::channelAllowed($value, PaymentMethods::CONTEXT_PRODUCTS)) {
                     $fail('This way of paying online is not available right now.');
                 }
             }],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
                 /* Only what the admin shows (and what can actually work: a gateway for "online", a wallet number for a transfer). */
-                if (! in_array($value, PaymentMethods::orderTypes(), true)) {
+                if (! in_array($value, PaymentMethods::orderTypes(PaymentMethods::CONTEXT_PRODUCTS), true)) {
                     $fail('This payment method is not available right now.');
                 }
             }],

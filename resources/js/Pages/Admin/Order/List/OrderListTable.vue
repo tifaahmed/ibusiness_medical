@@ -122,6 +122,10 @@
                       <span class="font-mono font-semibold text-sm text-foreground block break-all">{{ order.order_code }}</span>
                       <span
                         data-slot="badge"
+                        :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-bold mt-1', order.kind === 'cards' ? 'border-amber-400/60 bg-amber-400/15 text-amber-400' : 'border-sky-400/50 bg-sky-400/10 text-sky-400']"
+                      >{{ order.kind === 'cards' ? (t.order?.kind_cards || 'Physical cards') : (t.order?.kind_products || 'Products') }}</span>
+                      <span
+                        data-slot="badge"
                         :class="['relative inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium mt-1', paymentTypeClass[order.payment_type?.value]]"
                         :title="order.payment_type?.label"
                       >

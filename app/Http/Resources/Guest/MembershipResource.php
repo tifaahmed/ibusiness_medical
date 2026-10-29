@@ -40,8 +40,8 @@ class MembershipResource extends JsonResource
                     'avatar_url' => get_image_url($this->user, 'avatar'),
                 ];
             }),
-            'family_members' => $this->whenLoaded('familyMembers', function () use ($request) {
-                return $this->familyMembers->map(function ($familyMember) use ($request) {
+            'family_members' => $this->whenLoaded('relatives', function () use ($request) {
+                return $this->relatives->map(function ($familyMember) use ($request) {
                     return (new FamilyMemberResource($familyMember))->toArray($request);
                 })->toArray();
             }, []),

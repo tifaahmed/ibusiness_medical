@@ -2,7 +2,6 @@
 
 namespace App\Actions\Membership;
 
-use App\Models\FamilyMember;
 use App\Models\MemberLog;
 use App\Models\Membership;
 use App\Models\TrialClaim;
@@ -126,7 +125,7 @@ class StartTrialCard
         return TrialClaim::query()->holdingCard()->where('national_id', $nationalId)->exists()
             || Membership::query()->where('national_id', $nationalId)->where('user_id', '!=', $user->id)
                 ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')->exists()
-            || FamilyMember::query()->where('national_id', $nationalId)->exists();
+            || Membership::query()->relatives()->where('national_id', $nationalId)->exists();
     }
 
     /**
@@ -176,15 +175,6 @@ class StartTrialCard
     /** A card number nobody holds: six digits (the card prints it as 123-456; the dash is never stored). */
     private function newNumber(): string
     {
-        do {
-            $number = (string) random_int(100000, 999999);
-        } while ($this->numberInUse($number));
-
-        return $number;
-    }
-
-    private function numberInUse(string $number): bool
-    {
-        return Membership::withTrashed()->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))->exists();
+        return Membership::newNumber();
     }
 }

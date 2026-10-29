@@ -4,7 +4,6 @@ namespace App\Jobs\Admin\User\Membership;
 
 use App\Models\User;
 use App\Models\Membership;
-use App\Models\FamilyMember;
 use App\Services\MediaService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -122,12 +121,12 @@ class ProcessMembershipSecondaryDataJob implements ShouldQueue
     {
         foreach ($this->familyMembersData as $index => $familyMemberData) {
             try {
-                $familyMember = FamilyMember::create([
-                    'membership_id' => $membership->id,
+                $familyMember = app(\App\Actions\Membership\CreateRelative::class)->handle($membership, [
                     'name' => $familyMemberData['name'],
                     'relationship' => $familyMemberData['relationship'],
                     'date_of_birth' => $familyMemberData['date_of_birth'] ?? null,
                     'phone' => $familyMemberData['phone'] ?? null,
+                    'national_id' => $familyMemberData['national_id'] ?? null,
                     'email' => $familyMemberData['email'] ?? null,
                     'is_active' => $familyMemberData['is_active'] ?? true,
                 ]);

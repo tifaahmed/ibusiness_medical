@@ -383,9 +383,29 @@
                   >
                     {{ t.card_default || 'Default' }}
                   </span>
+                  <!-- A relative: its relation, and whose card it hangs on. -->
+                  <span
+                    v-if="member.membership?.member_type === 'relative'"
+                    class="ms-1 inline-flex items-center gap-1 rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    {{ member.membership?.relationship_label || (t.member_type_relative || 'Relative') }}
+                    <Link
+                      v-if="member.membership?.parent_member?.user_slug"
+                      :href="route('admin.user.membership.show', member.membership.parent_member.user_slug)"
+                      class="underline"
+                    >{{ t.relative_of || 'of' }} {{ member.membership.parent_member.name }}</Link>
+                  </span>
+                  <span
+                    v-else-if="member.membership?.relatives_count"
+                    class="ms-1 inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    :title="t.member_type_relative || 'Relatives'"
+                  >
+                    {{ member.membership.relatives_count }} {{ t.member_type_relative || 'Relatives' }}
+                  </span>
                   <!-- Self-issued free card, and the state it is in. -->
                   <span
-                    v-if="member.membership?.plan === 'trial'"
+                    v-if="member.membership?.plan === 'trial' && member.membership?.member_type !== 'relative'"
                     :class="['ms-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] sm:text-xs font-medium', member.membership?.state === 'trial_expired' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300']"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -472,7 +492,7 @@
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2"
                       :class="member.otp_fixed_code ? 'text-amber-500 hover:!bg-amber-500/10 hover:!text-amber-500' : 'text-muted-foreground'"
                       :title="member.otp_fixed_code
-                        ? `Signs in with the fixed code ${member.otp_fixed_code}`
+                        ? 'Signs in with a fixed code (not by SMS)'
                         : 'Set a login code for this member'"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">

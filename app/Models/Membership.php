@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use App\Models\Concerns\GuardsUniqueIdentity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -66,6 +67,16 @@ class Membership extends Model implements HasMedia
         'plan',
         'source',
         'trial_started_at',
+        'member_type',
+        'parent_membership_id',
+        'relationship',
+        'approval_status',
+        'added_by',
+        'approved_at',
+        'approved_by',
+        'rejection_reason',
+        'legacy_family_member_id',
+        'legacy_notes',
     ];
 
     /**
@@ -83,6 +94,8 @@ class Membership extends Model implements HasMedia
             'completed_at' => 'datetime',
             'is_paid' => 'boolean',
             'trial_started_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'legacy_notes' => 'array',
         ];
     }
 
@@ -150,12 +163,65 @@ class Membership extends Model implements HasMedia
         return $query->where('created_by', $adminId);
     }
 
-    /**
-     * Get the family members for the membership.
-     */
-    public function familyMembers(): HasMany
+    public const TYPE_PRIMARY = 'primary';
+
+    public const TYPE_RELATIVE = 'relative';
+
+    public const ADDED_BY_ADMIN = 'admin';
+
+    public const ADDED_BY_MEMBER = 'member';
+
+    public function isRelative(): bool
     {
-        return $this->hasMany(FamilyMember::class);
+        return $this->member_type === self::TYPE_RELATIVE;
+    }
+
+    public function scopePrimary($query)
+    {
+        return $query->where($query->getModel()->getTable().'.member_type', self::TYPE_PRIMARY);
+    }
+
+    public function scopeRelatives($query)
+    {
+        return $query->where($query->getModel()->getTable().'.member_type', self::TYPE_RELATIVE);
+    }
+
+    /**
+     * The relatives held by this primary card (soft-deleted ones excluded).
+     */
+    public function relatives(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_membership_id');
+    }
+
+    /**
+     * The primary card a relative belongs to.
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_membership_id');
+    }
+
+    /**
+     * The card whose subscription governs this one: a relative has none of its
+     * own and is exactly as valid as the primary it hangs on.
+     */
+    public function governingCard(): self
+    {
+        return $this->isRelative() ? ($this->parent ?? $this) : $this;
+    }
+
+    /**
+     * A six-digit number nobody holds (the card prints it as 123-456; the dash
+     * is never stored). Used for every new member, relatives included.
+     */
+    public static function newNumber(): string
+    {
+        do {
+            $number = (string) random_int(100000, 999999);
+        } while (static::withTrashed()->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))->exists());
+
+        return $number;
     }
 
     /**
@@ -229,6 +295,8 @@ class Membership extends Model implements HasMedia
 
     public const PLAN_FULL = 'full';
 
+    public const PLAN_RELATIVE = 'relative';
+
     /** Where a self-issued card came from. */
     public const SOURCE_SELF_SERVICE = 'self_service';
 
@@ -262,6 +330,10 @@ class Membership extends Model implements HasMedia
      */
     public function state(): string
     {
+        if ($this->isRelative()) {
+            return $this->governingCard()->state();
+        }
+
         if (\App\Services\Otp\MemberRegistration::isPending($this->membership_number)) {
             return self::STATE_PENDING;
         }
@@ -297,6 +369,10 @@ class Membership extends Model implements HasMedia
      */
     public function isCurrent(): bool
     {
+        if ($this->isRelative()) {
+            return (bool) $this->is_active && $this->governingCard()->isCurrent();
+        }
+
         return (bool) $this->is_active && ! ($this->expiration_date?->isPast() ?? false);
     }
 
@@ -401,6 +477,10 @@ class Membership extends Model implements HasMedia
     {
         $this->addMediaCollection('contract')->singleFile();
         $this->addMediaCollection('gallery');
+        // A relative's photo and ID scans (the scans are private: the 'local' disk is not web-served).
+        $this->addMediaCollection('photo')->singleFile();
+        $this->addMediaCollection('national_id_front')->singleFile()->useDisk('local');
+        $this->addMediaCollection('national_id_back')->singleFile()->useDisk('local');
     }
 
     /**
@@ -417,11 +497,71 @@ class Membership extends Model implements HasMedia
         return preg_match('/^\d{6}$/', $number) === 1 ? substr($number, 0, 3).'-'.substr($number, 3) : $number;
     }
 
+    /**
+     * The rules of a relative, enforced on EVERY write path:
+     * it names a relation and a PRIMARY card (never another relative), has no
+     * plan or expiry of its own, and carries at least a phone, a date of birth
+     * or a National ID. A row copied from the old family table is exempt from
+     * the last rule (it may have had none — it must still arrive).
+     */
+    protected static function guardRelative(self $membership): void
+    {
+        if (! $membership->isRelative()) {
+            if ($membership->parent_membership_id !== null) {
+                throw ValidationException::withMessages(['member_type' => ['Only a relative can belong to another member.']]);
+            }
+
+            return;
+        }
+
+        if (! $membership->relationship) {
+            throw ValidationException::withMessages(['relationship' => ['A relative needs a relationship.']]);
+        }
+
+        $parent = $membership->parent_membership_id ? static::withTrashed()->find($membership->parent_membership_id) : null;
+
+        if ($parent === null || $parent->isRelative()) {
+            throw ValidationException::withMessages(['parent_membership_id' => ['A relative must belong to a primary member (not to another relative).']]);
+        }
+
+        // Staff turning a relative on IS the approval: a pending row never goes active while still reading "pending".
+        if ($membership->is_active && $membership->approval_status !== 'approved') {
+            $membership->approval_status = 'approved';
+            $membership->approved_at ??= now();
+        }
+
+        // No subscription of its own.
+        $membership->plan = self::PLAN_RELATIVE; // the column is NOT NULL; 'relative' is never trial or full
+        $membership->expiration_date = null;
+        $membership->trial_started_at = null;
+
+        // Rows copied from the old family table may have had none of the three: they must still arrive.
+        if ($membership->legacy_family_member_id !== null || ($membership->exists && ! $membership->isDirty('national_id'))) {
+            return;
+        }
+
+        $user = $membership->user_id ? User::withTrashed()->find($membership->user_id) : null;
+
+        if (blank($membership->national_id) && blank($user?->phone) && blank($user?->date_of_birth)) {
+            throw ValidationException::withMessages(['phone' => ['Enter at least a phone, a date of birth or a National ID for the relative.']]);
+        }
+    }
+
     protected static function boot()
     {
         parent::boot();
 
         static::saving(fn (self $membership) => static::guardUnique($membership, 'national_id', 'This National ID already belongs to another card.'));
+
+        static::saving(fn (self $membership) => static::guardRelative($membership));
+
+        // A primary card that goes takes its relatives with it (each through delete(), so their own events run).
+        static::deleting(function (self $membership) {
+            if ($membership->isRelative()) {
+                return;
+            }
+            $membership->relatives()->get()->each(fn (self $relative) => $membership->isForceDeleting() ? $relative->forceDelete() : $relative->delete());
+        });
 
         // When creating or updating a membership, ensure only one is active per user
         static::saving(function ($membership) {

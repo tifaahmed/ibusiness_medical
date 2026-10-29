@@ -27,9 +27,18 @@
     </div>
 
     <div class="px-6">
-      <!-- Add/Edit Form -->
-      <div v-if="showAddForm || editingIndex !== null" class="mb-6 p-4 bg-accent/50 rounded-lg border border-border">
-        <h3 class="text-sm font-semibold mb-4 text-white">
+      <!-- Add/Edit Form — a pop-up window, one relative at a time -->
+      <Teleport to="body">
+      <div
+        v-if="showAddForm || editingIndex !== null"
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        @click.self="cancelForm"
+        @keydown.esc="cancelForm"
+      >
+      <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 bg-card text-card-foreground rounded-xl border border-border shadow-xl">
+        <h3 class="text-sm font-semibold mb-4">
           {{ editingIndex !== null ? (t.member?.edit_family_member || 'Edit Family Member') : (t.member?.add_new_family_member || 'Add New Family Member') }}
         </h3>
         <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -38,7 +47,7 @@
               v-model="form.name"
               :label="t.common?.name || 'Name'"
               :error="errors.name"
-              :placeholder="t.member?.family_member_name_placeholder || 'Enter family member name'"
+              :placeholder="isChild ? (t.member?.child_first_name_placeholder || 'First name only is enough') : (t.member?.family_member_name_placeholder || 'Enter the full name')"
               required
             />
             <FormSelect
@@ -59,6 +68,14 @@
               type="tel"
               :error="errors.phone"
               :placeholder="t.member?.phone_placeholder || 'Enter phone number'"
+            />
+            <FormInput
+              v-model="form.national_id"
+              :label="t.member?.national_id || 'National ID'"
+              inputmode="numeric"
+              maxlength="14"
+              :error="errors.national_id"
+              :placeholder="t.member?.national_id_placeholder || '14 digits'"
             />
             <FormInput
               v-model="form.email"
@@ -84,6 +101,11 @@
               <p v-if="errors.photo" class="mt-1 text-sm text-destructive">{{ errors.photo }}</p>
             </div>
           </div>
+          <p class="text-xs text-muted-foreground">
+            {{ t.member?.relative_one_of_three || 'Enter at least one of: phone, date of birth or National ID (all three is fine).' }}
+            {{ t.member?.relative_address_note || 'The address is the same as the main member; change it later by hand if different.' }}
+          </p>
+          <p v-if="errors.identity" class="text-sm text-destructive">{{ errors.identity }}</p>
           <div class="flex gap-3 justify-end">
             <button
               type="button"
@@ -101,6 +123,8 @@
           </div>
         </form>
       </div>
+      </div>
+      </Teleport>
 
       <!-- Family Members List -->
       <div v-if="modelValue && modelValue.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -224,6 +248,8 @@ const editingIndex = ref(null);
 const errors = ref({});
 const photoFile = ref(null);
 
+const isChild = computed(() => ['son', 'daughter'].includes(form.value.relationship));
+
 const relationshipOptions = computed(() => {
   const options = page.props.relationshipOptions || [];
   return options.map(opt => ({
@@ -237,6 +263,7 @@ const form = ref({
   relationship: '',
   date_of_birth: '',
   phone: '',
+  national_id: '',
   email: '',
   is_active: true,
   photo_preview: null,
@@ -249,6 +276,7 @@ const resetForm = () => {
     relationship: '',
     date_of_birth: '',
     phone: '',
+    national_id: '',
     email: '',
     is_active: true,
     photo_preview: null,
@@ -273,6 +301,7 @@ const editMember = (index) => {
     relationship: member.relationship || '',
     date_of_birth: member.date_of_birth || '',
     phone: member.phone || '',
+    national_id: member.national_id || '',
     email: member.email || '',
     is_active: member.is_active ?? true,
     photo_preview: member.photo_preview || null,
@@ -325,11 +354,26 @@ const handleSubmit = () => {
     return;
   }
 
+  const isChildRel = ['son', 'daughter'].includes(form.value.relationship);
+  if (!isChildRel && String(form.value.name).trim().split(/\s+/).length < 2) {
+    errors.value.name = t.value.member?.full_name_required || 'Enter the full name (only a son or daughter can be the first name alone).';
+    return;
+  }
+  if (!form.value.phone && !form.value.date_of_birth && !form.value.national_id) {
+    errors.value.identity = t.value.member?.relative_one_of_three || 'Enter at least one of: phone, date of birth or National ID.';
+    return;
+  }
+  if (form.value.national_id && !/^\d{14}$/.test(form.value.national_id)) {
+    errors.value.national_id = t.value.member?.national_id_digits || 'The National ID must be 14 digits.';
+    return;
+  }
+
   const memberData = {
     name: form.value.name,
     relationship: form.value.relationship,
     date_of_birth: form.value.date_of_birth || null,
     phone: form.value.phone || null,
+    national_id: form.value.national_id || null,
     email: form.value.email || null,
     is_active: form.value.is_active ?? true,
     photo_preview: form.value.photo_preview,

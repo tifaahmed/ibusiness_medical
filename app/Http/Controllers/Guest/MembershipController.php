@@ -52,8 +52,8 @@ class MembershipController extends BaseController
     public function show(Request $request, string $membership): Response
     {
         $membershipModel = Membership::visible()
-            ->with(['user', 'company', 'partner', 'cardLayouts.cardTemplate', 'familyMembers' => function ($query) {
-                $query->where('is_active', true)->orderBy('created_at', 'asc');
+            ->with(['user', 'company', 'partner', 'cardLayouts.cardTemplate', 'relatives' => function ($query) {
+                $query->with('user')->where('is_active', true)->orderBy('created_at', 'asc');
             }, 'usages.facility', 'usages.facilityBranch', 'usages.facilityType', 'usages.media'])
             ->where(function ($query) use ($membership) {
                 $query->where('slug', $membership)

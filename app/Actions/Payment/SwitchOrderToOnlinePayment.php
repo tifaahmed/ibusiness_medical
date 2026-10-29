@@ -30,7 +30,7 @@ class SwitchOrderToOnlinePayment
      */
     public function handle(Order $order, ?Request $request = null): bool
     {
-        if (! \App\Support\PaymentMethods::online()) {
+        if (! \App\Support\PaymentMethods::online(\App\Support\PaymentMethods::contextOfOrder($order))) {
             return false;
         }
 

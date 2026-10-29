@@ -43,7 +43,7 @@ final class MembershipStatus
             /* Every way of paying the admin has switched on, in display order; draw exactly these. */
             'payment_methods' => PaymentMethods::subscriptionMethods(),
             /* Which online buttons to draw: `card`, `wallet` or both (empty when it cannot be sold online). */
-            'online_channels' => MembershipPlan::canPayOnline() ? PaymentMethods::onlineChannels() : [],
+            'online_channels' => MembershipPlan::canPayOnline() ? PaymentMethods::onlineChannels(PaymentMethods::CONTEXT_MEMBERSHIP) : [],
             'contact' => ShopContact::current(),
         ];
     }
@@ -56,8 +56,8 @@ final class MembershipStatus
         $membership = $user->memberships()->latest('id')->first();
         $base = self::forCard($membership);
 
-        $relatives = $membership?->familyMembers()->get(['id', 'approval_status', 'is_active']) ?? collect();
-        $counted = $relatives->filter(fn ($r) => $r->approval_status !== ApprovalStatusEnum::REJECTED)->count();
+        $relatives = $membership?->relatives()->get(['id', 'approval_status', 'is_active']) ?? collect();
+        $counted = $relatives->filter(fn ($r) => $r->approval_status !== ApprovalStatusEnum::REJECTED->value)->count();
 
         $open = $membership?->subscriptions()
             ->where('status', MembershipSubscription::STATUS_PENDING)
@@ -66,18 +66,24 @@ final class MembershipStatus
 
         return $base + [
             'has_card' => $membership !== null && $base['state'] !== Membership::STATE_PENDING,
+            /* A relative sees their family's card but cannot add relatives; paying makes them a primary member. */
+            'member_type' => $membership?->isRelative() ? Membership::TYPE_RELATIVE : Membership::TYPE_PRIMARY,
+            'is_relative' => $membership?->isRelative() ?? false,
+            'can_upgrade' => ($membership?->isRelative() ?? false) && MembershipPlan::plans() !== [],
+            'had_family' => $membership?->former_parent_membership_id !== null,
             'membership_number' => $membership?->membership_number,
             'slug' => $membership?->slug,
             'progress' => app(RegistrationProgress::class)->for($user),
             'relatives' => [
                 'count' => $counted,
-                'pending' => $relatives->filter(fn ($r) => $r->approval_status === ApprovalStatusEnum::PENDING)->count(),
+                'pending' => $relatives->filter(fn ($r) => $r->approval_status === ApprovalStatusEnum::PENDING->value)->count(),
                 'max' => MembershipPlan::MAX_RELATIVES,
                 /* First-degree only: parents, spouse, children. Said once here so no client words it differently. */
                 'degree' => 'first',
                 /* A trial card holds the owner alone; relatives go through customer services until the card is paid. */
                 'must_contact_support' => $membership?->isTrial() ?? false,
                 'can_add' => $membership !== null
+                    && ! $membership->isRelative()
                     && ! $membership->isTrial()
                     && $base['valid']
                     && $counted < MembershipPlan::MAX_RELATIVES,

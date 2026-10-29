@@ -45,6 +45,19 @@ class CardNumberLoginTest extends TestCase
     }
 
     /** @test */
+    public function the_last_four_digits_are_shown_before_any_code_is_sent(): void
+    {
+        $card = $this->card('01062587475');
+
+        $this->postJson('/api/v1/mobile/auth/card/phone-hint', ['card_number' => $card->membership_number])
+            ->assertOk()
+            ->assertJsonPath('data.has_phone', true)
+            ->assertJsonPath('data.phone_masked', '•••••••7475');
+
+        $this->postJson('/api/v1/mobile/auth/card/phone-hint', ['card_number' => 'NOPE'])->assertNotFound()->assertJsonPath('reason', 'unknown_card');
+    }
+
+    /** @test */
     public function a_wrong_code_does_not_sign_in(): void
     {
         $card = $this->card('01062587475');

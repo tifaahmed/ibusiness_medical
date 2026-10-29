@@ -24,7 +24,8 @@ class MembershipController extends Controller
             ->with([
                 'user',
                 'company',
-                'familyMembers' => fn ($query) => $query
+                'relatives' => fn ($query) => $query
+                    ->with('user')
                     ->where('is_active', true)
                     ->orderBy('created_at'),
                 /*

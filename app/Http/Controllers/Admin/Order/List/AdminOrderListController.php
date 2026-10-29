@@ -10,6 +10,7 @@ use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\Order\List\AdminOrderListCollection;
 use App\Models\Order;
+use App\Support\PhysicalCard;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,6 +52,9 @@ class AdminOrderListController extends BaseController
             ->when(! empty($filters['delivery_status']), fn ($q) => $q->where('delivery_status', $filters['delivery_status']))
             ->when(! empty($filters['order_status']), fn ($q) => $q->where('order_status', $filters['order_status']))
             ->when(! empty($filters['payment_type']), fn ($q) => $q->where('payment_type', $filters['payment_type']))
+            // Physical-card orders (`source = physical_card`) vs. shop orders (everything else).
+            ->when($filters['kind'] === 'cards', fn ($q) => $q->where('source', PhysicalCard::SOURCE))
+            ->when($filters['kind'] === 'products', fn ($q) => $q->where(fn ($w) => $w->whereNull('source')->orWhere('source', '!=', PhysicalCard::SOURCE)))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
             ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest()
@@ -75,6 +79,7 @@ class AdminOrderListController extends BaseController
         $deliveryStatus = $request->input('delivery_status');
         $orderStatus = $request->input('order_status');
         $paymentType = $request->input('payment_type');
+        $kind = $request->input('kind');
 
         return [
             'search' => $request->input('search', ''),
@@ -82,6 +87,7 @@ class AdminOrderListController extends BaseController
             'delivery_status' => in_array($deliveryStatus, DeliveryStatusEnum::values(), true) ? $deliveryStatus : '',
             'order_status' => in_array($orderStatus, OrderStatusEnum::values(), true) ? $orderStatus : '',
             'payment_type' => in_array($paymentType, PaymentTypeEnum::values(), true) ? $paymentType : '',
+            'kind' => in_array($kind, ['products', 'cards'], true) ? $kind : '',
             'created_from' => $this->normalizeDate($request->input('created_from')),
             'created_to' => $this->normalizeDate($request->input('created_to')),
         ];
