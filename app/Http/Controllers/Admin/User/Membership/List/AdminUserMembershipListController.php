@@ -435,6 +435,7 @@ class AdminUserMembershipListController extends BaseController
         // Chart data: membership counts grouped by day and by month,
         // respecting all active filters so the chart stays in sync.
         $chartMembershipQuery = Membership::query()
+            ->primary()
             ->where(function ($mq) use ($listingFilter) {
                 $listingFilter($mq);
             })
