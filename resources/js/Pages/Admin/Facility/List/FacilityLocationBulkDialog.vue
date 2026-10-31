@@ -32,7 +32,7 @@
           <button
             type="button"
             class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Close (Esc)"
+            :title="t.common?.close_esc || 'Close (Esc)'"
             @click="closeDialog"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -92,7 +92,7 @@
                     v-if="row.state === 'error' && row.message"
                     type="button"
                     class="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="View full error"
+                    :title="t.common?.view_full_error || 'View full error'"
                     @click="openErrorDetail(row)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -141,12 +141,12 @@
         <div class="flex items-start gap-3 border-b border-border p-4">
           <div class="min-w-0">
             <h2 class="text-base font-semibold truncate">{{ errorDetailRow.label }}</h2>
-            <p class="text-xs text-muted-foreground">Error reason</p>
+            <p class="text-xs text-muted-foreground">{{ t.common?.error_reason || 'Error reason' }}</p>
           </div>
           <button
             type="button"
             class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Close (Esc)"
+            :title="t.common?.close_esc || 'Close (Esc)'"
             @click="closeErrorDetail"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -163,7 +163,7 @@
             class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted"
             @click="closeErrorDetail"
           >
-            Close
+            {{ t.common?.close || 'Close' }}
           </button>
         </div>
       </div>
@@ -211,7 +211,7 @@ const RATE_LIMIT_WAIT_SECONDS = 10;
 
 const waitForRateLimit = async () => {
   for (let left = RATE_LIMIT_WAIT_SECONDS; left > 0 && !cancelled; left -= 1) {
-    waitNotice.value = `AI rate limit reached — resuming in ${left}s`;
+    waitNotice.value = (t.value.common?.ai_rate_limit_wait || 'AI rate limit reached — resuming in :seconds s').replace(':seconds', left);
     await sleep(1000);
   }
   waitNotice.value = "";
@@ -303,7 +303,7 @@ const start = async () => {
       useNotification().success(t.value.facility?.location_sweep_done || "Location sweep finished.");
     }
   } catch (error) {
-    errorMessage.value = error?.response?.data?.message || "The sweep failed to start. Please try again.";
+    errorMessage.value = error?.response?.data?.message || t.value.common?.sweep_start_failed || "The sweep failed to start. Please try again.";
     phase.value = "idle";
   }
 };
@@ -329,7 +329,7 @@ const runQueue = async () => {
         mode: overwrite.value ? "all" : "missing",
       }));
     } catch (error) {
-      errorMessage.value = error?.response?.data?.message || "A batch failed — stopped early.";
+      errorMessage.value = error?.response?.data?.message || t.value.common?.batch_failed || "A batch failed — stopped early.";
       return;
     }
 
