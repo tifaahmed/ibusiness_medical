@@ -32,8 +32,8 @@
                 :title="t.facility?.trash_title || 'Trash - Deleted Facilities'"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
-                <span class="hidden sm:inline">{{ t.actions?.view_trash_long || 'View Trash' }}</span>
-                <span class="sm:hidden">{{ t.actions?.view_trash_short || 'Trash' }}</span>
+                <span class="hidden sm:inline">{{ t.facility?.view_trash || 'View Trash' }}</span>
+                <span class="sm:hidden">{{ t.facility?.trash_short || 'Trash' }}</span>
               </Link>
               <div class="flex-shrink-0">
                 <button
@@ -42,10 +42,10 @@
                   type="button"
                   @click="toggleExportMenu"
                   class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
-                  title="Export facilities to XLSX"
+                  :title="t.facility?.export_hint || 'Export facilities to Excel'"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span class="hidden sm:inline">Export</span>
+                  <span class="hidden sm:inline">{{ t.facility?.export || 'Export' }}</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 opacity-70">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -59,7 +59,7 @@
                   class="fixed z-[1000] w-96 rounded-md border border-border bg-popover text-popover-foreground shadow-2xl p-3 space-y-3"
                 >
                   <div>
-                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">Include</div>
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">{{ t.facility?.export_include || 'Include' }}</div>
                     <div class="grid grid-cols-2 gap-1">
                       <button
                         type="button"
@@ -67,7 +67,7 @@
                         :class="includeBranches ? 'border-border bg-background text-foreground' : 'border-primary bg-primary text-primary-foreground'"
                         class="text-xs px-2 py-1.5 rounded border font-medium transition-colors"
                       >
-                        Facilities only
+                        {{ t.facility?.export_facilities_only || 'Facilities only' }}
                       </button>
                       <button
                         type="button"
@@ -75,12 +75,12 @@
                         :class="includeBranches ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'"
                         class="text-xs px-2 py-1.5 rounded border font-medium transition-colors"
                       >
-                        + Branches &amp; managers
+                        {{ t.facility?.export_with_branches || '+ Branches & managers' }}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">Split into files of</div>
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5">{{ t.facility?.export_split || 'Split into files of' }}</div>
                     <div class="grid grid-cols-5 gap-1 mb-1.5">
                       <button
                         v-for="opt in [0, 100, 200, 300, 500]"
@@ -90,30 +90,30 @@
                         :class="chunkSize === opt ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'"
                         class="text-[11px] px-1 py-1.5 rounded border font-medium transition-colors"
                       >
-                        {{ opt === 0 ? 'None' : opt }}
+                        {{ opt === 0 ? (t.facility?.export_split_none || 'None') : opt }}
                       </button>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="text-[11px] text-muted-foreground whitespace-nowrap">Custom:</span>
+                      <span class="text-[11px] text-muted-foreground whitespace-nowrap">{{ t.facility?.export_custom || 'Custom:' }}</span>
                       <input
                         type="number"
                         min="1"
                         step="1"
                         v-model.number="chunkSize"
-                        placeholder="rows / file"
+                        :placeholder="t.facility?.export_rows_per_file || 'rows / file'"
                         class="flex-1 h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                     </div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-1.5">
-                      <span class="text-[11px] font-semibold uppercase text-muted-foreground">Columns</span>
+                      <span class="text-[11px] font-semibold uppercase text-muted-foreground">{{ t.facility?.export_columns || 'Columns' }}</span>
                       <button
                         type="button"
                         @click="toggleAllColumns"
                         class="text-[10px] text-muted-foreground hover:text-foreground underline"
                       >
-                        {{ allColumnsSelected ? 'Deselect all' : 'Select all' }}
+                        {{ allColumnsSelected ? (t.common?.deselect_all || 'Deselect all') : (t.common?.select_all || 'Select all') }}
                       </button>
                     </div>
                     <div class="max-h-56 overflow-y-auto grid grid-cols-2 gap-x-2 gap-y-0.5">
@@ -128,7 +128,7 @@
                           v-model="selectedColumns"
                           class="h-3 w-3 rounded border-border accent-primary"
                         />
-                        <span class="text-[11px] text-foreground truncate">{{ col.label }}</span>
+                        <span class="text-[11px] text-foreground truncate">{{ t.facility?.export_col?.[col.key] || col.label }}</span>
                       </label>
                     </div>
                   </div>
@@ -138,7 +138,7 @@
                       @click="exportMenuOpen = false"
                       class="block w-full text-center bg-primary text-primary-foreground rounded-md px-3 py-2 text-xs font-semibold hover:bg-primary/90"
                     >
-                      {{ chunkSize ? 'Download ZIP' : 'Download Excel' }}
+                      {{ chunkSize ? (t.facility?.export_download_zip || 'Download ZIP') : (t.facility?.export_download_excel || 'Download Excel') }}
                     </a>
                   </div>
                 </div>
@@ -152,10 +152,10 @@
                 v-if="canWrite"
                 :href="route('admin.facility.managed-by.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
-                title="Assign many facilities to one managing admin user"
+                :title="t.facility?.assign_managers_hint || 'Assign many facilities to one managing admin user'"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
-                <span class="hidden sm:inline">Assign managers</span>
+                <span class="hidden sm:inline">{{ t.facility?.assign_managers || 'Assign managers' }}</span>
               </Link>
               <Link
                 v-if="canWrite"
@@ -170,10 +170,10 @@
                 v-if="canWrite"
                 :href="route('admin.facility.migration.page')"
                 class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
-                title="Move facilities, branches and images to another site"
+                :title="t.facility?.migration_hint || 'Move facilities, branches and images to another site'"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16a2 2 0 0 0 2 2h12"/><path d="m16 6-4-4-4 4"/><path d="M12 2v10"/><path d="M20 14v6a2 2 0 0 1-2 2"/></svg>
-                <span class="hidden sm:inline">Migration</span>
+                <span class="hidden sm:inline">{{ t.facility?.migration || 'Migration' }}</span>
               </Link>
               <Link
                 v-if="canWrite"
@@ -313,6 +313,7 @@ const exportColumnOptions = [
   { key: 'slug', label: 'Slug' },
   { key: 'facility_type', label: 'Facility type' },
   { key: 'sales_rep', label: 'Sales rep' },
+  { key: 'assigned_manager', label: 'Assigned manager' },
   { key: 'discount_percent', label: 'Discount %' },
   { key: 'branches_count', label: 'Branches' },
   { key: 'managers_count', label: 'Managers' },

@@ -2,14 +2,14 @@
   <button
     type="button"
     class="inline-flex items-center cursor-pointer justify-center gap-1.5 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2"
-    title="Translate / fix empty or Arabic English fields across all facilities"
+    :title="t.facility?.english_bulk_hint || 'Translate / fix empty or Arabic English fields across all facilities'"
     @click="openDialog"
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M5 8h14M5 8a2 2 0 0 1 0-4h14a2 2 0 0 1 0 4M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
     </svg>
-    <span class="hidden sm:inline">Fix English with AI</span>
-    <span class="sm:hidden">EN</span>
+    <span class="hidden sm:inline">{{ t.facility?.english_bulk || 'Fix English with AI' }}</span>
+    <span class="sm:hidden">{{ t.facility?.english_bulk_short || 'EN' }}</span>
   </button>
 
   <Teleport to="body">
@@ -23,16 +23,15 @@
       <div class="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl">
         <div class="flex items-start gap-3 border-b border-border p-4">
           <div class="min-w-0">
-            <h2 class="text-base font-semibold">Fix English with AI</h2>
+            <h2 class="text-base font-semibold">{{ t.facility?.english_bulk || 'Fix English with AI' }}</h2>
             <p class="text-xs text-muted-foreground">
-              AI fills or repairs English names, descriptions and branch addresses that are empty,
-              hold Arabic text, or just copy the Arabic. Arabic values are never changed. Applied immediately.
+              {{ t.facility?.english_bulk_description || 'AI fills or repairs English names, descriptions and branch addresses that are empty, hold Arabic text, or just copy the Arabic. Arabic values are never changed. Applied immediately.' }}
             </p>
           </div>
           <button
             type="button"
             class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Close (Esc)"
+            :title="t.common?.close_esc || 'Close (Esc)'"
             @click="closeDialog"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -43,7 +42,7 @@
 
         <div class="max-h-[60vh] overflow-y-auto p-4 space-y-3">
           <p v-if="phase === 'idle'" class="text-sm text-muted-foreground">
-            This scans every facility you can manage and fixes the ones with dirty English data.
+            {{ t.facility?.english_bulk_intro || 'This scans every facility you can manage and fixes the ones with dirty English data.' }}
           </p>
 
           <template v-else>
@@ -51,10 +50,10 @@
               <div class="h-full rounded-full bg-primary transition-all" :style="{ width: progressPct + '%' }"></div>
             </div>
             <p class="text-xs text-muted-foreground">
-              {{ processed }} / {{ total }} facilities
+              {{ (t.facility?.english_bulk_progress || ':processed / :total facilities').replace(':processed', processed).replace(':total', total) }}
               <span v-if="waitNotice" class="text-amber-500"> · {{ waitNotice }}</span>
-              <span v-else-if="phase === 'running'"> · working…</span>
-              <span v-else-if="phase === 'done'"> · finished · {{ totalApplied }} field(s) updated</span>
+              <span v-else-if="phase === 'running'"> · {{ t.common?.working || 'working…' }}</span>
+              <span v-else-if="phase === 'done'"> · {{ (t.facility?.english_bulk_finished || 'finished · :count field(s) updated').replace(':count', totalApplied) }}</span>
             </p>
 
             <ul class="divide-y divide-border rounded-md border border-border text-xs">
@@ -62,13 +61,13 @@
                 <span class="truncate">{{ row.slug }}</span>
                 <span class="flex shrink-0 items-center gap-2">
                   <span :class="row.state === 'error' ? 'text-destructive' : 'text-emerald-500'">
-                    {{ row.state === 'error' ? 'error' : `${row.applied} fixed` }}
+                    {{ row.state === 'error' ? (t.common?.error || 'error') : (t.facility?.english_bulk_row_fixed || ':count fixed').replace(':count', row.applied) }}
                   </span>
                   <button
                     v-if="row.state === 'error' && row.message"
                     type="button"
                     class="rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="View full error"
+                    :title="t.common?.view_full_error || 'View full error'"
                     @click="openErrorDetail(row)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -88,7 +87,7 @@
             class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted"
             @click="closeDialog"
           >
-            {{ phase === 'done' ? 'Close' : 'Cancel' }}
+            {{ phase === 'done' ? (t.common?.close || 'Close') : (t.common?.cancel || 'Cancel') }}
           </button>
           <button
             v-if="phase === 'idle'"
@@ -96,7 +95,7 @@
             class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition hover:bg-primary/90"
             @click="start"
           >
-            Scan &amp; fix
+            {{ t.facility?.english_bulk_start || 'Scan & fix' }}
           </button>
         </div>
       </div>
@@ -117,12 +116,12 @@
         <div class="flex items-start gap-3 border-b border-border p-4">
           <div class="min-w-0">
             <h2 class="text-base font-semibold truncate">{{ errorDetailRow.slug }}</h2>
-            <p class="text-xs text-muted-foreground">Error reason</p>
+            <p class="text-xs text-muted-foreground">{{ t.common?.error_reason || 'Error reason' }}</p>
           </div>
           <button
             type="button"
             class="ml-auto rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Close (Esc)"
+            :title="t.common?.close_esc || 'Close (Esc)'"
             @click="closeErrorDetail"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -139,7 +138,7 @@
             class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted"
             @click="closeErrorDetail"
           >
-            Close
+            {{ t.common?.close || 'Close' }}
           </button>
         </div>
       </div>
@@ -149,8 +148,11 @@
 
 <script setup>
 import { computed, ref } from "vue";
-import { router } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 import { useNotification } from "@/composables/useNotification";
+
+const page = usePage();
+const t = computed(() => page.props.translations?.admin || {});
 
 const open = ref(false);
 const phase = ref("idle"); // idle | running | done
@@ -183,7 +185,7 @@ const RATE_LIMIT_WAIT_SECONDS = 10;
 
 const waitForRateLimit = async () => {
   for (let left = RATE_LIMIT_WAIT_SECONDS; left > 0 && !cancelled; left -= 1) {
-    waitNotice.value = `AI rate limit reached — resuming in ${left}s`;
+    waitNotice.value = (t.value.common?.ai_rate_limit_wait || 'AI rate limit reached — resuming in :seconds s').replace(':seconds', left);
     await sleep(1000);
   }
   waitNotice.value = "";
@@ -229,7 +231,7 @@ const start = async () => {
 
     if (total.value === 0) {
       phase.value = "done";
-      useNotification().success("Every facility's English data is already clean.");
+      useNotification().success(t.value.facility?.english_bulk_clean || "Every facility's English data is already clean.");
       return;
     }
 
@@ -248,7 +250,7 @@ const start = async () => {
       try {
         res = await axios.post(route("admin.facility.english.bulk.step"), { slugs: batch });
       } catch (error) {
-        errorMessage.value = error?.response?.data?.message || "A batch failed — stopped early.";
+        errorMessage.value = error?.response?.data?.message || t.value.common?.batch_failed || "A batch failed — stopped early.";
         return;
       }
 
@@ -269,10 +271,10 @@ const start = async () => {
 
     if (!cancelled) {
       phase.value = "done";
-      useNotification().success(`Done — ${totalApplied.value} English field(s) updated.`);
+      useNotification().success((t.value.facility?.english_bulk_done || 'Done — :count English field(s) updated.').replace(':count', totalApplied.value));
     }
   } catch (error) {
-    errorMessage.value = error?.response?.data?.message || "The scan failed to start. Please try again.";
+    errorMessage.value = error?.response?.data?.message || t.value.facility?.english_bulk_start_failed || "The scan failed to start. Please try again.";
     phase.value = "idle";
   }
 };

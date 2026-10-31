@@ -64,7 +64,7 @@ class AdminFacilityExportController extends BaseController
             : [];
 
         $facilities = Facility::query()
-            ->with(['facilityType', 'sales', 'creator:id,name,email'])
+            ->with(['facilityType', 'sales', 'creator:id,name,email', 'manager:id,name,email'])
             ->withCount(['branches', 'managers'])
             ->when($includeBranches, fn ($q) => $q->with(['branches' => fn ($bq) => $bq->with(['governorate', 'city'])->orderBy('created_at')]))
             ->when($includeManagers, fn ($q) => $q->with(['managers' => fn ($mq) => $mq->orderBy('id')]))
@@ -106,6 +106,13 @@ class AdminFacilityExportController extends BaseController
             $filters['sales_presence'] === 'with' => 'Any — only facilities with a rep',
             $filters['sales_presence'] === 'without' => 'None — only facilities with no rep',
             default => 'All sales reps',
+        };
+
+        $filters['managed_label'] = match (true) {
+            $filters['managed_by'] !== null => (fn ($u) => $u ? trim($u->name.' — '.$u->email, ' —') : "#{$filters['managed_by']}")(\App\Models\User::find($filters['managed_by'], ['id', 'name', 'email'])),
+            $filters['managed_presence'] === 'with' => 'Any — only facilities with an assigned manager',
+            $filters['managed_presence'] === 'without' => 'None — only facilities with no assigned manager',
+            default => 'All',
         };
 
         $timestamp = now()->format('Y-m-d_His');
@@ -195,6 +202,7 @@ class AdminFacilityExportController extends BaseController
             'slug' => ['label' => 'Slug', 'width' => 30],
             'facility_type' => ['label' => 'Facility type', 'width' => 22],
             'sales_rep' => ['label' => 'Sales rep', 'width' => 26],
+            'assigned_manager' => ['label' => 'Assigned manager', 'width' => 32],
             'discount_percent' => ['label' => 'Discount %', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
             'branches_count' => ['label' => 'Branches', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
             'managers_count' => ['label' => 'Managers', 'width' => 12, 'align' => Alignment::HORIZONTAL_CENTER],
@@ -265,6 +273,7 @@ class AdminFacilityExportController extends BaseController
             ['Search', $filters['search'] !== '' ? $filters['search'] : '—'],
             ['Facility type', $typeName],
             ['Sales rep', $salesName],
+            ['Assigned manager', $filters['managed_label']],
             ['Governorate', $govName],
             ['City', $cityName],
             ['Created from', $filters['created_from'] ?: '—'],
@@ -313,6 +322,10 @@ class AdminFacilityExportController extends BaseController
             $rowIndex++;
 
             $creator = $facility->creator;
+            $assigned = $facility->manager;
+            $assignedCell = $assigned
+                ? trim($assigned->name.($assigned->email ? " <{$assigned->email}>" : ''))
+                : '';
             $creatorCell = $creator
                 ? trim($creator->name.($creator->email ? " <{$creator->email}>" : ''))
                 : '';
@@ -324,6 +337,7 @@ class AdminFacilityExportController extends BaseController
                 'slug' => (string) $facility->slug,
                 'facility_type' => (string) ($facility->facilityType?->getTranslation('name', 'en') ?: ''),
                 'sales_rep' => (string) ($facility->sales?->displayName() ?? ''),
+                'assigned_manager' => (string) $assignedCell,
                 // Blank rather than 0: no discount and a nought-percent discount
                 // are not the same thing to whoever reads this.
                 'discount_percent' => $facility->discount_percent === null ? '' : (string) (float) $facility->discount_percent,

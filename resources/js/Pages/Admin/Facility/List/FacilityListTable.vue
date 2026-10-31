@@ -18,7 +18,7 @@
                   </button>
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 text-center hidden md:table-cell">
-                  Cover
+                  {{ t.facility?.cover || 'Cover' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center hidden sm:table-cell">
                   {{ t.common?.type || 'Type' }}
@@ -217,7 +217,7 @@
                       cache-for="30s"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-emerald-bright hover:!bg-emerald-bright/10 hover:!text-emerald-bright"
                       :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': !facility.slug }"
-                      title="Edit"
+                      :title="t.common?.edit || 'Edit'"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen w-3 h-3">
                         <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -228,7 +228,7 @@
                       :disabled="!facility.slug"
                       @click="facility.slug && $emit('delete', facility.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
-                      title="Delete"
+                      :title="t.common?.delete || 'Delete'"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2 w-3 h-3">
                         <path d="M3 6h18"></path>
@@ -320,7 +320,7 @@
             <span v-if="getTranslatedName(selectedFacility?.name)" class="text-white/60 text-sm">— {{ getTranslatedName(selectedFacility?.name) }}</span>
           </h3>
         </div>
-        <button type="button" @click="closeBranches" class="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-accent transition-colors shrink-0" title="Close">
+        <button type="button" @click="closeBranches" class="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-accent transition-colors shrink-0" :title="t.common?.close || 'Close'">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18"></path>
             <path d="m6 6 12 12"></path>
