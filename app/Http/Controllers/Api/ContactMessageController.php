@@ -29,7 +29,8 @@ class ContactMessageController extends Controller
             'message' => 'required|string|max:5000',
             'name' => 'nullable|string|max:255',
             // Which form sent it; the mobile app's card popup says so, everything else is the contact form.
-            'source' => ['nullable', 'in:'.ContactSourceEnum::CONTACT_FORM->value.','.ContactSourceEnum::CARD_POPUP->value],
+            'source' => ['nullable', 'in:'.ContactSourceEnum::CONTACT_FORM->value.','.ContactSourceEnum::CARD_POPUP->value.','.ContactSourceEnum::PROVIDER_REFERRAL->value],
+            'subject' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -53,6 +54,7 @@ class ContactMessageController extends Controller
                 'phone' => $request->phone,
                 'message' => $request->message,
                 'name' => $request->input('name'),
+                'subject' => $request->input('subject'),
                 'source' => $request->input('source', ContactSourceEnum::CONTACT_FORM->value),
                 'channel' => ContactChannelEnum::WEBSITE->value,
                 'ip_address' => $request->ip(),

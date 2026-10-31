@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\LoyaltyTransaction;
+use App\Models\Setting;
+use App\Support\LoyaltyPoints;
+use App\Support\SiteSettings;
 use App\Models\QuizBadgeDefinition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,7 +19,7 @@ class QuizLoyaltyTest extends TestCase
 
     private function answer(string $id, bool $correct, array $extra = []): array
     {
-        return array_merge(['id' => $id, 'play_id' => 'play-1', 'quiz' => 'mcq:football', 'question_id' => 1, 'correct' => $correct, 'answered_at' => now()->toIso8601String()], $extra);
+        return array_merge(['id' => $id, 'play_id' => 'play-1', 'quiz' => 'mcq:football', 'question_id' => 1, 'correct' => $correct, 'seconds' => 1, 'answered_at' => now()->toIso8601String()], $extra);
     }
 
     /** @test */
@@ -37,9 +40,9 @@ class QuizLoyaltyTest extends TestCase
             $this->answer('a', true, ['points' => 9999]),
             $this->answer('b', true),
             $this->answer('c', false, ['timed_out' => true]),
-        ]])->assertOk()->assertJsonPath('data.accepted', 3)->assertJsonPath('data.points', 10);
+        ]])->assertOk()->assertJsonPath('data.accepted', 3)->assertJsonPath('data.points', 100);
 
-        $this->assertSame(10, LoyaltyTransaction::balanceOf($user->id));
+        $this->assertSame(100, LoyaltyTransaction::balanceOf($user->id));
     }
 
     /** @test */
@@ -49,7 +52,7 @@ class QuizLoyaltyTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('a', false), $this->answer('b', false)]])
-            ->assertOk()->assertJsonPath('data.points', -20);
+            ->assertOk()->assertJsonPath('data.points', -200);
     }
 
     /** @test */
@@ -75,8 +78,8 @@ class QuizLoyaltyTest extends TestCase
         $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('same', true)]])->assertOk();
 
         Sanctum::actingAs($two);
-        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('same', false)]])->assertOk()->assertJsonPath('data.points', -10);
-        $this->getJson('/api/v1/loyalty')->assertOk()->assertJsonPath('data.points', -10)->assertJsonPath('data.wrong_answers', 1);
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('same', false)]])->assertOk()->assertJsonPath('data.points', -100);
+        $this->getJson('/api/v1/loyalty')->assertOk()->assertJsonPath('data.points', -100)->assertJsonPath('data.wrong_answers', 1);
     }
 
     /** @test */
@@ -139,8 +142,8 @@ class QuizLoyaltyTest extends TestCase
 
         $catalog = collect($this->getJson('/api/v1/loyalty')->assertOk()->json('data.badges'));
         $football = $catalog->where('quiz', 'mcq:football');
-        // 3 kinds x 5 levels = 15 badges in each of the four sections.
-        $this->assertSame(60, $catalog->count());
+        // 3 kinds x 5 levels = 15 badges in each of the five sections.
+        $this->assertSame(75, $catalog->count());
         $this->assertSame(15, $football->count());
         $this->assertTrue($football->firstWhere('key', 'solved_10')['earned']);
         $this->assertFalse($football->firstWhere('key', 'solved_50')['earned']);
@@ -158,11 +161,11 @@ class QuizLoyaltyTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        // 10 right answers: 10 x 10 points, plus solved_10 (10), streak_5 (10) and streak_10 (20) from the seeded rewards.
-        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $this->batch('r', array_fill(0, 10, true))])->assertOk()->assertJsonPath('data.points', 140);
+        // 10 fast right answers: 10 x 100 points, plus solved_10 (10), streak_5 (10) and streak_10 (20) from the seeded rewards.
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $this->batch('r', array_fill(0, 10, true))])->assertOk()->assertJsonPath('data.points', 1040);
 
         // The same batch again books nothing, rewards included.
-        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $this->batch('r', array_fill(0, 10, true))])->assertOk()->assertJsonPath('data.points', 140);
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $this->batch('r', array_fill(0, 10, true))])->assertOk()->assertJsonPath('data.points', 1040);
         $this->assertSame(3, LoyaltyTransaction::query()->where('user_id', $user->id)->where('source', 'badge')->count());
     }
 
@@ -180,7 +183,7 @@ class QuizLoyaltyTest extends TestCase
         $this->assertSame(['solved_3'], $new->pluck('key')->all());
         $this->assertSame('ثلاثة صح', $new->first()['title']);
         $this->assertSame(77, $new->first()['reward_points']);
-        $this->assertSame(30 + 77, $response->json('data.points'));
+        $this->assertSame(300 + 77, $response->json('data.points'));
         // A switched-off badge is neither earned nor listed.
         $this->assertNull(collect($response->json('data.badges'))->firstWhere('kind', 'streak'));
     }
@@ -201,7 +204,7 @@ class QuizLoyaltyTest extends TestCase
         $this->assertSame('مكافأة', $entries->first()['note']);
         $this->assertSame(['admin', 'badge', 'play'], $entries->pluck('type')->unique()->sort()->values()->all());
         $play = $entries->firstWhere('type', 'play');
-        $this->assertSame([10, 0, 100], [$play['right'], $play['wrong'], $play['points']]);
+        $this->assertSame([10, 0, 1000], [$play['right'], $play['wrong'], $play['points']]);
         $this->assertSame(10 + 10 + 20, $entries->where('type', 'badge')->sum('points'));
     }
 
@@ -292,13 +295,13 @@ class QuizLoyaltyTest extends TestCase
     public function every_section_starts_with_its_default_badges_and_earns_them_on_its_own(): void
     {
         Sanctum::actingAs(User::factory()->create());
-        $sections = ['mcq:football', 'mcq:fawazeer', 'mcq:general', 'mcq:history'];
+        $sections = ['mcq:football', 'mcq:fawazeer', 'mcq:general', 'mcq:history', 'mcq:cinema'];
 
         foreach ($sections as $quiz) {
             $this->assertSame(15, QuizBadgeDefinition::query()->where('quiz_key', $quiz)->count(), $quiz);
         }
 
-        foreach (['mcq:general', 'mcq:history'] as $quiz) {
+        foreach (['mcq:general', 'mcq:history', 'mcq:cinema'] as $quiz) {
             $answers = array_map(fn (int $i) => $this->answer("$quiz-$i", true, ['play_id' => "play-$quiz", 'quiz' => $quiz, 'question_id' => $i]), range(1, 10));
             $new = collect($this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $answers])->assertOk()->json('data.new_badges'));
 
@@ -315,11 +318,55 @@ class QuizLoyaltyTest extends TestCase
 
         $badges = collect($this->getJson('/api/v1/mobile/loyalty/badges')->assertOk()->json('data.badges'));
 
-        $this->assertSame(56, $badges->count());
+        $this->assertSame(70, $badges->count());
         $this->assertNull($badges->firstWhere('key', 'stage_5'));
         $hundred = $badges->firstWhere('key', 'solved_100');
         $this->assertSame(['مئة صح', '💯', 123, 'solved', 100], [$hundred['title'], $hundred['icon'], $hundred['reward_points'], $hundred['kind'], $hundred['threshold']]);
         // It is the catalog, not a member's record: no progress or earned flags.
         $this->assertArrayNotHasKey('earned', $hundred);
+    }
+
+    /** @test */
+    public function a_right_answer_pays_by_speed_and_a_wrong_one_costs(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $at = fn (string $id, ?float $seconds, bool $correct = true) => $this->answer($id, $correct, ['seconds' => $seconds] + ['question_id' => crc32($id) % 1000]);
+        $answers = [
+            $at('a', 0.4), $at('b', 5.0), $at('c', 5.1), $at('d', 10.0), $at('e', 12.0), $at('f', 15.0), $at('g', 19.9), $at('h', 20.0), $at('i', 45.0),
+        ];
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $answers])->assertOk();
+
+        $points = LoyaltyTransaction::query()->where('user_id', $user->id)->where('source', 'quiz')->orderBy('id')->pluck('points')->all();
+        // within 5 s = 100, 5-10 s = 75, 10-15 s = 50, 15-20 s = 25, and slower than the clock pays the last tier.
+        $this->assertSame([100, 100, 75, 75, 50, 50, 25, 25, 25], $points);
+    }
+
+    /** @test */
+    public function an_answer_without_a_time_pays_the_lowest_tier_and_a_wrong_one_ignores_the_time(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $noTime = $this->answer('n', true);
+        unset($noTime['seconds']);
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$noTime, $this->answer('w', false, ['seconds' => 1])]])->assertOk();
+
+        $this->assertSame([25, -100], LoyaltyTransaction::query()->where('user_id', $user->id)->where('source', 'quiz')->orderBy('id')->pluck('points')->all());
+    }
+
+    /** @test */
+    public function the_summary_tells_the_scale_and_how_many_points_one_pound_is_worth(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $data = $this->getJson('/api/v1/loyalty')->assertOk()->json('data');
+        $this->assertSame([['up_to_seconds' => 5, 'points' => 100], ['up_to_seconds' => 10, 'points' => 75], ['up_to_seconds' => 15, 'points' => 50], ['up_to_seconds' => 20, 'points' => 25]], $data['speed_tiers']);
+        $this->assertEquals(10, $data['points_per_egp']);
+
+        SiteSettings::put(LoyaltyPoints::POINTS_PER_EGP, '4', Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+        $this->assertEquals(4, $this->getJson('/api/v1/mobile/loyalty/badges')->assertOk()->json('data.points_per_egp'));
     }
 }

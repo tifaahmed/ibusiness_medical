@@ -33,6 +33,7 @@ class PaymobCallbackController extends Controller
     public function __construct(
         private readonly ApplyPaymobTransaction $apply,
         private readonly ApplyPaymobSubscriptionTransaction $applySubscription,
+        private readonly \App\Actions\Payment\ApplyPaymobTopupTransaction $applyTopup,
     ) {}
 
     /** POST — the server-to-server "transaction processed" callback. */
@@ -46,8 +47,9 @@ class PaymobCallbackController extends Controller
         $transaction = $obj !== null ? PaymobTransaction::fromArray($obj) : null;
         /* The reference says what was bought: `SUB12A1` is a membership subscription, anything else an order. */
         $subscription = $transaction?->subscriptionId() !== null ? MembershipSubscription::query()->find($transaction->subscriptionId()) : null;
-        $order = $subscription === null && $transaction?->orderCode() !== null ? Order::withTrashed()->where('order_code', $transaction->orderCode())->first() : null;
-        $subject = $subscription ?? $order;
+        $topup = $transaction?->topupId() !== null ? \App\Models\WalletTopup::query()->find($transaction->topupId()) : null;
+        $order = $subscription === null && $topup === null && $transaction?->orderCode() !== null ? Order::withTrashed()->where('order_code', $transaction->orderCode())->first() : null;
+        $subject = $topup ?? $subscription ?? $order;
         $valid = $obj !== null && PaymobHmac::valid($obj, (string) $request->query('hmac'), config('services.paymob.hmac'));
 
         $log = $client->recordInbound(
@@ -79,7 +81,10 @@ class PaymobCallbackController extends Controller
         $query = $request->query();
         $transaction = PaymobTransaction::fromArray($query);
         $subscriptionId = MembershipSubscription::idFromReference($code);
-        $order = $subscriptionId === null ? Order::withTrashed()->where('order_code', $code)->first() : MembershipSubscription::query()->find($subscriptionId);
+        $topupId = \App\Models\WalletTopup::idFromReference($code);
+        $order = $topupId !== null
+            ? \App\Models\WalletTopup::query()->find($topupId)
+            : ($subscriptionId === null ? Order::withTrashed()->where('order_code', $code)->first() : MembershipSubscription::query()->find($subscriptionId));
         $valid = PaymobHmac::valid($query, (string) $request->query('hmac'), config('services.paymob.hmac'));
 
         $log = $client->recordInbound(
@@ -119,7 +124,7 @@ class PaymobCallbackController extends Controller
      * @param  array<string, mixed>|null  $data
      * @return array{0: int, 1: array<string, mixed>}
      */
-    private function decide(bool $valid, ?array $data, Order|MembershipSubscription|null $order, ?PaymobTransaction $transaction, Request $request, PaymobClient $client, string $source): array
+    private function decide(bool $valid, ?array $data, Order|MembershipSubscription|\App\Models\WalletTopup|null $order, ?PaymobTransaction $transaction, Request $request, PaymobClient $client, string $source): array
     {
         if (! $valid) {
             Log::warning('Paymob '.$source.' rejected: bad or missing HMAC.', ['ip' => $request->ip(), 'url' => $request->path()]);
@@ -134,9 +139,11 @@ class PaymobCallbackController extends Controller
         }
 
         try {
-            $result = $order instanceof MembershipSubscription
+            $result = $order instanceof \App\Models\WalletTopup
+                ? $this->applyTopup->handle($order, $transaction, $source, $client->correlationId, $request)
+                : ($order instanceof MembershipSubscription
                 ? $this->applySubscription->handle($order, $transaction, $source, $client->correlationId, $request)
-                : $this->apply->handle($order, $transaction, $source, $client->correlationId, null, $request);
+                : $this->apply->handle($order, $transaction, $source, $client->correlationId, null, $request));
         } catch (Throwable $exception) {
             return [500, ['ok' => false, 'note' => 'The result could not be applied.']];
         }
@@ -167,7 +174,7 @@ class PaymobCallbackController extends Controller
 
     private function targetUrl(string $code, string $outcome): ?string
     {
-        $isSubscription = MembershipSubscription::idFromReference($code) !== null;
+        $isSubscription = MembershipSubscription::idFromReference($code) !== null || \App\Models\WalletTopup::idFromReference($code) !== null;
         $base = Cache::get(StartPaymobPayment::returnKey($code))
             ?: config($isSubscription ? 'services.paymob.subscription_return_url' : 'services.paymob.return_url');
 

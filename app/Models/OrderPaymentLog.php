@@ -35,7 +35,7 @@ class OrderPaymentLog extends Model
     public const EVENT_APPLIED = 'result_applied';
 
     protected $fillable = [
-        'order_id', 'membership_subscription_id', 'admin_id', 'correlation_id', 'event', 'direction', 'method', 'url',
+        'order_id', 'membership_subscription_id', 'wallet_topup_id', 'admin_id', 'correlation_id', 'event', 'direction', 'method', 'url',
         'request_headers', 'request_body', 'http_status', 'response_headers', 'response_body',
         'gateway_code', 'gateway_ref', 'success', 'error_message',
         'started_at', 'finished_at', 'duration_ms', 'ip_address', 'user_agent',

@@ -195,12 +195,12 @@
             :class="[
               'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
               filters.branches_missing === 'governorate'
-                ? 'border-emerald-400 bg-emerald-500/30 text-emerald-950 dark:text-emerald-50'
+                ? 'border-emerald-600 bg-emerald-200 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-800 dark:text-white'
                 : 'border-border bg-background hover:bg-muted text-foreground',
             ]"
           >
             {{ t.governorate?.none || 'No governorate' }}
-            <span v-if="incompleteCounts.governorate" class="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+            <span v-if="incompleteCounts.governorate" class="rounded bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
               {{ incompleteCounts.governorate }}
             </span>
           </button>
@@ -211,12 +211,12 @@
             :class="[
               'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
               filters.branches_missing === 'city'
-                ? 'border-amber-400 bg-amber-500/30 text-amber-950 dark:text-amber-50'
+                ? 'border-amber-600 bg-amber-200 text-amber-950 dark:border-amber-400 dark:bg-amber-800 dark:text-white'
                 : 'border-border bg-background hover:bg-muted text-foreground',
             ]"
           >
             {{ t.city?.none || 'No city' }}
-            <span v-if="incompleteCounts.city" class="rounded bg-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+            <span v-if="incompleteCounts.city" class="rounded bg-amber-600 text-white px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
               {{ incompleteCounts.city }}
             </span>
           </button>
@@ -227,12 +227,12 @@
             :class="[
               'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
               filters.branches_missing === 'either'
-                ? 'border-red-400 bg-red-500/30 text-red-50'
+                ? 'border-red-600 bg-red-200 text-red-950 dark:border-red-400 dark:bg-red-800 dark:text-white'
                 : 'border-border bg-background hover:bg-muted text-foreground',
             ]"
           >
             {{ t.common?.either || 'Either' }}
-            <span v-if="incompleteCounts.either" class="rounded bg-red-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+            <span v-if="incompleteCounts.either" class="rounded bg-red-600 text-white px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
               {{ incompleteCounts.either }}
             </span>
           </button>
@@ -257,7 +257,7 @@
             :class="[
               'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
               filters.discount_format === 'round'
-                ? 'border-emerald-400 bg-emerald-500/30 text-emerald-950 dark:text-emerald-50'
+                ? 'border-emerald-600 bg-emerald-200 text-emerald-950 dark:border-emerald-400 dark:bg-emerald-800 dark:text-white'
                 : 'border-border bg-background hover:bg-muted text-foreground',
             ]"
           >
@@ -270,12 +270,12 @@
             :class="[
               'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 sm:h-8 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap',
               filters.discount_format === 'decimal'
-                ? 'border-red-400 bg-red-500/30 text-red-50'
+                ? 'border-red-600 bg-red-200 text-red-950 dark:border-red-400 dark:bg-red-800 dark:text-white'
                 : 'border-border bg-background hover:bg-muted text-foreground',
             ]"
           >
             {{ t.facility?.discount_decimal || 'Has decimals' }}
-            <span v-if="incompleteCounts.discount_decimal" class="rounded bg-red-500/30 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+            <span v-if="incompleteCounts.discount_decimal" class="rounded bg-red-600 text-white px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
               {{ incompleteCounts.discount_decimal }}
             </span>
           </button>
@@ -559,24 +559,24 @@ const toggleManagersPresence = (value) => {
 const PRESENCE_THEMES = {
   sky: {
     dot: 'bg-sky-400',
-    off: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-200 hover:bg-sky-500/20',
-    on: 'border-sky-400 bg-sky-500/40 text-sky-950 dark:text-sky-50',
+    off: 'border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-500/50 dark:bg-sky-950 dark:text-sky-100 dark:hover:bg-sky-900',
+    on: 'border-sky-600 bg-sky-200 text-sky-950 dark:border-sky-400 dark:bg-sky-800 dark:text-white',
     accent: 'accent-sky-500',
-    badge: 'bg-sky-500/30',
+    badge: 'bg-sky-600 text-white',
   },
   violet: {
     dot: 'bg-violet-400',
-    off: 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-200 hover:bg-violet-500/20',
-    on: 'border-violet-400 bg-violet-500/40 text-violet-950 dark:text-violet-50',
+    off: 'border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100 dark:border-violet-500/50 dark:bg-violet-950 dark:text-violet-100 dark:hover:bg-violet-900',
+    on: 'border-violet-600 bg-violet-200 text-violet-950 dark:border-violet-400 dark:bg-violet-800 dark:text-white',
     accent: 'accent-violet-500',
-    badge: 'bg-violet-500/30',
+    badge: 'bg-violet-600 text-white',
   },
   rose: {
     dot: 'bg-rose-400',
-    off: 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200 hover:bg-rose-500/20',
-    on: 'border-rose-400 bg-rose-500/40 text-rose-950 dark:text-rose-50',
+    off: 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 dark:border-rose-500/50 dark:bg-rose-950 dark:text-rose-100 dark:hover:bg-rose-900',
+    on: 'border-rose-600 bg-rose-200 text-rose-950 dark:border-rose-400 dark:bg-rose-800 dark:text-white',
     accent: 'accent-rose-500',
-    badge: 'bg-rose-500/30',
+    badge: 'bg-rose-600 text-white',
   },
 };
 

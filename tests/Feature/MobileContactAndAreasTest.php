@@ -22,6 +22,30 @@ class MobileContactAndAreasTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_a_provider_referral_lands_in_the_inbox_under_its_own_source_and_subject(): void
+    {
+        $this->postJson('/api/contact-messages', [
+            'phone' => '01099998888',
+            'name' => 'Al Amal Restaurant',
+            'subject' => 'ترشيح عميل لمقدم خدمة',
+            'message' => "نوع المكان: مطاعم\nالمرشِّح: Mona — كارت 123456",
+            'source' => ContactSourceEnum::PROVIDER_REFERRAL->value,
+        ])->assertCreated();
+
+        $enquiry = ContactMessage::query()->firstOrFail();
+
+        $this->assertSame(ContactSourceEnum::PROVIDER_REFERRAL, $enquiry->source);
+        $this->assertSame('01099998888', $enquiry->phone);
+        $this->assertSame('ترشيح عميل لمقدم خدمة', $enquiry->subject);
+        $this->assertStringContainsString('كارت 123456', $enquiry->message);
+        $this->assertNotSame('provider_referral', ContactSourceEnum::PROVIDER_REFERRAL->label(), 'the inbox has a translated label for it');
+    }
+
+    public function test_an_unknown_source_is_still_refused(): void
+    {
+        $this->postJson('/api/contact-messages', ['phone' => '01099998888', 'message' => 'x', 'source' => 'made_up'])->assertUnprocessable();
+    }
+
     public function test_the_new_visitor_popup_lands_in_the_inbox_with_its_name(): void
     {
         $this->postJson('/api/contact-messages', [

@@ -42,6 +42,7 @@ class AdminProductShowResource extends JsonResource
             'is_visible' => (bool) $this->is_visible,
             'is_accessible' => (bool) $this->is_accessible,
             'is_purchasable' => (bool) $this->is_purchasable,
+            'wallet_payable' => (bool) $this->wallet_payable,
             'admin_note' => $this->admin_note,
             'banner_config' => $this->banner_config,
             'large_image' => $this->getFirstMediaUrl('large_image'),

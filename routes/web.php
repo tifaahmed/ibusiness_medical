@@ -495,6 +495,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             Route::put('/badges/{definition}', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'updateBadge'])->whereNumber('definition')->name('badges.update');
             Route::get('/badges/{definition}/holders', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'holders'])->whereNumber('definition')->name('badges.holders');
             Route::post('/grants', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'grant'])->name('grants.store');
+            Route::post('/wallet', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'adjustWallet'])->name('wallet.adjust');
+            Route::get('/members/{user}/ledger', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'ledger'])->whereNumber('user')->name('members.ledger');
         });
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');

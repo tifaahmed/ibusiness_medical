@@ -36,6 +36,7 @@ class StoreProductRequest extends FormRequest
             'is_visible' => 'nullable|boolean',
             'is_accessible' => 'nullable|boolean',
             'is_purchasable' => 'nullable|boolean',
+            'wallet_payable' => 'nullable|boolean',
             'admin_note' => 'nullable|string|max:5000',
             'meta_title' => 'nullable|array',
             'meta_title.*' => 'nullable|string|max:60',

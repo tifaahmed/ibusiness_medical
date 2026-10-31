@@ -62,6 +62,8 @@ class Order extends Model implements HasMedia
         'order_code',
         'user_id',
         'total_paid',
+        'wallet_amount',
+        'wallet_refunded_at',
         'total_amount',
         'total_amount_before_discount',
         'delivery_cost',
@@ -112,6 +114,8 @@ class Order extends Model implements HasMedia
     {
         return [
             'total_paid' => 'decimal:2',
+            'wallet_amount' => 'decimal:2',
+            'wallet_refunded_at' => 'datetime',
             'total_amount' => 'decimal:2',
             'total_amount_before_discount' => 'decimal:2',
             'delivery_cost' => 'decimal:2',
@@ -196,6 +200,25 @@ class Order extends Model implements HasMedia
     }
 
     /** Whether the money for this order is collected through the Paymob gateway. */
+    /** What is still to be paid in REAL money: the total less what the wallet paid. */
+    public function amountDue(): float
+    {
+        return max(0.0, round((float) $this->total_amount - (float) $this->wallet_amount, 2));
+    }
+
+    /** Cancelled, or failed after it was sold: whatever was paid goes back to the buyer's WALLET (once). */
+    protected static function booted(): void
+    {
+        static::updated(function (Order $order): void {
+            $cancelled = $order->wasChanged('payment_status') && $order->payment_status === \App\Enums\Order\PaymentStatusEnum::CANCELED;
+            $failed = $order->wasChanged('order_status') && $order->order_status === \App\Enums\Order\OrderStatusEnum::FAILED;
+
+            if ($cancelled || $failed) {
+                \App\Support\WalletPayments::refundOrder($order, $cancelled ? 'cancelled' : 'rejected');
+            }
+        });
+    }
+
     public function isOnlinePayment(): bool
     {
         return $this->payment_type === PaymentTypeEnum::PAYMOB;

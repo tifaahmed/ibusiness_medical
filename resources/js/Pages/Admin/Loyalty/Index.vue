@@ -7,6 +7,21 @@
       />
 
       <div class="max-w-7xl mx-auto space-y-4">
+        <!-- ===== How many points a pound is worth, and how a right answer is paid by speed ===== -->
+        <section class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-3 space-y-2">
+          <h2 class="text-base font-semibold">{{ t.loyalty?.rates_title || 'Points rates' }}</h2>
+          <p class="text-sm">
+            {{ t.loyalty?.egp_rate || '1 EGP =' }} <b>{{ pointsPerEgp }}</b> {{ t.loyalty?.points_word || 'points' }}
+            <a href="/admin/setting" class="text-primary underline ms-2">{{ t.loyalty?.edit_rate || 'Change it in Settings' }} (loyalty_points_per_egp)</a>
+          </p>
+          <ul class="text-sm flex flex-wrap gap-2">
+            <li v-for="tier in speedTiers" :key="tier.up_to_seconds" class="rounded-md border border-border px-2 py-1">
+              ≤ {{ tier.up_to_seconds }} {{ t.loyalty?.seconds_word || 's' }} → <b>{{ tier.points }}</b>
+            </li>
+            <li class="rounded-md border border-border px-2 py-1 text-red-600">{{ t.loyalty?.wrong_word || 'Wrong / out of time' }} → <b dir="ltr">{{ pointsWrong }}</b></li>
+          </ul>
+        </section>
+
         <!-- ===== Give points by hand ===== -->
         <section class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 border-b border-border flex items-center gap-2">
@@ -28,13 +43,35 @@
                 <span class="text-xs text-muted-foreground" dir="ltr">{{ member.phone }}</span>
                 <span v-if="member.membership_number" class="font-mono text-xs text-muted-foreground">{{ member.membership_number }}</span>
                 <span class="ms-auto text-sm tabular-nums">{{ t.loyalty?.balance || 'Balance' }}: <b :class="member.balance < 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">{{ member.balance }}</b></span>
+                <span class="text-sm tabular-nums">{{ t.loyalty?.wallet || 'Wallet' }}: <b class="text-emerald-500" dir="ltr">{{ member.wallet_balance }} EGP</b></span>
+                <button type="button" class="h-7 rounded-md border border-border px-2 text-xs cursor-pointer" @click="toggleLedger(member)">{{ ledgerOpen === member.id ? (t.loyalty?.hide_ledger || 'Hide history') : (t.loyalty?.show_ledger || 'History') }}</button>
               </div>
               <form class="flex flex-wrap items-center gap-2" @submit.prevent="giveTo(member)">
                 <input v-model.number="grantForm(member.id).points" type="number" step="1" :placeholder="t.loyalty?.points || 'Points (negative = take back)'" class="h-8 w-52 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" required />
-                <input v-model="grantForm(member.id).note" type="text" maxlength="255" :placeholder="t.loyalty?.note || 'Note the member will see'" class="h-8 w-64 rounded-md border border-border bg-background px-2 text-sm" />
+                <input v-model="grantForm(member.id).note" type="text" maxlength="255" required :placeholder="t.loyalty?.note || 'Note the member will see'" class="h-8 w-64 rounded-md border border-border bg-background px-2 text-sm" />
                 <button type="submit" :disabled="grantForm(member.id).processing" class="h-8 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">{{ t.loyalty?.give || 'Save points' }}</button>
               </form>
               <p v-if="grantForm(member.id).errors.points || grantForm(member.id).errors.note" class="text-xs text-red-500">{{ grantForm(member.id).errors.points || grantForm(member.id).errors.note }}</p>
+
+              <form class="flex flex-wrap items-center gap-2" @submit.prevent="adjustWalletOf(member)">
+                <input v-model.number="walletForm(member.id).amount" type="number" step="0.01" :placeholder="t.loyalty?.wallet_amount || 'EGP (negative = take out)'" class="h-8 w-52 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" required />
+                <input v-model="walletForm(member.id).note" type="text" maxlength="255" required :placeholder="t.loyalty?.wallet_note || 'Reason (kept in the log with your name)'" class="h-8 w-64 rounded-md border border-border bg-background px-2 text-sm" />
+                <button type="submit" :disabled="walletForm(member.id).processing" class="h-8 rounded-md bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 cursor-pointer">{{ t.loyalty?.save_wallet || 'Save wallet' }}</button>
+              </form>
+              <p v-if="walletForm(member.id).errors.amount || walletForm(member.id).errors.note" class="text-xs text-red-500">{{ walletForm(member.id).errors.amount || walletForm(member.id).errors.note }}</p>
+
+              <!-- Whole history of this member: both ledgers, who did what -->
+              <div v-if="ledgerOpen === member.id" class="rounded-lg border border-border divide-y divide-border max-h-72 overflow-y-auto">
+                <p v-if="ledgerLoading" class="px-2.5 py-1.5 text-sm text-muted-foreground">…</p>
+                <p v-else-if="!ledgerRows.length" class="px-2.5 py-1.5 text-sm text-muted-foreground">{{ t.loyalty?.no_history || 'Nothing yet.' }}</p>
+                <div v-for="row in ledgerRows" :key="row.ledger + row.id" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-2.5 py-1.5 text-sm">
+                  <span class="text-xs rounded px-1.5 py-0.5" :class="row.ledger === 'wallet' ? 'bg-sky-500/15 text-sky-600' : 'bg-amber-500/15 text-amber-600'">{{ row.ledger === 'wallet' ? (t.loyalty?.wallet || 'Wallet') : (t.loyalty?.points_word || 'Points') }}</span>
+                  <span class="font-semibold tabular-nums" :class="row.value < 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">{{ row.value > 0 ? '+' : '' }}{{ row.value }}</span>
+                  <span class="text-xs text-muted-foreground">{{ row.source }}</span>
+                  <span v-if="row.note" class="text-xs">{{ row.note }}</span>
+                  <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ row.at }}<template v-if="row.by"> · {{ row.by }}</template></span>
+                </div>
+              </div>
             </div>
 
             <!-- Latest grants -->
@@ -47,6 +84,20 @@
                   <span class="text-xs text-muted-foreground" dir="ltr">{{ g.member_phone }}</span>
                   <span v-if="g.note" class="text-xs text-muted-foreground">{{ g.note }}</span>
                   <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ g.at }}<template v-if="g.by"> · {{ g.by }}</template></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Latest wallet changes by hand -->
+            <div v-if="wallet_adjustments.length" class="pt-1">
+              <h2 class="text-sm font-semibold mb-1">{{ t.loyalty?.latest_wallet || 'Latest wallet changes' }}</h2>
+              <div class="divide-y divide-border rounded-lg border border-border">
+                <div v-for="w in wallet_adjustments" :key="w.id" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-2.5 py-1.5 text-sm">
+                  <span class="font-semibold tabular-nums" :class="w.amount < 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">{{ w.amount > 0 ? '+' : '' }}{{ w.amount }} EGP</span>
+                  <span>{{ w.member_name || '—' }}</span>
+                  <span class="text-xs text-muted-foreground" dir="ltr">{{ w.member_phone }}</span>
+                  <span v-if="w.note" class="text-xs text-muted-foreground">{{ w.note }}</span>
+                  <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ w.at }}<template v-if="w.by"> · {{ w.by }}</template></span>
                 </div>
               </div>
             </div>
@@ -127,10 +178,14 @@ import { useNotification } from "@/composables/useNotification";
 const props = defineProps({
   badges: { type: Array, default: () => [] },
   sections: { type: Array, default: () => [] },
+  pointsPerEgp: { type: Number, default: 0 },
+  speedTiers: { type: Array, default: () => [] },
+  pointsWrong: { type: Number, default: 0 },
   kinds: { type: Array, default: () => [] },
   search: { type: String, default: "" },
   members: { type: Array, default: () => [] },
   grants: { type: Array, default: () => [] },
+  wallet_adjustments: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -161,6 +216,51 @@ const giveTo = (member) => {
     },
     onError: (errors) => reportClientError("Loyalty grant failed", { member_id: member.id, errors }),
   });
+};
+
+/* ----- Wallet money by hand ----- */
+const walletForms = reactive({});
+const walletForm = (id) => (walletForms[id] ??= useForm({ user_id: id, amount: null, note: "" }));
+const adjustWalletOf = (member) => {
+  const form = walletForm(member.id);
+  form.post(route("admin.loyalty.wallet.adjust"), {
+    preserveScroll: true,
+    onSuccess: (response) => {
+      const flash = response.props.flash || {};
+      if (flash.error) useNotification().error(flash.error);
+      else useNotification().success(flash.success || "Saved");
+      form.reset("amount", "note");
+      if (ledgerOpen.value === member.id) loadLedger(member);
+    },
+    onError: (errors) => reportClientError("Wallet adjustment failed", { member_id: member.id, errors }),
+  });
+};
+
+/* ----- One member's history (both ledgers, who did what) ----- */
+const ledgerOpen = ref(null);
+const ledgerRows = ref([]);
+const ledgerLoading = ref(false);
+const loadLedger = async (member) => {
+  ledgerLoading.value = true;
+  try {
+    const response = await fetch(route("admin.loyalty.members.ledger", member.id), { headers: { Accept: "application/json" }, credentials: "same-origin" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    ledgerRows.value = (await response.json()).data;
+  } catch (error) {
+    useNotification().error("Could not load the history.");
+    reportClientError("Member ledger failed", { member_id: member.id, message: String(error) });
+  } finally {
+    ledgerLoading.value = false;
+  }
+};
+const toggleLedger = (member) => {
+  if (ledgerOpen.value === member.id) {
+    ledgerOpen.value = null;
+    return;
+  }
+  ledgerOpen.value = member.id;
+  ledgerRows.value = [];
+  loadLedger(member);
 };
 
 /* ----- Badges ----- */

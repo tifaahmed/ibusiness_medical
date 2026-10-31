@@ -672,6 +672,11 @@ const availabilityOptions = [
     label: 'Can be bought',
     hint: 'Off: no add-to-basket button, and any order still carrying it is refused.',
   },
+  {
+    key: 'wallet_payable',
+    label: 'Can be paid from the wallet',
+    hint: 'On: a signed-in buyer\'s wallet is used automatically to pay for this product. Delivery is always paid in real money. Off by default.',
+  },
 ];
 
 // --- Tabs ----------------------------------------------------------------
@@ -681,7 +686,7 @@ const activeTab = ref('general');
 // Which tab owns which field — drives the tab error badges and the jump from
 // a row of the validation dialog.
 const TAB_FIELDS = {
-  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'store_id', 'is_visible', 'is_accessible', 'is_purchasable', 'admin_note', 'tag_ids'],
+  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'store_id', 'is_visible', 'is_accessible', 'is_purchasable', 'wallet_payable', 'admin_note', 'tag_ids'],
   media: ['large_image', 'small_image', 'gallery', 'banner_config', 'editor_gallery_paths'],
   seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'],
 };
@@ -715,6 +720,7 @@ const errorLabels = {
   is_visible: 'Visible in the shop',
   is_accessible: 'Product page can be opened',
   is_purchasable: 'Can be bought',
+  wallet_payable: 'Can be paid from the wallet',
   admin_note: 'Admin note',
   tag_ids: 'Tags',
   large_image: 'Large image',

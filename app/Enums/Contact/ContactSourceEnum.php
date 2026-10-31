@@ -25,6 +25,8 @@ enum ContactSourceEnum: string
     case PENDING_RELATIVE = 'pending_relative';
     /** A member asking an admin to change the national ID on their card, with the new number and photos of the ID. */
     case NATIONAL_ID_CHANGE = 'national_id_change';
+    /** A member recommending a service provider (medical / restaurant / entertainment) for us to ring and sign up; the member gets the discount. */
+    case PROVIDER_REFERRAL = 'provider_referral';
 
     /**
      * @return array<int, string>

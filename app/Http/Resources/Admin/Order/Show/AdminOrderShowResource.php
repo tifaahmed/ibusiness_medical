@@ -27,6 +27,9 @@ class AdminOrderShowResource extends JsonResource
             'kind' => $this->source === \App\Support\PhysicalCard::SOURCE ? 'cards' : 'products',
 
             'total_paid' => $this->total_paid === null ? null : (float) $this->total_paid,
+            'wallet_amount' => (float) $this->wallet_amount,
+            'amount_due' => $this->amountDue(),
+            'wallet_refunded_at' => $this->wallet_refunded_at?->format('Y-m-d H:i'),
             'total_amount' => $this->total_amount === null ? null : (float) $this->total_amount,
             'total_amount_before_discount' => $this->total_amount_before_discount === null
                 ? null
@@ -104,7 +107,7 @@ class AdminOrderShowResource extends JsonResource
                 'attempts' => (int) $this->paymob_attempts,
                 'response_code' => $this->paymob_response_code,
                 'refunded_amount' => (float) $this->refunded_amount,
-                'refundable' => max(0, round((float) $this->total_paid - (float) $this->refunded_amount, 2)),
+                'refundable' => max(0, round((float) $this->total_paid - (float) $this->wallet_amount - (float) $this->refunded_amount, 2)),
                 'paid_at' => $this->paid_at?->format('Y-m-d H:i:s'),
                 'refunded_at' => $this->refunded_at?->format('Y-m-d H:i:s'),
                 'receipt_emailed_at' => $this->receipt_emailed_at?->format('Y-m-d H:i:s'),

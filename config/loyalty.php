@@ -8,8 +8,15 @@
  */
 return [
     'quiz' => [
-        'points_right' => (int) env('LOYALTY_QUIZ_POINTS_RIGHT', 10),
-        'points_wrong' => (int) env('LOYALTY_QUIZ_POINTS_WRONG', -10),
+        /*
+         * A right answer pays by SPEED: `speed_tiers` lists "answered within this many seconds => points", fastest first
+         * (the question's clock is 20 s). Slower than the last tier, or no time sent, pays the last tier. `points_right` is
+         * the top figure (what a fast answer pays) and is kept for clients that show one number.
+         * A wrong answer or a missed clock costs `points_wrong`. The app mirrors these (`QUIZ_SPEED_TIERS` in utils/quizStore.ts).
+         */
+        'speed_tiers' => [5 => 100, 10 => 75, 15 => 50, 20 => 25],
+        'points_right' => (int) env('LOYALTY_QUIZ_POINTS_RIGHT', 100),
+        'points_wrong' => (int) env('LOYALTY_QUIZ_POINTS_WRONG', -100),
         /* One request carries what a phone collected while offline; more than this is a client gone wrong. */
         'max_answers_per_request' => 100,
         /*
@@ -18,7 +25,7 @@ return [
          */
         'plays_per_day' => (int) env('LOYALTY_QUIZ_PLAYS_PER_DAY', 5),
         /* The quiz sections (a `quiz` key sent with each answer). Each starts with the badges below. */
-        'sections' => ['mcq:football', 'mcq:fawazeer', 'mcq:general', 'mcq:history'],
+        'sections' => ['mcq:football', 'mcq:fawazeer', 'mcq:general', 'mcq:history', 'mcq:cinema'],
         /*
          * Three kinds of badge with five levels each (15 per section) are the starting set. Only a SEED: the migration copies these into `quiz_badge_definitions`, and from
          * then on the admin edits them at /admin/loyalty (title, icon, threshold, reward points, on/off).

@@ -13,6 +13,7 @@ use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
 use App\Support\MembershipPlan;
 use App\Support\PaymentMethods;
+use App\Support\WalletPayments;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -45,6 +46,10 @@ class StartSubscription
             throw ValidationException::withMessages(['method' => ['Unknown payment method.']]);
         }
 
+        if ($method === MembershipSubscription::METHOD_WALLET) {
+            return $this->withWallet($membership, $request);
+        }
+
         if (! in_array($method, PaymentMethods::subscriptionMethods(), true)) {
             throw ValidationException::withMessages(['method' => ['This payment method is not available right now. Please contact customer service.']]);
         }
@@ -66,6 +71,31 @@ class StartSubscription
         return $method === MembershipSubscription::METHOD_PAYMOB
             ? $this->online($membership, $email, $returnUrl, $request, $plan)
             : $this->throughCustomerServices($membership, $method, $email, $receipts, $reference, $request, $plan);
+    }
+
+    /** The yearly plan bought from the member's own wallet; needs the whole price there. Only the signed-in owner of the card can do it. */
+    private function withWallet(Membership $membership, ?Request $request): array
+    {
+        $user = $request?->user();
+
+        if ($user === null || (int) $membership->user_id !== (int) $user->id) {
+            throw ValidationException::withMessages(['method' => ['Sign in to pay from your wallet.']]);
+        }
+
+        if ($request->input('plan', 'year') !== 'year') {
+            throw ValidationException::withMessages(['plan' => ['The wallet pays for the yearly plan.']]);
+        }
+
+        $result = WalletPayments::buyMembership($membership, $user);
+        if (! $result['ok']) {
+            throw ValidationException::withMessages(['method' => [[
+                'disabled' => 'Paying from the wallet is not available right now.',
+                'no_plan' => 'This subscription plan is not available right now.',
+                'not_enough' => 'Your wallet does not hold the whole price. Top it up first.',
+            ][$result['reason']] ?? 'The wallet could not be used.']]);
+        }
+
+        return ['subscription' => $result['subscription'], 'checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'form' => null];
     }
 
     /** @param array{key: string, price: float, months: int} $plan */

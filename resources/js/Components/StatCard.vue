@@ -43,7 +43,13 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    breakdown: {
+        type: Array,
+        default: null,
+    },
 });
+
+defineEmits(['open-breakdown']);
 
 const iconPaths = {
     calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
@@ -65,8 +71,9 @@ const cardClass = computed(() => {
 
 <template>
     <component 
-        :is="href ? Link : 'div'" 
-        :href="href"
+        :is="href && !breakdown ? Link : 'div'"
+        :href="breakdown ? undefined : href"
+        @click="breakdown && $emit('open-breakdown')"
         :class="cardClass"
     >
         <div class="px-6 lg:pr-2 lg:pl-2 md:pr-4 md:pl-4">

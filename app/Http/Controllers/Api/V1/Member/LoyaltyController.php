@@ -7,6 +7,10 @@ use App\Models\LoyaltyTransaction;
 use App\Models\QuizBadge;
 use App\Models\User;
 use App\Services\Loyalty\QuizBadges;
+use App\Models\WalletTransaction;
+use App\Support\LoyaltyPoints;
+use App\Support\LoyaltyWallet;
+use App\Support\WalletPayments;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +33,7 @@ class LoyaltyController extends Controller
     /** Every badge on offer, for anyone (no sign-in): the "all badges" screen of the app, also for a player who has no account yet. */
     public function badgeCatalog(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => ['badges' => $this->badges->publicCatalog()]]);
+        return response()->json(['success' => true, 'data' => ['badges' => $this->badges->publicCatalog(), 'speed_tiers' => $this->speedTiers(), 'points_per_egp' => LoyaltyPoints::pointsPerEgp()]]);
     }
 
     public function show(Request $request): JsonResponse
@@ -83,9 +87,17 @@ class LoyaltyController extends Controller
             $entries[] = ['type' => 'admin', 'at' => $grant->created_at?->toIso8601String(), 'points' => $grant->points, 'note' => $grant->note];
         }
 
+        foreach (LoyaltyTransaction::query()->where('user_id', $member->id)->where('source', LoyaltyTransaction::SOURCE_WALLET)->get() as $spent) {
+            $entries[] = ['type' => 'wallet', 'at' => $spent->created_at?->toIso8601String(), 'points' => $spent->points, 'note' => $spent->note];
+        }
+
+        foreach (LoyaltyTransaction::query()->where('user_id', $member->id)->where('source', LoyaltyTransaction::SOURCE_TRANSFER)->get() as $moved) {
+            $entries[] = ['type' => 'transfer', 'at' => $moved->created_at?->toIso8601String(), 'points' => $moved->points, 'note' => null];
+        }
+
         // Newest first. Timestamps are whole seconds, and things that happen together (a play, the badge it earned, the points
         // an admin then gave) share one: a tie goes to what logically came later — admin grant, then badge, then play.
-        $rank = ['admin' => 3, 'badge' => 2, 'play' => 1];
+        $rank = ['transfer' => 4, 'wallet' => 4, 'admin' => 3, 'badge' => 2, 'play' => 1];
         usort($entries, fn (array $a, array $b) => [(string) $b['at'], $rank[$b['type']]] <=> [(string) $a['at'], $rank[$a['type']]]);
 
         return response()->json(['success' => true, 'data' => ['points' => LoyaltyTransaction::balanceOf($member->id), 'entries' => array_slice($entries, 0, 200)]]);
@@ -105,6 +117,8 @@ class LoyaltyController extends Controller
             'answers.*.question_id' => ['nullable', 'integer', 'min:0'],
             'answers.*.correct' => ['required', 'boolean'],
             'answers.*.timed_out' => ['nullable', 'boolean'],
+            /* How long the player took, in seconds (0-20). The backend turns it into points (`LoyaltyPoints::forAnswer`). */
+            'answers.*.seconds' => ['nullable', 'numeric', 'min:0', 'max:3600'],
             /* The stage the player is in AFTER this answer (a stage = one full pass over a section's questions). */
             'answers.*.stage' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'answers.*.answered_at' => ['nullable', 'date'],
@@ -152,8 +166,9 @@ class LoyaltyController extends Controller
                         'question_id' => $answer['question_id'] ?? null,
                         'correct' => $correct,
                         'timed_out' => $correct ? false : (bool) ($answer['timed_out'] ?? false),
+                        'answer_seconds' => isset($answer['seconds']) ? round(min(20.0, (float) $answer['seconds']), 2) : null,
                         'stage' => $answer['stage'] ?? null,
-                        'points' => (int) config($correct ? 'loyalty.quiz.points_right' : 'loyalty.quiz.points_wrong'),
+                        'points' => LoyaltyPoints::forAnswer($correct, isset($answer['seconds']) ? (float) $answer['seconds'] : null),
                         'answered_at' => $answeredAt,
                         'platform' => $data['platform'] ?? null,
                     ]);
@@ -182,6 +197,87 @@ class LoyaltyController extends Controller
         return response()->json(['success' => true, 'data' => ['accepted' => $accepted, 'duplicates' => $duplicates, 'over_daily_limit' => $overLimit, 'new_badges' => $newBadges] + $this->summary($member)]);
     }
 
+    /** @return array<string, mixed> What the points are worth in pounds, the wallet and whether converting is open. */
+    private function walletSummary(int $userId): array
+    {
+        $points = LoyaltyTransaction::balanceOf($userId);
+
+        return [
+            'egp_value' => LoyaltyWallet::egpValue($points),
+            'convertible_egp' => LoyaltyWallet::wholeEgp($points),
+            'wallet_balance' => WalletTransaction::balanceOf($userId),
+            'wallet_enabled' => LoyaltyWallet::enabled(),
+            'wallet_min_egp' => LoyaltyWallet::minEgp(),
+            'wallet_min_topup' => WalletPayments::minTopup(),
+            'wallet_membership_enabled' => WalletPayments::membershipEnabled(),
+        ];
+    }
+
+    /** Turns points into pounds in the member's wallet: `egp` whole pounds, `id` made by the phone (a repeat books once). */
+    public function convert(Request $request): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+        $data = $request->validate([
+            'egp' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'id' => ['required', 'string', 'max:64'],
+        ]);
+
+        try {
+            $result = LoyaltyWallet::convert($member, (int) $data['egp'], 'wallet:'.$data['id']);
+        } catch (\Throwable $e) {
+            Log::error('Loyalty wallet conversion failed', ['user_id' => $member->id, 'egp' => $data['egp'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['success' => false, 'message' => 'Could not convert the points.'], 500);
+        }
+
+        if (! $result['ok']) {
+            return response()->json(['success' => false, 'reason' => $result['reason'], 'message' => 'The points could not be converted.'] + ['data' => $this->summary($member)], 422);
+        }
+
+        return response()->json(['success' => true, 'data' => ['converted_egp' => $result['egp'], 'spent_points' => $result['points'], 'duplicate' => $result['duplicate'] ?? false] + $this->summary($member)]);
+    }
+
+    /** Adds money to the wallet: opens a Paymob checkout for `amount` pounds. The wallet is credited only when the signed callback arrives. */
+    public function topup(Request $request, \App\Actions\Payment\StartWalletTopup $start): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+        $data = $request->validate(['amount' => ['required', 'numeric', 'min:1', 'max:'.\App\Actions\Payment\StartWalletTopup::MAX], 'return_url' => ['nullable', 'string', 'max:500']]);
+
+        try {
+            $result = $start->handle($member, (float) $data['amount'], $data['return_url'] ?? null, $request);
+        } catch (\App\Services\Paymob\PaymobException $e) {
+            Log::error('Wallet top-up could not be opened.', ['user_id' => $member->id, 'message' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'The payment could not be opened. Please try again.'], 502);
+        }
+
+        return response()->json(['success' => true, 'data' => ['topup_id' => $result['topup']->id, 'amount' => (float) $result['topup']->amount, 'checkout_url' => $result['checkout_url'], 'client_secret' => $result['client_secret'], 'public_key' => $result['public_key'], 'form' => $result['form']]]);
+    }
+
+    /** The member's wallet: balance and its lines, newest first. */
+    public function wallet(Request $request): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+        $rows = WalletTransaction::query()->where('user_id', $member->id)->latest('id')->limit(100)->get();
+
+        return response()->json(['success' => true, 'data' => [
+            'balance' => WalletTransaction::balanceOf($member->id),
+            'entries' => $rows->map(fn (WalletTransaction $w) => ['id' => $w->id, 'source' => $w->source, 'amount' => (float) $w->amount, 'points' => $w->points, 'note' => $w->note, 'at' => $w->created_at?->toIso8601String()])->all(),
+        ] + $this->walletSummary($member->id)]);
+    }
+
+    /** @return array<int, array{up_to_seconds: int, points: int}> */
+    private function speedTiers(): array
+    {
+        $tiers = (array) config('loyalty.quiz.speed_tiers');
+        ksort($tiers);
+
+        return collect($tiers)->map(fn ($points, $upTo) => ['up_to_seconds' => (int) $upTo, 'points' => (int) $points])->values()->all();
+    }
+
     /** @return array<string, mixed> */
     private function summary(User $member): array
     {
@@ -193,7 +289,9 @@ class LoyaltyController extends Controller
             'wrong_answers' => (clone $rows)->where('correct', false)->count(),
             'points_right' => (int) config('loyalty.quiz.points_right'),
             'points_wrong' => (int) config('loyalty.quiz.points_wrong'),
-        ] + $this->badges->catalog($member->id);
+            'speed_tiers' => $this->speedTiers(),
+            'points_per_egp' => LoyaltyPoints::pointsPerEgp(),
+        ] + $this->walletSummary($member->id) + $this->badges->catalog($member->id);
     }
 
     /**

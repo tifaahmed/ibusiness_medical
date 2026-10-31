@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
@@ -24,6 +25,7 @@ defineProps({
 });
 
 const page = usePage();
+const breakdownOpen = ref(null);
 const t = computed(() => page.props.translations?.admin?.dashboard || {});
 
 // Permission helpers — mirror AppLayout so each dashboard section only renders
@@ -77,7 +79,38 @@ const statusLabel = (status) => {
                         v-for="(stat, index) in statistics"
                         :key="index"
                         v-bind="stat"
+                        @open-breakdown="breakdownOpen = stat"
                     />
+                </div>
+
+                <!-- Members split: main cards vs relatives -->
+                <div
+                    v-if="breakdownOpen"
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    @click.self="breakdownOpen = null"
+                    @keydown.esc="breakdownOpen = null"
+                >
+                    <div class="card-modern w-full max-w-lg bg-card text-card-foreground rounded-xl border border-border p-4 sm:p-6 shadow-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">{{ breakdownOpen.label }}: {{ breakdownOpen.value }}</h3>
+                            <button type="button" class="text-muted-foreground hover:text-foreground text-2xl leading-none" @click="breakdownOpen = null">&times;</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Link
+                                v-for="box in breakdownOpen.breakdown"
+                                :key="box.key"
+                                :href="box.href"
+                                class="flex flex-col items-center gap-2 rounded-xl border border-border p-5 text-center hover:shadow-lg hover:bg-muted/40 transition"
+                            >
+                                <svg class="h-8 w-8" :class="box.key === 'primary' ? 'text-cyan-400' : 'text-violet-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path v-if="box.key === 'primary'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span class="text-3xl font-bold">{{ box.value }}</span>
+                                <span class="text-sm text-muted-foreground break-words">{{ box.label }}</span>
+                            </Link>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Recent Members Card -->

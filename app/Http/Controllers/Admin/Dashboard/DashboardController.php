@@ -65,6 +65,15 @@ class DashboardController extends Controller
                 ->whereHas('memberships', $listingFilter)
                 ->count();
 
+            // The same total split in two: main cards and the relatives on them.
+            $countByType = fn (string $type) => Membership::query()
+                ->where('member_type', $type)
+                ->where($listingFilter)
+                ->whereHas('user', fn ($q) => $q->whereNull('deleted_at'))
+                ->count();
+            $primaryMembers = $countByType(Membership::TYPE_PRIMARY);
+            $relativeMembers = $countByType(Membership::TYPE_RELATIVE);
+
             // Active members (active memberships that haven't expired, excluding trashed users)
             $activeMembers = Membership::primary()->where('is_active', true)
                 ->where('expiration_date', '>', $now)
@@ -142,6 +151,20 @@ class DashboardController extends Controller
                 'sublabelValue' => number_format($activeMembers),
                 'sublabelClassName' => 'text-cyan-400',
                 'href' => route('admin.dashboard'),
+                'breakdown' => [
+                    [
+                        'key' => 'primary',
+                        'label' => __('admin.dashboard.main_members'),
+                        'value' => number_format($primaryMembers),
+                        'href' => route('admin.user.membership.list', ['member_type' => Membership::TYPE_PRIMARY]),
+                    ],
+                    [
+                        'key' => 'relative',
+                        'label' => __('admin.dashboard.relative_members'),
+                        'value' => number_format($relativeMembers),
+                        'href' => route('admin.user.membership.list', ['member_type' => Membership::TYPE_RELATIVE]),
+                    ],
+                ],
             ];
         }
 

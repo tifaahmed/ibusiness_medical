@@ -61,7 +61,7 @@ class ProductController extends Controller
             ->select([
                 'products.id', 'products.slug', 'products.name', 'products.short_subject',
                 'products.old_price', 'products.new_price', 'products.product_type_id',
-                'products.store_id', 'products.is_purchasable', 'products.is_accessible',
+                'products.store_id', 'products.is_purchasable', 'products.wallet_payable', 'products.is_accessible',
             ])
             ->with([
                 'media' => fn ($q) => $q->whereIn('collection_name', ['small_image', 'large_image']),
@@ -145,6 +145,7 @@ class ProductController extends Controller
             'type' => $p->product_type_id && $types->has($p->product_type_id) ? ['id' => $p->product_type_id, 'name' => $types->get($p->product_type_id)] : null,
             'store' => $p->store ? ['id' => $p->store->id, 'slug' => $p->store->slug, 'title' => (string) $p->store->title] : null,
             'purchasable' => (bool) $p->is_purchasable,
+            'wallet_payable' => (bool) $p->wallet_payable,
         ];
     }
 

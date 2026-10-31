@@ -81,6 +81,12 @@ final class PaymobTransaction
         return preg_replace('/-\d+$/', '', $this->merchantOrderId);
     }
 
+    /** The wallet top-up this transaction pays for, when its reference is a `TOP…` one. */
+    public function topupId(): ?int
+    {
+        return \App\Models\WalletTopup::idFromReference($this->merchantOrderId);
+    }
+
     /** The subscription this transaction pays for, when its reference is a `SUB…` one. */
     public function subscriptionId(): ?int
     {

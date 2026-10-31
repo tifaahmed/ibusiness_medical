@@ -37,6 +37,7 @@ class UpdateProductAction
                 'is_visible' => Product::normalizeFlag($validated, 'is_visible', $product->is_visible),
                 'is_accessible' => Product::normalizeFlag($validated, 'is_accessible', $product->is_accessible),
                 'is_purchasable' => Product::normalizeFlag($validated, 'is_purchasable', $product->is_purchasable),
+                'wallet_payable' => Product::normalizeFlag($validated, 'wallet_payable', (bool) $product->wallet_payable),
                 'admin_note' => $validated['admin_note'] ?? null,
                 'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
                 // Empty translation maps are stored as null so fallbacks kick in.

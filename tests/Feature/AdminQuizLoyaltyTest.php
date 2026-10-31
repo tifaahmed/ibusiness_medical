@@ -52,7 +52,7 @@ class AdminQuizLoyaltyTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/Loyalty/Index')
-                ->has('badges', 60)
+                ->has('badges', 75)->where('pointsPerEgp', 10)->has('speedTiers', 4)
                 ->has('members', 1)
                 ->where('members.0.balance', 40)
                 ->where('members.0.name', 'Mona Quiz'));

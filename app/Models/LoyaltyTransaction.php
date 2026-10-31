@@ -14,7 +14,13 @@ class LoyaltyTransaction extends Model
 
     public const SOURCE_ADMIN = 'admin';
 
-    protected $fillable = ['user_id', 'source', 'client_id', 'play_id', 'quiz_key', 'question_id', 'correct', 'timed_out', 'stage', 'points', 'note', 'created_by', 'badge_definition_id', 'answered_at', 'platform'];
+    /** Points spent on a conversion into the money wallet (negative). */
+    public const SOURCE_WALLET = 'wallet';
+
+    /** Points sent to / received from another member (a debit and a credit that share a transfer). */
+    public const SOURCE_TRANSFER = 'transfer';
+
+    protected $fillable = ['user_id', 'source', 'client_id', 'play_id', 'quiz_key', 'question_id', 'correct', 'timed_out', 'answer_seconds', 'stage', 'points', 'note', 'created_by', 'badge_definition_id', 'answered_at', 'platform'];
 
     protected function casts(): array
     {

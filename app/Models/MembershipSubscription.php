@@ -29,6 +29,9 @@ class MembershipSubscription extends Model implements HasMedia
 
     public const METHOD_INSTAPAY = 'instapay';
 
+    /** Paid from the member's wallet (yearly plan only). */
+    public const METHOD_WALLET = 'wallet';
+
     /** Methods that hand customer services a receipt to verify. */
     public const RECEIPT_METHODS = [self::METHOD_VODAFONE, self::METHOD_INSTAPAY];
 
@@ -62,7 +65,7 @@ class MembershipSubscription extends Model implements HasMedia
 
     public static function methods(): array
     {
-        return [self::METHOD_PAYMOB, self::METHOD_COD, self::METHOD_VODAFONE, self::METHOD_INSTAPAY];
+        return [self::METHOD_PAYMOB, self::METHOD_COD, self::METHOD_VODAFONE, self::METHOD_INSTAPAY, self::METHOD_WALLET];
     }
 
     public function registerMediaCollections(): void

@@ -3,6 +3,7 @@
 namespace App\Services\Paymob;
 
 use App\Models\MembershipSubscription;
+use App\Models\WalletTopup;
 use App\Models\Order;
 use App\Models\OrderPaymentLog;
 use Illuminate\Http\Client\ConnectionException;
@@ -134,7 +135,8 @@ class PaymobClient
      */
     public function createIntention(Order $order, string $reference, string $notificationUrl, string $redirectionUrl): array
     {
-        $amount = (int) round(((float) $order->total_amount) * 100);
+        // Only what the wallet did not pay: the buyer is charged the rest.
+        $amount = (int) round($order->amountDue() * 100);
 
         $body = [
             'amount' => $amount,
@@ -214,10 +216,46 @@ class PaymobClient
     }
 
     /**
+     * Open a payment that adds money to a member's wallet. Same gateway call and logging as an order.
+     *
+     * @return array{checkout_url: string, client_secret: string, form: string, intention_id: ?string, log: OrderPaymentLog}
+     *
+     * @throws PaymobException
+     */
+    public function createTopupIntention(WalletTopup $topup, string $reference, string $notificationUrl, string $redirectionUrl): array
+    {
+        $topup->loadMissing('user');
+        $user = $topup->user;
+        $amount = (int) round(((float) $topup->amount) * 100);
+        $name = preg_split('/\s+/u', trim((string) ($user?->name ?: 'Member')), 2) ?: [];
+        $first = $name[0] ?: 'Member';
+        $last = $name[1] ?? 'NA';
+        $email = $user?->email ?: self::NO_EMAIL;
+
+        $body = [
+            'amount' => $amount,
+            'currency' => config('services.paymob.currency'),
+            'payment_methods' => $this->paymentMethods(),
+            'items' => [['name' => 'Deilar wallet top-up', 'amount' => $amount, 'description' => 'Wallet #'.$topup->id, 'quantity' => 1]],
+            'billing_data' => [
+                'first_name' => $first, 'last_name' => $last, 'phone_number' => $user?->phone ?: 'NA', 'email' => $email,
+                'country' => 'EG', 'state' => 'NA', 'city' => 'NA', 'street' => 'NA', 'building' => 'NA', 'floor' => 'NA', 'apartment' => 'NA',
+            ],
+            'customer' => ['first_name' => $first, 'last_name' => $last, 'email' => $email],
+            'special_reference' => $reference,
+            'notification_url' => $notificationUrl,
+            'redirection_url' => $redirectionUrl,
+            'extras' => $this->origin('wallet_topup', ['topup_id' => $topup->id, 'attempt' => $topup->paymob_attempts + 1]),
+        ];
+
+        return $this->openIntention($topup, $body);
+    }
+
+    /**
      * @param  array<string, mixed>  $body
      * @return array{checkout_url: string, client_secret: string, form: string, intention_id: ?string, log: OrderPaymentLog}
      */
-    private function openIntention(Order|MembershipSubscription $order, array $body): array
+    private function openIntention(Order|MembershipSubscription|WalletTopup $order, array $body): array
     {
         [$response, $log] = $this->exchange(
             $order,
@@ -370,7 +408,7 @@ class PaymobClient
      * @throws PaymobException when the gateway cannot be reached
      */
     private function exchange(
-        Order|MembershipSubscription $order,
+        Order|MembershipSubscription|WalletTopup $order,
         string $event,
         string $method,
         string $path,
@@ -386,6 +424,7 @@ class PaymobClient
         $log = $this->write([
             'order_id' => $order instanceof Order ? $order->id : null,
             'membership_subscription_id' => $order instanceof MembershipSubscription ? $order->id : null,
+            'wallet_topup_id' => $order instanceof WalletTopup ? $order->id : null,
             'event' => $event,
             'direction' => OrderPaymentLog::DIRECTION_OUT,
             'method' => $method,
@@ -443,13 +482,14 @@ class PaymobClient
     }
 
     /** Record an exchange that arrived at our own door (callback / browser return). */
-    public function recordInbound(Order|MembershipSubscription|null $order, string $event, string $method, string $url, array $headers, string $rawBody, ?int $status = null, ?string $responseBody = null, array $extra = []): OrderPaymentLog
+    public function recordInbound(Order|MembershipSubscription|WalletTopup|null $order, string $event, string $method, string $url, array $headers, string $rawBody, ?int $status = null, ?string $responseBody = null, array $extra = []): OrderPaymentLog
     {
         $now = Carbon::now();
 
         return $this->write([
             'order_id' => $order instanceof Order ? $order->id : null,
             'membership_subscription_id' => $order instanceof MembershipSubscription ? $order->id : null,
+            'wallet_topup_id' => $order instanceof WalletTopup ? $order->id : null,
             'event' => $event,
             'direction' => OrderPaymentLog::DIRECTION_IN,
             'method' => $method,

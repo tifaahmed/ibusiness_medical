@@ -45,7 +45,7 @@ class ApplyPaymobTransaction
             DB::transaction(function () use ($order, $txn, &$result, &$sendReceipt, &$oldStatus, &$action) {
                 $fresh = Order::query()->lockForUpdate()->findOrFail($order->id);
                 $oldStatus = $fresh->payment_status;
-                $total = (int) round(((float) $fresh->total_amount) * 100);
+                $total = (int) round($fresh->amountDue() * 100);
 
                 $attributes = array_filter([
                     'paymob_order_id' => $txn->paymobOrderId,

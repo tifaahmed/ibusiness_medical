@@ -7,6 +7,9 @@ use App\Enums\Order\PaymentTypeEnum;
 use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\Product;
+use App\Models\Setting;
+use App\Support\ShopDelivery;
+use App\Support\SiteSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +37,12 @@ class OrdersApiTest extends TestCase
         parent::setUp();
 
         config(['services.partner_api.key' => self::KEY]);
+
+        // Cash on delivery and wallet transfer are off until the admin turns them on (and gives a wallet number).
+        SiteSettings::put('payment_cod_enabled', true, Setting::TYPE_BOOLEAN);
+        SiteSettings::put('payment_wallet_enabled', true, Setting::TYPE_BOOLEAN);
+        SiteSettings::put(ShopDelivery::WALLET, '01000000099');
+        SiteSettings::forget();
     }
 
     /**
@@ -124,6 +133,10 @@ class OrdersApiTest extends TestCase
      */
     public function test_a_line_survives_the_product_being_repriced_and_deleted(): void
     {
+        // 200 is under the free-delivery threshold, so the flat delivery fee rides on the total: 200 + 35.
+        SiteSettings::put(ShopDelivery::PRICE, 35);
+        SiteSettings::forget();
+
         $product = $this->product('Thermometer', ['new_price' => 200]);
 
         $this->place([
@@ -148,7 +161,7 @@ class OrdersApiTest extends TestCase
         $this->withHeader('X-Api-Key', self::KEY)
             ->getJson('/api/v1/partner/orders/'.$order->order_code)
             ->assertOk()
-            ->assertJsonPath('order.total_amount', 200)
+            ->assertJsonPath('order.total_amount', 235)
             ->assertJsonPath('order.items.0.name', 'Thermometer');
     }
 

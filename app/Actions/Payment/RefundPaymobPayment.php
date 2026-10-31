@@ -30,7 +30,11 @@ class RefundPaymobPayment
      */
     public function handle(Order $order, float $amount, ?string $reason, int $adminId, Request $request): array
     {
-        $refundable = round((float) $order->total_paid - (float) $order->refunded_amount, 2);
+        // The wallet's part cannot go back through the gateway: only what was paid in real money.
+        $refundable = round((float) $order->total_paid - (float) $order->wallet_amount - (float) $order->refunded_amount, 2);
+        if ($order->wallet_refunded_at !== null) {
+            throw ValidationException::withMessages(['amount' => 'This order was already refunded to the wallet.']);
+        }
 
         if (! $order->isOnlinePayment() || $order->payment_status !== PaymentStatusEnum::ACCEPTED || blank($order->paymob_transaction_id)) {
             throw ValidationException::withMessages(['amount' => 'Only a paid Paymob order can be refunded here.']);

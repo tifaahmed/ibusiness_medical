@@ -54,6 +54,10 @@ class OrderResource extends JsonResource
                 ? null
                 : (float) $this->total_amount_before_discount,
             'total_paid' => (float) $this->total_paid,
+            /* How the bill was paid: what the wallet covered, and what is (or was) paid in real money. Delivery is always real money. */
+            'wallet_amount' => (float) $this->wallet_amount,
+            'amount_due' => $this->amountDue(),
+            'wallet_refunded' => $this->wallet_refunded_at !== null,
             /* The cash-on-delivery fee already included in `total_amount`; 0 means none, and clients hide it. */
             'cod_fee' => (float) $this->cod_fee,
             'refunded_amount' => (float) $this->refunded_amount,

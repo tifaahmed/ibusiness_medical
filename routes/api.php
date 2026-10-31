@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\Member\AddressController as V1MemberAddressContr
 use App\Http\Controllers\Api\V1\Member\FamilyController as V1MemberFamilyController;
 use App\Http\Controllers\Api\V1\Member\FamilyOverviewController as V1MemberFamilyOverviewController;
 use App\Http\Controllers\Api\V1\Member\LoyaltyController as V1MemberLoyaltyController;
+use App\Http\Controllers\Api\V1\Member\TransferController as V1MemberTransferController;
 use App\Http\Controllers\Api\V1\Member\MembershipController as V1MemberMembershipController;
 use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderController;
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
@@ -539,6 +540,17 @@ Route::prefix('v1')
              */
             Route::get('/loyalty', [V1MemberLoyaltyController::class, 'show'])->name('me.loyalty.show');
             Route::get('/loyalty/history', [V1MemberLoyaltyController::class, 'history'])->name('me.loyalty.history');
+            Route::post('/loyalty/convert', [V1MemberLoyaltyController::class, 'convert'])
+                ->middleware('throttle:20,1,api.me.loyalty.convert')->name('me.loyalty.convert');
+            Route::get('/wallet', [V1MemberLoyaltyController::class, 'wallet'])->name('me.wallet');
+            Route::post('/wallet/topup', [V1MemberLoyaltyController::class, 'topup'])->middleware('throttle:10,1,api.me.wallet.topup')->name('me.wallet.topup');
+            /* Points / wallet money sent to another member, who must accept — `TransferController`. */
+            Route::post('/transfers/lookup', [V1MemberTransferController::class, 'lookup'])->middleware('throttle:20,1,api.me.transfers.lookup')->name('me.transfers.lookup');
+            Route::get('/transfers', [V1MemberTransferController::class, 'index'])->name('me.transfers.index');
+            Route::post('/transfers', [V1MemberTransferController::class, 'store'])->middleware('throttle:20,1,api.me.transfers.store')->name('me.transfers.store');
+            Route::post('/transfers/{id}/accept', [V1MemberTransferController::class, 'accept'])->whereNumber('id')->name('me.transfers.accept');
+            Route::post('/transfers/{id}/decline', [V1MemberTransferController::class, 'decline'])->whereNumber('id')->name('me.transfers.decline');
+            Route::post('/transfers/{id}/cancel', [V1MemberTransferController::class, 'cancel'])->whereNumber('id')->name('me.transfers.cancel');
             Route::post('/loyalty/quiz-answers', [V1MemberLoyaltyController::class, 'storeQuizAnswers'])
                 ->middleware('throttle:60,1,api.me.loyalty.quiz-answers')->name('me.loyalty.quiz-answers');
 

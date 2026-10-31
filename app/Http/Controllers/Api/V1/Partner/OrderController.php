@@ -22,6 +22,7 @@ use App\Models\Product;
 use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
 use App\Support\ShopDelivery;
+use App\Support\WalletPayments;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -109,6 +110,8 @@ class OrderController extends Controller
                 $lines = [];
                 $total = 0.0;
                 $totalBeforeDiscount = 0.0;
+                /* The part of the basket the wallet may pay for: only products the admin allowed (`wallet_payable`). */
+                $walletEligible = 0.0;
 
                 foreach ($items as $slug => $quantity) {
                     $product = $products->get($slug);
@@ -126,6 +129,9 @@ class OrderController extends Controller
                     $line = OrderProduct::fromProduct($product, $quantity, $memberPrice);
 
                     $total += (float) $line->line_total;
+                    if ($product->wallet_payable) {
+                        $walletEligible += (float) $line->line_total;
+                    }
                     $totalBeforeDiscount += (float) ($line->old_price ?? $line->new_price ?? 0) * $quantity;
 
                     $lines[] = $line;
@@ -207,6 +213,9 @@ class OrderController extends Controller
 
                 $order->products()->saveMany($lines);
 
+                /* A signed-in buyer's wallet cuts what is left to pay, automatically. Delivery and fees stay real money. */
+                WalletPayments::applyToOrder($order, $buyer, $walletEligible);
+
                 return $order;
             });
         } catch (Throwable $exception) {
@@ -285,7 +294,8 @@ class OrderController extends Controller
          */
         $payment = null;
 
-        if ($order->isOnlinePayment()) {
+        // Nothing left to pay online when the wallet covered everything.
+        if ($order->isOnlinePayment() && $order->amountDue() > 0) {
             $request->validate(['paymob_channel' => ['nullable', 'in:card,wallet']]);
 
         if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'), \App\Support\PaymentMethods::CONTEXT_PRODUCTS)) {

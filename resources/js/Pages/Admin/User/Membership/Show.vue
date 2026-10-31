@@ -519,6 +519,74 @@
         </div>
       </div>
 
+      <!-- Loyalty points, wallet money, quiz plays, conversions, transfers and the family's own figures (read only; changes are made in Loyalty). -->
+      <div v-if="loyalty" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="member-loyalty">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-base font-semibold text-white">{{ t.member?.loyalty_wallet || 'Loyalty & wallet' }}</h3>
+          <Link :href="route('admin.loyalty.index', { search: user.phone || user.name })" class="text-xs text-blue-400 hover:underline">{{ t.member?.loyalty_manage || 'Give or take points / wallet money' }}</Link>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div class="rounded-lg border border-border p-3"><div class="text-xs text-muted-foreground">{{ t.member?.loyalty_points || 'Loyalty points' }}</div><div class="text-lg font-bold tabular-nums" dir="ltr">{{ loyalty.balance }}</div></div>
+          <div class="rounded-lg border border-border p-3"><div class="text-xs text-muted-foreground">{{ t.member?.loyalty_worth || 'Worth' }}</div><div class="text-lg font-bold tabular-nums" dir="ltr">{{ loyalty.egp_value }} EGP</div></div>
+          <div class="rounded-lg border border-border p-3"><div class="text-xs text-muted-foreground">{{ t.member?.wallet_balance || 'Wallet' }}</div><div class="text-lg font-bold tabular-nums text-emerald-500" dir="ltr">{{ loyalty.wallet_balance }} EGP</div></div>
+          <div class="rounded-lg border border-border p-3"><div class="text-xs text-muted-foreground">{{ t.member?.loyalty_min || 'Smallest conversion' }}</div><div class="text-lg font-bold tabular-nums" dir="ltr">{{ loyalty.min_convert_egp }} EGP</div></div>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold mb-1">{{ t.member?.loyalty_conversions || 'Points converted to wallet' }}</h4>
+          <p v-if="!loyalty.conversions.length" class="text-xs text-muted-foreground">{{ t.member?.loyalty_none || 'Nothing yet.' }}</p>
+          <div v-else class="divide-y divide-border rounded-lg border border-border text-sm">
+            <div v-for="(c, i) in loyalty.conversions" :key="'conv' + i" class="flex flex-wrap gap-x-3 px-2.5 py-1.5">
+              <span class="tabular-nums text-red-500" dir="ltr">-{{ c.points }}</span>
+              <span class="tabular-nums text-emerald-500" dir="ltr">+{{ c.egp ?? '—' }} EGP</span>
+              <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ c.at }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold mb-1">{{ t.member?.loyalty_plays || 'Quiz plays' }}</h4>
+          <p v-if="!loyalty.plays.length" class="text-xs text-muted-foreground">{{ t.member?.loyalty_none || 'Nothing yet.' }}</p>
+          <div v-else class="divide-y divide-border rounded-lg border border-border text-sm max-h-72 overflow-y-auto">
+            <div v-for="p in loyalty.plays" :key="p.play_id" class="flex flex-wrap gap-x-3 px-2.5 py-1.5">
+              <span class="font-mono text-xs">{{ p.quiz }}</span>
+              <span class="text-emerald-500">{{ p.right }} {{ t.member?.right_word || 'right' }}</span>
+              <span class="text-red-500">{{ p.wrong }} {{ t.member?.wrong_word || 'wrong' }}</span>
+              <span class="tabular-nums font-semibold" :class="p.points < 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">{{ p.points > 0 ? '+' : '' }}{{ p.points }}</span>
+              <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ p.at }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold mb-1">{{ t.member?.loyalty_transfers || 'Transfers to and from members' }}</h4>
+          <p v-if="!loyalty.transfers.length" class="text-xs text-muted-foreground">{{ t.member?.loyalty_none || 'Nothing yet.' }}</p>
+          <div v-else class="divide-y divide-border rounded-lg border border-border text-sm">
+            <div v-for="(x, i) in loyalty.transfers" :key="'tr' + i" class="flex flex-wrap gap-x-3 px-2.5 py-1.5">
+              <span :class="x.direction === 'out' ? 'text-red-500' : 'text-emerald-500'">{{ x.direction === 'out' ? (t.member?.sent_word || 'Sent') : (t.member?.received_word || 'Received') }}</span>
+              <span class="tabular-nums font-semibold" dir="ltr">{{ x.amount }} {{ x.kind === 'wallet' ? 'EGP' : '' }}</span>
+              <span>{{ x.other_name }}</span>
+              <span class="text-xs text-muted-foreground" dir="ltr">{{ x.other_phone }} · {{ x.status }}</span>
+              <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ x.at }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="loyalty.family.length">
+          <h4 class="text-sm font-semibold mb-1">{{ t.member?.loyalty_family || 'Family points and wallet' }}</h4>
+          <div class="divide-y divide-border rounded-lg border border-border text-sm" data-testid="loyalty-family">
+            <div v-for="f in loyalty.family" :key="f.user_id" class="flex flex-wrap gap-x-3 px-2.5 py-1.5">
+              <span class="font-semibold">{{ f.name }}</span>
+              <span class="text-xs text-muted-foreground">{{ f.relationship }} · {{ f.membership_number }}</span>
+              <span class="tabular-nums" dir="ltr">{{ f.balance }}</span>
+              <span class="tabular-nums text-emerald-500" dir="ltr">{{ f.wallet_balance }} EGP</span>
+              <span class="ms-auto text-xs text-muted-foreground">{{ f.plays }} {{ t.member?.loyalty_plays || 'Quiz plays' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Subscription payments made through the app / website: method, state, amount, receipts. -->
       <div v-for="membership in user.memberships" :key="'subs-' + membership.id" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="subscription-payments">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -737,6 +805,10 @@ const props = defineProps({
   cardTemplates: {
     type: Object,
     default: () => ({}),
+  },
+  loyalty: {
+    type: Object,
+    default: null,
   },
 });
 

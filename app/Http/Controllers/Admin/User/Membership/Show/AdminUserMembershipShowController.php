@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Resources\Admin\User\Membership\Show\AdminUserMembershipShowResource;
 use App\Models\User;
+use App\Support\AdminMemberLoyalty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
@@ -63,6 +64,8 @@ class AdminUserMembershipShowController extends BaseController
         $result = [
             'user' => (new AdminUserMembershipShowResource($user))->toArray($request),
             'cardTemplates' => $this->cardTemplatesByStatus(),
+            // Read-only loyalty and wallet picture (points, plays, conversions, transfers, relatives).
+            'loyalty' => AdminMemberLoyalty::summary($user),
         ];
 
         return Inertia::render('Admin/User/Membership/Show', $result);
