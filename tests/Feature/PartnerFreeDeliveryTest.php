@@ -33,6 +33,10 @@ class PartnerFreeDeliveryTest extends TestCase
         parent::setUp();
 
         config(['services.partner_api.key' => 'partner-test-key']);
+
+        // Cash on delivery is off until the admin turns it on; these orders are placed as COD.
+        SiteSettings::put('payment_cod_enabled', true, Setting::TYPE_BOOLEAN);
+        SiteSettings::forget();
     }
 
     /** @test */

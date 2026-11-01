@@ -7,7 +7,10 @@ use App\Models\LoyaltyTransaction;
 use App\Models\QuizBadgeDefinition;
 use App\Models\User;
 use App\Models\WalletTransaction;
+use App\Models\WalletTransfer;
+use App\Support\AdminLedgerMoves;
 use App\Support\LoyaltyPoints;
+use App\Support\MemberTransfers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -203,6 +206,82 @@ class QuizLoyaltyController extends Controller
         Log::info('Wallet adjusted by an admin', ['admin_id' => $request->user()->id, 'user_id' => $data['user_id'], 'amount' => $result['amount'], 'before' => $result['before'], 'after' => $result['after'], 'note' => $data['note']]);
 
         return back()->with('success', 'Wallet saved.');
+    }
+
+    /**
+     * Moves points or wallet pounds from one member to another in ONE step (a debit and a credit written together), with the
+     * admin and a required reason on both lines. The receiver is found by phone or card number (a relative has their own card).
+     */
+    public function transfer(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'to_phone' => ['nullable', 'string', 'max:20', 'required_without:to_card'],
+            'to_card' => ['nullable', 'string', 'max:32', 'required_without:to_phone'],
+            'kind' => ['required', Rule::in([WalletTransfer::KIND_POINTS, WalletTransfer::KIND_WALLET])],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:1000000', 'decimal:0,2'],
+            'note' => ['required', 'string', 'max:255'],
+        ]);
+
+        $from = User::query()->findOrFail($data['user_id']);
+        $to = MemberTransfers::find($data['to_phone'] ?? null, $data['to_card'] ?? null, $from->id)
+            ?? User::query()->where('phone', $data['to_phone'] ?? '__none__')->where('id', '!=', $from->id)->first();
+
+        if ($to === null) {
+            return back()->with('error', 'No other member has that phone or card number.');
+        }
+
+        if ($data['kind'] === WalletTransfer::KIND_POINTS && floor((float) $data['amount']) != (float) $data['amount']) {
+            return back()->with('error', 'Points are whole numbers.');
+        }
+
+        try {
+            $result = AdminLedgerMoves::transfer($from, $to, $data['kind'], $data['amount'] + 0, $request->user()->id, $data['note']);
+        } catch (Throwable $e) {
+            Log::error('Admin transfer failed', ['admin_id' => $request->user()->id, 'from' => $from->id, 'to' => $to->id, 'kind' => $data['kind'], 'amount' => $data['amount'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return back()->with('error', 'The transfer could not be saved.');
+        }
+
+        if (! $result['ok']) {
+            return back()->with('error', $result['reason'] === 'not_enough'
+                ? 'The sender only has '.$result['has'].' '.($data['kind'] === WalletTransfer::KIND_POINTS ? 'points' : 'EGP').'.'
+                : 'Choose a different member to send to.');
+        }
+
+        Log::info('Admin moved a balance between members', ['admin_id' => $request->user()->id, 'from' => $from->id, 'to' => $to->id, 'kind' => $data['kind'], 'amount' => $result['amount'], 'note' => $data['note']]);
+
+        return back()->with('success', 'Moved to '.($to->name ?: '#'.$to->id).'.');
+    }
+
+    /** Turns some of a member's points into pounds in their own wallet, at the admin's rate, in ONE step. */
+    public function convertPoints(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'egp' => ['required', 'integer', 'min:1', 'max:100000'],
+            'note' => ['required', 'string', 'max:255'],
+        ]);
+
+        $member = User::query()->findOrFail($data['user_id']);
+
+        try {
+            $result = AdminLedgerMoves::convertPoints($member, (int) $data['egp'], $request->user()->id, $data['note']);
+        } catch (Throwable $e) {
+            Log::error('Admin points conversion failed', ['admin_id' => $request->user()->id, 'user_id' => $member->id, 'egp' => $data['egp'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return back()->with('error', 'The conversion could not be saved.');
+        }
+
+        if (! $result['ok']) {
+            return back()->with('error', $result['reason'] === 'no_rate'
+                ? 'Set how many points are worth one pound first (Settings).'
+                : 'The member does not have enough points for that amount.');
+        }
+
+        Log::info('Admin converted a member\'s points to wallet money', ['admin_id' => $request->user()->id, 'user_id' => $member->id, 'egp' => $result['egp'], 'points' => $result['points'], 'note' => $data['note']]);
+
+        return back()->with('success', $result['points'].' points became '.$result['egp'].' EGP in the wallet.');
     }
 
     /** One member's whole story, both ledgers newest first: what moved, why, and which admin did it when it was by hand. */

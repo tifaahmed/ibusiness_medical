@@ -162,6 +162,7 @@ class AreaTest extends TestCase
 
     public function test_the_seeder_files_each_area_under_its_city_and_is_safe_to_rerun(): void
     {
+        $this->seed([\Database\Seeders\GovernorateSeeder::class, \Database\Seeders\CitySeeder::class]);
         (new AreaSeeder)->run();
         $first = Area::count();
         (new AreaSeeder)->run();

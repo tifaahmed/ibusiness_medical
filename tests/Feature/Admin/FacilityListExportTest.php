@@ -98,8 +98,8 @@ class FacilityListExportTest extends TestCase
             $header = collect($rows)->first(fn ($row) => ($row[0] ?? null) === '#');
             $this->assertNotNull($header, 'The facilities table has no header row.');
             $this->assertSame(
-                ['#', 'Name', 'Name (AR)', 'Slug', 'Facility type', 'Sales rep', 'Discount %', 'Branches', 'Managers', 'Created at', 'Updated at', 'Creator'],
-                array_slice($header, 0, 12)
+                ['#', 'Name', 'Name (AR)', 'Slug', 'Facility type', 'Sales rep', 'Assigned manager', 'Discount %', 'Branches', 'Managers', 'Created at', 'Updated at', 'Creator'],
+                array_slice($header, 0, 13)
             );
 
             $data = collect($rows)->first(fn ($row) => ($row[1] ?? null) === 'Sunrise Clinic');
@@ -108,9 +108,10 @@ class FacilityListExportTest extends TestCase
             $this->assertSame('Rep One', $data[5]);
             // Cells come back from the reader as text, so the numbers are
             // compared by value rather than by type.
-            $this->assertEquals(15.5, $data[6]);
-            $this->assertEquals(1, $data[7]);
+            // Column 6 is now "Assigned manager" (empty here), so the discount and the counts sit one place further right.
+            $this->assertEquals(15.5, $data[7]);
             $this->assertEquals(1, $data[8]);
+            $this->assertEquals(1, $data[9]);
         } finally {
             @unlink($path);
         }

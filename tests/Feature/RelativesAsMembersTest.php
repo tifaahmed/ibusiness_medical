@@ -83,12 +83,29 @@ class RelativesAsMembersTest extends TestCase
         }
     }
 
+    public function test_admin_may_file_and_edit_a_relative_with_the_name_alone_but_a_member_may_not(): void
+    {
+        $primary = $this->primary();
+
+        $bare = app(CreateRelative::class)->handle($primary, ['name' => 'Mona Ahmed', 'relationship' => 'wife'], Membership::ADDED_BY_ADMIN);
+        $this->assertNull($bare->user->phone);
+
+        app(\App\Actions\Membership\UpdateRelative::class)->handle($bare, ['name' => 'Mona Ahmed Ali'], true);
+
+        try {
+            app(CreateRelative::class)->handle($primary, ['name' => 'Sara Ahmed', 'relationship' => 'mother'], Membership::ADDED_BY_MEMBER);
+            $this->fail('A member filed a relative with the name alone.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('phone', $e->errors());
+        }
+    }
+
     public function test_one_of_phone_birth_date_or_national_id_is_required_and_any_one_is_enough(): void
     {
         $primary = $this->primary();
 
         try {
-            app(CreateRelative::class)->handle($primary, ['name' => 'Mona Ahmed', 'relationship' => 'wife']);
+            app(CreateRelative::class)->handle($primary, ['name' => 'Mona Ahmed', 'relationship' => 'wife'], Membership::ADDED_BY_MEMBER);
             $this->fail('A relative with none of the three was saved.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('phone', $e->errors());

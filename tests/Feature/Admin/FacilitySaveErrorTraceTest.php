@@ -48,6 +48,7 @@ class FacilitySaveErrorTraceTest extends TestCase
             ->put(route('admin.facility.update', $facility->slug), [
                 'name' => ['en' => 'Resala', 'ar' => 'رسالة'],
                 'facility_type_id' => $type->id,
+                'contracted_at' => '2024-01-01',
             ]);
 
         $response->assertRedirect(route('admin.facility.edit', $facility->slug));

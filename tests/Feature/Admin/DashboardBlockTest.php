@@ -37,10 +37,11 @@ class DashboardBlockTest extends TestCase
 
         $this->assertTrue($this->pass($user));
 
-        $user->update(['dashboard_blocked_at' => now()]);
+        // Not mass assignable on purpose, so a profile form can never block or unblock anyone.
+        $user->forceFill(['dashboard_blocked_at' => now()])->save();
         $this->assertFalse($this->pass($user->fresh()));
 
-        $user->update(['dashboard_blocked_at' => null]);
+        $user->forceFill(['dashboard_blocked_at' => null])->save();
         $this->assertTrue($this->pass($user->fresh()));
     }
 }

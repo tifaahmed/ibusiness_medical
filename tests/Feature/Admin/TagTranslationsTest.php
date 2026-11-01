@@ -36,6 +36,7 @@ class TagTranslationsTest extends TestCase
                 'name' => ['en' => 'Best seller', 'ar' => 'الأكثر مبيعًا'],
                 'icon' => '🔥',
                 'color' => '#ff0000',
+                'applies_to' => ['products'],
             ])
             ->assertRedirect(route('admin.tag.list'));
 

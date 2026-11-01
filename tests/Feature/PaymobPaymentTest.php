@@ -48,6 +48,9 @@ class PaymobPaymentTest extends TestCase
             'services.paymob.api_key' => 'legacy-api-key',
             'services.paymob.hmac' => self::HMAC,
             'services.paymob.integration_ids' => ['111', '222'],
+            // Pinned: they otherwise come from the developer's .env (PAYMOB_CARD_INTEGRATION_ID ...), so the test would depend on it.
+            'services.paymob.card_integration_ids' => ['111', '222'],
+            'services.paymob.wallet_integration_ids' => [],
             'services.paymob.currency' => 'EGP',
             'services.paymob.base_url' => 'https://accept.paymob.com',
             'services.paymob.return_url' => 'https://shop.test/orders/{code}',

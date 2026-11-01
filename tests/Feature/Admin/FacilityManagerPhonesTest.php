@@ -44,6 +44,7 @@ class FacilityManagerPhonesTest extends TestCase
         $response = $this->actingAs($this->admin())->post(route('admin.facility.store'), [
             'name' => ['en' => 'Repro Center', 'ar' => 'مركز التجربة'],
             'facility_type_id' => $this->type()->id,
+            'contracted_at' => '2024-01-01',
             'managers' => [
                 ['id' => null, 'name' => 'Ahmed', 'position' => 'Director', 'phones' => ['01020709993 / 0223456789']],
             ],
@@ -64,6 +65,7 @@ class FacilityManagerPhonesTest extends TestCase
         $facility = Facility::create([
             'name' => ['en' => 'Inline Center', 'ar' => 'مركز فوري'],
             'facility_type_id' => $this->type()->id,
+            'contracted_at' => '2024-01-01',
         ]);
 
         $response = $this->actingAs($this->admin())->postJson(
@@ -88,6 +90,7 @@ class FacilityManagerPhonesTest extends TestCase
         $facility = Facility::create([
             'name' => ['en' => 'Inline Center', 'ar' => 'مركز فوري'],
             'facility_type_id' => $this->type()->id,
+            'contracted_at' => '2024-01-01',
         ]);
 
         $manager = FacilityManager::create([
@@ -141,11 +144,13 @@ class FacilityManagerPhonesTest extends TestCase
         $facility = Facility::create([
             'name' => ['en' => 'Existing Center', 'ar' => 'مركز قائم'],
             'facility_type_id' => $this->type()->id,
+            'contracted_at' => '2024-01-01',
         ]);
 
         $response = $this->actingAs($this->admin())->put(route('admin.facility.update', $facility->slug), [
             'name' => ['en' => 'Existing Center', 'ar' => 'مركز قائم'],
             'facility_type_id' => $facility->facility_type_id,
+            'contracted_at' => '2024-01-01',
             'managers' => [
                 ['id' => null, 'name' => 'Mona', 'position' => 'Manager', 'phones' => ['01020709993']],
             ],

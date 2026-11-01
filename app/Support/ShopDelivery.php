@@ -57,6 +57,11 @@ class ShopDelivery
     {
         $missing = [];
 
+        // On a deploy, before its migrations run, there is no settings table to read: say nothing rather than take the admin down.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('settings')) {
+            return $missing;
+        }
+
         if (self::wallet() === null) {
             $setting = Setting::query()->where('slug', self::WALLET)->first();
 

@@ -501,9 +501,13 @@ class Membership extends Model implements HasMedia
      * The rules of a relative, enforced on EVERY write path:
      * it names a relation and a PRIMARY card (never another relative), has no
      * plan or expiry of its own, and carries at least a phone, a date of birth
-     * or a National ID. A row copied from the old family table is exempt from
+     * or a National ID. An admin may file one with the name alone (`skipIdentityCheck`),
+     * and a row copied from the old family table is exempt from
      * the last rule (it may have had none — it must still arrive).
      */
+    /** Set by the admin paths (CreateRelative / UpdateRelative) only: staff may file a relative with the name alone. */
+    public bool $skipIdentityCheck = false;
+
     protected static function guardRelative(self $membership): void
     {
         if (! $membership->isRelative()) {
@@ -536,7 +540,7 @@ class Membership extends Model implements HasMedia
         $membership->trial_started_at = null;
 
         // Rows copied from the old family table may have had none of the three: they must still arrive.
-        if ($membership->legacy_family_member_id !== null || ($membership->exists && ! $membership->isDirty('national_id'))) {
+        if ($membership->skipIdentityCheck || $membership->legacy_family_member_id !== null || ($membership->exists && ! $membership->isDirty('national_id'))) {
             return;
         }
 

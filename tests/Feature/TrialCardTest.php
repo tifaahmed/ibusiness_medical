@@ -272,10 +272,11 @@ class TrialCardTest extends TestCase
 
     public function test_a_soft_deleted_card_does_not_block_the_phone(): void
     {
-        [, $membership] = $this->trialCard('01012345678');
+        [$user, $membership] = $this->trialCard('01012345678');
         $membership->delete();
 
-        $this->member('01012345678');
+        // The phone stays on the member's own account (a second account with it is refused), who may claim again.
+        Sanctum::actingAs($user);
         $this->startTrial()->assertCreated();
         $this->assertSame(1, TrialClaim::query()->count());
     }

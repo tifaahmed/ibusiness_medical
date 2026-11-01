@@ -102,7 +102,7 @@ class GovernorateBordersTest extends TestCase
         $this->actingAs($this->superAdmin())
             ->getJson(route('admin.governorate.city-borders', $governorate->id))
             ->assertOk()
-            ->assertExactJson(['governorate_id' => $governorate->id, 'cities' => []]);
+            ->assertExactJson(['governorate_id' => $governorate->id, 'governorate_geometry' => null, 'cities' => []]);
     }
 
     public function test_the_city_borders_feed_is_refused_without_a_governorate_permission(): void

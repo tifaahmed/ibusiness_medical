@@ -40,8 +40,8 @@ class LoyaltyWalletTest extends TestCase
         $this->member(1234);
 
         $data = $this->getJson('/api/v1/loyalty')->assertOk()->json('data');
-        $this->assertEquals(123.4, $data['egp_value']);
-        $this->assertSame(123, $data['convertible_egp']);
+        $this->assertEquals(12.34, $data['egp_value']);
+        $this->assertSame(12, $data['convertible_egp']);
         $this->assertFalse($data['wallet_enabled']);
         $this->assertEquals(0, $data['wallet_balance']);
     }

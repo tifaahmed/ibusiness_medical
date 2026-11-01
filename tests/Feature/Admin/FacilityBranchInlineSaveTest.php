@@ -53,6 +53,7 @@ class FacilityBranchInlineSaveTest extends TestCase
         return Facility::create([
             'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
             'facility_type_id' => $type->id,
+            'contracted_at' => '2024-01-01',
         ]);
     }
 
@@ -129,6 +130,7 @@ class FacilityBranchInlineSaveTest extends TestCase
         $second = Facility::create([
             'name' => ['en' => 'Other Labs', 'ar' => 'معامل أخرى'],
             'facility_type_id' => $first->facility_type_id,
+            'contracted_at' => '2024-01-01',
         ]);
 
         FacilityBranch::create([
@@ -180,6 +182,7 @@ class FacilityBranchInlineSaveTest extends TestCase
             [
                 'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
                 'facility_type_id' => $facility->facility_type_id,
+                'contracted_at' => '2024-01-01',
                 'branches' => [
                     ['name' => ['en' => 'Damietta', 'ar' => 'دمياط']],
                     ['name' => ['en' => 'damietta', 'ar' => 'بورسعيد']],
@@ -197,6 +200,7 @@ class FacilityBranchInlineSaveTest extends TestCase
             [
                 'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
                 'facility_type_id' => $facility->facility_type_id,
+                'contracted_at' => '2024-01-01',
                 'branches' => [
                     [
                         'name' => ['en' => 'Damietta', 'ar' => 'دمياط'],

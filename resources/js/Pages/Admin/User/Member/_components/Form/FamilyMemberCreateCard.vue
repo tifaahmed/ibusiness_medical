@@ -102,7 +102,7 @@
             </div>
           </div>
           <p class="text-xs text-muted-foreground">
-            {{ t.member?.relative_one_of_three || 'Enter at least one of: phone, date of birth or National ID (all three is fine).' }}
+            {{ t.member?.relative_one_of_three || 'Only the name is required; phone, date of birth and National ID are optional.' }}
             {{ t.member?.relative_address_note || 'The address is the same as the main member; change it later by hand if different.' }}
           </p>
           <p v-if="errors.identity" class="text-sm text-destructive">{{ errors.identity }}</p>
@@ -357,10 +357,6 @@ const handleSubmit = () => {
   const isChildRel = ['son', 'daughter'].includes(form.value.relationship);
   if (!isChildRel && String(form.value.name).trim().split(/\s+/).length < 2) {
     errors.value.name = t.value.member?.full_name_required || 'Enter the full name (only a son or daughter can be the first name alone).';
-    return;
-  }
-  if (!form.value.phone && !form.value.date_of_birth && !form.value.national_id) {
-    errors.value.identity = t.value.member?.relative_one_of_three || 'Enter at least one of: phone, date of birth or National ID.';
     return;
   }
   if (form.value.national_id && !/^\d{14}$/.test(form.value.national_id)) {

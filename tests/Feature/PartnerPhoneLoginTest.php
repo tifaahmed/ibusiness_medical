@@ -136,7 +136,7 @@ class PartnerPhoneLoginTest extends TestCase
          * them too.
          */
         $admin = User::factory()->create(['phone' => '01055555555']);
-        $admin->assignRole(UserRoleEnum::ADMIN);
+        $admin->assignRole(\Spatie\Permission\Models\Role::findOrCreate(UserRoleEnum::ADMIN, 'web'));
 
         $this->requestCode('01055555555')->assertOk();
 

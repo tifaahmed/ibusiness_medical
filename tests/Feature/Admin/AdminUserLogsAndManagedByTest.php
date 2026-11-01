@@ -19,7 +19,12 @@ class AdminUserLogsAndManagedByTest extends TestCase
     private function superAdmin(): User
     {
         $u = User::factory()->create(['name' => 'Root']);
-        $u->assignRole(Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web'));
+        $role = Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web');
+        // The route groups are `permission:` guarded and Spatie throws when a named permission does not exist.
+        foreach (['manage users', 'manage admin users', 'manage facilities'] as $permission) {
+            $role->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate($permission, 'web'));
+        }
+        $u->assignRole($role);
 
         return $u;
     }

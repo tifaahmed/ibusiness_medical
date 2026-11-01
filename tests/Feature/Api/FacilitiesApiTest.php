@@ -164,8 +164,9 @@ class FacilitiesApiTest extends TestCase
         $headOffice = Facility::create([
             'name' => ['en' => 'Nile Clinic', 'ar' => 'عيادة النيل'],
             'facility_type_id' => $type->id,
-            'city_id' => $nasrCity->id,
         ]);
+        // The head office's own city is a column the model does not mass assign (branches carry the location now).
+        $headOffice->forceFill(['city_id' => $nasrCity->id])->save();
 
         $this->withHeader('X-Locale', 'en')
             ->getJson('/api/v1/facilities?city_id='.$nasrCity->id)

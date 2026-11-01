@@ -363,7 +363,7 @@ class QuizLoyaltyTest extends TestCase
 
         $data = $this->getJson('/api/v1/loyalty')->assertOk()->json('data');
         $this->assertSame([['up_to_seconds' => 5, 'points' => 100], ['up_to_seconds' => 10, 'points' => 75], ['up_to_seconds' => 15, 'points' => 50], ['up_to_seconds' => 20, 'points' => 25]], $data['speed_tiers']);
-        $this->assertEquals(10, $data['points_per_egp']);
+        $this->assertEquals(100, $data['points_per_egp']);
 
         SiteSettings::put(LoyaltyPoints::POINTS_PER_EGP, '4', Setting::TYPE_NUMBER);
         SiteSettings::forget();

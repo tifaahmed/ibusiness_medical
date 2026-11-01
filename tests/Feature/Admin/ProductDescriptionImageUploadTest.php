@@ -67,6 +67,7 @@ class ProductDescriptionImageUploadTest extends TestCase
 
         $this->actingAs($user)->put(route('admin.product.update', $product->slug), [
             'name' => ['en' => 'Scale', 'ar' => 'ميزان'],
+            'store_id' => \App\Models\Store::factory()->create()->id,
             'description' => ['ar' => '<p>وصف</p><img src="'.$url.'">', 'en' => ''],
             'editor_gallery_paths' => [$path],
         ])->assertRedirect(route('admin.product.list'));
@@ -94,6 +95,7 @@ class ProductDescriptionImageUploadTest extends TestCase
 
         $payload = [
             'name' => ['en' => 'Scale', 'ar' => 'ميزان'],
+            'store_id' => \App\Models\Store::factory()->create()->id,
             'editor_gallery_paths' => [$path],
         ];
 
@@ -116,6 +118,7 @@ class ProductDescriptionImageUploadTest extends TestCase
 
         $this->actingAs($user)->put(route('admin.product.update', $product->slug), [
             'name' => ['en' => 'Scale', 'ar' => 'ميزان'],
+            'store_id' => \App\Models\Store::factory()->create()->id,
             'editor_gallery_paths' => ['products/large/secret.jpg', '../../.env'],
         ]);
 
@@ -132,7 +135,7 @@ class ProductDescriptionImageUploadTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $payload = ['name' => ['en' => 'Scale', 'ar' => 'ميزان']];
+        $payload = ['name' => ['en' => 'Scale', 'ar' => 'ميزان'], 'store_id' => \App\Models\Store::factory()->create()->id];
 
         // Saving re-slugs the product from its name, so each request uses the
         // slug the previous one left behind — which is what the browser does too.

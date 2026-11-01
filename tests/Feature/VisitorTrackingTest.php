@@ -152,7 +152,8 @@ class VisitorTrackingTest extends TestCase
 
         // The website dashboard reads the same numbers over the key-gated partner route.
         config(['services.partner_api.key' => 'k']);
-        $this->getJson('/api/v1/partner/visits/summary?source=web')->assertUnauthorized();
+        // withHeaders() above stays on this test instance, so drop the key to see what a caller without one gets.
+        $this->withoutHeader('X-Api-Key')->getJson('/api/v1/partner/visits/summary?source=web')->assertUnauthorized();
         $this->withHeaders(['X-Api-Key' => 'k'])->getJson('/api/v1/partner/visits/summary?source=web&days=7')
             ->assertOk()->assertJsonPath('data.total', 2)->assertJsonPath('data.days', 7);
     }

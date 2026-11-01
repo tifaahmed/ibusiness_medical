@@ -43,6 +43,7 @@ class FacilitySoftDeleteTest extends TestCase
         $facility = Facility::create([
             'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
             'facility_type_id' => $type->id,
+            'contracted_at' => '2024-01-01',
         ]);
         $branch = FacilityBranch::create([
             'facility_id' => $facility->id,
@@ -172,6 +173,7 @@ class FacilitySoftDeleteTest extends TestCase
         $this->actingAs($admin)->put(route('admin.facility.update', $facility->slug), [
             'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
             'facility_type_id' => $facility->facility_type_id,
+            'contracted_at' => '2024-01-01',
             'branches' => [],
             'managers' => [],
         ])->assertSessionHasNoErrors();
@@ -262,6 +264,7 @@ class FacilitySoftDeleteTest extends TestCase
         $this->actingAs($admin)->put(route('admin.facility.update', $facility->slug), [
             'name' => ['en' => 'Mytra Labs', 'ar' => 'معامل ميترا'],
             'facility_type_id' => $facility->facility_type_id,
+            'contracted_at' => '2024-01-01',
             'branches' => [
                 ['id' => $branch->id, 'name' => ['en' => 'Damietta', 'ar' => 'دمياط']],
             ],

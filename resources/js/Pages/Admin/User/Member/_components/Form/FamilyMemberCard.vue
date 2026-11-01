@@ -102,7 +102,7 @@
             </div>
           </div>
           <p class="text-xs text-muted-foreground">
-            {{ t.member?.relative_one_of_three || 'Enter at least one of: phone, date of birth or National ID (all three is fine).' }}
+            {{ t.member?.relative_one_of_three || 'Only the name is required; phone, date of birth and National ID are optional.' }}
             {{ t.member?.relative_address_note || 'The address is the same as the main member; change it later by hand if different.' }}
           </p>
           <div class="flex gap-3 justify-end">

@@ -31,7 +31,7 @@ class AdminFacilityBannerSuggestController extends BaseController
                 'Facility (Arabic)' => (string) data_get($validated, 'name.ar', ''),
                 'Facility (English)' => (string) data_get($validated, 'name.en', ''),
                 'Facility type' => (string) ($validated['facility_type'] ?? ''),
-                'Discount for members' => $discount !== null && (float) $discount > 0 ? rtrim(rtrim((string) $discount, '0'), '.').'%' : '',
+                'Discount for members' => $discount !== null && (float) $discount > 0 ? rtrim(rtrim(number_format((float) $discount, 2, '.', ''), '0'), '.').'%' : '',
                 'Description (Arabic)' => $plain(data_get($validated, 'description.ar')),
                 'Description (English)' => $plain(data_get($validated, 'description.en')),
             ], (array) ($validated['current'] ?? []));

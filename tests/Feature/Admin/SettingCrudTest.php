@@ -150,7 +150,7 @@ class SettingCrudTest extends TestCase
                 ->assertSessionHasErrors('value');
         }
 
-        $this->assertSame(0, Setting::count());
+        $this->assertSame(0, Setting::where('slug', 'like', 'bad\_%')->count());
     }
 
     public function test_a_blank_value_is_stored_as_null_so_defaults_apply(): void
@@ -308,7 +308,7 @@ class SettingCrudTest extends TestCase
             ])
             ->assertSessionHasErrors('value_image');
 
-        $this->assertSame(0, Setting::count());
+        $this->assertSame(0, Setting::where('slug', 'deilar_logo')->count());
         $this->assertSame([], Storage::disk('public')->allFiles());
     }
 

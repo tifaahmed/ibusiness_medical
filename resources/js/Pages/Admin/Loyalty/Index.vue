@@ -60,6 +60,28 @@
               </form>
               <p v-if="walletForm(member.id).errors.amount || walletForm(member.id).errors.note" class="text-xs text-red-500">{{ walletForm(member.id).errors.amount || walletForm(member.id).errors.note }}</p>
 
+              <!-- Turn some of this member's points into pounds in their wallet (one step) -->
+              <form class="flex flex-wrap items-center gap-2" @submit.prevent="convertFor(member)">
+                <input v-model.number="convertForm(member.id).egp" type="number" min="1" step="1" :placeholder="t.loyalty?.convert_egp || 'EGP to convert from points'" class="h-8 w-52 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" required />
+                <input v-model="convertForm(member.id).note" type="text" maxlength="255" required :placeholder="t.loyalty?.wallet_note || 'Reason (kept in the log with your name)'" class="h-8 w-64 rounded-md border border-border bg-background px-2 text-sm" />
+                <button type="submit" :disabled="convertForm(member.id).processing" class="h-8 rounded-md bg-amber-600 px-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer">{{ t.loyalty?.convert_points || 'Points → wallet' }}</button>
+              </form>
+              <p v-if="convertForm(member.id).errors.egp || convertForm(member.id).errors.note" class="text-xs text-red-500">{{ convertForm(member.id).errors.egp || convertForm(member.id).errors.note }}</p>
+
+              <!-- Move points or wallet money to another member (one step; both lines carry your name) -->
+              <form class="flex flex-wrap items-center gap-2" @submit.prevent="moveFrom(member)">
+                <select v-model="moveForm(member.id).kind" class="h-8 rounded-md border border-border bg-background px-2 text-sm">
+                  <option value="wallet">{{ t.loyalty?.kind_wallet || 'Wallet (EGP)' }}</option>
+                  <option value="points">{{ t.loyalty?.kind_points || 'Points' }}</option>
+                </select>
+                <input v-model.number="moveForm(member.id).amount" type="number" min="0" step="0.01" :placeholder="t.loyalty?.move_amount || 'Amount'" class="h-8 w-28 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" required />
+                <input v-model="moveForm(member.id).to_phone" type="text" maxlength="20" :placeholder="t.loyalty?.to_phone || 'Receiver phone'" class="h-8 w-40 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" />
+                <input v-model="moveForm(member.id).to_card" type="text" maxlength="32" :placeholder="t.loyalty?.to_card || 'or card number'" class="h-8 w-36 rounded-md border border-border bg-background px-2 text-sm" dir="ltr" />
+                <input v-model="moveForm(member.id).note" type="text" maxlength="255" required :placeholder="t.loyalty?.wallet_note || 'Reason (kept in the log with your name)'" class="h-8 w-56 rounded-md border border-border bg-background px-2 text-sm" />
+                <button type="submit" :disabled="moveForm(member.id).processing" class="h-8 rounded-md bg-violet-600 px-3 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 cursor-pointer">{{ t.loyalty?.move_to_member || 'Send to member' }}</button>
+              </form>
+              <p v-if="Object.values(moveForm(member.id).errors).length" class="text-xs text-red-500">{{ Object.values(moveForm(member.id).errors)[0] }}</p>
+
               <!-- Whole history of this member: both ledgers, who did what -->
               <div v-if="ledgerOpen === member.id" class="rounded-lg border border-border divide-y divide-border max-h-72 overflow-y-auto">
                 <p v-if="ledgerLoading" class="px-2.5 py-1.5 text-sm text-muted-foreground">…</p>
@@ -234,6 +256,33 @@ const adjustWalletOf = (member) => {
     },
     onError: (errors) => reportClientError("Wallet adjustment failed", { member_id: member.id, errors }),
   });
+};
+
+/* ----- Points -> wallet for a member, and moving a balance to another member (each one step, logged with the admin) ----- */
+const convertForms = reactive({});
+const convertForm = (id) => (convertForms[id] ??= useForm({ user_id: id, egp: null, note: "" }));
+const moveForms = reactive({});
+const moveForm = (id) => (moveForms[id] ??= useForm({ user_id: id, kind: "wallet", amount: null, to_phone: "", to_card: "", note: "" }));
+const afterMove = (member, form, fields) => ({
+  preserveScroll: true,
+  onSuccess: (response) => {
+    const flash = response.props.flash || {};
+    if (flash.error) useNotification().error(flash.error);
+    else {
+      useNotification().success(flash.success || "Saved");
+      form.reset(...fields);
+      if (ledgerOpen.value === member.id) loadLedger(member);
+    }
+  },
+  onError: (errors) => reportClientError("Admin ledger move failed", { member_id: member.id, errors }),
+});
+const convertFor = (member) => {
+  const form = convertForm(member.id);
+  form.post(route("admin.loyalty.convert"), afterMove(member, form, ["egp", "note"]));
+};
+const moveFrom = (member) => {
+  const form = moveForm(member.id);
+  form.post(route("admin.loyalty.transfer"), afterMove(member, form, ["amount", "to_phone", "to_card", "note"]));
 };
 
 /* ----- One member's history (both ledgers, who did what) ----- */

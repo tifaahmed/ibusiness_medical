@@ -40,7 +40,10 @@ class CreateRelative
         $nationalId = $this->clean($data['national_id'] ?? null);
         $dateOfBirth = $this->clean($data['date_of_birth'] ?? null);
 
-        if ($phone === null && $nationalId === null && $dateOfBirth === null) {
+        $byAdmin = $addedBy === Membership::ADDED_BY_ADMIN;
+
+        // Members must give one of the three; staff may file a relative with the name alone.
+        if (! $byAdmin && $phone === null && $nationalId === null && $dateOfBirth === null) {
             throw ValidationException::withMessages(['phone' => ['Enter at least a phone, a date of birth or a National ID.']]);
         }
 
@@ -51,7 +54,7 @@ class CreateRelative
 
         $isActive = $addedBy === Membership::ADDED_BY_ADMIN ? (bool) ($data['is_active'] ?? true) : false;
 
-        return DB::transaction(function () use ($primary, $data, $phone, $email, $nationalId, $dateOfBirth, $addedBy, $adminId, $request, $isActive) {
+        return DB::transaction(function () use ($byAdmin, $primary, $data, $phone, $email, $nationalId, $dateOfBirth, $addedBy, $adminId, $request, $isActive) {
             $relationship = (string) $data['relationship'];
 
             $user = new User;
@@ -69,6 +72,7 @@ class CreateRelative
             $now = now();
 
             $relative = new Membership;
+            $relative->skipIdentityCheck = $byAdmin;
             $relative->forceFill([
                 'user_id' => $user->id,
                 'membership_number' => $number,

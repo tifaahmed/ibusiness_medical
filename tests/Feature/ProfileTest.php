@@ -4,96 +4,55 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
+/** The Jetstream profile lives at /user/profile and needs the `manage profile` permission. */
 class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_profile_page_is_displayed(): void
+    private function staff(): User
     {
         $user = User::factory()->create();
+        $user->givePermissionTo(Permission::findOrCreate('manage profile', 'web'));
 
-        $response = $this
-            ->actingAs($user)
-            ->get('/profile');
+        return $user;
+    }
 
-        $response->assertOk();
+    public function test_profile_page_is_displayed_to_staff_with_the_permission(): void
+    {
+        $this->actingAs($this->staff())->get('/user/profile')->assertOk();
+    }
+
+    public function test_profile_page_is_refused_without_the_permission(): void
+    {
+        $this->actingAs(User::factory()->create())->get('/user/profile')->assertForbidden();
     }
 
     public function test_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = $this->staff();
 
-        $response = $this
-            ->actingAs($user)
-            ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-            ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/profile');
+        $this->actingAs($user)->from('/user/profile')->put('/user/profile-information', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+        ])->assertSessionHasNoErrors();
 
         $user->refresh();
 
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    public function test_an_email_already_used_by_someone_else_is_refused(): void
     {
-        $user = User::factory()->create();
+        User::factory()->create(['email' => 'taken@example.com']);
+        $user = $this->staff();
 
-        $response = $this
-            ->actingAs($user)
-            ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => $user->email,
-            ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/profile');
-
-        $this->assertNotNull($user->refresh()->email_verified_at);
-    }
-
-    public function test_user_can_delete_their_account(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->delete('/profile', [
-                'password' => 'password',
-            ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->from('/profile')
-            ->delete('/profile', [
-                'password' => 'wrong-password',
-            ]);
-
-        $response
-            ->assertSessionHasErrors('password')
-            ->assertRedirect('/profile');
-
-        $this->assertNotNull($user->fresh());
+        $this->actingAs($user)->from('/user/profile')->put('/user/profile-information', [
+            'name' => $user->name,
+            'email' => 'taken@example.com',
+        ])->assertSessionHasErrorsIn('updateProfileInformation', 'email');
     }
 }

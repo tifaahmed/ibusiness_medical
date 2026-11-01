@@ -2,7 +2,12 @@
 
 namespace Tests\Feature\Admin\User\Membership;
 
+use App\Enums\User\UserRoleEnum;
+use App\Models\City;
+use App\Models\Governorate;
 use App\Models\User;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use App\Models\Membership;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -21,6 +26,17 @@ class StoreMembershipTest extends TestCase
         parent::setUp();
         Storage::fake('public');
         $this->admin = User::factory()->create();
+        $role = Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web');
+        $role->givePermissionTo(Permission::findOrCreate('manage memberships', 'web'));
+        $this->admin->assignRole($role);
+    }
+
+    /** The member's primary address is required: a governorate and a city of it. */
+    private function location(): array
+    {
+        $governorate = Governorate::factory()->create();
+
+        return ['governorate_id' => $governorate->id, 'city_id' => City::factory()->create(['governorate_id' => $governorate->id])->id];
     }
 
     /** @test */
@@ -29,7 +45,10 @@ class StoreMembershipTest extends TestCase
         $membershipData = [
             'name' => 'John Doe',
             'email' => 'john@example.com',
-            'membership_number' => 'MEM-12345',
+            'membership_number' => '123456',
+            'national_id' => '29001011234567',
+            'phone' => '01000000001',
+            ...$this->location(),
             'registration_date' => '2024-01-01',
             'expiration_date' => '2025-01-01',
             'is_active' => true,
@@ -46,7 +65,7 @@ class StoreMembershipTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('memberships', [
-            'membership_number' => 'MEM-12345',
+            'membership_number' => '123456',
         ]);
     }
 
@@ -58,7 +77,10 @@ class StoreMembershipTest extends TestCase
         $membershipData = [
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
-            'membership_number' => 'MEM-67890',
+            'membership_number' => '678901',
+            'national_id' => '29001011234568',
+            'phone' => '01000000002',
+            ...$this->location(),
             'registration_date' => '2024-01-01',
             'expiration_date' => '2025-01-01',
             'is_active' => true,
@@ -82,7 +104,10 @@ class StoreMembershipTest extends TestCase
         $membershipData = [
             'name' => 'Bob Smith',
             'email' => 'bob@example.com',
-            'membership_number' => 'MEM-11111',
+            'membership_number' => '111111',
+            'national_id' => '29001011234569',
+            'phone' => '01000000003',
+            ...$this->location(),
             'registration_date' => '2024-01-01',
             'expiration_date' => '2025-01-01',
             'is_active' => true,
@@ -114,7 +139,7 @@ class StoreMembershipTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('admin.user.membership.store'), []);
 
-        $response->assertSessionHasErrors(['name', 'email', 'registration_date', 'expiration_date']);
+        $response->assertSessionHasErrors(['name', 'phone', 'national_id', 'registration_date', 'governorate_id', 'city_id']);
     }
 
     /** @test */

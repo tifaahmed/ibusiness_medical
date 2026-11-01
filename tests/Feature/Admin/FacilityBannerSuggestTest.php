@@ -39,6 +39,9 @@ class FacilityBannerSuggestTest extends TestCase
 
     private function fakeAi(array ...$payloads): void
     {
+        // A second Http::fake() only appends stubs behind the first (already used up) sequence: start from a clean client.
+        Http::swap(new \Illuminate\Http\Client\Factory());
+
         $sequence = Http::sequence();
         foreach ($payloads as $payload) {
             $sequence->push(['candidates' => [['content' => ['parts' => [['text' => json_encode($payload, JSON_UNESCAPED_UNICODE)]]]]]], 200);

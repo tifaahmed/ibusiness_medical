@@ -23,7 +23,8 @@ class DeleteAccountTest extends TestCase
             'password' => 'password',
         ]);
 
-        $this->assertNull($user->fresh());
+        // Users are soft deleted (the row stays, flagged), and fresh() ignores that flag, so look at the flag.
+        $this->assertSoftDeleted($user);
     }
 
     public function test_correct_password_must_be_provided_before_account_can_be_deleted(): void

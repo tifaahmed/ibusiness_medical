@@ -19,7 +19,7 @@ class UpdateRelative
     /**
      * @param  array<string, mixed>  $data  name, relationship, phone, email, date_of_birth, national_id, is_active (any subset; a key that is absent is left alone)
      */
-    public function handle(Membership $relative, array $data): Membership
+    public function handle(Membership $relative, array $data, bool $byAdmin = false): Membership
     {
         $user = $relative->user;
         $primary = $relative->parent;
@@ -34,7 +34,7 @@ class UpdateRelative
         $dob = $has('date_of_birth') ? $norm($data['date_of_birth']) : $user->date_of_birth;
         $name = $has('name') ? CreateRelative::resolveName((string) $data['name'], $relationship, (string) $primary?->user?->name) : $user->name;
 
-        if (blank($phone) && blank($nationalId) && blank($dob)) {
+        if (! $byAdmin && blank($phone) && blank($nationalId) && blank($dob)) {
             throw ValidationException::withMessages(['phone' => ['Enter at least a phone, a date of birth or a National ID.']]);
         }
 
@@ -46,7 +46,7 @@ class UpdateRelative
             $relative->id,
         );
 
-        return DB::transaction(function () use ($relative, $user, $name, $relationship, $phone, $email, $nationalId, $dob, $has, $data) {
+        return DB::transaction(function () use ($byAdmin, $relative, $user, $name, $relationship, $phone, $email, $nationalId, $dob, $has, $data) {
             $user->forceFill([
                 'name' => $name,
                 'phone' => $phone,
@@ -62,6 +62,7 @@ class UpdateRelative
                 $attributes['is_active'] = (bool) $data['is_active'];
             }
 
+            $relative->skipIdentityCheck = $byAdmin;
             $relative->forceFill($attributes)->save();
 
             return $relative->refresh();

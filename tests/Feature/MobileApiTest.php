@@ -115,7 +115,8 @@ class MobileApiTest extends TestCase
         $sameCity = $this->facility('Same City');
         $this->branch($sameCity, 31.2, 29.9)->update(['governorate_id' => $governorate->id, 'city_id' => $city->id]);
 
-        $this->getJson("/api/v1/mobile/facilities?lat=30.04&lng=31.23&home_governorate_id={$governorate->id}&home_city_id={$city->id}")
+        // Home-area ranking is for a phone with no GPS point; with one, distance ranks instead (see the next call).
+        $this->getJson("/api/v1/mobile/facilities?home_governorate_id={$governorate->id}&home_city_id={$city->id}")
             ->assertOk()
             ->assertJsonPath('data.0.slug', $sameCity->slug)
             ->assertJsonPath('data.1.slug', $sameGov->slug)

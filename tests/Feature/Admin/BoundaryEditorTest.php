@@ -33,7 +33,11 @@ class BoundaryEditorTest extends TestCase
     private function superAdmin(): User
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web'));
+        $role = Role::findOrCreate(UserRoleEnum::SUPER_ADMIN, 'web');
+        foreach (['manage governorates', 'manage cities'] as $permission) {
+            $role->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate($permission, 'web'));
+        }
+        $user->assignRole($role);
 
         return $user;
     }
@@ -151,6 +155,7 @@ class BoundaryEditorTest extends TestCase
     {
         $slugs = array_keys(json_decode(file_get_contents(database_path('data/egypt-unmarked-boundaries.json')), true));
         $slug = $slugs[0];
+        $this->seed(\Database\Seeders\GovernorateSeeder::class);
         $present = Governorate::whereIn('slug', $slugs)->count();
         $this->assertGreaterThan(0, $present, 'the migrations seed the real governorates');
 

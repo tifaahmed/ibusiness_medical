@@ -39,7 +39,7 @@ class AdminFamilyMemberUpdateController extends BaseController
             $relative = $this->findRelative($user, $membership, $familyMember);
             $old = $this->relativeSnapshot($relative);
 
-            $relative = $this->updateRelative->handle($relative, $validated);
+            $relative = $this->updateRelative->handle($relative, $validated, true);
 
             if ($request->hasFile('photo')) {
                 $this->mediaService->uploadImage($relative, $request->file('photo'), 'photo');

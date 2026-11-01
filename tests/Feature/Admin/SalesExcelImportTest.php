@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -91,7 +92,7 @@ class SalesExcelImportTest extends TestCase
 
         $this->assertSame('#', $sheet->getCell('A5')->getValue());
         $this->assertSame('Name', $sheet->getCell('B5')->getValue());
-        $this->assertSame((string) Sales::where('name->en', 'Pharmacy Main')->value('id'), $sheet->getCell('A6')->getValue());
+        $this->assertEquals(Sales::where('name->en', 'Pharmacy Main')->value('id'), $sheet->getCell('A6')->getValue());
         $this->assertSame('Pharmacy Main', $sheet->getCell('B6')->getValue());
         $this->assertSame('صيدلية الرئيسية', $sheet->getCell('C6')->getValue());
     }
@@ -207,11 +208,25 @@ class SalesExcelImportTest extends TestCase
 
         $template = $this->get(route('admin.sales.import.template'))->assertOk();
         $spreadsheet = $this->loadStreamedContent($template);
-        $this->assertSame('#', $spreadsheet->getActiveSheet()->getCell('A3')->getValue());
+        $this->assertNotNull($this->headerRow($spreadsheet->getSheet(0)), 'the sheet has a header row starting with #');
         $this->assertNotNull($spreadsheet->getSheetByName('Instructions'));
 
         $example = $this->get(route('admin.sales.import.template', ['example' => 1]))->assertOk();
-        $sheet = $this->loadStreamedContent($example)->getActiveSheet();
-        $this->assertSame('Pharmacy Main', $sheet->getCell('B4')->getValue());
+        $sheet = $this->loadStreamedContent($example)->getSheet(0);
+        $header = $this->headerRow($sheet);
+        $this->assertNotNull($header);
+        $this->assertSame('Pharmacy Main', $sheet->getCell('B'.($header + 1))->getValue());
+    }
+
+    /** The row whose first cell is "#" (the notes above it change as the instructions grow). */
+    private function headerRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet): ?int
+    {
+        for ($row = 1; $row <= 15; $row++) {
+            if ($sheet->getCell('A'.$row)->getValue() === '#') {
+                return $row;
+            }
+        }
+
+        return null;
     }
 }
