@@ -213,6 +213,13 @@ class Order extends Model implements HasMedia
             $cancelled = $order->wasChanged('payment_status') && $order->payment_status === \App\Enums\Order\PaymentStatusEnum::CANCELED;
             $failed = $order->wasChanged('order_status') && $order->order_status === \App\Enums\Order\OrderStatusEnum::FAILED;
 
+            if (($cancelled || $failed) && $order->source === \App\Support\PhysicalCard::SOURCE) {
+                // Cards that were only requested by this order are not coming: close them (an approved one is left to staff).
+                \App\Models\MemberExtraCard::query()->where('order_id', $order->id)
+                    ->where('status', \App\Models\MemberExtraCard::STATUS_REQUESTED)->get()
+                    ->each(fn ($card) => $card->update(['status' => \App\Models\MemberExtraCard::STATUS_CANCELLED]));
+            }
+
             if ($cancelled || $failed) {
                 \App\Support\WalletPayments::refundOrder($order, $cancelled ? 'cancelled' : 'rejected');
             }

@@ -23,7 +23,7 @@ class CardController extends Controller
     public function show(Request $request, string $number): JsonResponse
     {
         $membership = Membership::visible()
-            ->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))
+            ->matchingNumber($number)
             ->with('user:id,name,phone')
             ->first();
 

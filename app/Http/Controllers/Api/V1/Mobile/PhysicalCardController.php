@@ -9,6 +9,7 @@ use App\Enums\Order\PaymentStatusEnum;
 use App\Enums\Order\PaymentTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Partner\OrderResource;
+use App\Models\MemberExtraCard;
 use App\Models\Membership;
 use App\Models\Order;
 use App\Models\OrderLog;
@@ -58,6 +59,45 @@ class PhysicalCardController extends Controller
         ]]);
     }
 
+    /**
+     * Every extra card the signed-in member holds — and, for a primary, their relatives' — physical and soft, with the
+     * number each one shows (its own, else the member's). Cancelled ones are not listed; `requested` ones are (ordered,
+     * waiting for staff). A physical card that has been approved comes with its soft copy.
+     */
+    public function myCards(Request $request): JsonResponse
+    {
+        $card = $this->cardOf($request->user());
+
+        if ($card === null) {
+            return response()->json(['data' => ['cards' => []]]);
+        }
+
+        $holders = $card->isRelative() ? collect([$card]) : collect([$card])->merge($card->relatives()->where('is_active', true)->with('user:id,name')->get());
+        $holders->each->loadMissing('user:id,name');
+
+        $rows = MemberExtraCard::query()
+            ->whereIn('membership_id', $holders->pluck('id'))
+            ->where('status', '!=', MemberExtraCard::STATUS_CANCELLED)
+            ->orderBy('id')->get()
+            ->map(function (MemberExtraCard $c) use ($holders, $card) {
+                $holder = $holders->firstWhere('id', $c->membership_id);
+
+                return [
+                    'id' => $c->id,
+                    'kind' => $c->kind,
+                    'status' => $c->status,
+                    'number' => $c->card_number ?: (string) $holder?->membership_number,
+                    'holder_name' => $holder?->user?->name,
+                    'relationship' => $holder?->relationship,
+                    'is_me' => $c->membership_id === $card->id,
+                    'copy_of' => $c->parent_card_id,
+                    'order_id' => $c->order_id,
+                ];
+            })->values()->all();
+
+        return response()->json(['data' => ['cards' => $rows]]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -87,6 +127,8 @@ class PhysicalCardController extends Controller
             'customer_floor_number' => ['nullable', 'string', 'max:50'],
             'customer_special_mark' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // The website relays from its own server and sends the buyer's address; the app's own request IP is used otherwise.
+            'buyer_ip' => ['nullable', 'ip'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
                 if (! in_array($value, PaymentMethods::orderTypes(PaymentMethods::CONTEXT_CARDS), true)) {
                     $fail('This payment method is not available right now.');
@@ -138,7 +180,7 @@ class PhysicalCardController extends Controller
                     'payment_type' => $paymentType,
                     'payment_status' => PaymentStatusEnum::PENDING,
                     'delivery_status' => DeliveryStatusEnum::PENDING,
-                    'ip_address' => $request->ip(),
+                    'ip_address' => $data['buyer_ip'] ?? $request->ip(),
                     'user_agent' => (string) $request->userAgent(),
                     'source' => PhysicalCard::SOURCE,
                 ]);
@@ -158,6 +200,20 @@ class PhysicalCardController extends Controller
                 }
 
                 $order->products()->saveMany($lines);
+
+                // The member screen's card list stays in step with what customers order: one REQUESTED card per copy,
+                // on the member the line names, until staff confirm it. Same number as the member (card_number null).
+                foreach ($copies as $number => $quantity) {
+                    for ($i = 0; $i < $quantity; $i++) {
+                        MemberExtraCard::query()->create([
+                            'membership_id' => $orderable->get($number)->id,
+                            'kind' => MemberExtraCard::KIND_PHYSICAL,
+                            'source' => MemberExtraCard::SOURCE_ORDER,
+                            'status' => MemberExtraCard::STATUS_REQUESTED,
+                            'order_id' => $order->id,
+                        ]);
+                    }
+                }
 
                 return $order;
             });

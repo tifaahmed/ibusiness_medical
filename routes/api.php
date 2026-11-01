@@ -227,6 +227,8 @@ Route::prefix('v1')
             /* Physical (plastic) cards for the primary member and their relatives: eligibility + prices, and the order (an ordinary `orders` row). */
             Route::get('/physical-cards', [V1MobilePhysicalCardController::class, 'show'])
                 ->middleware(['auth:sanctum', 'throttle:60,1,api.physical.show'])->name('physical-cards.show');
+            Route::get('/my-cards', [V1MobilePhysicalCardController::class, 'myCards'])
+                ->middleware(['auth:sanctum', 'throttle:60,1,api.my-cards'])->name('my-cards');
             Route::post('/physical-cards/orders', [V1MobilePhysicalCardController::class, 'store'])
                 ->middleware(['auth:sanctum', 'primary.member', 'throttle:10,1,api.physical.store'])->name('physical-cards.store');
 

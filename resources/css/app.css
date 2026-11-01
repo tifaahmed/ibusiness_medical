@@ -370,6 +370,15 @@ input:-webkit-autofill:active {
   caret-color: var(--color-foreground) !important;
 }
 
+/* FIXED RULE: the placeholder of every input / textarea in the dashboard is WHITE (not grey, not white/70).
+   !important beats the per-component `placeholder:text-*` utilities so a new field cannot drift from it. */
+input::placeholder,
+textarea::placeholder {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  opacity: 1 !important;
+}
+
 /* Input filled state */
 input:not(:placeholder-shown) {
   background-color: var(--color-secondary) / 0.08;

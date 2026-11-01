@@ -51,13 +51,7 @@
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 sm:p-4">
             <FilterAccordion>
-            <input
-              v-model="search"
-              @input="handleSearch"
-              type="text"
-              placeholder="Search by title or slug…"
-              class="flex h-9 w-full max-w-sm rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            />
+            <StoreListFilter :filters="filters" :options="exportOptions" :filter-options="filterOptions" />
             </FilterAccordion>
           </div>
 
@@ -80,7 +74,12 @@
                     <img v-if="store.logo" :src="store.logo" class="h-9 w-9 rounded object-cover border border-border" />
                     <div v-else class="h-9 w-9 rounded bg-muted"></div>
                   </td>
-                  <td class="p-3 align-middle font-medium">{{ getTranslatedName(store.title) }}</td>
+                  <td class="p-3 align-middle font-medium">
+                    {{ getTranslatedName(store.title) }}
+                    <span v-if="store.online_only" class="ms-1 inline-flex items-center rounded-full bg-violet-500/15 text-violet-500 px-2 py-0.5 text-[10px] font-medium" data-testid="type-online">{{ T('badge_online', 'Online only') }}</span>
+                    <span v-else-if="store.supports_shipping" class="ms-1 inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-500 px-2 py-0.5 text-[10px] font-medium" data-testid="type-hybrid">{{ T('badge_hybrid', 'Physical + online') }}</span>
+                    <span v-else class="ms-1 inline-flex items-center rounded-full bg-amber-500/15 text-amber-500 px-2 py-0.5 text-[10px] font-medium" data-testid="type-physical">{{ T('badge_physical', 'Physical') }}</span>
+                  </td>
                   <td class="p-3 align-middle">
                     <div v-if="store.categories?.length" class="flex flex-wrap gap-1">
                       <span v-for="(c, i) in store.categories" :key="i" class="inline-flex items-center gap-1 rounded-full bg-sky-500/15 text-sky-600 px-2 py-0.5 text-xs font-medium">
@@ -90,7 +89,7 @@
                     </div>
                     <span v-else class="text-xs text-muted-foreground">—</span>
                   </td>
-                  <td class="p-3 align-middle text-center">{{ store.branches_count }}</td>
+                  <td class="p-3 align-middle text-center"><span v-if="store.online_only && !store.branches_count" class="text-xs text-muted-foreground">—</span><span v-else>{{ store.branches_count }}</span></td>
                   <td class="p-3 align-middle text-center">{{ store.products_count }}</td>
                   <td class="p-3 align-middle">{{ store.created_at }}</td>
                   <td class="p-3 align-middle text-center">
@@ -117,33 +116,29 @@
 
 <script setup>
 import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
-import { ref } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { router, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Pages/_components/Pagination.vue';
+import StoreListFilter from './StoreListFilter.vue';
 import StoreExportMenu from '../_components/StoreExportMenu.vue';
 
 const props = defineProps({
   stores: { type: Object, required: true },
   filters: { type: Object, default: () => ({ search: '' }) },
+  filterOptions: { type: Object, default: () => ({ tags: [], creators: [] }) },
   canManage: { type: Boolean, default: false },
   exportOptions: { type: Object, default: () => ({ categories: [], sales: [], governorates: [], cities: [], columns: [] }) },
 });
 
-const search = ref(props.filters.search || '');
+const page = usePage();
+const T = (k, d) => page.props.translations?.admin?.store_filters?.[k] || d;
+const search = computed(() => props.filters.search || '');
 
 const getTranslatedName = (title) => {
   if (typeof title === 'string') return title;
   if (title && typeof title === 'object') return title['ar'] || title['en'] || Object.values(title)[0] || '';
   return '';
-};
-
-let searchTimeout = null;
-const handleSearch = () => {
-  if (searchTimeout) clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    router.get(route('admin.store.list'), { search: search.value }, { preserveState: true, preserveScroll: true, replace: true });
-  }, 300);
 };
 
 const destroyStore = (store) => {

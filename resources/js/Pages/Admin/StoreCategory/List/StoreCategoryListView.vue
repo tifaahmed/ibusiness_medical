@@ -17,6 +17,20 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.store_category?.management || 'Store Categories Management' }}</span>
               </div>
             </div>
+            <button
+              v-if="canWrite"
+              type="button"
+              class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-all border border-border bg-background hover:bg-muted h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0"
+              :title="t.store_category?.translations_fix_hint || 'Fix the Arabic and English names of store categories with AI'"
+              data-testid="store-category-ai-fix"
+              @click="translationFixOpen = true"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+              </svg>
+              <span class="hidden sm:inline">{{ t.store_category?.translations_fix || 'Fix translations with AI' }}</span>
+              <span class="sm:hidden">{{ t.store_category?.translations_fix_short || 'AI fix' }}</span>
+            </button>
             <Link
               v-if="canWrite"
               :href="route('admin.store-category.create')"
@@ -45,6 +59,7 @@
       <!-- Table Card - Scrollable on mobile, full height on desktop -->
       <div class="flex-1 min-h-0 lg:flex-none w-full max-w-full px-2 sm:px-3 md:px-4 lg:px-6 pb-2 sm:pb-3 md:pb-4 lg:pb-6 overflow-hidden lg:overflow-visible">
         <StoreCategoryListTable :store-categories="storeCategories" @delete="handleDelete" />
+        <StoreCategoryTranslationFixDialog :open="translationFixOpen" @close="translationFixOpen = false" />
       </div>
     </div>
   </StoreCategoryLayout>
@@ -55,6 +70,7 @@ import FilterAccordion from "@/Components/ui/FilterAccordion.vue";
 import StoreCategoryLayout from "../StoreCategoryLayout.vue";
 import StoreCategoryListFilterContent from "./StoreCategoryListFilterContent.vue";
 import StoreCategoryListTable from "./StoreCategoryListTable.vue";
+import StoreCategoryTranslationFixDialog from "./StoreCategoryTranslationFixDialog.vue";
 import { useStoreCategoryStore } from "../Stores/StoreCategoryStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
@@ -64,6 +80,7 @@ import { usePermissions } from '@/composables/usePermissions';
 const { canManage } = usePermissions();
 // Create/export/import are writes: hidden from read-only accounts,
 // and refused by the routes behind them either way.
+const translationFixOpen = ref(false);
 const canWrite = computed(() => canManage('manage own store categories', 'manage store categories'));
 
 

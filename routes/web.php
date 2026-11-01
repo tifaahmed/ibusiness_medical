@@ -500,6 +500,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             Route::post('/convert', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'convertPoints'])->name('convert');
             Route::get('/members/{user}/ledger', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'ledger'])->whereNumber('user')->name('members.ledger');
         });
+        // Extra physical / soft cards of ONE member (primary or relative): same number or a different one.
+        Route::post('/admin/member-extra-cards', [\App\Http\Controllers\Admin\User\Membership\ExtraCard\AdminMemberExtraCardController::class, 'store'])->name('admin.member-extra-cards.store');
+        Route::put('/admin/member-extra-cards/{card}', [\App\Http\Controllers\Admin\User\Membership\ExtraCard\AdminMemberExtraCardController::class, 'update'])->whereNumber('card')->name('admin.member-extra-cards.update');
+        Route::delete('/admin/member-extra-cards/{card}', [\App\Http\Controllers\Admin\User\Membership\ExtraCard\AdminMemberExtraCardController::class, 'destroy'])->whereNumber('card')->name('admin.member-extra-cards.destroy');
         Route::post('/admin/user/membership/{user}/{membership}/family-member', AdminFamilyMemberStoreController::class)->name('admin.user.membership.family-member.store');
         Route::put('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberUpdateController::class)->name('admin.user.membership.family-member.update');
         Route::delete('/admin/user/membership/{user}/{membership}/family-member/{familyMember}', AdminFamilyMemberDeleteController::class)->name('admin.user.membership.family-member.destroy');
@@ -867,6 +871,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/store-category/{storeCategory}/edit', AdminStoreCategoryEditController::class)->name('admin.store-category.edit');
         Route::put('/admin/store-category/{storeCategory}', AdminStoreCategoryUpdateController::class)->name('admin.store-category.update');
         Route::delete('/admin/store-category/{storeCategory}', AdminStoreCategoryDeleteController::class)->name('admin.store-category.destroy');
+        // "Fix translations with AI": preview / single write nothing, apply saves the ticked ones. (Before the {storeCategory} wildcards.)
+        Route::post('/admin/store-category/translations/preview', [\App\Http\Controllers\Admin\StoreCategory\Translation\AdminStoreCategoryTranslationFixController::class, 'preview'])->name('admin.store-category.translations.preview');
+        Route::post('/admin/store-category/translations/apply', [\App\Http\Controllers\Admin\StoreCategory\Translation\AdminStoreCategoryTranslationFixController::class, 'apply'])->name('admin.store-category.translations.apply');
+        Route::post('/admin/store-category/translations/single', [\App\Http\Controllers\Admin\StoreCategory\Translation\AdminStoreCategoryTranslationFixController::class, 'single'])->name('admin.store-category.translations.single');
     });
     Route::middleware('permission:manage store categories|manage own store categories|view store categories')->group(function () {
         Route::get('/admin/store-category', AdminStoreCategoryListController::class)->name('admin.store-category.list');

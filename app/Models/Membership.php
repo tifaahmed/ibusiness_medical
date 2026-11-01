@@ -288,7 +288,15 @@ class Membership extends Model implements HasMedia
     {
         return $query->where(fn ($nested) => $nested
             ->where('membership_number', $numberOrSlug)
-            ->orWhere('slug', $numberOrSlug));
+            ->orWhere('slug', $numberOrSlug)
+            // An extra card with its own, different number opens the same member.
+            ->orWhereHas('extraCards', fn ($c) => $c->where('card_number', $numberOrSlug)));
+    }
+
+    /** Extra (physical / soft) cards this member holds. */
+    public function extraCards(): HasMany
+    {
+        return $this->hasMany(MemberExtraCard::class);
     }
 
     public const PLAN_TRIAL = 'trial';

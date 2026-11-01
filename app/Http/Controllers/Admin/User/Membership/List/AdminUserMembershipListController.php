@@ -264,7 +264,7 @@ class AdminUserMembershipListController extends BaseController
                 // membership the admin most likely wants to see.
                 $q->orderBy('is_active', 'desc');
                 $q->ordered();
-                $q->with(['company', 'partner', 'creator:id,name,email', 'latestActiveHistory', 'sales', 'memberPayments', 'parent.user:id,name,slug']);
+                $q->with(['company', 'partner', 'creator:id,name,email', 'latestActiveHistory', 'sales', 'memberPayments', 'extraCards', 'parent.user:id,name,slug']);
             }])
             ->when($sort === 'name', fn ($q) => $q->orderBy('name', $direction))
             ->when($sort === 'created_at', fn ($q) => $q->orderBy('users.created_at', $direction))

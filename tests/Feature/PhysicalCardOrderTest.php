@@ -48,6 +48,10 @@ class PhysicalCardOrderTest extends TestCase
 
         $this->assertDatabaseHas('orders', ['user_id' => $user->id, 'source' => 'physical_card', 'total_amount' => 200, 'delivery_price' => 50, 'payment_status' => 'pending']);
         $this->assertDatabaseCount('order_products', 2);
+
+        // The member screen's card list follows the order: one REQUESTED physical card per copy, on the right member.
+        $this->assertSame(2, \App\Models\MemberExtraCard::where(['membership_id' => $card->id, 'kind' => 'physical', 'status' => 'requested', 'source' => 'order'])->count());
+        $this->assertSame(1, \App\Models\MemberExtraCard::where(['membership_id' => $wife->id, 'status' => 'requested'])->count());
     }
 
     /** @test */
@@ -90,6 +94,48 @@ class PhysicalCardOrderTest extends TestCase
     }
 
     /** @return array{0: User, 1: Membership} */
+    /** @test */
+    public function an_approved_physical_card_shows_up_with_a_soft_copy_for_the_customer(): void
+    {
+        [$user, $card] = $this->member(12);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/mobile/physical-cards/orders', $this->body([['membership_number' => $card->membership_number, 'quantity' => 2]]))->assertCreated();
+
+        // Waiting for staff: two physical cards requested, no soft copies yet.
+        $this->getJson('/api/v1/mobile/my-cards')->assertOk()->assertJsonCount(2, 'data.cards')->assertJsonPath('data.cards.0.status', 'requested');
+
+        // Staff approve both, one of them with a different number.
+        $first = \App\Models\MemberExtraCard::orderBy('id')->first();
+        $second = \App\Models\MemberExtraCard::orderBy('id')->skip(1)->first();
+        $first->update(['status' => 'active']);
+        $second->update(['status' => 'active', 'card_number' => '909090']);
+
+        $cards = $this->getJson('/api/v1/mobile/my-cards')->assertOk()->assertJsonCount(4, 'data.cards')->json('data.cards');
+        $this->assertSame(2, collect($cards)->where('kind', 'soft')->count());
+        $this->assertEqualsCanonicalizing([$card->membership_number, '909090'], collect($cards)->where('kind', 'soft')->pluck('number')->all());
+
+        // Cancelling a physical card takes its soft copy away.
+        $first->update(['status' => 'cancelled']);
+        $this->getJson('/api/v1/mobile/my-cards')->assertJsonCount(2, 'data.cards');
+    }
+
+    /** @test */
+    public function cancelling_the_order_closes_its_requested_cards_only(): void
+    {
+        [$user, $card] = $this->member(12);
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/mobile/physical-cards/orders', $this->body([['membership_number' => $card->membership_number, 'quantity' => 2]]))->assertCreated();
+
+        $approved = \App\Models\MemberExtraCard::orderBy('id')->first();
+        $approved->update(['status' => 'active']);
+
+        \App\Models\Order::query()->firstOrFail()->update(['payment_status' => \App\Enums\Order\PaymentStatusEnum::CANCELED]);
+
+        $this->assertSame('active', $approved->fresh()->status);
+        $this->assertSame('cancelled', \App\Models\MemberExtraCard::where('status', '!=', 'active')->where('kind', 'physical')->value('status'));
+    }
+
     private function member(int $months, string $phone = '01062587475'): array
     {
         $user = User::factory()->create(['name' => 'Ahmed Ali Hassan', 'gender' => 'male', 'phone' => $phone]);

@@ -93,6 +93,17 @@ class AdminUserMembershipListResource extends JsonResource
                     ] : null,
                     'relatives_count' => $membership->isRelative() ? null : $membership->relatives()->count(),
                     'state' => $membership->state(),
+                    /* Extra physical / soft cards held by this member (not cancelled), for the list badge. */
+                    'extra_cards' => (function () use ($membership) {
+                        $cards = $membership->extraCards->where('status', '!=', \App\Models\MemberExtraCard::STATUS_CANCELLED);
+
+                        return [
+                            'total' => $cards->count(),
+                            'physical' => $cards->where('kind', \App\Models\MemberExtraCard::KIND_PHYSICAL)->count(),
+                            'soft' => $cards->where('kind', \App\Models\MemberExtraCard::KIND_SOFT)->count(),
+                            'requested' => $cards->where('status', \App\Models\MemberExtraCard::STATUS_REQUESTED)->count(),
+                        ];
+                    })(),
                     /* Relatives the member added that no admin has approved yet. */
                     'pending_relatives' => $membership->relatives()->where('approval_status', 'pending')->count(),
                     'slug' => $membership->slug,

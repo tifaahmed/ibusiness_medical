@@ -162,7 +162,7 @@ class CardLoginController extends Controller
 
         return Membership::visible()
             // A relative signs in with THEIR OWN card number too: the code goes to the phone on that card, or they add theirs once.
-            ->where('membership_number', $number)
+            ->where(fn ($q) => $q->where('membership_number', $number)->orWhereHas('extraCards', fn ($c) => $c->where('card_number', $number)))
             ->where('membership_number', 'not like', MemberRegistration::PENDING_PREFIX.'%')
             ->whereHas('user')
             ->with('user')

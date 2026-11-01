@@ -66,8 +66,25 @@ class AdminUserMembershipShowController extends BaseController
             'cardTemplates' => $this->cardTemplatesByStatus(),
             // Read-only loyalty and wallet picture (points, plays, conversions, transfers, relatives).
             'loyalty' => AdminMemberLoyalty::summary($user),
+            // Extra physical / soft cards per member id (primary and relatives).
+            'extraCards' => $this->extraCards($user),
         ];
 
         return Inertia::render('Admin/User/Membership/Show', $result);
+    }
+
+    /** @return array<int, list<array<string, mixed>>> keyed by membership id */
+    private function extraCards(User $user): array
+    {
+        $ids = $user->memberships->flatMap(fn ($m) => collect([$m->id])->merge($m->relatives?->pluck('id') ?? []))->all();
+
+        return \App\Models\MemberExtraCard::query()
+            ->whereIn('membership_id', $ids)->orderBy('id')->get()
+            ->groupBy('membership_id')
+            ->map(fn ($rows) => $rows->map(fn ($c) => [
+                'id' => $c->id, 'kind' => $c->kind, 'status' => $c->status, 'card_number' => $c->card_number, 'note' => $c->note,
+                'source' => $c->source, 'order_id' => $c->order_id, 'created_at' => $c->created_at?->toDateTimeString(),
+            ])->values()->all())
+            ->all();
     }
 }

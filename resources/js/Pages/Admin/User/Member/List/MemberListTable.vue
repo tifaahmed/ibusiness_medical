@@ -403,6 +403,19 @@
                   >
                     {{ member.membership.relatives_count }} {{ t.member_type_relative || 'Relatives' }}
                   </span>
+                  <!-- Extra physical / soft cards: how many, of which kind; amber = ordered, waiting for staff. Edited on the member page. -->
+                  <Link
+                    v-if="member.membership?.extra_cards?.total && member.slug"
+                    :href="route('admin.user.membership.show', member.slug)"
+                    class="ms-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] sm:text-xs font-medium"
+                    :class="member.membership.extra_cards.requested ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'"
+                    data-testid="extra-cards-badge"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+                    {{ member.membership.extra_cards.total }} {{ t.extra_cards || 'cards' }}
+                    <span v-if="member.membership.extra_cards.physical">· {{ member.membership.extra_cards.physical }} {{ t.card_physical || 'physical' }}</span>
+                    <span v-if="member.membership.extra_cards.soft">· {{ member.membership.extra_cards.soft }} {{ t.card_soft || 'soft' }}</span>
+                  </Link>
                   <!-- Self-issued free card, and the state it is in. -->
                   <span
                     v-if="member.membership?.plan === 'trial' && member.membership?.member_type !== 'relative'"

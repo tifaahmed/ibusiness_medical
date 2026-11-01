@@ -520,6 +520,49 @@
       </div>
 
       <!-- Loyalty points, wallet money, quiz plays, conversions, transfers and the family's own figures (read only; changes are made in Loyalty). -->
+      <!-- Extra physical / soft cards: any number per member (primary or relative), same number or a different one. -->
+      <div class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="extra-cards">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          {{ t.member?.extra_cards || 'Extra cards (physical / soft)' }}
+        </h3>
+        <p v-if="cardHolders.length === 0" class="text-xs text-muted-foreground">{{ t.member?.loyalty_none || 'Nothing yet.' }}</p>
+        <div v-for="h in cardHolders" :key="'ec' + h.id" class="rounded-lg border border-border/60 p-3 space-y-2">
+          <div class="flex flex-wrap items-center gap-x-3 text-sm">
+            <span class="font-medium">{{ h.name }}</span>
+            <span class="text-xs text-muted-foreground" dir="ltr">{{ h.number }}</span>
+            <span v-if="h.isRelative" class="rounded-md bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 px-2 py-0.5 text-xs">{{ t.member?.relative || 'Relative' }}</span>
+          </div>
+          <div v-for="c in (extraCards[h.id] || [])" :key="c.id" class="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+            <span class="hidden rounded-md px-2 py-0.5 text-xs font-medium" :class="c.kind === 'physical' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'">{{ c.kind === 'physical' ? (t.member?.card_physical || 'Physical') : (t.member?.card_soft || 'Soft') }}</span>
+            <span dir="ltr" class="tabular-nums">{{ c.card_number || h.number }}</span>
+            <span v-if="!c.card_number" class="text-muted-foreground">{{ t.member?.card_same_number || 'same number' }}</span>
+            <span v-if="c.source === 'order'" class="text-muted-foreground">#{{ c.order_id }}</span>
+            <select :value="c.status" class="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs min-w-[6rem]" @change="saveExtraCard(c, { status: $event.target.value })">
+              <option value="requested">{{ t.member?.card_requested || 'Requested' }}</option>
+              <option value="active">{{ t.member?.card_active || 'Active' }}</option>
+              <option value="cancelled">{{ t.member?.card_cancelled || 'Cancelled' }}</option>
+            </select>
+            <select :value="c.kind" class="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs min-w-[6rem]" @change="saveExtraCard(c, { kind: $event.target.value })">
+              <option value="physical">{{ t.member?.card_physical || 'Physical' }}</option>
+              <option value="soft">{{ t.member?.card_soft || 'Soft' }}</option>
+            </select>
+            <input :value="c.card_number || ''" dir="ltr" inputmode="numeric" :placeholder="h.number" class="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs w-28" @change="saveExtraCard(c, { card_number: $event.target.value.trim() }, h.id)" />
+            <button type="button" class="ms-auto text-red-400 hover:underline" @click="removeExtraCard(c.id)">{{ t.member?.remove || 'Remove' }}</button>
+          </div>
+          <form class="flex flex-wrap items-end gap-2" @submit.prevent="addExtraCard(h.id)">
+            <select v-model="newCard(h.id).kind" class="rounded-md border border-border bg-background px-2 py-1 text-sm min-w-[7rem]">
+              <option value="physical">{{ t.member?.card_physical || 'Physical' }}</option>
+              <option value="soft">{{ t.member?.card_soft || 'Soft' }}</option>
+            </select>
+            <input v-model="newCard(h.id).card_number" dir="ltr" inputmode="numeric" :placeholder="t.member?.card_number_optional || 'Different number (optional)'" class="rounded-md border border-border bg-background px-2 py-1 text-sm min-w-[10rem] flex-1" />
+            <input v-model.number="newCard(h.id).quantity" type="number" min="1" max="20" class="rounded-md border border-border bg-background px-2 py-1 text-sm w-20" />
+            <button type="submit" class="rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground min-w-[5rem]">{{ t.member?.add || 'Add' }}</button>
+          </form>
+          <p v-if="cardErrors[h.id]" class="text-xs text-red-400">{{ cardErrors[h.id] }}</p>
+        </div>
+      </div>
+
       <div v-if="loyalty" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="member-loyalty">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-base font-semibold text-white">{{ t.member?.loyalty_wallet || 'Loyalty & wallet' }}</h3>
@@ -810,7 +853,38 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  extraCards: {
+    type: Object,
+    default: () => ({}),
+  },
 });
+
+// Extra cards: every member on this page (each primary card and its relatives) can hold several.
+const cardHolders = computed(() => (props.user.memberships || []).flatMap((m) => [
+  { id: m.id, name: props.user.name, number: m.membership_number, isRelative: false },
+  ...(m.family_members || []).map((r) => ({ id: r.id, name: r.name, number: r.membership_number, isRelative: true })),
+]));
+const newCards = reactive({});
+const cardErrors = reactive({});
+const newCard = (id) => (newCards[id] ||= { kind: 'physical', card_number: '', quantity: 1 });
+function addExtraCard(id) {
+  const f = newCard(id);
+  router.post(route('admin.member-extra-cards.store'), { membership_id: id, ...f }, {
+    preserveScroll: true,
+    onSuccess: () => { cardErrors[id] = ''; newCards[id] = { kind: f.kind, card_number: '', quantity: 1 }; },
+    onError: (e) => { cardErrors[id] = e.card_number || Object.values(e)[0] || ''; },
+  });
+}
+function saveExtraCard(c, change, holderId) {
+  router.put(route('admin.member-extra-cards.update', c.id), { kind: c.kind, card_number: c.card_number, status: c.status, note: c.note, ...change }, {
+    preserveScroll: true,
+    onError: (e) => { cardErrors[holderId ?? 0] = e.card_number || Object.values(e)[0] || ''; },
+  });
+}
+function removeExtraCard(cardId) {
+  if (!confirm(t.value.member?.confirm_remove_card || 'Remove this card?')) return;
+  router.delete(route('admin.member-extra-cards.destroy', cardId), { preserveScroll: true });
+}
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
