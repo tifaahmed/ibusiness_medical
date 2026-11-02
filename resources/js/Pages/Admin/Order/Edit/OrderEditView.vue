@@ -37,6 +37,7 @@
                   {{ t.common?.cancel || 'Cancel' }}
                 </Link>
                 <div class="relative inline-flex">
+                  <SaveStayButton />
                   <button
                     type="submit"
                     :disabled="orderStore.isLoading"
@@ -63,6 +64,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
 import OrderLayout from "../OrderLayout.vue";

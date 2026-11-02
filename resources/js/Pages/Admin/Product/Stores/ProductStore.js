@@ -4,6 +4,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateProductForm } from '../validation/productValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useProductStore = defineStore('product', {
     state: () => ({
@@ -190,7 +191,7 @@ export const useProductStore = defineStore('product', {
                         useNotification().success('Product created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.product.list'));
+                        afterSave(route('admin.product.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

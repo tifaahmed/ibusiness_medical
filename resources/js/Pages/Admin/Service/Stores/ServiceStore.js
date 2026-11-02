@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const emptyForm = () => ({
     category_id: '',
@@ -86,7 +87,7 @@ export const useServiceStore = defineStore('service', {
                         useNotification().success('Service created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.service.list'));
+                        afterSave(route('admin.service.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -121,7 +122,7 @@ export const useServiceStore = defineStore('service', {
                         useNotification().success('Service updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.service.list'));
+                        afterSave(route('admin.service.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

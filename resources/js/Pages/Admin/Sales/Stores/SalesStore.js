@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useSalesStore = defineStore('sales', {
     state: () => ({
@@ -64,7 +65,7 @@ export const useSalesStore = defineStore('sales', {
                         useNotification().success('Sales created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.sales.list'));
+                        afterSave(route('admin.sales.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -98,7 +99,7 @@ export const useSalesStore = defineStore('sales', {
                         useNotification().success('Sales updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.sales.list'));
+                        afterSave(route('admin.sales.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

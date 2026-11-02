@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, describeClientError, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 // The exception a failed save's redirect flashed back (App\Support\ErrorTrace),
 // read once the error response has replaced the page props.
@@ -223,7 +224,7 @@ export const useFacilityStore = defineStore('facility', {
                         useNotification().success('Facility created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.facility.list'));
+                        afterSave(route('admin.facility.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -320,7 +321,7 @@ export const useFacilityStore = defineStore('facility', {
                             return;
                         }
                         this.initializeForm();
-                        router.visit(route('admin.facility.list'));
+                        afterSave(route('admin.facility.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

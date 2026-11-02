@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const emptyForm = () => ({
     // The key the application reads the row by — SiteSettings::get(slug).
@@ -92,7 +93,7 @@ export const useSettingStore = defineStore('setting', {
                         useNotification().success('Setting created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.setting.list'));
+                        afterSave(route('admin.setting.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -131,7 +132,7 @@ export const useSettingStore = defineStore('setting', {
                             useNotification().success('Setting updated successfully');
                             this.debugLog = null;
                             this.initializeForm();
-                            router.visit(route('admin.setting.list'));
+                            afterSave(route('admin.setting.list'));
                         },
                         onError: (errors) => {
                             this.validationErrors = { ...this.validationErrors, ...errors };

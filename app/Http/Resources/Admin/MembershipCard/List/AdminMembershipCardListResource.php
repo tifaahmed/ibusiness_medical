@@ -19,10 +19,11 @@ class AdminMembershipCardListResource extends JsonResource
             'quantity' => (int) $this->quantity,
             'start_number' => (int) $this->start_number,
             'end_number' => (int) $this->start_number + max(0, (int) $this->quantity - 1),
-            'membership_ids_count' => count($ids),
+            'membership_ids_count' => max((int) $this->quantity, count($ids)),
+            'issued_count' => count($ids),
             'completed_count' => (int) ($this->completed_count ?? 0),
-            'completed_percentage' => count($ids) > 0
-                ? round(((int) ($this->completed_count ?? 0)) / count($ids) * 100)
+            'completed_percentage' => max((int) $this->quantity, count($ids)) > 0
+                ? round(((int) ($this->completed_count ?? 0)) / max((int) $this->quantity, count($ids)) * 100)
                 : 0,
             'pdf_url' => $this->getFirstMediaUrl('pdf') ?: null,
             'has_pdf' => $this->getFirstMedia('pdf') !== null,

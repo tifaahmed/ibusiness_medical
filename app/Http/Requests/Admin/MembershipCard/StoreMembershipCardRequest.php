@@ -98,6 +98,13 @@ class StoreMembershipCardRequest extends FormRequest
                     'Some codes in this range are already used: '.implode(', ', $sample).$more.'. Pick a different prefix or start number.'
                 );
             }
+
+            // Nor may it overlap a number another live batch already reserves.
+            $batches = \App\Support\BatchNumbers::batches();
+            $clash = array_values(array_filter($numbers, fn ($n) => \App\Support\BatchNumbers::reservingBatch($n, $batches) !== null));
+            if (! empty($clash)) {
+                $v->errors()->add('start_number', 'Some codes in this range are already reserved by another batch: '.implode(', ', array_slice($clash, 0, 5)).(count($clash) > 5 ? ' (+'.(count($clash) - 5).' more)' : '').'.');
+            }
         });
     }
 

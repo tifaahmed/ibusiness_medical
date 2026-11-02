@@ -8,3 +8,5 @@ export { default as FamilyMemberCreateCard } from './FamilyMemberCreateCard.vue'
 export { default as MemberAddressesCard } from './MemberAddressesCard.vue';
 export { default as ChangePasswordCard } from './ChangePasswordCard.vue';
 export { default as MemberPaymentsCard } from './MemberPaymentsCard.vue';
+export { default as MemberLoyaltyCard } from './MemberLoyaltyCard.vue';
+export { default as MemberWalletCard } from './MemberWalletCard.vue';

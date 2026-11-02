@@ -2,18 +2,13 @@
 
 namespace App\Http\Controllers\Admin\MembershipCard\Actions\Store;
 
-use App\Models\Membership;
 use App\Models\MembershipCard;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class StoreMembershipCardAction
 {
     /**
-     * Create N placeholder users + memberships (code-only) and one
-     * membership_card_patches row that owns the list of generated IDs.
+     * Create one membership_card_patches row that reserves N numbers. It creates NO users or memberships.
      *
      * @return array{card: MembershipCard, memberships: array<int, array{id:int, membership_number:string, slug:string}>}
      */
@@ -24,35 +19,15 @@ class StoreMembershipCardAction
             $start = (int) $validated['start_number'];
             $prefix = (string) ($validated['prefix'] ?? '');
 
+            // No users, no memberships: the batch only reserves the numbers. A membership that later takes one of
+            // them is filed under the batch ({@see \App\Support\BatchNumbers::linkMembership()}).
             $generated = [];
-
             for ($i = 0; $i < $quantity; $i++) {
                 $number = $prefix.(string) ($start + $i);
-
-                // Placeholder user — name/email/phone are null. completed_at
-                // on the membership tracks the "still empty" state for the UI.
-                $user = User::create([
-                    'name' => null,
-                    'email' => null,
-                    'phone' => null,
-                    'password' => Hash::make(Str::random(32)),
-                ]);
-
-                $membership = $user->memberships()->create([
-                    'membership_number' => $number,
-                    'registration_date' => null,
-                    'expiration_date' => null,
-                    'is_active' => false,
-                    'is_visible' => false,
-                    'completed_at' => null,
-                    'partner_id' => $validated['partner_id'] ?? null,
-                    'created_by' => $createdBy,
-                ]);
-
                 $generated[] = [
-                    'id' => $membership->id,
-                    'membership_number' => $membership->membership_number,
-                    'slug' => $membership->slug,
+                    'id' => null,
+                    'membership_number' => $number,
+                    'slug' => trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($number)), '-'),
                 ];
             }
 
@@ -66,7 +41,7 @@ class StoreMembershipCardAction
                 'layout_overrides' => $validated['layout_overrides'] ?? null,
                 'quantity' => $quantity,
                 'start_number' => $start,
-                'membership_ids' => array_column($generated, 'id'),
+                'membership_ids' => [],
                 'created_by' => $createdBy,
                 'partner_id' => $validated['partner_id'] ?? null,
                 'card_template_id' => $validated['card_template_id'] ?? null,

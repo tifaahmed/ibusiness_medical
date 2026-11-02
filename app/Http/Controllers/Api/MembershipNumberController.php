@@ -47,7 +47,13 @@ class MembershipNumberController extends Controller
         $membership = $query->first();
 
         if (!$membership) {
-            return response()->json(['unique' => true]);
+            // Nobody holds it, but a card batch may have reserved it: the member saved with it is filed under that batch.
+            $batch = \App\Support\BatchNumbers::reservingBatch($number);
+
+            return response()->json([
+                'unique' => true,
+                'reserved_by_batch' => $batch ? ['id' => $batch->id, 'name' => $batch->batch_name ?: ('#'.$batch->id)] : null,
+            ]);
         }
 
         $user = $membership->user;
@@ -205,12 +211,15 @@ class MembershipNumberController extends Controller
         $maxAttempts = 50;
         $attempt = 0;
 
+        $batches = \App\Support\BatchNumbers::batches();
+
         do {
             // Generate a 4-digit number (1000-9999)
             $membershipNumber = (string) rand(1000, 9999);
 
-            // Check if it exists in the database
-            $exists = Membership::where('membership_number', $membershipNumber)->exists();
+            // Taken by a member, or reserved by a card batch's range
+            $exists = Membership::where('membership_number', $membershipNumber)->exists()
+                || \App\Support\BatchNumbers::reservingBatch($membershipNumber, $batches) !== null;
             $attempt++;
         } while ($exists && $attempt < $maxAttempts);
 

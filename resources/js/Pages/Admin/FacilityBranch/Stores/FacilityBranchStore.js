@@ -6,6 +6,7 @@ import { useNotification } from '@/composables/useNotification';
 import { validateFacilityBranchForm } from '../validation/facilityBranchValidation';
 import { normalizePhoneEntries } from '@/lib/branchPhones';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useFacilityBranchStore = defineStore('facilityBranch', {
     state: () => ({
@@ -142,7 +143,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                         useNotification().success('Facility branch created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.facility-branch.list'));
+                        afterSave(route('admin.facility-branch.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -203,7 +204,7 @@ export const useFacilityBranchStore = defineStore('facilityBranch', {
                         this.debugLog = null;
                         if (stay) return;
                         this.initializeForm();
-                        router.visit(route('admin.facility-branch.list'));
+                        afterSave(route('admin.facility-branch.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

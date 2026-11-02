@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMemberPaymentForm } from '../validation/memberPaymentValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const getT = () => usePage().props.translations?.admin?.member_payment || {};
 
@@ -94,7 +95,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
                         useNotification().success(getT().created || 'Payment created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.member-payment.list'));
+                        afterSave(route('admin.member-payment.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -147,7 +148,7 @@ export const useMemberPaymentStore = defineStore('memberPayment', {
                         useNotification().success(getT().updated || 'Payment updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.member-payment.list'));
+                        afterSave(route('admin.member-payment.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

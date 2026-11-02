@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateProductTypeForm } from '../validation/productTypeValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useProductTypeStore = defineStore('productType', {
     state: () => ({
@@ -87,7 +88,7 @@ export const useProductTypeStore = defineStore('productType', {
                         useNotification().success('Product type created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.product-type.list'));
+                        afterSave(route('admin.product-type.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -137,7 +138,7 @@ export const useProductTypeStore = defineStore('productType', {
                         useNotification().success('Product type updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.product-type.list'));
+                        afterSave(route('admin.product-type.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

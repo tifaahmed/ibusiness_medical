@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMemberForm } from '../validation/memberValidation';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 // Every field the create/update form actually owns — used to take a clean
 // snapshot of what is about to be sent, without dragging along the
@@ -442,7 +443,7 @@ export const useMemberStore = defineStore('member', {
                         useNotification().success('Member created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.user.membership.list'));
+                        afterSave(route('admin.user.membership.list'));
                     },
                     onError: (errors) => {
                         console.error('=== Form Submission Error ===');
@@ -574,7 +575,7 @@ export const useMemberStore = defineStore('member', {
                             useNotification().success('Member updated successfully');
                             this.debugLog = null;
                             this.initializeForm();
-                            router.visit(route('admin.user.membership.list'));
+                            afterSave(route('admin.user.membership.list'));
                         },
                         onError: (errors) => {
                             // Merge server errors with client validation errors

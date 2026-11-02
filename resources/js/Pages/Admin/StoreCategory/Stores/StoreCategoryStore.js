@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateStoreCategoryForm } from '../validation/storeCategoryValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useStoreCategoryStore = defineStore('storeCategory', {
     state: () => ({
@@ -87,7 +88,7 @@ export const useStoreCategoryStore = defineStore('storeCategory', {
                         useNotification().success('Store category created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.store-category.list'));
+                        afterSave(route('admin.store-category.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -137,7 +138,7 @@ export const useStoreCategoryStore = defineStore('storeCategory', {
                         useNotification().success('Store category updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.store-category.list'));
+                        afterSave(route('admin.store-category.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

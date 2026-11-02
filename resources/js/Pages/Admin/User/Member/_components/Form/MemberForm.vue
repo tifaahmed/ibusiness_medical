@@ -293,6 +293,7 @@
               >
                 {{ t.member?.view_other_membership || 'View the other membership' }}
               </button>
+              <p v-if="reservedBatch" class="text-xs text-sky-500 mt-1" data-testid="reserved-by-batch">{{ (t.member?.reserved_by_batch || 'This number belongs to card batch :name — the member will be linked to it when you save.').replace(':name', reservedBatch.name) }}</p>
               <p v-if="takeoverDone" class="text-xs text-emerald-500 mt-1" data-testid="takeover-done">{{ t.member?.takeover_done || 'The number is free now. Save the form to use it.' }}</p>
             </div>
             <FormDateInput
@@ -625,6 +626,8 @@ const jobTitle = computed({
 });
 
 const duplicateMember = ref(null);
+// A card batch reserved this number: saving files the member under that batch.
+const reservedBatch = ref(null);
 const showDuplicate = ref(false);
 const takeoverStep = ref(0);
 const takeoverBusy = ref(false);
@@ -650,6 +653,10 @@ async function runTakeover() {
     takeoverDone.value = true;
     duplicateMember.value = null;
     closeDuplicate();
+    // Editing an existing member: the admin has confirmed twice, so save the
+    // member now instead of making them press the update button too. (On the
+    // create page the form is still being filled in, so it waits for Save.)
+    if (editingMembershipId.value) await memberStore.updateMember();
   } catch (e) {
     takeoverError.value = e?.response?.data?.message || (t.value.member?.takeover_failed || 'Could not free the number. Nothing was changed.');
     takeoverStep.value = 0;
@@ -669,6 +676,7 @@ watch(() => form.value.membership_number, (raw) => {
   const value = String(raw ?? '').trim();
   if (checkTimer) clearTimeout(checkTimer);
   duplicateMember.value = null;
+  reservedBatch.value = null;
   showDuplicate.value = false;
   takeoverStep.value = 0;
   if (value !== takeoverNumber) { memberStore.form.takeover_membership_id = ''; takeoverDone.value = false; }
@@ -686,6 +694,7 @@ watch(() => form.value.membership_number, (raw) => {
       const { data } = await axios.get('/api/membership-number/check', { params });
       if (seq !== checkSeq) return;
       duplicateMember.value = data?.unique === false ? data.member : null;
+      reservedBatch.value = data?.unique !== false ? (data?.reserved_by_batch ?? null) : null;
     } catch (e) {
       if (seq === checkSeq) duplicateMember.value = null;
     } finally {

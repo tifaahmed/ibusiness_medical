@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useNewsTickerStore = defineStore('newsTicker', {
     state: () => ({
@@ -78,7 +79,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
                         useNotification().success('News Ticker created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.news-ticker.list'));
+                        afterSave(route('admin.news-ticker.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = errors;
@@ -109,7 +110,7 @@ export const useNewsTickerStore = defineStore('newsTicker', {
                     onSuccess: () => {
                         useNotification().success('News Ticker updated successfully');
                         this.debugLog = null;
-                        router.visit(route('admin.news-ticker.list'));
+                        afterSave(route('admin.news-ticker.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = errors;

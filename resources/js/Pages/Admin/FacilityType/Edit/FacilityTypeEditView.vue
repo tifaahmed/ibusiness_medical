@@ -49,6 +49,7 @@
                   {{ t.common?.cancel || 'Cancel' }}
                 </Link>
                 <div class="relative inline-flex">
+                  <SaveStayButton />
                   <button
                     type="submit"
                     :disabled="facilityTypeStore.form.processing"
@@ -73,6 +74,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { watch, computed, ref } from "vue";
 import FacilityTypeLayout from "../FacilityTypeLayout.vue";

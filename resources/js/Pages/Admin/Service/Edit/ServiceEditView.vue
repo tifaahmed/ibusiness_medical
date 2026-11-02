@@ -19,6 +19,7 @@
                   {{ t.common?.cancel || 'Cancel' }}
                 </Link>
                 <div class="relative inline-flex order-1 sm:order-2">
+                  <SaveStayButton />
                   <button
                     type="submit"
                     :disabled="serviceStore.form.processing"
@@ -44,6 +45,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, usePage } from "@inertiajs/vue3";
 import ServiceLayout from "../ServiceLayout.vue";
 import { useServiceStore } from "../Stores/ServiceStore";

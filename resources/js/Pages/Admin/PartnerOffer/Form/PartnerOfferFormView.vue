@@ -18,6 +18,7 @@
                   {{ t.common?.cancel || 'Cancel' }}
                 </Link>
                 <div class="relative inline-flex order-1 sm:order-2">
+                  <SaveStayButton />
                   <button
                     type="submit"
                     :disabled="partnerOfferStore.form.processing"
@@ -43,6 +44,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, usePage } from "@inertiajs/vue3";
 import PartnerLayout from "../PartnerLayout.vue";
 import { usePartnerOfferStore } from "../Stores/PartnerOfferStore";

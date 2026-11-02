@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const emptyForm = () => ({
     // A map of locale to text — the name is translatable.
@@ -85,7 +86,7 @@ export const useTagStore = defineStore('tag', {
                         useNotification().success('Tag created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.tag.list'));
+                        afterSave(route('admin.tag.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -119,7 +120,7 @@ export const useTagStore = defineStore('tag', {
                         useNotification().success('Tag updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.tag.list'));
+                        afterSave(route('admin.tag.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

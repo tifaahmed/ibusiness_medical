@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useContractStore = defineStore('contract', {
     state: () => ({
@@ -82,7 +83,7 @@ export const useContractStore = defineStore('contract', {
                         useNotification().success('Contract created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.contract.list'));
+                        afterSave(route('admin.contract.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -114,7 +115,7 @@ export const useContractStore = defineStore('contract', {
                         useNotification().success('Contract updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.contract.list'));
+                        afterSave(route('admin.contract.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

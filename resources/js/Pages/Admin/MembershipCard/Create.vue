@@ -597,7 +597,7 @@ async function submit() {
   busy.value = true;
 
   try {
-    progressLabel.value = 'Creating memberships…';
+    progressLabel.value = 'Reserving the numbers…';
     const { data } = await axios.post(route('admin.membership-card-patches.store'), {
       batch_name: form.value.batch_name || null,
       prefix: form.value.prefix || null,

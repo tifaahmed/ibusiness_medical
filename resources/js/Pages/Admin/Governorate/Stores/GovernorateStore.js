@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateGovernorateForm } from '../validation/governorateValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useGovernorateStore = defineStore('governorate', {
     state: () => ({
@@ -88,7 +89,7 @@ export const useGovernorateStore = defineStore('governorate', {
                         useNotification().success('Governorate created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.governorate.list'));
+                        afterSave(route('admin.governorate.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -146,7 +147,7 @@ export const useGovernorateStore = defineStore('governorate', {
                         useNotification().success('Governorate updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.governorate.list'));
+                        afterSave(route('admin.governorate.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

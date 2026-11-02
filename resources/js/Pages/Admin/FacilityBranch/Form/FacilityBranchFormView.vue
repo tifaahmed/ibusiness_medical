@@ -46,6 +46,7 @@
                     {{ t.facility_branch?.save_and_stay || 'Save and stay' }}
                   </button>
                   <div class="relative inline-flex order-1 sm:order-3">
+                    <SaveStayButton />
                     <button
                       type="submit"
                       :disabled="facilityBranchStore.form.processing"
@@ -72,6 +73,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, usePage } from "@inertiajs/vue3";
 import FacilityBranchLayout from "../FacilityBranchLayout.vue";
 import { useFacilityBranchStore } from "../Stores/FacilityBranchStore";

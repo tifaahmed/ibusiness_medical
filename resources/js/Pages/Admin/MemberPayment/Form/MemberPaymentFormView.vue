@@ -238,6 +238,7 @@
               {{ t.cancel || 'Cancel' }}
             </Link>
             <div class="relative inline-flex">
+              <SaveStayButton />
               <button
                 type="submit"
                 :disabled="memberPaymentStore.form.processing"
@@ -260,6 +261,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import MemberPaymentLayout from "../MemberPaymentLayout.vue";
 import { FormInput, FormDateInput } from "@/Components/form";
 import FormSearchableSelect from "@/Components/form/FormSearchableSelect.vue";

@@ -83,7 +83,8 @@ class AdminMembershipCardListController extends BaseController
             ->values()
             ->all();
 
-        $totalMemberships = count($allCardMembershipIds);
+        // A batch reserves its whole range, whether or not anyone holds a number yet.
+        $totalMemberships = (int) (clone $statsQuery)->sum('quantity');
         $completedMemberships = $totalMemberships
             ? Membership::whereIn('id', $allCardMembershipIds)->whereNotNull('completed_at')->count()
             : 0;

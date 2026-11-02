@@ -35,6 +35,7 @@ class AdminMembershipCardShowController extends BaseController
             ->get();
 
         $card->setRelation('loadedMemberships', $memberships);
+        $card->setAttribute('unissuedNumbers', $this->unissued($card, $memberships));
         $card->load(['creator:id,name,email', 'media']);
         $card->load('cardTemplate');
 
@@ -57,5 +58,24 @@ class AdminMembershipCardShowController extends BaseController
             'cardTemplate' => $card->cardTemplate,
             'cardPrint' => \App\Support\CardPrint::toArray(),
         ]);
+    }
+
+    /**
+     * Numbers the batch reserves that no membership holds yet — printed cards nobody has been given. They are not rows
+     * in `memberships` (a batch creates none), so they are listed from the batch's own range.
+     *
+     * @return array<int, string>
+     */
+    private function unissued(MembershipCard $card, $memberships): array
+    {
+        $held = $memberships->pluck('membership_number')->map(fn ($n) => (string) $n)->flip();
+        $taken = [];
+        foreach (array_chunk(\App\Support\BatchNumbers::numbersOf($card), 1000) as $chunk) {
+            foreach (Membership::withTrashed()->whereIn('membership_number', $chunk)->pluck('membership_number') as $n) {
+                $taken[(string) $n] = true;
+            }
+        }
+
+        return array_values(array_filter(\App\Support\BatchNumbers::numbersOf($card), fn ($n) => ! isset($held[$n]) && ! isset($taken[$n])));
     }
 }

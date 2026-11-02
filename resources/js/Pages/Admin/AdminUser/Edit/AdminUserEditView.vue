@@ -48,6 +48,7 @@
                   {{ t.cancel || 'Cancel' }}
                 </Link>
                 <div class="relative inline-flex order-1 sm:order-2">
+                  <SaveStayButton />
                   <button
                     type="submit"
                     :disabled="form.processing"
@@ -72,6 +73,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { computed, ref } from "vue";
 import { Link, useForm, usePage } from "@inertiajs/vue3";
 import AdminUserLayout from "../AdminUserLayout.vue";

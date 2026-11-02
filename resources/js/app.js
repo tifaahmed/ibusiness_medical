@@ -10,6 +10,8 @@ import { setToastInstance } from './composables/useNotification';
 import Toast, { useToast } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 
+import { installSaveAndStay } from './composables/useSaveAndStay';
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 router.on('invalid', (event) => {
@@ -18,6 +20,8 @@ router.on('invalid', (event) => {
         window.location.reload();
     }
 });
+
+installSaveAndStay();
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

@@ -50,6 +50,7 @@
                 {{ t.common?.cancel || 'Cancel' }}
               </Link>
               <div class="relative inline-flex">
+                <SaveStayButton />
                 <button
                   type="submit"
                   :disabled="memberStore.form.processing"
@@ -100,17 +101,28 @@
           :membership-slug="member?.membership?.slug"
         />
       </div>
+
+      <!-- Loyalty points tab — balance, add / take, and one ledger line per change. -->
+      <div v-if="activeTab === 'loyalty' && member?.id">
+        <MemberLoyaltyCard :user-id="member.id" />
+      </div>
+
+      <!-- Wallet tab — balance in EGP, add / take, one ledger line per change. -->
+      <div v-if="activeTab === 'wallet' && member?.id">
+        <MemberWalletCard :user-id="member.id" />
+      </div>
     </div>
     </div>
   </MemberLayout>
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, usePage } from "@inertiajs/vue3";
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
-import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberAddressesCard } from "../_components/Form";
+import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberAddressesCard, MemberLoyaltyCard, MemberWalletCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import { onMounted, computed, ref, watch } from "vue";
@@ -118,7 +130,7 @@ import { onMounted, computed, ref, watch } from "vue";
 // Tabs live in the URL (?tab=...) so a switch is linkable and
 // refresh/back keeps the tab the admin was working in.
 // 'payments' kept out of the visible tab list per admin request (payment UI hidden here).
-const TAB_KEYS = ['profile', 'password', 'addresses'];
+const TAB_KEYS = ['profile', 'password', 'addresses', 'loyalty', 'wallet'];
 
 const initialTab = new URLSearchParams(window.location.search).get('tab');
 const activeTab = ref(TAB_KEYS.includes(initialTab) ? initialTab : 'profile');
@@ -163,6 +175,8 @@ const tabs = computed(() => [
       ? `${t.value.member?.addresses || 'Addresses'} (${addressesCount.value})`
       : (t.value.member?.addresses || 'Addresses'),
   },
+  { key: 'loyalty', label: t.value.member?.tab_loyalty || 'Loyalty points' },
+  { key: 'wallet', label: t.value.member?.tab_wallet || 'Wallet' },
 ]);
 
 onMounted(() => {

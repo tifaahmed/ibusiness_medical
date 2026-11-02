@@ -82,6 +82,7 @@
                   </svg>
                   Update &amp; Show
                 </button>
+                <SaveStayButton />
                 <button
                   type="submit"
                   :disabled="productStore.isLoading"
@@ -103,6 +104,7 @@
 </template>
 
 <script setup>
+import SaveStayButton from '@/Components/ui/SaveStayButton.vue';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { watch, computed, ref } from "vue";
 import ProductLayout from "../ProductLayout.vue";

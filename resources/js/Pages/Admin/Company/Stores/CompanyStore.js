@@ -4,6 +4,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateCompanyForm } from '../validation/companyValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useCompanyStore = defineStore('company', {
     state: () => ({
@@ -61,7 +62,7 @@ export const useCompanyStore = defineStore('company', {
                         useNotification().success('Company created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.company.list'));
+                        afterSave(route('admin.company.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -102,7 +103,7 @@ export const useCompanyStore = defineStore('company', {
                         useNotification().success('Company updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.company.list'));
+                        afterSave(route('admin.company.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

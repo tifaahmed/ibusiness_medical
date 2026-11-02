@@ -217,9 +217,13 @@ class Membership extends Model implements HasMedia
      */
     public static function newNumber(): string
     {
+        $batches = \App\Support\BatchNumbers::batches();
+
         do {
             $number = (string) random_int(100000, 999999);
-        } while (static::withTrashed()->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))->exists());
+            // A number inside a card batch's range is reserved for that batch's printed cards.
+        } while (\App\Support\BatchNumbers::reservingBatch($number, $batches) !== null
+            || static::withTrashed()->where(fn ($q) => $q->where('membership_number', $number)->orWhere('slug', $number))->exists());
 
         return $number;
     }
@@ -582,6 +586,17 @@ class Membership extends Model implements HasMedia
                 static::where('user_id', $membership->user_id)
                     ->where('id', '!=', $membership->id)
                     ->update(['is_active' => false]);
+            }
+        });
+
+        // A membership that takes a number reserved by a card batch is filed under that batch.
+        static::saved(function ($membership) {
+            if ($membership->wasRecentlyCreated || $membership->wasChanged('membership_number')) {
+                try {
+                    \App\Support\BatchNumbers::linkMembership($membership);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not file a membership under its card batch.', ['membership_id' => $membership->id, 'message' => $e->getMessage()]);
+                }
             }
         });
 

@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateFacilityTypeForm } from '../validation/facilityTypeValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useFacilityTypeStore = defineStore('facilityType', {
     state: () => ({
@@ -87,7 +88,7 @@ export const useFacilityTypeStore = defineStore('facilityType', {
                         useNotification().success('Facility type created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.facility-type.list'));
+                        afterSave(route('admin.facility-type.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -137,7 +138,7 @@ export const useFacilityTypeStore = defineStore('facilityType', {
                         useNotification().success('Facility type updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.facility-type.list'));
+                        afterSave(route('admin.facility-type.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

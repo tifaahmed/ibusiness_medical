@@ -4,6 +4,7 @@ import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateOfferForm } from '../validation/offerValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const getT = () => usePage().props.translations?.admin?.offer || {};
 
@@ -129,7 +130,7 @@ export const useOfferStore = defineStore('offer', {
                         useNotification().success(getT().created || 'Offer created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.offer.list'));
+                        afterSave(route('admin.offer.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors
@@ -187,7 +188,7 @@ export const useOfferStore = defineStore('offer', {
                         useNotification().success(getT().updated || 'Offer updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.offer.list'));
+                        afterSave(route('admin.offer.list'));
                     },
                     onError: (errors) => {
                         // Merge server errors with client validation errors

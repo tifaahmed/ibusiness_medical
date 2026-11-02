@@ -37,6 +37,13 @@ Every new feature must log errors on both sides to make debugging possible:
 - Test each new dashboard page with real example rows (create seed/test data) — verify
   icons, badges and statuses render correctly before considering the task done.
 
+## Tags, badges, chips and status colours — ONE system (fixed design rule, Claude must follow it)
+- Every tag / badge / pill / status word / signed figure in the dashboard uses the shared classes in `resources/css/status.css` — read the header comment there first. **Chips:** `chip` + one of `chip-positive` (success, money in, given), `chip-negative` (failure, money out, taken), `chip-warning` (pending, needs attention), `chip-info` (references, wallet, neutral-but-notable), `chip-neutral` (ids, card numbers, who/when, secondary), `chip-accent` (the gold house colour: the record's primary type, loyalty points). **Text:** `value-positive|negative|warning|info|muted`. **Blocks:** `panel-note`, `panel-danger`.
+- NEVER write a bare Tailwind colour for a tag, badge or status text (`bg-emerald-500/15 text-emerald-600`, `text-red-500`, `bg-sky-600 text-white`, `bg-primary/10 text-primary` …). The admin is a dark purple surface in BOTH themes: mid-weight Tailwind colours vanish on it (see the status.css header). One meaning = one colour everywhere: green given/success, red taken/failed, amber pending, blue wallet/info, gold type/points, grey ids and people.
+- A new meaning that has no class yet gets a token + class in `status.css` (never inline in a component). Keep one colour per meaning across pages (e.g. points are always `chip-accent`, wallet always `chip-info`).
+- A form action button (Save, Add, Take) is a button, not a tag, but a *selected* state that means success/danger uses the same `chip-positive` / `chip-negative`.
+- Before finishing any UI change that adds a tag or badge, look at it in the browser on the dashboard background and confirm it is readable. Pages written before this rule may still carry old colours; when touching one, move its tags to these classes.
+
 ## Input placeholders are WHITE (fixed design rule)
 - The placeholder of every `input` / `textarea` in the dashboard is **white**, full opacity. It is enforced by one global rule in `resources/css/app.css` (`input::placeholder, textarea::placeholder { color: #fff !important }`). Do NOT set a grey / `white/70` / `muted` placeholder on a field and do not remove that rule; a new form component needs no `placeholder:text-*` class. Check it on `/admin/store` (create/edit) after any form change.
 

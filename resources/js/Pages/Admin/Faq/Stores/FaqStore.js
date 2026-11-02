@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 export const useFaqStore = defineStore('faq', {
     state: () => ({
@@ -69,7 +70,7 @@ export const useFaqStore = defineStore('faq', {
                         useNotification().success('FAQ created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.faq.list'));
+                        afterSave(route('admin.faq.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -102,7 +103,7 @@ export const useFaqStore = defineStore('faq', {
                         useNotification().success('FAQ updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.faq.list'));
+                        afterSave(route('admin.faq.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

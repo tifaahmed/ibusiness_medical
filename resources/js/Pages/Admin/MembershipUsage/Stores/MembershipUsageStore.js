@@ -5,6 +5,7 @@ import { useForm } from '@inertiajs/vue3';
 import { useNotification } from '@/composables/useNotification';
 import { validateMembershipUsageForm } from '../validation/membershipUsageValidation';
 import { buildDebugLog, recordResponse } from '@/utils/errorTrack';
+import { afterSave } from '@/composables/useSaveAndStay';
 
 const getT = () => usePage().props.translations?.admin?.membership_usage || {};
 
@@ -96,7 +97,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
                         useNotification().success(getT().created || 'Membership usage created successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.membership-usage.list'));
+                        afterSave(route('admin.membership-usage.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };
@@ -148,7 +149,7 @@ export const useMembershipUsageStore = defineStore('membershipUsage', {
                         useNotification().success(getT().updated || 'Membership usage updated successfully');
                         this.debugLog = null;
                         this.initializeForm();
-                        router.visit(route('admin.membership-usage.list'));
+                        afterSave(route('admin.membership-usage.list'));
                     },
                     onError: (errors) => {
                         this.validationErrors = { ...this.validationErrors, ...errors };

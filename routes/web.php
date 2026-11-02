@@ -328,7 +328,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     ->get('/user/profile', [\Laravel\Jetstream\Http\Controllers\Inertia\UserProfileController::class, 'show'])
     ->name('profile.show');
 
-Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class])->group(function () {
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class, \App\Http\Middleware\RedirectBackWhenStaying::class])->group(function () {
     // Dashboard (any admin-area role)
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin', [DashboardController::class, 'index'])->name('admin');
@@ -502,6 +502,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             Route::post('/convert', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'convertPoints'])->name('convert');
             Route::get('/members/{user}/ledger', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'ledger'])->whereNumber('user')->name('members.ledger');
         });
+        /* Everything an admin gave or took (loyalty points + wallet money): its own page, apart from /admin/loyalty. */
+        Route::get('/admin/points-wallet-log', [\App\Http\Controllers\Admin\LoyaltyAdjustmentLogController::class, 'index'])->middleware('permission:manage memberships')->name('admin.points-wallet-log');
         // Extra physical / soft cards of ONE member (primary or relative): same number or a different one.
         Route::post('/admin/member-extra-cards', [\App\Http\Controllers\Admin\User\Membership\ExtraCard\AdminMemberExtraCardController::class, 'store'])->name('admin.member-extra-cards.store');
         Route::put('/admin/member-extra-cards/{card}', [\App\Http\Controllers\Admin\User\Membership\ExtraCard\AdminMemberExtraCardController::class, 'update'])->whereNumber('card')->name('admin.member-extra-cards.update');

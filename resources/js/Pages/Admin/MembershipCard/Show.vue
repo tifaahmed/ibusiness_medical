@@ -246,7 +246,7 @@
               <div><span class="text-muted-foreground">Slug:</span> <span class="font-mono">{{ detail.slug }}</span></div>
               <div>
                 <span class="text-muted-foreground">Public URL:</span>
-                <a :href="detail.public_url" target="_blank" class="text-blue-600 hover:underline ml-1">open</a>
+                <a v-if="detail.public_url" :href="detail.public_url" target="_blank" class="text-blue-600 hover:underline ml-1">open</a>
               </div>
             </div>
           </section>
