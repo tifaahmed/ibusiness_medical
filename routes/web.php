@@ -1229,6 +1229,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/admin-users', \App\Http\Controllers\Admin\AdminUser\Store\AdminUserStoreController::class)->name('admin.admin-users.store');
         Route::get('/admin/admin-users/{adminUser}/edit', \App\Http\Controllers\Admin\AdminUser\Edit\AdminUserEditController::class)->name('admin.admin-users.edit');
         Route::put('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Update\AdminUserUpdateController::class)->name('admin.admin-users.update');
+        Route::put('/admin/admin-users/{adminUser}/ledger-limits', \App\Http\Controllers\Admin\AdminUser\LedgerLimits\AdminUserLedgerLimitsController::class)->name('admin.admin-users.ledger-limits');
         Route::delete('/admin/admin-users/{adminUser}', \App\Http\Controllers\Admin\AdminUser\Delete\AdminUserDeleteController::class)->name('admin.admin-users.destroy');
     });
     Route::middleware('permission:manage users|manage admin users|view admin users')->group(function () {
@@ -1243,6 +1244,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/roles', \App\Http\Controllers\Admin\Role\Store\AdminRoleStoreController::class)->name('admin.roles.store');
         Route::get('/admin/roles/{role}/edit', \App\Http\Controllers\Admin\Role\Edit\AdminRoleEditController::class)->name('admin.roles.edit');
         Route::put('/admin/roles/{role}', \App\Http\Controllers\Admin\Role\Update\AdminRoleUpdateController::class)->name('admin.roles.update');
+        Route::put('/admin/roles/{role}/ledger-limits', \App\Http\Controllers\Admin\Role\LedgerLimits\AdminRoleLedgerLimitsController::class)->name('admin.roles.ledger-limits');
         Route::delete('/admin/roles/{role}', \App\Http\Controllers\Admin\Role\Delete\AdminRoleDeleteController::class)->name('admin.roles.destroy');
     });
     Route::middleware('permission:manage roles|view roles')->group(function () {

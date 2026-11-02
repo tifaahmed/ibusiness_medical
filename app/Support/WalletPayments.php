@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Paying with the wallet.
  *
- *  - ORDERS: when the buyer is signed in, the wallet is used AUTOMATICALLY to cut what is left to pay. It can only cover the lines of
- *    products the admin ticked `wallet_payable`; delivery and the cash-on-delivery fee are always paid in real money. The order keeps
- *    `wallet_amount` (what the wallet paid) and `amountDue()` (the rest). When nothing is left the order is paid at once.
+ *  - ORDERS: when the buyer is signed in, the wallet is used AUTOMATICALLY to cut what is left to pay (after any loyalty-points
+ *    discount, see PointsPayments). It covers the lines of EVERY product; delivery and the cash-on-delivery fee are always paid in
+ *    real money. The order keeps `wallet_amount` (what the wallet paid) and `amountDue()` (the rest). When nothing is left the order
+ *    is paid at once.
  *  - MEMBERSHIP: the yearly plan can be bought with the wallet when the whole price is there (switch `wallet_membership_enabled`, default ON).
  *  - REFUNDS: an order that is cancelled or fails after it was sold sends its money back to the WALLET (see `refundOrder`) — the wallet part
  *    and whatever was paid in real money — once only.
@@ -55,7 +56,7 @@ final class WalletPayments
         // The buyer's row is the lock: two orders placed at once cannot spend the same money.
         User::query()->whereKey($buyer->id)->lockForUpdate()->first();
 
-        $amount = round(min(WalletTransaction::balanceOf($buyer->id), $eligible, (float) $order->total_amount), 2);
+        $amount = round(min(WalletTransaction::balanceOf($buyer->id), $eligible, (float) $order->total_amount - (float) $order->points_amount), 2);
         if ($amount <= 0) {
             return 0.0;
         }
@@ -66,8 +67,8 @@ final class WalletPayments
         ]);
 
         $attributes = ['wallet_amount' => $amount];
-        if (round((float) $order->total_amount - $amount, 2) <= 0) {
-            // The wallet paid for all of it.
+        if (round((float) $order->total_amount - (float) $order->points_amount - $amount, 2) <= 0) {
+            // Points and the wallet together paid for all of it.
             $attributes += ['payment_status' => PaymentStatusEnum::ACCEPTED, 'total_paid' => $order->total_amount, 'paid_at' => now()];
         }
         $order->forceFill($attributes)->save();
@@ -92,10 +93,20 @@ final class WalletPayments
             }
 
             $walletPart = (float) $fresh->wallet_amount;
-            $realPaid = max(0.0, round((float) $fresh->total_paid - $walletPart - (float) $fresh->refunded_amount, 2));
+            $pointsPart = (float) $fresh->points_amount;
+            $realPaid = max(0.0, round((float) $fresh->total_paid - $walletPart - $pointsPart - (float) $fresh->refunded_amount, 2));
             $credit = round($walletPart + $realPaid, 2);
 
+            if ($credit <= 0 && (int) $fresh->points_used <= 0) {
+                return 0.0;
+            }
+
+            // The points an order spent go back as POINTS, in the same once-only step.
+            PointsPayments::refundOrder($fresh);
+
             if ($credit <= 0) {
+                $fresh->forceFill(['wallet_refunded_at' => now()])->save();
+
                 return 0.0;
             }
 

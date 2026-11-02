@@ -93,6 +93,19 @@ enum UserPermissionEnum
 
     public const MANAGE_OWN_PRODUCTS = 'manage own products';
 
+    /**
+     * Writing to a member's balances BY HAND, one permission per ledger and direction, so an admin can be allowed to give
+     * points but not take them, or to touch the wallet at all. A monthly cap per permission lives in `admin_ledger_limits`
+     * (none = unlimited); the super admin is always unlimited. See App\Support\AdminLedgerLimits.
+     */
+    public const ADD_LOYALTY_POINTS = 'add loyalty points';
+
+    public const TAKE_LOYALTY_POINTS = 'take loyalty points';
+
+    public const ADD_WALLET_MONEY = 'add wallet money';
+
+    public const TAKE_WALLET_MONEY = 'take wallet money';
+
     public const MANAGE_STORE_CATEGORIES = 'manage store categories';
 
     public const MANAGE_OWN_STORE_CATEGORIES = 'manage own store categories';
@@ -286,6 +299,10 @@ enum UserPermissionEnum
             self::MANAGE_SETTINGS,
             self::MANAGE_PROFILE,
             self::VIEW_MEMBER_ACTIVE_HISTORIES,
+            self::ADD_LOYALTY_POINTS,
+            self::TAKE_LOYALTY_POINTS,
+            self::ADD_WALLET_MONEY,
+            self::TAKE_WALLET_MONEY,
         ];
     }
 

@@ -34,6 +34,16 @@ class AuthenticateLoginResponse implements LoginResponse
                 'user_exists' => $user !== null,
             ]);
 
+            // A blocked account is turned away at the door instead of being let in and refused page by page.
+            if ($user && $user->dashboard_blocked_at !== null) {
+                Log::warning('Fortify: blocked user refused at login', ['user_id' => $user->id]);
+                auth()->guard()->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect()->route('login')->withErrors(['email' => 'Your access to the dashboard has been blocked.']);
+            }
+
             if (!$user) {
                 Log::error('Fortify: User not found in request', [
                     'session_id' => $request->session()->getId(),

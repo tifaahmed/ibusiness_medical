@@ -13,11 +13,12 @@
     </div>
 
     <!-- Add or take points: every change is saved as ONE new line below, never edited later. -->
-    <form class="px-6 space-y-3" @submit.prevent="submit">
+    <p v-if="!canAny" class="px-6 text-sm value-warning" data-testid="no-ledger-permission">{{ t.loyalty?.no_permission_text || 'You do not have permission to add or take here. Ask the super admin.' }}</p>
+    <form v-else class="px-6 space-y-3" @submit.prevent="submit">
       <div class="flex flex-wrap items-end gap-3">
         <div class="flex rounded-md border border-border overflow-hidden" role="group">
-          <button type="button" class="h-9 px-4 text-sm font-semibold min-w-[6rem]" :class="form.direction === 'add' ? 'chip-positive' : 'bg-background'" data-testid="loyalty-add" @click="form.direction = 'add'">+ {{ t.loyalty?.add || 'Add' }}</button>
-          <button type="button" class="h-9 px-4 text-sm font-semibold min-w-[6rem]" :class="form.direction === 'take' ? 'chip-negative' : 'bg-background'" data-testid="loyalty-take" @click="form.direction = 'take'">− {{ t.loyalty?.take || 'Take' }}</button>
+          <button v-if="allowance.add.allowed" type="button" class="h-9 px-4 text-sm font-semibold min-w-[6rem]" :class="form.direction === 'add' ? 'chip-positive' : 'bg-background'" data-testid="loyalty-add" @click="form.direction = 'add'">+ {{ t.loyalty?.add || 'Add' }}</button>
+          <button v-if="allowance.take.allowed" type="button" class="h-9 px-4 text-sm font-semibold min-w-[6rem]" :class="form.direction === 'take' ? 'chip-negative' : 'bg-background'" data-testid="loyalty-take" @click="form.direction = 'take'">− {{ t.loyalty?.take || 'Take' }}</button>
         </div>
         <input v-model.number="form.amount" type="number" min="1" max="1000000" step="1" required dir="ltr" data-testid="loyalty-amount"
                :placeholder="t.loyalty?.amount || 'Points'" class="h-9 w-32 rounded-md border border-border bg-background px-2 text-sm" />
@@ -27,6 +28,11 @@
           {{ saving ? '…' : (t.loyalty?.save_line || 'Save') }}
         </button>
       </div>
+      <p class="text-xs text-foreground/80" data-testid="ledger-allowance">
+        {{ t.loyalty?.monthly_left || 'Your monthly allowance (left / limit)' }}:
+        <span class="chip chip-positive">+ {{ allowanceText(allowance.add) }}</span>
+        <span class="chip chip-negative">− {{ allowanceText(allowance.take) }}</span>
+      </p>
       <p v-if="error" class="text-xs value-negative" data-testid="loyalty-error">{{ error }}</p>
     </form>
 
@@ -66,6 +72,10 @@ const saving = ref(false);
 const error = ref('');
 const ledger = ref([]);
 const form = reactive({ direction: 'add', amount: null, note: '' });
+// What THIS admin may do by hand (permission + monthly cap), as the backend last said it.
+const allowance = ref({ add: { allowed: true }, take: { allowed: true } });
+const canAny = computed(() => allowance.value.add.allowed || allowance.value.take.allowed);
+const allowanceText = (a) => (!a.allowed ? (t.value.loyalty?.no_permission || 'not allowed') : a.limit === null ? (t.value.loyalty?.unlimited || 'unlimited') : `${a.remaining} / ${a.limit}`);
 
 const SOURCES = { quiz: 'Quiz game', badge: 'Badge reward', admin: 'Admin (by hand)', wallet: 'Converted to wallet', transfer: 'Transfer', order: 'Order' };
 const sourceLabel = (s) => t.value.loyalty?.['source_' + s] || SOURCES[s] || s;
@@ -87,6 +97,8 @@ async function load() {
     const { data } = await axios.get(route('admin.loyalty.members.ledger', props.userId));
     balance.value = data.balance;
     ledger.value = (data.data || []).filter((r) => r.ledger === 'points');
+    allowance.value = data.allowance?.points ?? allowance.value;
+    if (!allowance.value[form.direction].allowed) form.direction = form.direction === 'add' ? 'take' : 'add';
   } catch (e) {
     error.value = t.value.loyalty?.load_failed || 'Could not load the points history.';
   } finally {

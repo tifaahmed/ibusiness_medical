@@ -31,7 +31,7 @@ class RefundPaymobPayment
     public function handle(Order $order, float $amount, ?string $reason, int $adminId, Request $request): array
     {
         // The wallet's part cannot go back through the gateway: only what was paid in real money.
-        $refundable = round((float) $order->total_paid - (float) $order->wallet_amount - (float) $order->refunded_amount, 2);
+        $refundable = round((float) $order->total_paid - (float) $order->wallet_amount - (float) $order->points_amount - (float) $order->refunded_amount, 2);
         if ($order->wallet_refunded_at !== null) {
             throw ValidationException::withMessages(['amount' => 'This order was already refunded to the wallet.']);
         }

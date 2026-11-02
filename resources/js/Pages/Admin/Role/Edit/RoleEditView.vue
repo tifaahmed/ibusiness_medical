@@ -60,6 +60,9 @@
             </div>
           </div>
         </form>
+
+        <!-- Monthly caps on adding / taking loyalty points and wallet money, the default for everyone holding this role. -->
+        <RoleLedgerLimitsCard :role_id="role.id" :ledger_limits="ledger_limits" :can_edit_limits="can_edit_limits" />
       </div>
     </div>
   </RoleLayout>
@@ -71,12 +74,15 @@ import { Link, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 import RoleLayout from "../RoleLayout.vue";
 import RoleForm from "../_components/Form/RoleForm.vue";
+import RoleLedgerLimitsCard from "../_components/RoleLedgerLimitsCard.vue";
 import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
 import { buildDebugLog, recordResponse } from "@/utils/errorTrack";
 
 const props = defineProps({
   role: { type: Object, required: true },
   allPermissions: { type: Array, required: true },
+  ledger_limits: { type: Array, default: () => [] },
+  can_edit_limits: { type: Boolean, default: false },
 });
 
 const form = useForm({

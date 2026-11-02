@@ -39,7 +39,9 @@ class EnsureAdminAreaAccess
                 'route' => $request->path(),
             ]);
             if ($request->hasSession()) {
-                auth()->guard()->logout();
+                // The `web` guard explicitly: with a Sanctum bearer token the default guard is a stateless
+                // RequestGuard that has no logout(), and the refusal would otherwise end in a 500.
+                auth()->guard('web')->logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
             }

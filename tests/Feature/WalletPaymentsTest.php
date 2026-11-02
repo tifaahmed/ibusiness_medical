@@ -74,7 +74,7 @@ class WalletPaymentsTest extends TestCase
     }
 
     /** @test */
-    public function a_small_wallet_pays_what_it_has_and_a_product_not_allowed_is_never_paid_from_it(): void
+    public function the_wallet_pays_for_every_product_whether_or_not_it_was_ticked_and_a_small_wallet_pays_what_it_has(): void
     {
         $this->product('allowed', 100, true);
         $this->product('plain', 100, false);
@@ -86,11 +86,13 @@ class WalletPaymentsTest extends TestCase
         $this->assertEquals(160, $res->json('order.amount_due'));
         $this->assertEquals(0, WalletTransaction::balanceOf($user->id));
 
+        // A product that was never ticked is paid from the wallet too — and still never the delivery (20).
         $other = User::factory()->create();
         $this->wallet($other, 500);
         $res = $this->order([['slug' => 'plain', 'quantity' => 1]], $other)->assertCreated();
-        $this->assertEquals(0, $res->json('order.wallet_amount'));
-        $this->assertEquals(500, WalletTransaction::balanceOf($other->id));
+        $this->assertEquals(100, $res->json('order.wallet_amount'));
+        $this->assertEquals(20, $res->json('order.amount_due'));
+        $this->assertEquals(400, WalletTransaction::balanceOf($other->id));
     }
 
     /** @test */

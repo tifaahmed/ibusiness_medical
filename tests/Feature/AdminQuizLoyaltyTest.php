@@ -23,6 +23,10 @@ class AdminQuizLoyaltyTest extends TestCase
     {
         $admin = User::factory()->create();
         $admin->givePermissionTo(Permission::findOrCreate('manage memberships', 'web'));
+        // Writing to balances by hand has its own permissions (see LedgerPermissionsLimitsTest); these tests are about the ledger rules.
+        foreach (['add loyalty points', 'take loyalty points', 'add wallet money', 'take wallet money'] as $ledgerPermission) {
+            $admin->givePermissionTo(Permission::findOrCreate($ledgerPermission, 'web'));
+        }
 
         return $admin;
     }

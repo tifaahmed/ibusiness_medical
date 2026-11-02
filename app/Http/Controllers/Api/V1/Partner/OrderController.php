@@ -22,6 +22,7 @@ use App\Models\Product;
 use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
 use App\Support\ShopDelivery;
+use App\Support\PointsPayments;
 use App\Support\WalletPayments;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -110,8 +111,8 @@ class OrderController extends Controller
                 $lines = [];
                 $total = 0.0;
                 $totalBeforeDiscount = 0.0;
-                /* The part of the basket the wallet may pay for: only products the admin allowed (`wallet_payable`). */
-                $walletEligible = 0.0;
+                /* The part of the basket loyalty points may discount: only products the admin allowed (`points_payable`). */
+                $pointsEligible = 0.0;
 
                 foreach ($items as $slug => $quantity) {
                     $product = $products->get($slug);
@@ -129,8 +130,8 @@ class OrderController extends Controller
                     $line = OrderProduct::fromProduct($product, $quantity, $memberPrice);
 
                     $total += (float) $line->line_total;
-                    if ($product->wallet_payable) {
-                        $walletEligible += (float) $line->line_total;
+                    if ($product->points_payable) {
+                        $pointsEligible += (float) $line->line_total;
                     }
                     $totalBeforeDiscount += (float) ($line->old_price ?? $line->new_price ?? 0) * $quantity;
 
@@ -213,8 +214,13 @@ class OrderController extends Controller
 
                 $order->products()->saveMany($lines);
 
-                /* A signed-in buyer's wallet cuts what is left to pay, automatically. Delivery and fees stay real money. */
-                WalletPayments::applyToOrder($order, $buyer, $walletEligible);
+                /* Points first (only for products that accept them), then the wallet on whatever products are left to pay.
+                   Delivery and the COD fee stay real money. */
+                /* The app draws the discount, so it defaults on there; the website does not yet, so it must ask (`use_points`). */
+                $pointsAmount = $request->boolean('use_points', $request->input('source') === Order::SOURCE_MOBILE_APP)
+                    ? PointsPayments::applyToOrder($order, $buyer, $pointsEligible)
+                    : 0.0;
+                WalletPayments::applyToOrder($order, $buyer, max(0.0, round($total - $pointsAmount, 2)));
 
                 return $order;
             });

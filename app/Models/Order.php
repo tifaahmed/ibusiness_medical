@@ -30,6 +30,9 @@ class Order extends Model implements HasMedia
     /** Where a storefront order says it came from. */
     public const SOURCE_STOREFRONT = 'storefront';
 
+    /** Orders placed from the app (`StampMobileOrder` sets it, whatever the body says). */
+    public const SOURCE_MOBILE_APP = 'mobile_app';
+
     /**
      * Delivery was not charged because the basket reached the total the
      * storefront's shop settings say earns free delivery.
@@ -63,6 +66,8 @@ class Order extends Model implements HasMedia
         'user_id',
         'total_paid',
         'wallet_amount',
+        'points_used',
+        'points_amount',
         'wallet_refunded_at',
         'total_amount',
         'total_amount_before_discount',
@@ -115,6 +120,8 @@ class Order extends Model implements HasMedia
         return [
             'total_paid' => 'decimal:2',
             'wallet_amount' => 'decimal:2',
+            'points_used' => 'integer',
+            'points_amount' => 'decimal:2',
             'wallet_refunded_at' => 'datetime',
             'total_amount' => 'decimal:2',
             'total_amount_before_discount' => 'decimal:2',
@@ -203,7 +210,7 @@ class Order extends Model implements HasMedia
     /** What is still to be paid in REAL money: the total less what the wallet paid. */
     public function amountDue(): float
     {
-        return max(0.0, round((float) $this->total_amount - (float) $this->wallet_amount, 2));
+        return max(0.0, round((float) $this->total_amount - (float) $this->wallet_amount - (float) $this->points_amount, 2));
     }
 
     /** Cancelled, or failed after it was sold: whatever was paid goes back to the buyer's WALLET (once). */

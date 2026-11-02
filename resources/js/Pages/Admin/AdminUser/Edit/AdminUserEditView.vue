@@ -67,6 +67,9 @@
             </div>
           </div>
         </form>
+
+        <!-- Monthly caps on adding / taking loyalty points and wallet money (its own save, outside the form above). -->
+        <AdminLedgerLimitsCard :admin_id="admin.id" :ledger_limits="ledger_limits" :can_edit_limits="can_edit_limits" />
       </div>
     </div>
   </AdminUserLayout>
@@ -78,6 +81,7 @@ import { computed, ref } from "vue";
 import { Link, useForm, usePage } from "@inertiajs/vue3";
 import AdminUserLayout from "../AdminUserLayout.vue";
 import AdminUserForm from "../_components/Form/AdminUserForm.vue";
+import AdminLedgerLimitsCard from "../_components/Form/AdminLedgerLimitsCard.vue";
 import ErrorTrackButton from "@/Components/ui/ErrorTrackButton.vue";
 import { buildDebugLog, recordResponse } from "@/utils/errorTrack";
 
@@ -86,6 +90,8 @@ const props = defineProps({
   assignableRoles: { type: Array, required: true },
   allPermissions: { type: Array, required: true },
   partnerOptions: { type: Array, default: () => [] },
+  ledger_limits: { type: Array, default: () => [] },
+  can_edit_limits: { type: Boolean, default: false },
 });
 
 const page = usePage();

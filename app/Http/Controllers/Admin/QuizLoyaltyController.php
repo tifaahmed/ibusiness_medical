@@ -8,7 +8,9 @@ use App\Models\QuizBadgeDefinition;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Models\WalletTransfer;
+use App\Support\AdminLedgerLimits;
 use App\Support\AdminLedgerMoves;
+use App\Support\LedgerLimitExceeded;
 use App\Support\LoyaltyPoints;
 use App\Support\MemberTransfers;
 use Illuminate\Http\JsonResponse;
@@ -137,17 +139,29 @@ class QuizLoyaltyController extends Controller
             'note' => ['required', 'string', 'max:255'],
         ]);
 
+        $admin = $request->user();
         try {
-            LoyaltyTransaction::query()->create([
-                'user_id' => $data['user_id'],
-                'source' => LoyaltyTransaction::SOURCE_ADMIN,
-                'client_id' => 'admin:'.Str::uuid(),
-                'points' => $data['points'],
-                'note' => $data['note'],
-                'created_by' => $request->user()->id,
-                'answered_at' => now(),
-            ]);
+            DB::transaction(function () use ($data, $admin) {
+                // The admin's own row is the lock, so two requests cannot both spend the same monthly allowance.
+                User::query()->whereKey($admin->id)->lockForUpdate()->first();
+                AdminLedgerLimits::assert($admin, [[AdminLedgerLimits::POINTS, $data['points'] > 0 ? AdminLedgerLimits::ADD : AdminLedgerLimits::TAKE, abs($data['points'])]]);
+
+                LoyaltyTransaction::query()->create([
+                    'user_id' => $data['user_id'],
+                    'source' => LoyaltyTransaction::SOURCE_ADMIN,
+                    'client_id' => 'admin:'.Str::uuid(),
+                    'points' => $data['points'],
+                    'note' => $data['note'],
+                    'created_by' => $admin->id,
+                    'answered_at' => now(),
+                ]);
+            });
+        } catch (LedgerLimitExceeded $e) {
+            return back()->with('error', $e->getMessage());
         } catch (Throwable $e) {
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                throw $e;
+            }
             Log::error('Loyalty grant failed', ['admin_id' => $request->user()->id, 'user_id' => $data['user_id'], 'points' => $data['points'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return back()->with('error', 'The points could not be saved.');
@@ -174,9 +188,12 @@ class QuizLoyaltyController extends Controller
             $result = DB::transaction(function () use ($data, $request) {
                 /* Lock the member so two admins (or a purchase) cannot both spend the same balance. */
                 User::query()->whereKey($data['user_id'])->lockForUpdate()->firstOrFail();
+                // ...and the admin's own row, so two requests cannot both spend the same monthly allowance.
+                User::query()->whereKey($request->user()->id)->lockForUpdate()->first();
 
                 $before = WalletTransaction::balanceOf((int) $data['user_id']);
                 $amount = round((float) $data['amount'], 2);
+                AdminLedgerLimits::assert($request->user(), [[AdminLedgerLimits::WALLET, $amount > 0 ? AdminLedgerLimits::ADD : AdminLedgerLimits::TAKE, abs($amount)]]);
 
                 if ($before + $amount < 0) {
                     return ['error' => 'The wallet only holds '.$before.' EGP, so that much cannot be taken out.'];
@@ -193,7 +210,12 @@ class QuizLoyaltyController extends Controller
 
                 return ['before' => $before, 'after' => round($before + $amount, 2), 'amount' => $amount];
             });
+        } catch (LedgerLimitExceeded $e) {
+            return back()->with('error', $e->getMessage());
         } catch (Throwable $e) {
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                throw $e;
+            }
             Log::error('Wallet adjustment failed', ['admin_id' => $request->user()->id, 'user_id' => $data['user_id'], 'amount' => $data['amount'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return back()->with('error', 'The wallet could not be changed.');
@@ -235,9 +257,21 @@ class QuizLoyaltyController extends Controller
             return back()->with('error', 'Points are whole numbers.');
         }
 
+        $ledger = $data['kind'] === WalletTransfer::KIND_POINTS ? AdminLedgerLimits::POINTS : AdminLedgerLimits::WALLET;
         try {
-            $result = AdminLedgerMoves::transfer($from, $to, $data['kind'], $data['amount'] + 0, $request->user()->id, $data['note']);
+            // Taking from one member and giving to another is a "take" and an "add" on that ledger, and counts on both caps.
+            $result = DB::transaction(function () use ($request, $from, $to, $data, $ledger) {
+                User::query()->whereKey($request->user()->id)->lockForUpdate()->first();
+                AdminLedgerLimits::assert($request->user(), [[$ledger, AdminLedgerLimits::TAKE, (float) $data['amount']], [$ledger, AdminLedgerLimits::ADD, (float) $data['amount']]]);
+
+                return AdminLedgerMoves::transfer($from, $to, $data['kind'], $data['amount'] + 0, $request->user()->id, $data['note']);
+            });
+        } catch (LedgerLimitExceeded $e) {
+            return back()->with('error', $e->getMessage());
         } catch (Throwable $e) {
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                throw $e;
+            }
             Log::error('Admin transfer failed', ['admin_id' => $request->user()->id, 'from' => $from->id, 'to' => $to->id, 'kind' => $data['kind'], 'amount' => $data['amount'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return back()->with('error', 'The transfer could not be saved.');
@@ -266,8 +300,22 @@ class QuizLoyaltyController extends Controller
         $member = User::query()->findOrFail($data['user_id']);
 
         try {
-            $result = AdminLedgerMoves::convertPoints($member, (int) $data['egp'], $request->user()->id, $data['note']);
+            // Points out (a "take") and pounds in (an "add" on the wallet).
+            $result = DB::transaction(function () use ($request, $member, $data) {
+                User::query()->whereKey($request->user()->id)->lockForUpdate()->first();
+                AdminLedgerLimits::assert($request->user(), [
+                    [AdminLedgerLimits::POINTS, AdminLedgerLimits::TAKE, \App\Support\LoyaltyWallet::pointsFor((int) $data['egp'])],
+                    [AdminLedgerLimits::WALLET, AdminLedgerLimits::ADD, (int) $data['egp']],
+                ]);
+
+                return AdminLedgerMoves::convertPoints($member, (int) $data['egp'], $request->user()->id, $data['note']);
+            });
+        } catch (LedgerLimitExceeded $e) {
+            return back()->with('error', $e->getMessage());
         } catch (Throwable $e) {
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                throw $e;
+            }
             Log::error('Admin points conversion failed', ['admin_id' => $request->user()->id, 'user_id' => $member->id, 'egp' => $data['egp'], 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return back()->with('error', 'The conversion could not be saved.');
@@ -309,7 +357,14 @@ class QuizLoyaltyController extends Controller
             'ts' => $w->created_at?->timestamp ?? 0,
         ]);
 
+        $me = request()->user();
+
         return response()->json([
+            // What THIS admin may still do by hand, per ledger and direction (null limit/remaining = unlimited).
+            'allowance' => [
+                'points' => ['add' => AdminLedgerLimits::allowance($me, 'points', 'add'), 'take' => AdminLedgerLimits::allowance($me, 'points', 'take')],
+                'wallet' => ['add' => AdminLedgerLimits::allowance($me, 'wallet', 'add'), 'take' => AdminLedgerLimits::allowance($me, 'wallet', 'take')],
+            ],
             'balance' => LoyaltyTransaction::balanceOf($user->id),
             'wallet_balance' => WalletTransaction::balanceOf($user->id),
             'data' => $points->concat($wallet)->sortByDesc(fn (array $row) => [$row['ts'], $row['id']])->values()->take(200)->all(),

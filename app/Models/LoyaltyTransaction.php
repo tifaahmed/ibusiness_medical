@@ -17,6 +17,9 @@ class LoyaltyTransaction extends Model
     /** Points spent on a conversion into the money wallet (negative). */
     public const SOURCE_WALLET = 'wallet';
 
+    /** Points spent as a discount on an order (negative), or given back when that order was cancelled or failed (positive). */
+    public const SOURCE_ORDER = 'order';
+
     /** Points sent to / received from another member (a debit and a credit that share a transfer). */
     public const SOURCE_TRANSFER = 'transfer';
 

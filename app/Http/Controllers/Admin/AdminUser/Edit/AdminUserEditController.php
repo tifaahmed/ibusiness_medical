@@ -14,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AdminUserEditController extends Controller
 {
-    public function __invoke(User $adminUser): Response
+    public function __invoke(\Illuminate\Http\Request $request, User $adminUser): Response
     {
         if ($adminUser->hasRole(UserRoleEnum::SUPER_ADMIN)) {
             throw new NotFoundHttpException('Super admin users cannot be edited from this UI.');
@@ -54,6 +54,23 @@ class AdminUserEditController extends Controller
             'assignable_roles' => $assignableRoles,
             'all_permissions' => UserPermissionEnum::all(),
             'partner_options' => $partners,
+            // Monthly caps on hand-written balance changes: what is set, what this admin used this month. Only the super admin edits them.
+            'ledger_limits' => collect(\App\Support\AdminLedgerLimits::permissions())->map(function (string $permission) use ($adminUser) {
+                $own = \App\Models\AdminLedgerLimit::query()->where('user_id', $adminUser->id)->where('permission', $permission)->first();
+                $effective = \App\Support\AdminLedgerLimits::sourceOf($adminUser, $permission);
+
+                return [
+                    'permission' => $permission,
+                    'mode' => $own === null ? 'inherit' : ($own->monthly_limit === null ? 'unlimited' : 'limit'),
+                    'monthly_limit' => $own?->monthly_limit,
+                    // What applies right now and where it comes from: own | role | none (= unlimited).
+                    'effective_limit' => $effective['limit'],
+                    'source' => $effective['source'],
+                    'granted' => $adminUser->can($permission),
+                    'used' => \App\Support\AdminLedgerLimits::usedThisMonth($adminUser, str_contains($permission, 'wallet') ? 'wallet' : 'points', str_starts_with($permission, 'add') ? 'add' : 'take'),
+                ];
+            })->values()->all(),
+            'can_edit_limits' => \App\Support\AdminLedgerLimits::isSuper($request->user()),
         ]);
     }
 }

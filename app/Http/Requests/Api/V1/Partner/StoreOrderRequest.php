@@ -88,6 +88,9 @@ class StoreOrderRequest extends FormRequest
              */
             'free_delivery_threshold' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
 
+            /* A signed-in buyer's loyalty points cut the price of the products that accept them, unless the buyer turns it off. */
+            'use_points' => ['nullable', 'boolean'],
+
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],
             /* Which online channel the buyer picked: card or wallet. Absent = whatever is on. */
