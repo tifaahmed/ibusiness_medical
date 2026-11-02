@@ -12,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-/** Loyalty points from the app's quiz: +10 right, -10 wrong, may go below zero, idempotent upload. */
+/** Loyalty points from the app's quiz: paid by speed, a wrong answer costs the admin setting `loyalty_points_wrong` (default 0), may go below zero, idempotent upload. */
 class QuizLoyaltyTest extends TestCase
 {
     use RefreshDatabase;
@@ -20,6 +20,46 @@ class QuizLoyaltyTest extends TestCase
     private function answer(string $id, bool $correct, array $extra = []): array
     {
         return array_merge(['id' => $id, 'play_id' => 'play-1', 'quiz' => 'mcq:football', 'question_id' => 1, 'correct' => $correct, 'seconds' => 1, 'answered_at' => now()->toIso8601String()], $extra);
+    }
+
+    /** The admin setting `loyalty_points_wrong`, as /admin/setting stores it. */
+    private function setWrongCost(string $value): void
+    {
+        SiteSettings::put(LoyaltyPoints::POINTS_WRONG, $value, Setting::TYPE_NUMBER, ['en' => 'x', 'ar' => 'x']);
+        SiteSettings::forget();
+    }
+
+    /** @test */
+    public function a_wrong_answer_costs_nothing_until_the_admin_sets_a_price(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->assertSame(0, LoyaltyPoints::pointsWrong());
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('w1', false)]])->assertOk()->assertJsonPath('data.points', 0);
+        $this->getJson('/api/v1/loyalty')->assertOk()->assertJsonPath('data.points_wrong', 0)->assertJsonPath('data.wrong_answers', 1);
+    }
+
+    /** @test */
+    public function the_admin_decides_how_many_points_a_wrong_answer_takes_away(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->setWrongCost('5');
+        $this->assertSame(-5, LoyaltyPoints::pointsWrong());
+        $this->assertSame(-5, LoyaltyPoints::forAnswer(false, 3.0));
+        $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => [$this->answer('w1', false)]])->assertOk()->assertJsonPath('data.points', -5);
+        $this->getJson('/api/v1/loyalty')->assertOk()->assertJsonPath('data.points_wrong', -5);
+
+        // a minus sign typed by mistake means the same, and a right answer is not affected
+        $this->setWrongCost('-8');
+        $this->assertSame(-8, LoyaltyPoints::pointsWrong());
+        $this->assertSame(100, LoyaltyPoints::forAnswer(true, 1.0));
+
+        // answers already booked keep the figure they were booked with
+        $this->setWrongCost('0');
+        $this->getJson('/api/v1/loyalty')->assertOk()->assertJsonPath('data.points', -5);
     }
 
     /** @test */
@@ -32,6 +72,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function the_backend_decides_the_points(): void
     {
+        $this->setWrongCost('100');
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -48,6 +89,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function the_balance_can_go_below_zero(): void
     {
+        $this->setWrongCost('100');
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -58,6 +100,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function sending_the_same_answers_twice_books_them_once(): void
     {
+        $this->setWrongCost('100');
         $user = User::factory()->create();
         Sanctum::actingAs($user);
         $body = ['answers' => [$this->answer('a', true), $this->answer('b', false)]];
@@ -71,6 +114,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function members_do_not_share_points_or_ids(): void
     {
+        $this->setWrongCost('100');
         $one = User::factory()->create();
         $two = User::factory()->create();
 
@@ -346,6 +390,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function an_answer_without_a_time_pays_the_lowest_tier_and_a_wrong_one_ignores_the_time(): void
     {
+        $this->setWrongCost('100');
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 

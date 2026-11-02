@@ -57,6 +57,7 @@ import UserMembershipListFilterContent from "../Member/List/UserMembershipListFi
 import TrashListTable from "./_components/TrashListTable.vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
+import { useNotification } from "@/composables/useNotification";
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
@@ -89,7 +90,11 @@ const handleRestore = (userSlug) => {
     router.post(route('admin.user.membership.restore', userSlug), {}, {
       preserveScroll: true,
       onSuccess: () => {
-        // Optionally show a success message
+        // The server's own sentence: plain success, or "restored, but its number is now used by another membership".
+        const message = page.props.flash?.success;
+        if (!message) return;
+        const taken = message.includes('~del');
+        taken ? useNotification().warning(message) : useNotification().success(message);
       },
     });
   }

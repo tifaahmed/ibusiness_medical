@@ -179,6 +179,11 @@ return [
     ],
 
     'member' => [
+        'restore_number_taken' => 'Restored with all its data, but its original number :number is now used by another membership, so it keeps a temporary (~del) number. Change it on the edit page.',
+        'takeover_out_of_scope' => 'This membership is outside your permissions, so its number cannot be taken.',
+        'view_other_membership' => 'View the other membership',
+        'takeover_done' => 'The number is free now. Save the form to use it.',
+        'takeover_button' => 'Delete it and use its number',
         'subscription_payments' => 'Subscription payments',
         'on_trial' => 'On free trial',
         'currency' => 'EGP',

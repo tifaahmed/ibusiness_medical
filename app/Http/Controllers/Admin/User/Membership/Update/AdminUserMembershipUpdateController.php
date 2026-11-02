@@ -61,6 +61,11 @@ class AdminUserMembershipUpdateController extends BaseController
             $membershipWasCreated = $result['membershipWasCreated'];
             $passwordUpdated = $result['passwordUpdated'];
 
+            // The admin took this card's number from another card (deleted at the form): its batches follow the number.
+            if ($request->filled('takeover_membership_id') && $touchedMembership) {
+                app(\App\Actions\Membership\TakeOverMembershipNumber::class)->relink((int) $request->input('takeover_membership_id'), $touchedMembership);
+            }
+
             // The member's primary address — governorate is the only required
             // field, the rest is optional courier detail. Written onto the
             // membership this edit actually touched.

@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class MembershipNumberController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ScopesByMembershipCreator;
+
     /**
      * Look up a membership by number and return the owning member's data
      * if it conflicts with another record (used by the edit form to warn
@@ -71,6 +73,11 @@ class MembershipNumberController extends Controller
                         ?: $membership->company?->getTranslation('name', 'en'),
                     'partner_name' => $membership->partner?->title,
                 ],
+                // What deleting it would take along (complete? relatives? batches?) — shown before the admin confirms.
+                // Only for cards inside this admin's own scope: a restricted admin learns nothing about, and cannot take, anyone else's.
+                'takeover' => $this->inScope($membership)
+                    ? ['can_take_over' => true, ...app(\App\Actions\Membership\TakeOverMembershipNumber::class)->describe($membership)]
+                    : ['can_take_over' => false],
             ],
         ]);
     }
@@ -130,6 +137,62 @@ class MembershipNumberController extends Controller
                 'membership_number' => $membership?->membership_number,
             ],
         ]);
+    }
+
+    private function inScope(Membership $membership): bool
+    {
+        try {
+            $this->assertCanManageMembership($membership->isRelative() ? ($membership->parent ?? $membership) : $membership);
+
+            return true;
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            return false;
+        }
+    }
+
+    /**
+     * "Delete it and use its number". Needs `confirmations` = 2 (the form asks twice) and the number typed back exactly.
+     * Only frees the number; batch links are moved when the form is saved ({@see TakeOverMembershipNumber::relink()}).
+     */
+    public function release(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'membership_number' => ['required', 'string', 'max:64'],
+            'confirmations' => ['required', 'integer', 'min:2'],
+            'exclude_membership_id' => ['nullable', 'integer'],
+            'exclude_user_id' => ['nullable', 'integer'],
+        ]);
+
+        $holder = Membership::query()
+            ->where('membership_number', trim($data['membership_number']))
+            ->when($request->filled('exclude_membership_id'), fn ($q) => $q->where('id', '!=', (int) $data['exclude_membership_id']))
+            ->when($request->filled('exclude_user_id'), fn ($q) => $q->where('user_id', '!=', (int) $data['exclude_user_id']))
+            ->first();
+
+        if (! $holder) {
+            return response()->json(['message' => 'Nobody holds this number any more.', 'released' => false], 404);
+        }
+
+        $this->assertCanManageMembership($holder->isRelative() ? ($holder->parent ?? $holder) : $holder);
+
+        // The card that will take the number must be the admin's to edit as well.
+        if ($request->filled('exclude_membership_id')) {
+            $target = Membership::query()->find((int) $data['exclude_membership_id']);
+            if ($target) {
+                $this->assertCanManageMembership($target->isRelative() ? ($target->parent ?? $target) : $target);
+            }
+        }
+
+        try {
+            $result = app(\App\Actions\Membership\TakeOverMembershipNumber::class)
+                ->release($holder, \Illuminate\Support\Facades\Auth::id(), $request, $request->filled('exclude_membership_id') ? (int) $data['exclude_membership_id'] : null);
+        } catch (\Throwable $e) {
+            Log::error('Membership number takeover failed', ['number' => $data['membership_number'], 'exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['message' => 'Could not free the number. Nothing was changed.', 'released' => false], 500);
+        }
+
+        return response()->json(['released' => true, ...$result]);
     }
 
     /**

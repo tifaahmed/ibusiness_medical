@@ -12,11 +12,11 @@ return [
          * A right answer pays by SPEED: `speed_tiers` lists "answered within this many seconds => points", fastest first
          * (the question's clock is 20 s). Slower than the last tier, or no time sent, pays the last tier. `points_right` is
          * the top figure (what a fast answer pays) and is kept for clients that show one number.
-         * A wrong answer or a missed clock costs `points_wrong`. The app mirrors these (`QUIZ_SPEED_TIERS` in utils/quizStore.ts).
+         * A wrong answer or a missed clock costs the admin setting `loyalty_points_wrong` (default 0). The app mirrors the tiers (`QUIZ_SPEED_TIERS` in utils/quizStore.ts).
          */
         'speed_tiers' => [5 => 100, 10 => 75, 15 => 50, 20 => 25],
         'points_right' => (int) env('LOYALTY_QUIZ_POINTS_RIGHT', 100),
-        'points_wrong' => (int) env('LOYALTY_QUIZ_POINTS_WRONG', -100),
+        'points_wrong' => (int) env('LOYALTY_QUIZ_POINTS_WRONG', 0), // old fallback, no longer read: the admin setting loyalty_points_wrong decides
         /* One request carries what a phone collected while offline; more than this is a client gone wrong. */
         'max_answers_per_request' => 100,
         /*

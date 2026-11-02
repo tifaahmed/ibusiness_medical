@@ -33,7 +33,7 @@ class LoyaltyController extends Controller
     /** Every badge on offer, for anyone (no sign-in): the "all badges" screen of the app, also for a player who has no account yet. */
     public function badgeCatalog(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => ['badges' => $this->badges->publicCatalog(), 'speed_tiers' => $this->speedTiers(), 'points_per_egp' => LoyaltyPoints::pointsPerEgp()]]);
+        return response()->json(['success' => true, 'data' => ['badges' => $this->badges->publicCatalog(), 'speed_tiers' => $this->speedTiers(), 'points_wrong' => LoyaltyPoints::pointsWrong(), 'points_per_egp' => LoyaltyPoints::pointsPerEgp()]]);
     }
 
     public function show(Request $request): JsonResponse
@@ -288,7 +288,7 @@ class LoyaltyController extends Controller
             'right_answers' => (clone $rows)->where('correct', true)->count(),
             'wrong_answers' => (clone $rows)->where('correct', false)->count(),
             'points_right' => (int) config('loyalty.quiz.points_right'),
-            'points_wrong' => (int) config('loyalty.quiz.points_wrong'),
+            'points_wrong' => LoyaltyPoints::pointsWrong(),
             'speed_tiers' => $this->speedTiers(),
             'points_per_egp' => LoyaltyPoints::pointsPerEgp(),
         ] + $this->walletSummary($member->id) + $this->badges->catalog($member->id);

@@ -45,6 +45,16 @@ class AdminUserMembershipRestoreController extends BaseController
             // Restore the user
             $user->restore();
 
+            // A card whose number an admin took over was renamed `N~del<id>`: give N back when nobody holds it.
+            $takeover = app(\App\Actions\Membership\TakeOverMembershipNumber::class);
+            $keptNumbers = [];
+            foreach ($user->memberships()->get() as $card) {
+                $original = $takeover->originalNumberOf($card);
+                if ($original !== null && ! $takeover->reinstateNumber($card)) {
+                    $keptNumbers[] = $original;
+                }
+            }
+
             $adminId = Auth::id();
             foreach ($user->memberships()->get() as $membership) {
                 MemberLog::record(
@@ -75,7 +85,9 @@ class AdminUserMembershipRestoreController extends BaseController
             ]);
 
             return redirect()->route('admin.user.membership.trash')
-                ->with('success', 'User and memberships restored successfully.');
+                ->with('success', $keptNumbers === []
+                    ? 'User and memberships restored successfully.'
+                    : __('admin.member.restore_number_taken', ['number' => implode(', ', $keptNumbers)]));
         } catch (\Exception $e) {
             DB::rollBack();
 

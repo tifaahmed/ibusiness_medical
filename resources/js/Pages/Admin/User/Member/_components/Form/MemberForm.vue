@@ -68,7 +68,7 @@
     </div>
 
     <!-- Duplicate Membership Number Modal -->
-    <Modal :show="!!duplicateMember" @close="duplicateMember = null" max-width="lg">
+    <Modal :show="!!duplicateMember && showDuplicate" @close="closeDuplicate" max-width="lg">
       <div class="bg-card text-card-foreground rounded-xl border border-border shadow-lg overflow-hidden">
         <div class="px-5 py-4 border-b border-border flex items-center gap-3">
           <div class="w-9 h-9 rounded-full bg-destructive/10 text-destructive flex items-center justify-center flex-shrink-0">
@@ -126,10 +126,41 @@
             </div>
           </dl>
         </div>
+        <!-- Delete the other card and use its number: two confirmations, then it is done. -->
+        <p v-if="duplicateMember?.takeover && !duplicateMember.takeover.can_take_over" class="px-5 pb-4 text-xs text-muted-foreground" data-testid="takeover-out-of-scope">{{ t.member?.takeover_out_of_scope || 'This membership is outside your permissions, so its number cannot be taken.' }}</p>
+        <div v-if="duplicateMember?.takeover?.can_take_over" class="px-5 pb-4 space-y-2" data-testid="takeover-box">
+          <div class="rounded-md border border-border bg-muted/40 p-3 text-xs space-y-1">
+            <p class="font-medium" :class="duplicateMember.takeover.is_complete ? 'text-amber-500' : 'text-sky-500'">
+              {{ duplicateMember.takeover.is_complete ? (t.member?.takeover_complete || 'This is a COMPLETE membership.') : (t.member?.takeover_incomplete || 'This membership is incomplete.') }}
+            </p>
+            <p v-if="duplicateMember.takeover.relatives_count">{{ (t.member?.takeover_relatives || 'Its :n relative(s) will be deleted with it.').replace(':n', duplicateMember.takeover.relatives_count) }}</p>
+            <p v-if="duplicateMember.takeover.batches?.length">{{ (t.member?.takeover_batches || 'It belongs to card batch(es): :names — they will point to this membership instead.').replace(':names', duplicateMember.takeover.batches.map((b) => b.name).join('، ')) }}</p>
+            <p class="text-muted-foreground">{{ t.member?.takeover_note || 'It goes to the trash (nothing is erased for good) and its number is renamed so this one can use it.' }}</p>
+          </div>
+          <p v-if="takeoverError" class="text-xs text-destructive">{{ takeoverError }}</p>
+          <div v-if="takeoverStep === 0">
+            <button type="button" class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-destructive text-white hover:bg-destructive/90 h-9 px-4 min-w-[12rem]" data-testid="takeover-start" @click="takeoverStep = 1">
+              {{ t.member?.takeover_button || 'Delete it and use its number' }}
+            </button>
+          </div>
+          <div v-else class="rounded-md border border-destructive/50 p-3 space-y-2" data-testid="takeover-confirm">
+            <p class="text-sm font-semibold text-destructive">
+              {{ takeoverStep === 1
+                ? (t.member?.takeover_confirm_1 || 'Are you sure you want to delete this membership?')
+                : (t.member?.takeover_confirm_2 || 'Last chance: really delete it and take number :number?').replace(':number', form.membership_number) }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="rounded-md border border-border h-9 px-4 text-sm min-w-[7rem] hover:bg-muted" @click="takeoverStep = 0">{{ t.member?.cancel || 'Cancel' }}</button>
+              <button type="button" class="rounded-md bg-destructive text-white h-9 px-4 text-sm min-w-[9rem] disabled:opacity-60" :disabled="takeoverBusy" data-testid="takeover-yes" @click="takeoverStep === 1 ? (takeoverStep = 2) : runTakeover()">
+                {{ takeoverStep === 1 ? (t.member?.takeover_yes_1 || 'Yes, continue') : (t.member?.takeover_yes_2 || 'Yes, delete it now') }}
+              </button>
+            </div>
+          </div>
+        </div>
         <div class="px-5 py-3 border-t border-border flex justify-end gap-2">
           <button
             type="button"
-            @click="duplicateMember = null"
+            @click="closeDuplicate"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium border bg-background shadow-xs hover:bg-muted h-9 px-4"
           >
             {{ t.member?.close || 'Close' }}
@@ -252,6 +283,17 @@
                 :placeholder="t.member?.membership_number_placeholder || 'Leave empty to auto-generate'"
               />
               <p v-if="checkingNumber" class="text-xs text-muted-foreground mt-1">{{ t.member?.checking_number || 'Checking…' }}</p>
+              <!-- The number belongs to another card: look at it (and, if the admin decides, delete it and take the number). -->
+              <button
+                v-if="duplicateMember && !checkingNumber"
+                type="button"
+                class="mt-2 inline-flex items-center justify-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 h-8 text-xs font-medium text-destructive hover:bg-destructive/15 min-w-[10rem]"
+                data-testid="view-duplicate-membership"
+                @click="showDuplicate = true"
+              >
+                {{ t.member?.view_other_membership || 'View the other membership' }}
+              </button>
+              <p v-if="takeoverDone" class="text-xs text-emerald-500 mt-1" data-testid="takeover-done">{{ t.member?.takeover_done || 'The number is free now. Save the form to use it.' }}</p>
             </div>
             <FormDateInput
               v-model="memberStore.form.registration_date"
@@ -583,6 +625,39 @@ const jobTitle = computed({
 });
 
 const duplicateMember = ref(null);
+const showDuplicate = ref(false);
+const takeoverStep = ref(0);
+const takeoverBusy = ref(false);
+const takeoverError = ref('');
+const takeoverDone = ref(false);
+let takeoverNumber = '';
+function closeDuplicate() {
+  showDuplicate.value = false;
+  takeoverStep.value = 0;
+  takeoverError.value = '';
+}
+async function runTakeover() {
+  takeoverBusy.value = true;
+  takeoverError.value = '';
+  try {
+    const params = { membership_number: String(form.value.membership_number).trim(), confirmations: 2 };
+    if (editingMembershipId.value) params.exclude_membership_id = editingMembershipId.value;
+    if (editingUserId.value) params.exclude_user_id = editingUserId.value;
+    const { data } = await axios.post('/api/membership-number/release', params);
+    // Remembered so the save moves the deleted card's batches onto this one.
+    memberStore.form.takeover_membership_id = data.released_membership_id;
+    takeoverNumber = params.membership_number;
+    takeoverDone.value = true;
+    duplicateMember.value = null;
+    closeDuplicate();
+  } catch (e) {
+    takeoverError.value = e?.response?.data?.message || (t.value.member?.takeover_failed || 'Could not free the number. Nothing was changed.');
+    takeoverStep.value = 0;
+  } finally {
+    takeoverBusy.value = false;
+  }
+}
+
 const checkingNumber = ref(false);
 let checkTimer = null;
 let checkSeq = 0;
@@ -594,6 +669,9 @@ watch(() => form.value.membership_number, (raw) => {
   const value = String(raw ?? '').trim();
   if (checkTimer) clearTimeout(checkTimer);
   duplicateMember.value = null;
+  showDuplicate.value = false;
+  takeoverStep.value = 0;
+  if (value !== takeoverNumber) { memberStore.form.takeover_membership_id = ''; takeoverDone.value = false; }
   if (!value) {
     checkingNumber.value = false;
     return;

@@ -8,7 +8,8 @@ use App\Models\Setting;
  * How many loyalty points a quiz answer is worth, and what 1 EGP is worth in points. The figures live in config/loyalty.php
  * (the tiers) and in /admin/setting (`loyalty_points_per_egp`); a client only says whether it was right and how long it took.
  *
- * Right answer: within 5 s = 100, within 10 s = 75, within 15 s = 50, within 20 s = 25. Wrong or out of time = `points_wrong`.
+ * Right answer: within 5 s = 100, within 10 s = 75, within 15 s = 50, within 20 s = 25. Wrong or out of time costs the admin setting
+ * `loyalty_points_wrong` (a number of points to take away; 0 = a wrong answer costs nothing, which is the default).
  */
 final class LoyaltyPoints
 {
@@ -17,11 +18,16 @@ final class LoyaltyPoints
 
     public const DEFAULT_POINTS_PER_EGP = 100;
 
+    /** The admin setting: how many points a wrong answer (or a missed clock) takes away. 0 = nothing. */
+    public const POINTS_WRONG = 'loyalty_points_wrong';
+
+    public const DEFAULT_POINTS_WRONG = 0;
+
     /** Points for an answer. `$seconds` is the time the player took (null = unknown, which pays the lowest tier). */
     public static function forAnswer(bool $correct, ?float $seconds): int
     {
         if (! $correct) {
-            return (int) config('loyalty.quiz.points_wrong');
+            return self::pointsWrong();
         }
 
         $tiers = (array) config('loyalty.quiz.speed_tiers');
@@ -44,6 +50,15 @@ final class LoyaltyPoints
         return (int) end($tiers);
     }
 
+    /**
+     * What a wrong answer adds to the balance: zero or a negative number. The admin types the loss as a positive number
+     * ("3 points"); a minus sign typed by mistake means the same.
+     */
+    public static function pointsWrong(): int
+    {
+        return -abs((int) round((float) SiteSettings::get(self::POINTS_WRONG, self::DEFAULT_POINTS_WRONG)));
+    }
+
     /** How many points ONE pound is worth (never below 0). */
     public static function pointsPerEgp(): float
     {
@@ -55,6 +70,7 @@ final class LoyaltyPoints
     {
         return [
             ['slug' => self::POINTS_PER_EGP, 'name' => ['en' => 'Loyalty points worth 1 EGP (1 pound = how many points)', 'ar' => 'كم نقطة تساوي 1 جنيه (النقاط مقابل الجنيه)'], 'value' => (string) self::DEFAULT_POINTS_PER_EGP, 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::POINTS_WRONG, 'name' => ['en' => 'Loyalty points taken away for a wrong answer in the quiz (0 = nothing)', 'ar' => 'كم نقطة تُخصم عند الإجابة الخاطئة في اللعبة (0 = لا يُخصم شيء)'], 'value' => (string) self::DEFAULT_POINTS_WRONG, 'value_type' => Setting::TYPE_NUMBER],
         ];
     }
 }

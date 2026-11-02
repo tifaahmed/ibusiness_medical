@@ -10,7 +10,7 @@ import { validateMemberForm } from '../validation/memberValidation';
 // useForm() helper's own methods (transform, reset, data, ...).
 const FORM_FIELD_KEYS = [
     'id', 'slug', 'name', 'email', 'phone', 'password', 'password_confirmation',
-    'avatar', 'avatar_url', 'membership_number', 'national_id', 'registration_date',
+    'avatar', 'avatar_url', 'membership_number', 'takeover_membership_id', 'national_id', 'registration_date',
     'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'payment_type',
     'membership_completed_at', 'has_member_payments', 'initial_payment_amount',
     'initial_payment_type', 'initial_payment_months_paid', 'initial_payment_from_date',
@@ -73,6 +73,7 @@ export const useMemberStore = defineStore('member', {
             avatar: null,
             avatar_url: null,
             membership_number: '',
+            takeover_membership_id: '',
             national_id: '',
             registration_date: '',
             expiration_date: '',
@@ -332,6 +333,7 @@ export const useMemberStore = defineStore('member', {
                     formData.append('avatar', this.form.avatar);
                 }
                 formData.append('membership_number', this.form.membership_number || '');
+                if (this.form.takeover_membership_id) formData.append('takeover_membership_id', this.form.takeover_membership_id);
                 formData.append('national_id', this.form.national_id || '');
                 formData.append('registration_date', this.form.registration_date || '');
                 formData.append('expiration_date', this.form.expiration_date || '');

@@ -67,7 +67,7 @@ class QuizLoyaltyController extends Controller
             /* "1 pound = N points" (edited at /admin/setting) and the speed scale of a right answer, shown at the top of the page. */
             'pointsPerEgp' => LoyaltyPoints::pointsPerEgp(),
             'speedTiers' => collect((array) config('loyalty.quiz.speed_tiers'))->sortKeys()->map(fn ($points, $upTo) => ['up_to_seconds' => (int) $upTo, 'points' => (int) $points])->values()->all(),
-            'pointsWrong' => (int) config('loyalty.quiz.points_wrong'),
+            'pointsWrong' => LoyaltyPoints::pointsWrong(),
             'kinds' => QuizBadgeDefinition::KINDS,
             'search' => $search,
             'members' => $members->map(fn (User $u) => [

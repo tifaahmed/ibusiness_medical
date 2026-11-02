@@ -59,6 +59,11 @@ class AdminUserMembershipStoreController extends BaseController
             $membership = $result['membership'];
             $plainPassword = $result['plainPassword'];
 
+            // The admin took this number from another card (deleted at the form): its batches follow the number.
+            if ($request->filled('takeover_membership_id')) {
+                app(\App\Actions\Membership\TakeOverMembershipNumber::class)->relink((int) $request->input('takeover_membership_id'), $membership);
+            }
+
             // The member's primary address — governorate is the only required
             // field, the rest is optional courier detail.
             $this->upsertAddressAction->execute($membership, $validated, $request);
