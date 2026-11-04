@@ -25,6 +25,7 @@ final class MembershipStatus
     {
         $state = $membership?->state() ?? 'none';
         $expired = in_array($state, [Membership::STATE_TRIAL_EXPIRED, Membership::STATE_EXPIRED], true);
+        $kind = $membership?->kind() ?? Membership::KIND_INDIVIDUAL;
 
         return [
             'state' => $state,
@@ -32,18 +33,20 @@ final class MembershipStatus
             /* True for a trial that ran out AND a paid card that lapsed: both get the big red sign. */
             'expired' => $expired,
             'valid' => in_array($state, [Membership::STATE_TRIAL, Membership::STATE_ACTIVE], true),
+            /* individual | company: which price list `plans` is. */
+            'member_kind' => $kind,
             'expires_on' => $membership?->expiration_date?->toDateString(),
             'days_left' => $membership?->daysLeft() ?? 0,
             'price' => MembershipPlan::price(),
             'months' => MembershipPlan::months(),
             /* Every plan on sale — `year` and/or `half` — each with its price and months; draw these and send back `plan`. */
-            'plans' => MembershipPlan::plans(),
+            'plans' => MembershipPlan::plans($kind),
             /* Whether "buy now with Paymob" may be drawn; the contact options are always available. */
-            'can_pay_online' => MembershipPlan::canPayOnline(),
+            'can_pay_online' => MembershipPlan::canPayOnline($kind),
             /* Every way of paying the admin has switched on, in display order; draw exactly these. */
             'payment_methods' => PaymentMethods::subscriptionMethods(),
             /* Which online buttons to draw: `card`, `wallet` or both (empty when it cannot be sold online). */
-            'online_channels' => MembershipPlan::canPayOnline() ? PaymentMethods::onlineChannels(PaymentMethods::CONTEXT_MEMBERSHIP) : [],
+            'online_channels' => MembershipPlan::canPayOnline($kind) ? PaymentMethods::onlineChannels(PaymentMethods::CONTEXT_MEMBERSHIP) : [],
             'contact' => ShopContact::current(),
         ];
     }
@@ -69,7 +72,7 @@ final class MembershipStatus
             /* A relative sees their family's card but cannot add relatives; paying makes them a primary member. */
             'member_type' => $membership?->isRelative() ? Membership::TYPE_RELATIVE : Membership::TYPE_PRIMARY,
             'is_relative' => $membership?->isRelative() ?? false,
-            'can_upgrade' => ($membership?->isRelative() ?? false) && MembershipPlan::plans() !== [],
+            'can_upgrade' => ($membership?->isRelative() ?? false) && MembershipPlan::plans($membership->kind()) !== [],
             'had_family' => $membership?->former_parent_membership_id !== null,
             'membership_number' => $membership?->membership_number,
             'slug' => $membership?->slug,

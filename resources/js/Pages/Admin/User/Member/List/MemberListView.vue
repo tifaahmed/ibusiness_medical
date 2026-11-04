@@ -195,6 +195,16 @@
                 <span class="hidden sm:inline">{{ t.actions?.view_trash_long || 'View Trash' }}</span>
                 <span class="sm:hidden">{{ t.actions?.view_trash_short || 'Trash' }}</span>
               </Link>
+              <button
+                v-if="canWrite"
+                type="button"
+                data-testid="quick-add-open"
+                class="inline-flex items-center cursor-pointer justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground h-8 sm:h-9 px-2 sm:px-3 md:px-4 py-2 flex-shrink-0"
+                @click="quickAddOpen = true"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>{{ t.actions?.quick_add || 'Quick add' }}</span>
+              </button>
               <Link
                 v-if="canWrite"
                 :href="route('admin.user.membership.create')"
@@ -275,6 +285,7 @@
       :policy="otpPolicy"
       @close="otpDialogOpen = false"
     />
+      <QuickAddDialog :show="quickAddOpen" @close="quickAddOpen = false" />
   </MemberLayout>
 </template>
 
@@ -284,6 +295,7 @@ import MemberLayout from "../MemberLayout.vue";
 import UserMembershipListFilterContent from "./UserMembershipListFilterContent.vue";
 import MemberListTable from "./MemberListTable.vue";
 import MemberOtpDialog from "./MemberOtpDialog.vue";
+import QuickAddDialog from "./QuickAddDialog.vue";
 import MembersChart from "./MembersChart.vue";
 import { useMemberStore } from "../Stores/MemberStore";
 import { Link, usePage } from "@inertiajs/vue3";
@@ -303,6 +315,7 @@ const canWrite = computed(() => canManage('manage memberships', 'manage own memb
    shown a button that only ever 403s. */
 const canManageOtp = computed(() => canWrite.value && can('manage settings'));
 const otpDialogOpen = ref(false);
+const quickAddOpen = ref(false);
 
 
 // `page.props.translations.admin.member_list.*` — shared via HandleInertiaRequests

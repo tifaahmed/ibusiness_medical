@@ -563,6 +563,47 @@
         </div>
       </div>
 
+      <!-- Card deliveries: every hand-over of cards to this member — courier, date, cards, photos, notes. -->
+      <div v-if="deliveries" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-3" data-testid="member-deliveries">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            {{ t.card_deliveries?.title || 'Card deliveries' }}
+            <span class="chip chip-neutral">{{ deliveries.length }}</span>
+          </h3>
+          <Link :href="route('admin.card-deliveries.index')" class="text-xs text-blue-400 hover:underline">{{ t.card_deliveries?.all_deliveries || 'All deliveries' }}</Link>
+        </div>
+        <div v-if="canManageDeliveries">
+          <button v-if="!addingDelivery" type="button" class="h-9 min-w-[9rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" @click="addingDelivery = true">{{ t.card_deliveries?.add_title || 'Record a card delivery' }}</button>
+          <DeliveryForm v-else :user-id="user.id" :couriers="deliveryCouriers" @done="addingDelivery = false" />
+        </div>
+        <p v-if="!deliveries.length" class="text-sm text-muted-foreground">{{ t.card_deliveries?.empty || 'No card deliveries yet.' }}</p>
+        <div v-else class="divide-y divide-border rounded-lg border border-border">
+          <DeliveryItem v-for="d in deliveries" :key="d.id" :d="d" :couriers="deliveryCouriers" :can-manage="canManageDeliveries" />
+        </div>
+      </div>
+
+      <!-- Staff notes about this member: everyone reads them, only the author edits or deletes his own. -->
+      <div v-if="notes" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-3" data-testid="member-notes">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+            {{ t.member_notes?.title || 'Member notes' }}
+            <span class="chip chip-neutral">{{ notes.length }}</span>
+          </h3>
+          <Link v-if="canSeeNotesPage" :href="route('admin.member-notes.index')" class="text-xs text-blue-400 hover:underline">{{ t.member_notes?.all_notes || 'All notes' }}</Link>
+        </div>
+        <form v-if="canAddNotes" class="space-y-2" @submit.prevent="addNote">
+          <textarea v-model="noteBody" rows="3" maxlength="5000" :placeholder="t.member_notes?.placeholder || 'Write the note…'" class="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm" data-testid="member-note-body" />
+          <p v-if="noteError" class="text-xs text-red-400">{{ noteError }}</p>
+          <button type="submit" :disabled="!noteBody.trim()" class="h-9 min-w-[8rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">{{ t.member_notes?.add || 'Add note' }}</button>
+        </form>
+        <p v-if="!notes.length" class="text-sm text-muted-foreground">{{ t.member_notes?.empty || 'No notes yet.' }}</p>
+        <div v-else class="divide-y divide-border rounded-lg border border-border">
+          <NoteItem v-for="n in notes" :key="n.id" :note="n" />
+        </div>
+      </div>
+
       <div v-if="loyalty" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="member-loyalty">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-base font-semibold text-white">{{ t.member?.loyalty_wallet || 'Loyalty & wallet' }}</h3>
@@ -836,6 +877,9 @@ import html2canvas from "html2canvas";
 import MemberLayout from "../Member/MemberLayout.vue";
 import Modal from "@/Components/Modal.vue";
 import MembershipCard from "./_components/MembershipCard.vue";
+import NoteItem from "@/Pages/Admin/MemberNotes/NoteItem.vue";
+import DeliveryForm from "@/Pages/Admin/CardDeliveries/DeliveryForm.vue";
+import DeliveryItem from "@/Pages/Admin/CardDeliveries/DeliveryItem.vue";
 import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
 import CardPreview from "@/Pages/Admin/MembershipCard/_components/CardPreview.vue";
 import { publicMembershipUrl, membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
@@ -853,11 +897,34 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  notes: {
+    type: Array,
+    default: null,
+  },
+  deliveries: { type: Array, default: null },
+  deliveryCouriers: { type: Array, default: () => [] },
+  canManageDeliveries: { type: Boolean, default: false },
   extraCards: {
     type: Object,
     default: () => ({}),
   },
 });
+
+// Staff notes: the permission list comes from the shared auth user (the super admin holds everything).
+const canNote = (perm) => (page.props.auth?.user?.roles || []).includes('super_admin') || (page.props.auth?.user?.permissions || []).includes(perm);
+const canAddNotes = computed(() => canNote('add member notes'));
+const canSeeNotesPage = computed(() => canNote('view member notes'));
+const addingDelivery = ref(false);
+const noteBody = ref("");
+const noteError = ref("");
+function addNote() {
+  noteError.value = "";
+  router.post(route('admin.member-notes.store'), { user_id: props.user.id, body: noteBody.value }, {
+    preserveScroll: true,
+    onSuccess: () => { noteBody.value = ""; },
+    onError: (e) => { noteError.value = Object.values(e)[0] || 'Could not save.'; },
+  });
+}
 
 // Extra cards: every member on this page (each primary card and its relatives) can hold several.
 const cardHolders = computed(() => (props.user.memberships || []).flatMap((m) => [

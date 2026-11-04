@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Membership;
 use App\Models\Setting;
 
 /**
@@ -24,6 +25,15 @@ final class MembershipPlan
     public const HALF_PRICE = 'membership_half_price';
 
     public const HALF_MONTHS = 'membership_half_months';
+
+    /** One month, the cheapest way in. Individuals and companies each have their own price. */
+    public const INDIVIDUAL_MONTH_PRICE = 'membership_individual_month_price';
+
+    public const COMPANY_MONTH_PRICE = 'membership_company_month_price';
+
+    public const COMPANY_YEAR_PRICE = 'membership_company_year_price';
+
+    public const PLAN_MONTH = 'month';
 
     public const PLAN_YEAR = 'year';
 
@@ -62,31 +72,53 @@ final class MembershipPlan
         return max(1, (int) SiteSettings::get(self::HALF_MONTHS, 6));
     }
 
+    public static function individualMonthPrice(): float
+    {
+        return max(0.0, round((float) SiteSettings::get(self::INDIVIDUAL_MONTH_PRICE, 100), 2));
+    }
+
+    public static function companyMonthPrice(): float
+    {
+        return max(0.0, round((float) SiteSettings::get(self::COMPANY_MONTH_PRICE, 50), 2));
+    }
+
+    public static function companyYearPrice(): float
+    {
+        return max(0.0, round((float) SiteSettings::get(self::COMPANY_YEAR_PRICE, 600), 2));
+    }
+
     /**
-     * Every plan on sale (price above 0), the longer one first. Clients draw exactly these and send back `key`.
+     * Every plan on sale (price above 0) to a member of this kind, the longer one first. Clients draw exactly these and send back `key`.
+     *
+     *  - individual: year, half-year, month  (`membership_price`, `membership_half_price`, `membership_individual_month_price`)
+     *  - company:    year, month             (`membership_company_year_price`, `membership_company_month_price`)
      *
      * @return list<array{key: string, price: float, months: int}>
      */
-    public static function plans(): array
+    public static function plans(string $kind = Membership::KIND_INDIVIDUAL): array
     {
+        $company = $kind === Membership::KIND_COMPANY;
+        $year = $company ? self::companyYearPrice() : self::price();
+        $month = $company ? self::companyMonthPrice() : self::individualMonthPrice();
+
         return array_values(array_filter([
-            self::price() > 0 ? ['key' => self::PLAN_YEAR, 'price' => self::price(), 'months' => self::months()] : null,
-            self::halfPrice() > 0 ? ['key' => self::PLAN_HALF, 'price' => self::halfPrice(), 'months' => self::halfMonths()] : null,
+            $year > 0 ? ['key' => self::PLAN_YEAR, 'price' => $year, 'months' => self::months()] : null,
+            ! $company && self::halfPrice() > 0 ? ['key' => self::PLAN_HALF, 'price' => self::halfPrice(), 'months' => self::halfMonths()] : null,
+            $month > 0 ? ['key' => self::PLAN_MONTH, 'price' => $month, 'months' => 1] : null,
         ]));
     }
 
     /**
-     * The plan a client asked for, or null when it is not on sale. No key means the longer plan
+     * The plan a client asked for, or null when it is not on sale to this kind. No key means the longer plan
      * (what older app builds always bought).
      *
      * @return array{key: string, price: float, months: int}|null
      */
-    public static function find(?string $key): ?array
+    public static function find(?string $key, string $kind = Membership::KIND_INDIVIDUAL): ?array
     {
-        $plans = self::plans();
         $key = $key ?: self::PLAN_YEAR;
 
-        foreach ($plans as $plan) {
+        foreach (self::plans($kind) as $plan) {
             if ($plan['key'] === $key) {
                 return $plan;
             }
@@ -96,9 +128,9 @@ final class MembershipPlan
     }
 
     /** Whether "buy with Paymob" can be offered at all. */
-    public static function canPayOnline(): bool
+    public static function canPayOnline(string $kind = Membership::KIND_INDIVIDUAL): bool
     {
-        return self::plans() !== [] && PaymentMethods::online(PaymentMethods::CONTEXT_MEMBERSHIP);
+        return self::plans($kind) !== [] && PaymentMethods::online(PaymentMethods::CONTEXT_MEMBERSHIP);
     }
 
     /** @return array<int, array{slug: string, name: array<string, string>, value: string, value_type: string}> */
@@ -109,6 +141,9 @@ final class MembershipPlan
             ['slug' => self::MONTHS, 'name' => ['en' => 'Months a paid subscription lasts', 'ar' => 'مدة الاشتراك المدفوع بالشهور'], 'value' => '12', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::HALF_PRICE, 'name' => ['en' => 'Half-year plan price (EGP, 0 = not sold)', 'ar' => 'سعر الاشتراك نصف السنوي (ج.م، 0 = غير متاح)'], 'value' => '350', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::HALF_MONTHS, 'name' => ['en' => 'Months the half-year plan lasts', 'ar' => 'مدة الاشتراك نصف السنوي بالشهور'], 'value' => '6', 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::INDIVIDUAL_MONTH_PRICE, 'name' => ['en' => 'Individuals — monthly plan price (EGP, 0 = not sold)', 'ar' => 'الأفراد — سعر الاشتراك الشهري (ج.م، 0 = غير متاح)'], 'value' => '100', 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::COMPANY_MONTH_PRICE, 'name' => ['en' => 'Companies — monthly plan price (EGP, 0 = not sold)', 'ar' => 'الشركات — سعر الاشتراك الشهري (ج.م، 0 = غير متاح)'], 'value' => '50', 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::COMPANY_YEAR_PRICE, 'name' => ['en' => 'Companies — yearly plan price (EGP, 0 = not sold)', 'ar' => 'الشركات — سعر الاشتراك السنوي (ج.م، 0 = غير متاح)'], 'value' => '600', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::TRIAL_DAYS, 'name' => ['en' => 'Days a free trial card lasts (new cards only)', 'ar' => 'مدة الكارت التجريبي بالأيام (للكروت الجديدة فقط)'], 'value' => '30', 'value_type' => Setting::TYPE_NUMBER],
         ];
     }

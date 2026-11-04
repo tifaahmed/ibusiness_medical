@@ -200,6 +200,7 @@ class UpdateMembershipRequest extends FormRequest
             'is_paid' => ['nullable', 'boolean'],
             'is_trial' => ['nullable', 'boolean'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
+            'member_kind' => ['sometimes', 'string', Rule::in(Membership::kinds())],
             'job_title' => ['nullable', 'array'],
             'job_title.ar' => ['nullable', 'string', 'max:255'],
             'job_title.en' => ['nullable', 'string', 'max:255'],

@@ -40,6 +40,7 @@
                 <div v-if="message.phone">
                   <label class="text-xs font-medium text-muted-foreground">{{ t.phone || 'Phone' }}</label>
                   <p class="text-sm text-foreground" dir="ltr">{{ message.phone }}</p>
+                  <div class="mt-1"><MemberBadge :member="message.member" :is-member="message.is_member" /></div>
                 </div>
                 <!-- Only a facility applying to join carries one, and it is
                      what sales verifies the applicant against. -->
@@ -289,6 +290,7 @@ import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Select from '@/Components/ui/Select.vue';
+import MemberBadge from './MemberBadge.vue';
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin?.contact_messages || {});

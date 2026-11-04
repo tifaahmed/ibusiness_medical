@@ -70,6 +70,7 @@ export const memberSchema = z.object({
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
+    member_kind: z.enum(['individual', 'company'], { message: 'Choose Individual or Company' }),
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
@@ -217,6 +218,7 @@ export const memberUpdateSchema = z.object({
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
+    member_kind: z.enum(['individual', 'company']).optional(),
     company_id: z.union([z.string(), z.number()]).nullable().optional(),
     sales_id: z.union([z.string(), z.number()]).nullable().optional(),
     governorate_id: z.union([z.string(), z.number()]).nullable().optional(),
@@ -324,6 +326,7 @@ export const validateMemberForm = (memberData, isUpdate = false) => {
             is_paid: typeof memberData.is_paid === 'boolean' ? memberData.is_paid : (memberData.is_paid === 'true' || memberData.is_paid === true || memberData.is_paid === 1),
             is_trial: typeof memberData.is_trial === 'boolean' ? memberData.is_trial : (memberData.is_trial === 'true' || memberData.is_trial === true || memberData.is_trial === 1),
             payment_type: memberData.payment_type?.toString() || '',
+            member_kind: memberData.member_kind?.toString() || undefined,
             company_id: memberData.company_id ?? null,
             sales_id: memberData.sales_id ?? null,
             governorate_id: memberData.governorate_id ?? null,

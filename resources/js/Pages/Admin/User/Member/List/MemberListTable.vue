@@ -416,6 +416,22 @@
                     <span v-if="member.membership.extra_cards.physical">· {{ member.membership.extra_cards.physical }} {{ t.card_physical || 'physical' }}</span>
                     <span v-if="member.membership.extra_cards.soft">· {{ member.membership.extra_cards.soft }} {{ t.card_soft || 'soft' }}</span>
                   </Link>
+                  <!-- Individual or company, and the permanent "added quickly by sales" mark. -->
+                  <span
+                    v-if="member.membership?.member_kind && member.membership?.member_type !== 'relative'"
+                    class="chip ms-1"
+                    :class="member.membership.member_kind === 'company' ? 'chip-info' : 'chip-neutral'"
+                    data-testid="kind-chip"
+                  >{{ member.membership.member_kind === 'company' ? (t.kind_company || 'Company') : (t.kind_individual || 'Individual') }}</span>
+                  <span
+                    v-if="member.membership?.quick_added"
+                    class="chip chip-accent ms-1"
+                    data-testid="quick-added-chip"
+                    :title="(t.quick_added_by || 'Quick add by') + ': ' + (member.membership.quick_added_by || '—')"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    {{ t.quick_added || 'Quick add' }}<span v-if="member.membership.quick_added_by"> · {{ member.membership.quick_added_by }}</span><span v-if="member.membership.quick_wants_card"> · {{ t.wants_card || 'card' }}</span>
+                  </span>
                   <!-- Self-issued free card, and the state it is in. -->
                   <span
                     v-if="member.membership?.plan === 'trial' && member.membership?.member_type !== 'relative'"

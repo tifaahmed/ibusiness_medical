@@ -132,7 +132,7 @@ final class WalletPayments
             return ['ok' => false, 'reason' => 'disabled'];
         }
 
-        $plan = MembershipPlan::find('year');
+        $plan = MembershipPlan::find('year', $membership->kind());
         if ($plan === null) {
             return ['ok' => false, 'reason' => 'no_plan'];
         }

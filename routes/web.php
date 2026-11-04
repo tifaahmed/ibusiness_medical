@@ -329,6 +329,35 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     ->name('profile.show');
 
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class, \App\Http\Middleware\RedirectBackWhenStaying::class])->group(function () {
+    /* Quick add (Members list button) + the customer-SMS panel (super admin only, checked in the controller). */
+    Route::post('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'store'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add');
+    Route::get('/admin/user/membership/quick-add/preview', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'preview'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.preview');
+    Route::get('/admin/sms', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'index'])->name('admin.sms.index');
+    Route::put('/admin/sms/toggle', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'toggle'])->name('admin.sms.toggle');
+    Route::post('/admin/sms/send-queued', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'sendQueued'])->name('admin.sms.send-queued');
+
+    /* Member notes, card deliveries and couriers: gated by their OWN permissions inside the controllers —
+       NOT by `manage memberships`, so a viewer or a delivery coordinator can reach them. */
+    /* Staff notes about members: all readable, only the author edits / deletes (checked in the controller). */
+    Route::get('/admin/member-notes', [\App\Http\Controllers\Admin\MemberNoteController::class, 'index'])->name('admin.member-notes.index');
+    Route::get('/admin/member-notes/members', [\App\Http\Controllers\Admin\MemberNoteController::class, 'members'])->name('admin.member-notes.members');
+    Route::post('/admin/member-notes', [\App\Http\Controllers\Admin\MemberNoteController::class, 'store'])->name('admin.member-notes.store');
+    Route::put('/admin/member-notes/{note}', [\App\Http\Controllers\Admin\MemberNoteController::class, 'update'])->whereNumber('note')->name('admin.member-notes.update');
+    Route::delete('/admin/member-notes/{note}', [\App\Http\Controllers\Admin\MemberNoteController::class, 'destroy'])->whereNumber('note')->name('admin.member-notes.destroy');
+    /* Card hand-overs to members + the couriers who make them (permissions checked in the controllers). */
+    Route::get('/admin/card-deliveries', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'index'])->name('admin.card-deliveries.index');
+    Route::post('/admin/card-deliveries', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'store'])->name('admin.card-deliveries.store');
+    Route::post('/admin/card-deliveries/{delivery}', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'update'])->whereNumber('delivery')->name('admin.card-deliveries.update');
+    Route::delete('/admin/card-deliveries/{delivery}', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'destroy'])->whereNumber('delivery')->name('admin.card-deliveries.destroy');
+    Route::delete('/admin/card-deliveries/{delivery}/photos/{media}', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'removePhoto'])->whereNumber(['delivery', 'media'])->name('admin.card-deliveries.photos.destroy');
+    Route::post('/admin/card-deliveries/{delivery}/notes', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'addNote'])->whereNumber('delivery')->name('admin.card-deliveries.notes.store');
+    Route::put('/admin/card-delivery-notes/{note}', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'updateNote'])->whereNumber('note')->name('admin.card-delivery-notes.update');
+    Route::delete('/admin/card-delivery-notes/{note}', [\App\Http\Controllers\Admin\CardDeliveryController::class, 'destroyNote'])->whereNumber('note')->name('admin.card-delivery-notes.destroy');
+    Route::get('/admin/delivery-couriers', [\App\Http\Controllers\Admin\DeliveryCourierController::class, 'index'])->name('admin.delivery-couriers.index');
+    Route::post('/admin/delivery-couriers', [\App\Http\Controllers\Admin\DeliveryCourierController::class, 'store'])->name('admin.delivery-couriers.store');
+    Route::put('/admin/delivery-couriers/{courier}', [\App\Http\Controllers\Admin\DeliveryCourierController::class, 'update'])->whereNumber('courier')->name('admin.delivery-couriers.update');
+    Route::delete('/admin/delivery-couriers/{courier}', [\App\Http\Controllers\Admin\DeliveryCourierController::class, 'destroy'])->whereNumber('courier')->name('admin.delivery-couriers.destroy');
+
     // Dashboard (any admin-area role)
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin', [DashboardController::class, 'index'])->name('admin');

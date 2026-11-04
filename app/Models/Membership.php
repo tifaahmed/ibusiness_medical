@@ -63,6 +63,11 @@ class Membership extends Model implements HasMedia
         'completed_at',
         'is_paid',
         'payment_type',
+        'member_kind',
+        'quick_added_at',
+        'quick_added_by',
+        'quick_device',
+        'quick_wants_card',
         'job_title',
         'plan',
         'source',
@@ -94,6 +99,8 @@ class Membership extends Model implements HasMedia
             'completed_at' => 'datetime',
             'is_paid' => 'boolean',
             'trial_started_at' => 'datetime',
+            'quick_added_at' => 'datetime',
+            'quick_wants_card' => 'boolean',
             'approved_at' => 'datetime',
             'legacy_notes' => 'array',
         ];
@@ -303,6 +310,31 @@ class Membership extends Model implements HasMedia
         return $this->hasMany(MemberExtraCard::class);
     }
 
+    /** Who the card is for: drives which price list applies. A relative follows the primary card ({@see kind()}). */
+    public const KIND_INDIVIDUAL = 'individual';
+
+    public const KIND_COMPANY = 'company';
+
+    /** @return list<string> */
+    public static function kinds(): array
+    {
+        return [self::KIND_INDIVIDUAL, self::KIND_COMPANY];
+    }
+
+    /** The salesperson who registered this card with Quick add (the mark itself is `quick_added_at`). */
+    public function quickAdder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'quick_added_by');
+    }
+
+    /** individual | company — for a relative, that of the primary card. */
+    public function kind(): string
+    {
+        $own = $this->isRelative() ? ($this->parent?->member_kind ?? null) : $this->member_kind;
+
+        return $own === self::KIND_COMPANY ? self::KIND_COMPANY : self::KIND_INDIVIDUAL;
+    }
+
     public const PLAN_TRIAL = 'trial';
 
     public const PLAN_FULL = 'full';
@@ -311,6 +343,9 @@ class Membership extends Model implements HasMedia
 
     /** Where a self-issued card came from. */
     public const SOURCE_SELF_SERVICE = 'self_service';
+
+    /** Registered on the phone by a salesperson (the Quick add button). */
+    public const SOURCE_QUICK_ADD = 'quick_add';
 
     /** Card states, as clients draw them. */
     public const STATE_PENDING = 'pending';

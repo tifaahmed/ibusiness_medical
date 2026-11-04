@@ -242,6 +242,57 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.loyalty_log || 'Points & wallet log' }}</template>
                 </SidebarLink>
 
+                <!-- Customer SMS: the sending switch and every message written (top admin only). -->
+                <SidebarLink
+                    v-if="isSuperAdmin"
+                    :href="route('admin.sms.index')"
+                    :active="route().current('admin.sms.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5m-9 6l2.5-3H19a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.sms || 'Customer SMS' }}</template>
+                </SidebarLink>
+
+                <!-- Card hand-overs to members, and the couriers who make them. -->
+                <SidebarLink
+                    v-if="can('view card deliveries')"
+                    :href="route('admin.card-deliveries.index')"
+                    :active="route().current('admin.card-deliveries.*') || route().current('admin.delivery-couriers.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm10 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.card_deliveries || 'Card deliveries' }}</template>
+                </SidebarLink>
+
+                <!-- Staff notes about members: who wrote what about whom. -->
+                <SidebarLink
+                    v-if="can('view member notes')"
+                    :href="route('admin.member-notes.index')"
+                    :active="route().current('admin.member-notes.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 4h4M5 4h14a2 2 0 012 2v10a2 2 0 01-2 2h-5l-4 4v-4H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.member_notes || 'Member notes' }}</template>
+                </SidebarLink>
+
                 <SidebarLink
                     v-if="can('view member active histories')"
                     :href="route('admin.active-history.list')"

@@ -71,6 +71,8 @@ class StartTrialCard
                     'expiration_date' => $now->copy()->addDays(MembershipPlan::trialDays()),
                     'trial_started_at' => $now,
                     'plan' => Membership::PLAN_TRIAL,
+                    /* A card made in the app is an individual's; an admin can change it later. */
+                    'member_kind' => Membership::KIND_INDIVIDUAL,
                     'source' => Membership::SOURCE_SELF_SERVICE,
                     'is_active' => true,
                     'is_visible' => true,
@@ -100,6 +102,7 @@ class StartTrialCard
                     oldValues: null,
                     newValues: [
                         'plan' => Membership::PLAN_TRIAL,
+                        'member_kind' => Membership::KIND_INDIVIDUAL,
                         'membership_number' => $number,
                         'expiration_date' => $membership->expiration_date->toDateString(),
                         'source' => Membership::SOURCE_SELF_SERVICE,

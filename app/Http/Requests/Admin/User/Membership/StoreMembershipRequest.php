@@ -40,6 +40,8 @@ class StoreMembershipRequest extends FormRequest
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
+            // Individual or company: the admin must say which, a new member never defaults silently.
+            'member_kind' => ['required', 'string', Rule::in(Membership::kinds())],
             'job_title' => ['nullable', 'array'],
             'job_title.ar' => ['nullable', 'string', 'max:255'],
             'job_title.en' => ['nullable', 'string', 'max:255'],

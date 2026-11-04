@@ -103,6 +103,53 @@ class ContactMessageController extends Controller
         });
     }
 
+    /**
+     * Who is behind each message's phone: a live member (matched on the last 10 digits, like IS_MEMBER_SQL) with the card's
+     * kind (primary | relative), its state (trial | trial_expired | active | expired …), and the link-slug of the member page.
+     * Sets `member_info` on every model; null = the phone belongs to no live card.
+     *
+     * @param  iterable<ContactMessage>  $messages
+     */
+    private function attachMemberInfo(iterable $messages): void
+    {
+        $messages = collect($messages);
+        $tails = $messages->map(fn ($m) => $this->phoneTail($m->phone))->filter()->unique()->values();
+
+        $byTail = collect();
+        if ($tails->isNotEmpty()) {
+            \App\Models\User::query()->whereNull('deleted_at')->whereNotNull('phone')
+                ->where(fn ($q) => $tails->each(fn ($t) => $q->orWhere('phone', 'like', '%'.$t)))
+                ->with(['memberships' => fn ($q) => $q->with('parent:id,member_type,plan,expiration_date,is_active')->latest('id')])
+                ->limit(500)->get(['id', 'name', 'phone', 'slug'])
+                ->each(function ($u) use ($byTail) {
+                    $card = $u->memberships->first();
+                    if ($card !== null) {
+                        $byTail->put($this->phoneTail($u->phone), ['user' => $u, 'card' => $card]);
+                    }
+                });
+        }
+
+        foreach ($messages as $m) {
+            $hit = $byTail->get($this->phoneTail($m->phone));
+            $m->setAttribute('member_info', $hit === null ? null : [
+                'name' => $hit['user']->name,
+                'slug' => $hit['user']->slug,
+                'membership_number' => $hit['card']->membership_number,
+                'type' => $hit['card']->isRelative() ? 'relative' : 'primary',
+                'state' => $hit['card']->state(),
+                'is_trial' => $hit['card']->isRelative() ? (bool) $hit['card']->parent?->isTrial() : $hit['card']->isTrial(),
+                'kind' => $hit['card']->kind(),
+            ]);
+        }
+    }
+
+    private function phoneTail(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+
+        return strlen($digits) >= 10 ? substr($digits, -10) : null;
+    }
+
     public function index(Request $request): Response
     {
         $query = ContactMessage::query()->with('sales')
@@ -150,6 +197,7 @@ class ContactMessageController extends Controller
         $sortDirection = $request->get('direction') === 'asc' ? 'asc' : 'desc';
 
         $messages = $query->orderBy($sortField, $sortDirection)->paginate(15)->withQueryString();
+        $this->attachMemberInfo($messages->items());
 
         $counts = ContactMessage::query()
             ->selectRaw('status, count(*) as total')
@@ -507,6 +555,7 @@ class ContactMessageController extends Controller
         $contactMessage->markAsRead();
 
         $contactMessage->load(['sales', 'logs.admin']);
+        $this->attachMemberInfo([$contactMessage]);
 
         return Inertia::render('Admin/ContactMessages/Show', [
             /* resolve(), not the resource itself: a single JsonResource serialises

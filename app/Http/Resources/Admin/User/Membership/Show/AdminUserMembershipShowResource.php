@@ -38,6 +38,11 @@ class AdminUserMembershipShowResource extends JsonResource
                         'completed_at' => $membership->completed_at?->format('Y-m-d H:i:s'),
                         'is_paid' => (bool) $membership->is_paid,
                         'payment_type' => $membership->payment_type,
+                        'member_kind' => $membership->member_kind,
+                        'quick_added' => $membership->quick_added_at !== null,
+                        'quick_added_by' => $membership->quick_added_at !== null ? $membership->quickAdder?->name : null,
+                        'quick_device' => $membership->quick_device,
+                        'quick_wants_card' => (bool) $membership->quick_wants_card,
                         'job_title' => $membership->getTranslation('job_title', $locale)
                             ?: $membership->getTranslation('job_title', 'ar')
                             ?: $membership->getTranslation('job_title', 'en'),

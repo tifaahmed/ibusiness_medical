@@ -12,7 +12,7 @@ import { afterSave } from '@/composables/useSaveAndStay';
 const FORM_FIELD_KEYS = [
     'id', 'slug', 'name', 'email', 'phone', 'password', 'password_confirmation',
     'avatar', 'avatar_url', 'membership_number', 'takeover_membership_id', 'national_id', 'registration_date',
-    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'payment_type',
+    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'payment_type', 'member_kind',
     'membership_completed_at', 'has_member_payments', 'initial_payment_amount',
     'initial_payment_type', 'initial_payment_months_paid', 'initial_payment_from_date',
     'initial_payment_to_date', 'initial_payment_notes', 'job_title', 'company_id',
@@ -83,6 +83,7 @@ export const useMemberStore = defineStore('member', {
             is_paid: false,  // Default to false
             is_trial: false, // plan = trial; sent on edit only
             payment_type: '',
+            member_kind: '',  // individual | company — chosen by the admin on create
             membership_completed_at: null,  // read-only, from server
             has_member_payments: false,     // read-only, from server — gates the edit-mode Payment card
             initial_payment_amount: '',
@@ -162,6 +163,7 @@ export const useMemberStore = defineStore('member', {
             this.form.is_paid = false;  // Default to false for new members
             this.form.is_trial = false;
             this.form.payment_type = '';
+            this.form.member_kind = '';
             this.form.membership_completed_at = null;
             this.form.has_member_payments = false;
             this.form.initial_payment_amount = '';
@@ -217,6 +219,7 @@ export const useMemberStore = defineStore('member', {
             this.form.is_paid = Boolean(member.membership?.is_paid);
             this.form.is_trial = Boolean(member.membership?.is_trial);
             this.form.payment_type = member.membership?.payment_type || '';
+            this.form.member_kind = member.membership?.member_kind || 'individual';
             this.form.membership_completed_at = member.membership?.completed_at || null;
             this.form.has_member_payments = Boolean(member.membership?.has_member_payments);
             this.form.initial_payment_amount = '';
@@ -285,6 +288,7 @@ export const useMemberStore = defineStore('member', {
                     is_paid: this.form.is_paid,
                     is_trial: this.form.is_trial,
                     payment_type: this.form.payment_type,
+                    member_kind: this.form.member_kind,
                     company_id: this.form.company_id,
                     sales_id: this.form.sales_id,
                     governorate_id: this.form.governorate_id,

@@ -325,6 +325,7 @@ class TrialCardTest extends TestCase
         [, $membership] = $this->trialCard();
         SiteSettings::put(MembershipPlan::PRICE, 0, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::HALF_PRICE, 0, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::INDIVIDUAL_MONTH_PRICE, 0, Setting::TYPE_NUMBER); // the monthly plan is a plan too: "nothing for sale" means all three are 0
 
         $this->getJson("/api/v1/card/{$membership->membership_number}/status")
             ->assertJsonPath('data.can_pay_online', false);

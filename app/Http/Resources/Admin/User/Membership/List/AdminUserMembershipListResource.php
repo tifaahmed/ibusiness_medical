@@ -82,6 +82,12 @@ class AdminUserMembershipListResource extends JsonResource
                     'membership_number' => $membership->membership_number,
                     'national_id' => $membership->national_id,
                     'plan' => $membership->isRelative() ? null : $membership->plan,
+                    'member_kind' => $membership->isRelative() ? null : $membership->member_kind,
+                    /* Registered on the phone by a salesperson: the mark stays for good. */
+                    'quick_added' => $membership->quick_added_at !== null,
+                    'quick_added_by' => $membership->quick_added_at !== null ? $membership->quickAdder?->name : null,
+                    'quick_device' => $membership->quick_device,
+                    'quick_wants_card' => (bool) $membership->quick_wants_card,
                     'member_type' => $membership->member_type,
                     'relationship' => $membership->relationship,
                     'relationship_label' => \App\Enums\FamilyMember\RelationshipEnum::tryFrom((string) $membership->relationship)?->label(),

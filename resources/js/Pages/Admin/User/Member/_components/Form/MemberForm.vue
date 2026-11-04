@@ -374,6 +374,18 @@
                 {{ t.member?.trial_membership_help || 'A free trial card: it ends on its expiry date, earns no member price once expired and cannot hold relatives. Untick to make it a regular card (the same as the ✕ on the members list).' }}
               </p>
             </div>
+            <div>
+              <FormSelect
+                v-model="memberStore.form.member_kind"
+                :label="t.member?.member_kind || 'Member type'"
+                :options="memberKindOptions"
+                :error="memberStore.validationErrors?.member_kind"
+                data-testid="member-kind"
+              />
+              <p class="text-xs text-white/70 mt-1">
+                {{ t.member?.member_kind_help || 'Individual or company: decides which subscription prices the member is offered (set in Settings).' }}
+              </p>
+            </div>
             <div v-if="false && memberStore.form.is_paid">
               <FormSelect
                 v-model="memberStore.form.payment_type"
@@ -527,6 +539,10 @@ const phoneHint = computed(() => {
   return '';
 });
 
+const memberKindOptions = computed(() => [
+  { value: 'individual', label: t.value.member?.kind_individual || 'Individual' },
+  { value: 'company', label: t.value.member?.kind_company || 'Company' },
+]);
 const paymentTypeOptions = computed(() => [
   { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
   { value: 'monthly', label: t.value.member?.payment_type_monthly || 'Monthly' },

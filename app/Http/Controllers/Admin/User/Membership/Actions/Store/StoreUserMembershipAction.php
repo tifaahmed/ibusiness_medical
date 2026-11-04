@@ -91,6 +91,7 @@ class StoreUserMembershipAction
                 'completed_at' => $completedAt,
                 'is_paid' => $isPaid,
                 'payment_type' => $paymentType,
+                'member_kind' => $validated['member_kind'] ?? Membership::KIND_INDIVIDUAL,
                 'job_title' => $validated['job_title'] ?? null,
                 'company_id' => $validated['company_id'] ?? null,
                 'partner_id' => $validated['partner_id'] ?? null,

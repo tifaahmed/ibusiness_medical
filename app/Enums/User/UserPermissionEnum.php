@@ -273,6 +273,14 @@ enum UserPermissionEnum
 
     public const VIEW_VISITORS = 'view visitors';
 
+    public const VIEW_MEMBER_NOTES = 'view member notes';
+
+    public const ADD_MEMBER_NOTES = 'add member notes';
+
+    public const VIEW_CARD_DELIVERIES = 'view card deliveries';
+
+    public const MANAGE_CARD_DELIVERIES = 'manage card deliveries';
+
     /**
      * Permissions that do not have a paired full/own counterpart. Kept
      * separate from pairs() so they don't get listed twice or rejected by
@@ -286,6 +294,10 @@ enum UserPermissionEnum
             self::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES,
             self::MANAGE_CARD_TEMPLATES,
+            self::VIEW_MEMBER_NOTES,
+            self::ADD_MEMBER_NOTES,
+            self::VIEW_CARD_DELIVERIES,
+            self::MANAGE_CARD_DELIVERIES,
             self::MANAGE_CITIES,
             self::MANAGE_AREAS,
             /*
@@ -380,6 +392,8 @@ enum UserPermissionEnum
             self::VIEW_NEWS_TICKERS,
             self::VIEW_SETTINGS,
             self::VIEW_VISITORS,
+            self::VIEW_MEMBER_NOTES,
+            self::VIEW_CARD_DELIVERIES,
         ];
     }
 

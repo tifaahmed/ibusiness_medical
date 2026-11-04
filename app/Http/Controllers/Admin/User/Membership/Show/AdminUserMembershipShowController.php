@@ -68,6 +68,18 @@ class AdminUserMembershipShowController extends BaseController
             'loyalty' => AdminMemberLoyalty::summary($user),
             // Extra physical / soft cards per member id (primary and relatives).
             'extraCards' => $this->extraCards($user),
+            // Staff notes about this member (everyone reads, only the author edits).
+            'notes' => $request->user()->can(\App\Enums\User\UserPermissionEnum::VIEW_MEMBER_NOTES)
+                ? \App\Models\MemberNote::query()->where('user_id', $user->id)->with('author:id,name')->latest('id')->get()
+                    ->map(fn ($n) => \App\Http\Controllers\Admin\MemberNoteController::present($n, $request->user()))->all()
+                : null,
+            // Card hand-overs to this member (many allowed) + the couriers to choose from.
+            'deliveries' => $request->user()->can(\App\Enums\User\UserPermissionEnum::VIEW_CARD_DELIVERIES)
+                ? \App\Models\CardDelivery::query()->where('user_id', $user->id)->with(['courier:id,name,phone', 'creator:id,name', 'noteLines.author:id,name', 'media'])->latest('id')->get()
+                    ->map(fn ($d) => \App\Http\Controllers\Admin\CardDeliveryController::present($d))->all()
+                : null,
+            'deliveryCouriers' => \App\Models\DeliveryCourier::query()->orderByDesc('is_active')->orderBy('name')->get(['id', 'name', 'is_active'])->all(),
+            'canManageDeliveries' => $request->user()->can(\App\Enums\User\UserPermissionEnum::MANAGE_CARD_DELIVERIES),
         ];
 
         return Inertia::render('Admin/User/Membership/Show', $result);

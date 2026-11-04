@@ -268,8 +268,7 @@
                     </td>
                     <td class="p-2 sm:p-3 align-middle">
                       <span class="text-foreground text-xs" dir="ltr">{{ msg.phone }}</span>
-                      <span v-if="msg.is_member === true" class="ms-1 inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">✓ {{ t.member || 'Member' }}</span>
-                      <span v-else-if="msg.is_member === false" class="ms-1 inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">{{ t.not_member_badge || 'Not a member' }}</span>
+                      <div class="mt-1"><MemberBadge :member="msg.member" :is-member="msg.is_member" /></div>
                     </td>
                     <td class="p-2 sm:p-3 align-middle max-w-xs">
                       <span v-if="msg.subject" class="block text-xs font-medium text-foreground truncate" :title="msg.subject">{{ msg.subject }}</span>
@@ -337,6 +336,7 @@ import { router, usePage, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Pages/_components/Pagination.vue';
 import Select from '@/Components/ui/Select.vue';
+import MemberBadge from './MemberBadge.vue';
 import axios from 'axios';
 
 const page = usePage();
