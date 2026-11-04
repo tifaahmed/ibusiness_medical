@@ -13,6 +13,7 @@ class AdminSalesEditResource extends JsonResource
             'id' => $this->id,
             'name' => $this->getTranslations('name'),
             'image' => $this->image,
+            'admin_user_id' => $this->admin_user_id,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

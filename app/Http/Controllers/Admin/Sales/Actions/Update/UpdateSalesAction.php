@@ -15,6 +15,7 @@ class UpdateSalesAction
         try {
             $sales->update([
                 'name' => $validated['name'],
+                'admin_user_id' => $validated['admin_user_id'] ?? null,
             ]);
 
             if (isset($validated['image'])) {

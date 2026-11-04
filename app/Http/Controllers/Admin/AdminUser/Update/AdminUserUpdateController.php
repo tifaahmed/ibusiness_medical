@@ -77,6 +77,7 @@ class AdminUserUpdateController extends Controller
             }
         }
 
+        \App\Models\Sales::linkAdmin($adminUser->id, isset($data['sales_id']) ? (int) $data['sales_id'] : null);
         $adminUser->syncRoles($data['roles']);
         $adminUser->syncPermissions($data['permissions'] ?? []);
 

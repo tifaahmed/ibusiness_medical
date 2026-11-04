@@ -330,6 +330,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
 
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class, \App\Http\Middleware\RedirectBackWhenStaying::class])->group(function () {
     /* Quick add (Members list button) + the customer-SMS panel (super admin only, checked in the controller). */
+    Route::get('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'create'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.page');
     Route::post('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'store'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add');
     Route::get('/admin/user/membership/quick-add/preview', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'preview'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.preview');
     Route::get('/admin/sms', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'index'])->name('admin.sms.index');

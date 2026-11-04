@@ -36,6 +36,7 @@ class AdminUserCreateController extends Controller
             'assignable_roles' => $assignableRoles,
             'all_permissions' => UserPermissionEnum::all(),
             'partner_options' => $partners,
+            'sales_options' => \App\Models\Sales::linkableOptions(),
         ]);
     }
 }

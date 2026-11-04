@@ -47,6 +47,7 @@ class AdminUserLog extends Model
             'name' => $user->name,
             'email' => $user->email,
             'partner_id' => $user->partner_id,
+            'sales_id' => \App\Models\Sales::where('admin_user_id', $user->id)->value('id'),
             'email_verified' => $user->email_verified_at !== null,
             'dashboard_blocked' => $user->dashboard_blocked_at !== null,
             'roles' => $user->getRoleNames()->sort()->values()->all(),

@@ -91,6 +91,15 @@
           :error="form.errors.partner_id"
         />
 
+        <FormSelect
+          v-model="form.sales_id"
+          :label="t.sales || 'Linked sales rep'"
+          :description="t.sales_description || '(optional — one admin, one sales rep; quick add then fills this rep in)'"
+          :placeholder="t.sales_none || '— None —'"
+          :options="page.props.sales_options || []"
+          :error="form.errors.sales_id"
+        />
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-white mb-1">

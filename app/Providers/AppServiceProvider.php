@@ -31,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
 
         Vite::prefetch(concurrency: 3);
 
+        // Remember the request's first logged error so failed admin saves can show it (see CapturedError).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Log\Events\MessageLogged::class, [\App\Support\CapturedError::class, 'listen']);
+
         // Silent unless a bulk tool names itself — see App\Support\FacilityAudit.
         Facility::observe(FacilityAuditObserver::class);
         FacilityBranch::observe(FacilityAuditObserver::class);

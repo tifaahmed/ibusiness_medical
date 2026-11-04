@@ -10,6 +10,7 @@ export const useSalesStore = defineStore('sales', {
         form: useForm({
             name: { ar: '', en: '' },
             image: null,
+            admin_user_id: null,
         }),
         validationErrors: null,
         sales: reactive([]),
@@ -22,6 +23,7 @@ export const useSalesStore = defineStore('sales', {
             this.form = useForm({
                 name: { ar: '', en: '' },
                 image: null,
+            admin_user_id: null,
             });
             this.validationErrors = null;
             this.debugLog = null;
@@ -46,6 +48,7 @@ export const useSalesStore = defineStore('sales', {
                 id: sale.id,
                 name: this.normalizeTranslatable(sale.name),
                 image: null,
+            admin_user_id: null,
             });
             this.validationErrors = null;
         },

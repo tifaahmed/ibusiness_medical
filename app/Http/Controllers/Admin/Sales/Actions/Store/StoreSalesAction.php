@@ -16,6 +16,7 @@ class StoreSalesAction
         try {
             $sales = Sales::create([
                 'name' => $validated['name'],
+                'admin_user_id' => $validated['admin_user_id'] ?? null,
                 'created_by' => Auth::id(),
             ]);
 

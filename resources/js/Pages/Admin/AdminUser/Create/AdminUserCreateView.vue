@@ -132,6 +132,7 @@ const form = useForm({
   roles: [],
   permissions: [],
   partner_id: null,
+  sales_id: null,
   email_verified: true,
   // Which button was pressed; the controller reads it to pick the redirect.
   after_save: "return",

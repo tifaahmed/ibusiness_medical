@@ -105,6 +105,7 @@ const form = useForm({
   roles: [...(props.admin.roles || [])],
   permissions: [...(props.admin.direct_permissions || [])],
   partner_id: props.admin.partner_id ?? null,
+  sales_id: props.admin.sales_id ?? null,
   email_verified: Boolean(props.admin.email_verified),
   dashboard_blocked: Boolean(props.admin.dashboard_blocked),
 });

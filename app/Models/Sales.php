@@ -23,6 +23,7 @@ class Sales extends Model implements HasMedia
     protected $fillable = [
         'name',
         'created_by',
+        'admin_user_id',
     ];
 
     /**
@@ -44,6 +45,59 @@ class Sales extends Model implements HasMedia
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** The admin account this rep is tied to (one-to-one). */
+    public function adminUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_user_id');
+    }
+
+    /**
+     * Admin accounts that may be linked to a rep: non-member accounts not
+     * already tied to ANOTHER rep (the one being edited keeps its own).
+     *
+     * @return array<int, array{value: int, label: string}>
+     */
+    public static function adminOptions(?int $exceptSalesId = null): array
+    {
+        $taken = static::query()
+            ->whereNotNull('admin_user_id')
+            ->when($exceptSalesId, fn ($q) => $q->where('id', '!=', $exceptSalesId))
+            ->pluck('admin_user_id');
+
+        return User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', '!=', \App\Enums\User\UserRoleEnum::MEMBER))
+            ->whereNotIn('id', $taken)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $u) => ['value' => $u->id, 'label' => trim($u->name.' — '.($u->email ?? ''), ' —')])
+            ->all();
+    }
+
+    /**
+     * Reps an admin may be linked to: not tied to ANOTHER admin (this admin's own stays).
+     *
+     * @return array<int, array{value: int, label: string}>
+     */
+    public static function linkableOptions(?int $adminId = null): array
+    {
+        return static::query()
+            ->where(fn ($q) => $q->whereNull('admin_user_id')->when($adminId, fn ($q) => $q->orWhere('admin_user_id', $adminId)))
+            ->orderBy('id')->get()
+            ->map(fn (Sales $s) => ['value' => $s->id, 'label' => $s->displayName()])->all();
+    }
+
+    /** Point exactly one rep (or none) at this admin; frees any other rep he held. */
+    public static function linkAdmin(int $adminId, ?int $salesId): void
+    {
+        static::query()->where('admin_user_id', $adminId)
+            ->when($salesId, fn ($q) => $q->where('id', '!=', $salesId))
+            ->update(['admin_user_id' => null]);
+
+        if ($salesId) {
+            static::query()->whereKey($salesId)->update(['admin_user_id' => $adminId]);
+        }
     }
 
     public function facilities(): HasMany

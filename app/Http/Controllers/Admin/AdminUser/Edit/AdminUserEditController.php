@@ -44,6 +44,7 @@ class AdminUserEditController extends Controller
                 'name' => $adminUser->name,
                 'email' => $adminUser->email,
                 'partner_id' => $adminUser->partner_id,
+                'sales_id' => \App\Models\Sales::where('admin_user_id', $adminUser->id)->value('id'),
                 'dashboard_blocked' => $adminUser->dashboard_blocked_at !== null,
                 'email_verified' => $adminUser->email_verified_at !== null,
                 'roles' => $adminUser->getRoleNames()->values(),
@@ -54,6 +55,7 @@ class AdminUserEditController extends Controller
             'assignable_roles' => $assignableRoles,
             'all_permissions' => UserPermissionEnum::all(),
             'partner_options' => $partners,
+            'sales_options' => \App\Models\Sales::linkableOptions($adminUser->id),
             // Monthly caps on hand-written balance changes: what is set, what this admin used this month. Only the super admin edits them.
             'ledger_limits' => collect(\App\Support\AdminLedgerLimits::permissions())->map(function (string $permission) use ($adminUser) {
                 $own = \App\Models\AdminLedgerLimit::query()->where('user_id', $adminUser->id)->where('permission', $permission)->first();

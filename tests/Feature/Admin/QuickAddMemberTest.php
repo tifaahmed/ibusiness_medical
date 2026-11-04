@@ -59,6 +59,69 @@ class QuickAddMemberTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_linked_admin_files_under_own_sales_rep_and_lands_on_member_edit(): void
+    {
+        Http::fake();
+        $by = $this->sales();
+        $mine = \App\Models\Sales::create(['name' => ['ar' => 'مندوبي', 'en' => 'Mine'], 'admin_user_id' => $by->id]);
+        $other = \App\Models\Sales::create(['name' => ['ar' => 'غيره', 'en' => 'Other']]);
+
+        // The browser tries to name another rep: ignored.
+        $res = $this->quickAdd($by, ['sales_id' => $other->id]);
+
+        $m = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
+        $this->assertSame($mine->id, (int) $m->sales_id);
+        $res->assertRedirect(route('admin.user.membership.edit', $m->user_id));
+    }
+
+    public function test_one_admin_one_sales_rep(): void
+    {
+        $a = User::factory()->create();
+        $s1 = \App\Models\Sales::create(['name' => ['ar' => 'أ', 'en' => 'A']]);
+        $s2 = \App\Models\Sales::create(['name' => ['ar' => 'ب', 'en' => 'B']]);
+
+        \App\Models\Sales::linkAdmin($a->id, $s1->id);
+        \App\Models\Sales::linkAdmin($a->id, $s2->id); // moves, never two
+
+        $this->assertNull($s1->fresh()->admin_user_id);
+        $this->assertSame($a->id, (int) $s2->fresh()->admin_user_id);
+        $this->assertNotContains($s2->id, array_column(\App\Models\Sales::linkableOptions(999999), 'value'));
+    }
+
+    public function test_taken_phone_is_refused_with_the_holder_named(): void
+    {
+        Http::fake();
+        $by = $this->sales();
+        $this->quickAdd($by, ['name' => 'First Owner'])->assertSessionHasNoErrors();
+        $card = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
+
+        $res = $this->quickAdd($by, ['name' => 'Second']);
+
+        $res->assertSessionHasErrors('phone');
+        $msg = session('errors')->first('phone');
+        $this->assertStringContainsString('First Owner', $msg);
+        $this->assertStringContainsString($card->membership_number, $msg);
+        $this->assertSame(1, Membership::query()->whereNotNull('quick_added_at')->count());
+    }
+
+    public function test_preview_is_shown_empty_and_fills_in_as_choices_are_made(): void
+    {
+        $by = $this->sales();
+        $get = fn (array $q) => $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.preview', $q))->assertOk()->json();
+
+        $empty = $get([]);
+        $this->assertFalse($empty['complete']);
+        $this->assertStringContainsString('[', $empty['body']);
+
+        $part = $get(['member_kind' => 'company']);
+        $this->assertStringContainsString('شركتكم', $part['body']);
+        $this->assertStringContainsString('[رابط التطبيق', $part['body']);
+
+        $full = $get(['member_kind' => 'company', 'device' => 'android']);
+        $this->assertTrue($full['complete']);
+        $this->assertStringNotContainsString('[', $full['body']);
+    }
+
     public function test_company_gets_thirty_days_and_the_company_text(): void
     {
         $this->quickAdd($this->sales(), ['member_kind' => 'company', 'device' => 'iphone'])->assertRedirect();

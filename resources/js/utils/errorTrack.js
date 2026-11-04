@@ -1,3 +1,5 @@
+import { usePage } from '@inertiajs/vue3';
+
 /**
  * Shared building blocks behind the "Advanced Error Track" tab that sits next
  * to every admin submit button's error badge (see
@@ -59,6 +61,10 @@ export const buildDebugLog = ({ method, url, fields, note = null, responseErrors
  */
 export const recordResponse = (debugLog, errors, note = null, exception = null) => {
     if (!debugLog) return debugLog;
+    // Not given one? Take whatever the server flashed for this answer (App\Http\Middleware\AttachErrorDebug), so every form gets it.
+    if (!exception) {
+        try { exception = usePage().props?.flash?.error_debug || null; } catch (e) { exception = null; }
+    }
     debugLog.response = { at: new Date().toISOString(), errors, note, exception };
     return debugLog;
 };

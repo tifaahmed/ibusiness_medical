@@ -24,6 +24,34 @@
       </div>
     </div>
 
+    <!-- Linked admin account (one admin <-> one sales rep) -->
+    <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
+      <div data-slot="card-header" class="py-2 px-6">
+        <div data-slot="card-title" class="leading-none font-semibold title-golden">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          {{ t.sales?.admin_account || 'Linked admin account' }}
+        </div>
+      </div>
+      <div data-slot="card-content" class="px-6 space-y-2">
+        <FormSearchableSelect
+          v-model="form.admin_user_id"
+          :label="t.sales?.admin_account || 'Linked admin account'"
+          :options="adminOptions"
+          :error="salesStore.validationErrors?.admin_user_id || form.errors?.admin_user_id"
+          :placeholder="t.sales?.admin_account_placeholder || 'Choose an admin (optional)'"
+        />
+        <button v-if="form.admin_user_id" type="button" class="text-sm underline" @click="form.admin_user_id = null">
+          {{ t.sales?.admin_unlink || 'Unlink' }}
+        </button>
+        <p class="text-xs text-muted-foreground">
+          {{ t.sales?.admin_account_hint || 'One admin can be linked to one sales rep only, and one rep to one admin. Admins already linked elsewhere are not listed.' }}
+        </p>
+      </div>
+    </div>
+
     <!-- Image Card -->
     <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-4 rounded-xl border border-border py-4 shadow-sm">
       <div data-slot="card-header" class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] !items-start gap-1.5 py-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
@@ -61,7 +89,7 @@
 </template>
 
 <script setup>
-import { FormTranslatableInput } from "@/Components/form";
+import { FormTranslatableInput, FormSearchableSelect } from "@/Components/form";
 import ImageFileInput from "@/Components/form/ImageFileInput.vue";
 import { useSalesStore } from "../Stores/SalesStore";
 import { computed, ref } from "vue";
@@ -80,6 +108,7 @@ const { form } = storeToRefs(salesStore);
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 
+const adminOptions = computed(() => page.props.adminOptions || []);
 const isEditMode = computed(() => !!props.sale?.id);
 const imageError = ref('');
 const initialImagePreview = computed(() => props.sale?.image || '');

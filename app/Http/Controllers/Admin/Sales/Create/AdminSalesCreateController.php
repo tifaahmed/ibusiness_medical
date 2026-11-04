@@ -11,6 +11,8 @@ class AdminSalesCreateController extends BaseController
 {
     public function __invoke(Request $request): Response
     {
-        return Inertia::render('Admin/Sales/Form/SalesFormView');
+        return Inertia::render('Admin/Sales/Form/SalesFormView', [
+            'adminOptions' => \App\Models\Sales::adminOptions(),
+        ]);
     }
 }

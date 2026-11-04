@@ -61,24 +61,34 @@ final class QuickAdd
         };
     }
 
-    public static function message(string $kind, string $device, bool $wantsCard, ?int $days = null): string
+    /**
+     * The customer's text. With a null kind or device (only the live preview passes those, while the form is
+     * still being filled) the missing piece shows as a [bracketed placeholder]; a real send always has both.
+     */
+    public static function message(?string $kind, ?string $device, bool $wantsCard, ?int $days = null): string
     {
-        $days ??= self::trialDays($kind);
-        $link = self::storeLink($device);
-
-        $body = $kind === Membership::KIND_COMPANY
-            ? 'أهلاً بك في ديلار! تم إنشاء حساب تجريبي لشركتكم '.self::daysPhrase($days).'، وبعدها إذا وافقتم على المتابعة يتم الخصم.'
-            : 'أهلاً بك في ديلار! لديك تجربة مجانية '.self::daysPhrase($days).'، وبعدها يلزم الاشتراك من التطبيق أو عن طريقنا.';
+        if ($kind === null) {
+            $body = 'أهلاً بك في ديلار! [نص التجربة المجانية حسب النوع: فرد أو شركة]';
+        } else {
+            $days ??= self::trialDays($kind);
+            $body = $kind === Membership::KIND_COMPANY
+                ? 'أهلاً بك في ديلار! تم إنشاء حساب تجريبي لشركتكم '.self::daysPhrase($days).'، وبعدها إذا وافقتم على المتابعة يتم الخصم.'
+                : 'أهلاً بك في ديلار! لديك تجربة مجانية '.self::daysPhrase($days).'، وبعدها يلزم الاشتراك من التطبيق أو عن طريقنا.';
+        }
 
         if ($wantsCard) {
             $body .= ' مندوبنا سيتواصل معك قريباً لتوصيل الكارت.';
         }
 
-        $body .= $link !== null
-            ? ' سجّل دخولك برقم تليفونك: '.$link
-            : ' سجّل دخولك بتطبيق ديلار برقم تليفونك.';
+        if ($device === null) {
+            return $body.' سجّل دخولك برقم تليفونك: [رابط التطبيق حسب نوع الهاتف]';
+        }
 
-        return $body;
+        $link = self::storeLink($device);
+
+        return $body.($link !== null
+            ? ' سجّل دخولك برقم تليفونك: '.$link
+            : ' سجّل دخولك بتطبيق ديلار برقم تليفونك.');
     }
 
     /** @return array{characters: int, segments: int} Arabic is UCS-2: 70 characters in one message, 67 per part when joined. */

@@ -24,6 +24,7 @@ class AdminSalesEditController extends BaseController
 
         return Inertia::render('Admin/Sales/Form/SalesFormView', [
             'sale' => (new AdminSalesEditResource($sale))->toArray($request),
+            'adminOptions' => Sales::adminOptions($sale->id),
         ]);
     }
 }

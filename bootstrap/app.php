@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 
         $middleware->web(append: [
+            \App\Http\Middleware\AttachErrorDebug::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\ShareUserPermissions::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,

@@ -46,6 +46,12 @@ class UpdateAdminUserRequest extends FormRequest
             'roles.*' => ['string', Rule::in($assignableRoles)],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::in(UserPermissionEnum::all())],
+            'sales_id' => ['nullable', 'integer', 'exists:sales,id', function ($attr, $value, $fail) {
+                $admin = $this->route('adminUser')?->id;
+                if ($value && \App\Models\Sales::whereKey($value)->whereNotNull('admin_user_id')->when($admin, fn ($q) => $q->where('admin_user_id', '!=', $admin))->exists()) {
+                    $fail('This sales rep is already linked to another admin.');
+                }
+            }],
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'email_verified' => ['nullable', 'boolean'],
             'dashboard_blocked' => ['nullable', 'boolean'],

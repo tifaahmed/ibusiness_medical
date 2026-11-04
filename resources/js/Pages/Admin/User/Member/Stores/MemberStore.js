@@ -1,3 +1,4 @@
+import { recordResponse } from '@/utils/errorTrack';
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -458,7 +459,7 @@ export const useMemberStore = defineStore('member', {
                         // Merge server errors with client validation errors
                         this.validationErrors = { ...this.validationErrors, ...errors };
                         if (this.debugLog) {
-                            this.debugLog.response = { at: new Date().toISOString(), errors };
+                            recordResponse(this.debugLog, errors);
                         }
                         useNotification().error('Failed to create member');
                     },
@@ -585,7 +586,7 @@ export const useMemberStore = defineStore('member', {
                             // Merge server errors with client validation errors
                             this.validationErrors = { ...this.validationErrors, ...errors };
                             if (this.debugLog) {
-                                this.debugLog.response = { at: new Date().toISOString(), errors };
+                                recordResponse(this.debugLog, errors);
                             }
                             useNotification().error('Failed to update member');
                         }

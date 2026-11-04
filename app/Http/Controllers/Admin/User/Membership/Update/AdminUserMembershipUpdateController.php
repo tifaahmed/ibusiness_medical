@@ -149,10 +149,16 @@ class AdminUserMembershipUpdateController extends BaseController
 
             return redirect()->route('admin.user.membership.list')
                 ->with('success', 'User and membership updated successfully. Notification email will be sent shortly.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // A model guard (unique phone / National ID, relative rules…) said no: show ITS field errors, not a generic failure.
+            Log::warning('Member update refused by a model guard', ['user' => is_object($user) ? $user->id : $user, 'errors' => $e->errors()]);
+
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error('Failed to update user and membership', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
+                'user_id' => is_object($user) ? $user->id : null,
+                'user_slug' => is_object($user) ? $user->slug : $user,
+                'user_email' => is_object($user) ? $user->email : null,
                 'membership_number' => $validated['membership_number'] ?? null,
                 'error_message' => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString(),
@@ -160,7 +166,10 @@ class AdminUserMembershipUpdateController extends BaseController
                 'user_agent' => $request->userAgent(),
             ]);
             
-            return back()->withErrors(['error' => 'Failed to update user and membership. Please try again.'])
+            // Admin-only screen: say WHAT failed (class + message), not just that something did.
+            $reason = class_basename($e).': '.\Illuminate\Support\Str::limit($e->getMessage(), 300);
+
+            return back()->withErrors(['error' => 'Failed to update user and membership. Reason: '.$reason])
                 ->withInput();
         }
     }

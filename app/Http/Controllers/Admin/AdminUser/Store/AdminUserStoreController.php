@@ -27,6 +27,7 @@ class AdminUserStoreController extends Controller
             'email_verified_at' => $shouldBeVerified ? now() : null,
         ]);
 
+        \App\Models\Sales::linkAdmin($user->id, isset($data['sales_id']) ? (int) $data['sales_id'] : null);
         $user->syncRoles($data['roles']);
         $user->syncPermissions($data['permissions'] ?? []);
 

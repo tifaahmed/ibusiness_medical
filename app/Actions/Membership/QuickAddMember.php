@@ -26,7 +26,7 @@ class QuickAddMember
     public function __construct(private readonly StartTrialCard $trial, private readonly SmsOutbox $outbox) {}
 
     /**
-     * @param  array{name: string, phone: string, device: string, member_kind: string, wants_card?: bool}  $data
+     * @param  array{name: string, phone: string, device: string, member_kind: string, wants_card?: bool, sales_id?: int|null}  $data
      * @return array{membership: Membership, sms: \App\Models\SmsMessage|null}
      */
     public function handle(array $data, User $admin, ?Request $request = null): array
@@ -46,6 +46,7 @@ class QuickAddMember
                 'source' => Membership::SOURCE_QUICK_ADD,
                 'expiration_date' => now()->addDays($days),
                 'created_by' => $admin->id,
+                'sales_id' => $data['sales_id'] ?? $card->sales_id,
                 'quick_added_at' => now(),
                 'quick_added_by' => $admin->id,
                 'quick_device' => $data['device'],

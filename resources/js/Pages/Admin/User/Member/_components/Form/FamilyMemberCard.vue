@@ -293,6 +293,7 @@
 </template>
 
 <script setup>
+import { recordResponse } from '@/utils/errorTrack';
 import { ref, computed, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { FormInput, FormSelect, FormDateInput, FormCheckbox, ImageFileInput } from '@/Components/form';
@@ -500,7 +501,7 @@ const handleSubmit = () => {
     onError: (pageErrors) => {
       errors.value = pageErrors;
       if (debugLog.value) {
-        debugLog.value.response = { at: new Date().toISOString(), errors: pageErrors };
+        recordResponse(debugLog.value, pageErrors);
       }
       notification.error(t.value.member?.fix_errors || 'Please fix the errors and try again');
     },
