@@ -66,13 +66,27 @@ class Sales extends Model implements HasMedia
             ->when($exceptSalesId, fn ($q) => $q->where('id', '!=', $exceptSalesId))
             ->pluck('admin_user_id');
 
-        return User::query()
+        // "Name — e-mail", without a dangling dash (a regex, not trim(): that works on BYTES and would eat the end of an Arabic letter).
+        $label = fn (User $u) => preg_replace('/[\s—]+$/u', '', trim($u->name.' — '.($u->email ?? '')));
+
+        $options = User::query()
             ->whereHas('roles', fn ($q) => $q->where('name', '!=', \App\Enums\User\UserRoleEnum::MEMBER))
             ->whereNotIn('id', $taken)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
-            ->map(fn (User $u) => ['value' => $u->id, 'label' => trim($u->name.' — '.($u->email ?? ''), ' —')])
+            ->map(fn (User $u) => ['value' => $u->id, 'label' => $label($u)])
             ->all();
+
+        // The admin already linked to THIS rep is always listed, so the select can show who it is even if their roles changed since.
+        $current = $exceptSalesId ? static::query()->whereKey($exceptSalesId)->value('admin_user_id') : null;
+        if ($current && ! in_array($current, array_column($options, 'value'), true)) {
+            $u = User::query()->find($current, ['id', 'name', 'email']);
+            if ($u) {
+                array_unshift($options, ['value' => $u->id, 'label' => $label($u)]);
+            }
+        }
+
+        return $options;
     }
 
     /**

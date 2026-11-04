@@ -32,3 +32,8 @@
 - [x] Vue: DoneView, WhatsAppView, ExtraPhones
 - [x] extra phones on member Show page; tests/Feature/Admin/QuickAddAfterTest.php written
 - [x] QuickAddAfterTest 3 passed (after vite build finished; running tests DURING a build fails with "Unable to locate file in Vite manifest") + QuickAddMessageEditTest + QuickAddMemberTest passed
+
+## 2026-11-04 — بلاغ (حرفياً)
+http://127.0.0.1:8004/admin/user/membership/yyyyyyyyyyy/whatsapp لما دخلت هنا الصفحه باظت والجهاز هنج وكان حاجه infinit loop او حاجه كبيره اوى بتتحمل ضربت الصفحه
+- [x] loop reproduced in a reactivity-only simulation (old config: Maximum recursive updates exceeded; fixed config: 1 paint). No vite build run (user's dev server is up; HMR picks the change up).
+- [x] cause: CardPreview watch returned a NEW array each run + WhatsAppView stored the canvas in a ref and passed an inline membership literal -> repaint<->re-render loop. Fixed in CardPreview (watch on one JSON string) and WhatsAppView (computed membership, non-reactive canvas, boolean cardReady).

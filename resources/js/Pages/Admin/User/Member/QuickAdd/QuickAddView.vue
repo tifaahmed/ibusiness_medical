@@ -23,7 +23,11 @@
           <!-- Asked the moment the 11th digit is typed -->
           <p v-if="phone.state === 'checking'" class="text-xs text-muted-foreground" data-testid="qa-phone-checking">{{ t.checking_phone || 'Checking the number…' }}</p>
           <p v-else-if="phone.state === 'free'" class="chip chip-positive" data-testid="qa-phone-free">{{ t.phone_free || 'This number is not registered — OK to add' }}</p>
-          <p v-else-if="phone.state === 'taken'" class="panel-danger p-2 text-sm" data-testid="qa-phone-taken">{{ phone.message }}</p>
+          <div v-else-if="phone.state === 'taken'" class="panel-danger p-2 text-sm space-y-2" data-testid="qa-phone-taken">
+            <p>{{ phone.message }}</p>
+            <!-- Already a member: go straight to their profile -->
+            <Link v-if="phone.member?.url" :href="phone.member.url" class="inline-flex h-11 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium" data-testid="qa-phone-open-member">{{ t.open_profile || 'Open the member profile' }}<span v-if="phone.member.number" class="ms-2 tabular-nums opacity-70" dir="ltr">{{ phone.member.number }}</span></Link>
+          </div>
           <p v-else-if="form.phone.length > 0" class="text-xs text-muted-foreground tabular-nums" dir="ltr">{{ form.phone.length }} / 11</p>
         </div>
       </div>
@@ -89,7 +93,7 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import MemberLayout from '../MemberLayout.vue';
 import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 
@@ -115,7 +119,7 @@ const kinds = computed(() => [{ v: 'individual', l: t.value.individual || 'Indiv
 const form = reactive({ name: '', phone: '', device: 'android', member_kind: 'company', wants_card: false, sales_id: null });
 const error = ref('');
 const busy = ref(false);
-const phone = reactive({ state: 'idle', message: '' }); // idle | checking | free | taken
+const phone = reactive({ state: 'idle', message: '', member: null }); // idle | checking | free | taken
 const ready = computed(() => form.name.trim() && /^01\d{9}$/.test(form.phone) && form.device && form.member_kind && phone.state !== 'taken' && phone.state !== 'checking');
 
 // The moment the 11th digit is in, ask whether the number is already registered (and by whom).
@@ -123,6 +127,7 @@ let phoneSeq = 0;
 watch(() => form.phone, async (v) => {
   const mine = ++phoneSeq;
   phone.message = '';
+  phone.member = null;
   if (!/^01\d{9}$/.test(v)) { phone.state = 'idle'; return; }
   phone.state = 'checking';
   try {
@@ -132,10 +137,14 @@ watch(() => form.phone, async (v) => {
     // If the check itself fails, do not block: the save checks again on the server.
     phone.state = d?.taken ? 'taken' : 'free';
     phone.message = d?.message || '';
+    phone.member = d?.member || null;
   } catch (e) { if (mine === phoneSeq) phone.state = 'idle'; }
 });
 
 const SINGLE = 70; // one Arabic (UCS-2) SMS
+// Declared BEFORE everything below that reads it: the watch runs its getter at once, and a const used earlier is not yet initialised.
+const preview = ref(null);
+
 // The text in the counter is the one that will be sent: the typed one when edited, else the standard one.
 const custom = ref('');
 const edited = ref(false);
@@ -145,7 +154,6 @@ const over = computed(() => shownLength.value > SINGLE);
 const resetText = () => { edited.value = false; custom.value = preview.value?.body || ''; };
 watch(() => preview.value?.body, (b) => { if (!edited.value) custom.value = b || ''; });
 
-const preview = ref(null);
 let seq = 0;
 watch(() => [form.device, form.member_kind, form.wants_card], async () => {
     const mine = ++seq;

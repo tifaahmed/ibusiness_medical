@@ -72,8 +72,11 @@ async function paint() {
 }
 
 onMounted(paint);
+// The watched value is ONE string, so it only counts as changed when the card's content really changed. It used to be
+// an array: a new array every time the getter ran, so a parent that re-rendered (handing down a fresh `membership`
+// object) made the card repaint and emit 'rendered' again — a parent that reacted to that looped forever.
 watch(
-  () => [
+  () => JSON.stringify([
     props.membership?.slug,
     props.membership?.membership_number,
     props.template?.id,
@@ -85,7 +88,7 @@ watch(
     props.contact && JSON.stringify(props.contact),
     props.placeholderPartnerLogo,
     props.values && JSON.stringify(props.values),
-  ],
+  ]),
   paint,
 );
 </script>

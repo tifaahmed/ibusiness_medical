@@ -5,9 +5,10 @@ import { loadImage, renderCardCanvas } from './cardRenderer.js';
 // A4 portrait dimensions in cm.
 const PAGE_W = 21.0;
 const PAGE_H = 29.7;
-// White-space gutters between cards — kept small on purpose: the space saved goes to the top and bottom margins.
-const GAP_X = 0.2; // gap between columns
-const GAP_Y = 0.12; // gap between rows
+// Every card sits in its own square (a "cell"): the card, centred, with CELL_PAD of clear paper on all four sides.
+// The cut lines are the cells' borders, so a card is never near a line. Neighbouring cells share a border, which makes
+// the distance between two cards 2 × CELL_PAD with the cut line exactly halfway.
+const CELL_PAD = 0.5;
 // Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
 const TOP_RESERVE = 1.0;
 const BOTTOM_RESERVE = 0.5;
@@ -22,24 +23,44 @@ const BACK_FALLBACK = '/images/cards/card-backside.png';
 export function sheetLayout(print) {
   const w = Number(print?.width) > 0 ? Number(print.width) : DEFAULT_PRINT.width;
   const h = Number(print?.height) > 0 ? Number(print.height) : DEFAULT_PRINT.height;
-  const cols = Math.max(1, Math.floor((PAGE_W + GAP_X) / (w + GAP_X)));
-  const rows = Math.max(1, Math.floor((PAGE_H - TOP_RESERVE - BOTTOM_RESERVE + GAP_Y) / (h + GAP_Y)));
-  // Whatever is left after the cards and the two reserves is shared evenly, so the cards never touch the paper's edge.
-  const spare = Math.max(0, PAGE_H - TOP_RESERVE - BOTTOM_RESERVE - (rows * h + (rows - 1) * GAP_Y));
-  const marginTop = TOP_RESERVE + spare / 2;
+  const cellW = w + 2 * CELL_PAD;
+  const cellH = h + 2 * CELL_PAD;
+  const cols = Math.max(1, Math.floor(PAGE_W / cellW));
+  const rows = Math.max(1, Math.floor((PAGE_H - TOP_RESERVE - BOTTOM_RESERVE) / cellH));
+  const gridW = cols * cellW;
+  const gridH = rows * cellH;
+  // The grid sits in the middle of the page; what is left above/below it is shared evenly on top of the two reserves,
+  // so the squares never touch the paper's edge.
+  const gridLeft = (PAGE_W - gridW) / 2;
+  const spare = Math.max(0, PAGE_H - TOP_RESERVE - BOTTOM_RESERVE - gridH);
+  const gridTop = TOP_RESERVE + spare / 2;
   return {
     w,
     h,
     cols,
     rows,
     perPage: cols * rows,
-    marginX: (PAGE_W - cols * w - (cols - 1) * GAP_X) / 2,
-    marginY: marginTop,
-    // The pin mark sits in the middle of the strip above the first row, clear of every card rectangle.
-    gapY: GAP_Y,
+    cellW,
+    cellH,
+    pad: CELL_PAD,
+    gridLeft,
+    gridTop,
+    gridW,
+    gridH,
+    // The pin mark sits in the middle of the strip above the grid, clear of every square.
     pinX: PAGE_W / 2,
-    pinY: marginTop / 2,
+    pinY: gridTop / 2,
   };
+}
+
+function slotXY(L, pos, mirror) {
+  let col = pos % L.cols;
+  const row = Math.floor(pos / L.cols);
+  // Flipped: the columns run right-to-left, so a sheet printed on its back
+  // lines every back up behind its own front.
+  if (mirror) col = L.cols - 1 - col;
+  // The card's own position: inside its cell, CELL_PAD in from the borders.
+  return { x: L.gridLeft + col * L.cellW + L.pad, y: L.gridTop + row * L.cellH + L.pad };
 }
 
 /**
@@ -53,29 +74,26 @@ function drawPin(pdf, L) {
   pdf.line(L.pinX - PIN_RADIUS * 0.6, L.pinY, L.pinX + PIN_RADIUS * 0.6, L.pinY);
   pdf.line(L.pinX, L.pinY - PIN_RADIUS * 0.6, L.pinX, L.pinY + PIN_RADIUS * 0.6);
 
-  // Cutting guides: thin, light lines that run ONLY through the gaps between cards, so one never lands on a card.
-  //  - one straight down the middle of the sheet (the gap between the two columns), to cut the paper in half;
-  //  - one across the middle of every gap between two rows.
-  // Same place on fronts and backs (the mirror only swaps columns; the centre and every row stay put).
+  // Cutting guides: thin, light lines = the borders of the squares, so every card sits in the middle of its own square.
+  // Same place on fronts and backs (the mirror only swaps columns; the borders and the centre stay put).
   pdf.setDrawColor(200);
   pdf.setLineWidth(0.012);
-  // The vertical one stops short of the pin mark so the two do not run together.
-  pdf.line(L.pinX, 0, L.pinX, L.pinY - PIN_RADIUS - 0.05);
-  pdf.line(L.pinX, L.pinY + PIN_RADIUS + 0.05, L.pinX, PAGE_H);
-  for (let r = 1; r < L.rows; r++) {
-    const y = L.marginY + r * L.h + (r - 1) * L.gapY + L.gapY / 2;
-    pdf.line(0, y, PAGE_W, y);
+  const right = L.gridLeft + L.gridW;
+  const bottom = L.gridTop + L.gridH;
+  for (let r = 0; r <= L.rows; r++) {
+    const y = L.gridTop + r * L.cellH;
+    pdf.line(L.gridLeft, y, right, y);
   }
+  for (let c = 0; c <= L.cols; c++) {
+    const x = L.gridLeft + c * L.cellW;
+    if (Math.abs(x - PAGE_W / 2) < 0.01) continue; // the centre line is drawn full height below
+    pdf.line(x, L.gridTop, x, bottom);
+  }
+  // The line down the middle of the sheet runs the full height, to cut the paper in half; it stops short of the pin mark.
+  pdf.line(PAGE_W / 2, 0, PAGE_W / 2, L.pinY - PIN_RADIUS - 0.05);
+  pdf.line(PAGE_W / 2, L.pinY + PIN_RADIUS + 0.05, PAGE_W / 2, PAGE_H);
 }
 
-function slotXY(L, pos, mirror) {
-  let col = pos % L.cols;
-  const row = Math.floor(pos / L.cols);
-  // Flipped: the columns run right-to-left, so a sheet printed on its back
-  // lines every back up behind its own front.
-  if (mirror) col = L.cols - 1 - col;
-  return { x: L.marginX + col * (L.w + GAP_X), y: L.marginY + row * (L.h + GAP_Y) };
-}
 
 // The same picture turned left-to-right, as a JPEG data URL.
 function flippedDataUrl(source, w, h) {
@@ -118,10 +136,13 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
   const bw = Math.min(L.w, Number(print?.back_width) > 0 ? Number(print.back_width) : DEFAULT_PRINT.back_width);
   const bh = Math.min(L.h, Number(print?.back_height) > 0 ? Number(print.back_height) : DEFAULT_PRINT.back_height);
   const mirror = mode === 'mirror';
-  const withFronts = mode === 'both' || mirror;
-  const back = await backDataUrl(template, mirror);
+  // 'fronts': only the fronts of the chosen cards, no back sheets.
+  const frontsOnly = mode === 'fronts';
+  const withFronts = mode === 'both' || mirror || frontsOnly;
+  const back = frontsOnly ? null : await backDataUrl(template, mirror);
   const pdf = new jsPDF({ unit: 'cm', format: 'a4', orientation: 'portrait' });
   const total = memberships.length;
+  const steps = frontsOnly ? total : total * 2;
   const pages = Math.ceil(total / L.perPage);
   let first = true;
   // Every sheet gets the pin mark in the same place; the first one exists already, later ones are added below.
@@ -144,10 +165,11 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
         const { x, y } = slotXY(L, k, mirror);
         const front = mirror ? flippedDataUrl(canvas, canvas.width, canvas.height) : canvas.toDataURL('image/jpeg', 0.92);
         pdf.addImage(front, 'JPEG', x, y, L.w, L.h, undefined, 'FAST');
-        if (onProgress) onProgress((from + k + 1) / (total * 2));
+        if (onProgress) onProgress((from + k + 1) / steps);
       }
     }
 
+    if (frontsOnly) continue;
     newPage();
     for (let k = 0; k < count; k++) {
       const { x, y } = slotXY(L, k, !mirror);

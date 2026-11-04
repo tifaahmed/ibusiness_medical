@@ -38,4 +38,19 @@ class SalesListFilterTest extends TestCase
         $this->actingAs($me)->get(route('admin.sales.show', $linked->id))->assertOk()
             ->assertSee('Ann Admin');
     }
+
+    public function test_the_edit_page_always_lists_the_admin_already_linked(): void
+    {
+        $me = User::factory()->create();
+        $me->givePermissionTo(Permission::findOrCreate('manage sales', 'web'));
+        // An account with NO role at all, linked to the rep: it must still be in the select's options so its name shows.
+        $ghost = User::factory()->create(['name' => 'مصطفى']);
+        $sale = Sales::create(['name' => ['ar' => 'س', 'en' => 'S'], 'admin_user_id' => $ghost->id]);
+
+        $options = $this->actingAs($me)->get(route('admin.sales.edit', $sale->id))->assertOk()->viewData('page')['props']['adminOptions'];
+
+        $row = collect($options)->firstWhere('value', $ghost->id);
+        $this->assertNotNull($row);
+        $this->assertStringStartsWith('مصطفى', $row['label']);                    // the name is intact (no cut-off letter)
+    }
 }

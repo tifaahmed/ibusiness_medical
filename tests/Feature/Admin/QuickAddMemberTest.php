@@ -134,6 +134,9 @@ class QuickAddMemberTest extends TestCase
         $this->assertTrue($get('01012345678')['taken']);                    // the one just added
         $this->assertStringContainsString('Holder One', $get('01012345678')['message']);
         $free = $get('01099999999');
+        $this->assertSame('Holder One', $get('01012345678')['member']['name']);          // who holds it
+        $this->assertStringContainsString('/admin/user/membership/', (string) $get('01012345678')['member']['url']); // the button to their profile
+        $this->assertNull($get('01099999999')['member']);
         $this->assertTrue($free['valid']);
         $this->assertFalse($free['taken']);
     }

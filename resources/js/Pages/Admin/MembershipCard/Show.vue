@@ -36,11 +36,20 @@
             class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-blue-600 text-white hover:bg-blue-700"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-            Download PDF
+            Download PDF (whole batch, as saved)
           </a>
           <button
             type="button"
-            :disabled="!!buildingBack"
+            :disabled="!!buildingBack || !selectedMemberships.length"
+            @click="downloadBackPdf('fronts')"
+            data-testid="download-fronts"
+            class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 cursor-pointer"
+          >
+            {{ buildingBack === 'fronts' ? `Preparing… ${backProgress}%` : `Download PDF of the ${selectedMemberships.length} selected card(s)` }}
+          </button>
+          <button
+            type="button"
+            :disabled="!!buildingBack || !selectedMemberships.length"
             @click="downloadBackPdf('both')"
             class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
           >
@@ -49,7 +58,7 @@
           </button>
           <button
             type="button"
-            :disabled="!!buildingBack"
+            :disabled="!!buildingBack || !selectedMemberships.length"
             @click="downloadBackPdf('flipped')"
             class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
           >
@@ -58,7 +67,7 @@
           </button>
           <button
             type="button"
-            :disabled="!!buildingBack"
+            :disabled="!!buildingBack || !selectedMemberships.length"
             @click="downloadBackPdf('mirror')"
             class="inline-flex items-center gap-1.5 rounded-md h-9 px-3 text-sm bg-fuchsia-600 text-white hover:bg-fuchsia-700 disabled:opacity-50 cursor-pointer"
           >
@@ -85,6 +94,15 @@
             Memberships in this batch
             ({{ filteredMemberships.length }}<template v-if="filteredMemberships.length !== card.memberships.length"> of {{ card.memberships.length }}</template>)
           </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs" data-testid="card-selection">
+            <span class="rounded-md border border-border px-2 py-1 tabular-nums" data-testid="selected-count">{{ selectedMemberships.length }} / {{ card.memberships.length }} selected · {{ sheetCount }} sheet(s) of {{ perSheet }}</span>
+            <button type="button" class="rounded-md border border-border px-2 py-1 hover:bg-muted cursor-pointer" @click="selectAll">All</button>
+            <button type="button" class="rounded-md border border-border px-2 py-1 hover:bg-muted cursor-pointer" @click="selectNone">None</button>
+            <span class="inline-flex items-center gap-1">
+              <input v-model.number="firstN" type="number" min="1" :max="card.memberships.length" class="w-16 rounded-md border border-border bg-background px-2 py-1" data-testid="first-n" />
+              <button type="button" class="rounded-md border border-border px-2 py-1 hover:bg-muted cursor-pointer" data-testid="select-first" @click="selectFirst">first</button>
+            </span>
+          </div>
           <div class="ml-auto flex items-center gap-2 w-full sm:w-auto">
             <input
               v-model="numberFilter"
@@ -106,6 +124,9 @@
           <table class="w-full text-sm">
             <thead class="bg-muted/40">
               <tr>
+                <th class="px-3 py-2 text-center font-medium w-10">
+                  <input type="checkbox" :checked="allShownSelected" :title="'Tick / untick all shown'" class="h-4 w-4 cursor-pointer" data-testid="select-shown" @change="toggleShown" />
+                </th>
                 <th class="px-3 py-2 text-left font-medium">#</th>
                 <th class="px-3 py-2 text-left font-medium">Code</th>
                 <th class="px-3 py-2 text-left font-medium">Member</th>
@@ -117,11 +138,14 @@
             </thead>
             <tbody>
               <tr v-if="!filteredMemberships.length">
-                <td colspan="7" class="px-3 py-6 text-center text-sm text-muted-foreground italic">
+                <td colspan="8" class="px-3 py-6 text-center text-sm text-muted-foreground italic">
                   No memberships match this filter.
                 </td>
               </tr>
               <tr v-for="(m, idx) in filteredMemberships" :key="m.id" class="border-t border-border">
+                <td class="px-3 py-1.5 text-center">
+                  <input type="checkbox" :checked="selected.has(m.id)" class="h-4 w-4 cursor-pointer" :data-testid="'pick-' + m.id" @change="toggleCard(m.id)" />
+                </td>
                 <td class="px-3 py-1.5 text-muted-foreground">{{ idx + 1 }}</td>
                 <td class="px-3 py-1.5 font-mono">{{ m.membership_number }}</td>
                 <td class="px-3 py-1.5">{{ m.user?.name || '—' }}</td>
@@ -446,7 +470,7 @@ import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from './_components/CardPreview.vue';
 import CardCodes from './_components/CardCodes.vue';
 import { cardPrintedNumber, renderCardCanvas } from './_components/cardRenderer.js';
-import { buildBackPdf } from './_components/PdfBuilder.js';
+import { buildBackPdf, sheetLayout } from './_components/PdfBuilder.js';
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -487,6 +511,32 @@ function jobTitleText(jt) {
   if (typeof jt === 'string') return jt;
   // Spatie translatable: an object like { en: '...', ar: '...' }
   return jt.en || jt.ar || Object.values(jt)[0] || '—';
+}
+
+// Which cards go into the PDF you build. Everything starts selected; untick (or pick the first N) BEFORE downloading,
+// e.g. 8 or 10 of an 11-card batch. The batch's saved PDF below is one fixed file and always holds the whole batch.
+const selected = ref(new Set((props.card?.memberships || []).map((m) => m.id)));
+const selectedMemberships = computed(() => (props.card?.memberships || []).filter((m) => selected.value.has(m.id)));
+const perSheet = computed(() => sheetLayout(props.cardPrint).perPage);
+const sheetCount = computed(() => Math.ceil(selectedMemberships.value.length / perSheet.value));
+function toggleCard(id) {
+  const next = new Set(selected.value);
+  next.has(id) ? next.delete(id) : next.add(id);
+  selected.value = next;
+}
+function selectAll() { selected.value = new Set((props.card?.memberships || []).map((m) => m.id)); }
+function selectNone() { selected.value = new Set(); }
+const firstN = ref(8);
+function selectFirst() {
+  const n = Math.max(0, Math.floor(Number(firstN.value) || 0));
+  selected.value = new Set((props.card?.memberships || []).slice(0, n).map((m) => m.id));
+}
+// The ticks of the rows currently shown (a filtered view): all on / all off.
+const allShownSelected = computed(() => filteredMemberships.value.length > 0 && filteredMemberships.value.every((m) => selected.value.has(m.id)));
+function toggleShown() {
+  const next = new Set(selected.value);
+  filteredMemberships.value.forEach((m) => (allShownSelected.value ? next.delete(m.id) : next.add(m.id)));
+  selected.value = next;
 }
 
 const numberFilter = ref('');
@@ -575,11 +625,12 @@ const backProgress = ref(0);
 // 'both' = fronts then the mirrored backs, sheet by sheet; 'flipped' = the mirrored backs alone.
 async function downloadBackPdf(mode) {
   if (buildingBack.value) return;
+  if (!selectedMemberships.value.length) { alert('Tick at least one card first.'); return; }
   buildingBack.value = mode;
   backProgress.value = 0;
   try {
     const blob = await buildBackPdf(
-      (props.card?.memberships || []).map(printedMembership),
+      selectedMemberships.value.map(printedMembership),
       effectivePartner.value,
       props.cardTemplate,
       props.cardPrint,
@@ -591,7 +642,7 @@ async function downloadBackPdf(mode) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = batchPdfDownloadName.value.replace(/\.pdf$/, mode === 'both' ? '-front-back.pdf' : mode === 'mirror' ? '-mirror.pdf' : '-flipped-backs.pdf');
+    a.download = batchPdfDownloadName.value.replace(/\.pdf$/, mode === 'both' ? '-front-back.pdf' : mode === 'mirror' ? '-mirror.pdf' : mode === 'fronts' ? '-fronts.pdf' : '-flipped-backs.pdf');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -39,3 +39,9 @@ admin/user/membership/quick-add  خلى خيار الاندرويد والشرك
 وياريت لو تخلى الفورمه سهله على الموبايل
 - [x] phone-check endpoint (quick-add.phone-check) + live check at 11 digits ; counter N/70 + bar, warn when over ; defaults android+company ; mobile layout (h-12 controls, 2-col toggles, fixed bottom action bar)
 - [x] verified: QuickAddMemberTest 11 passed (72 assertions) + vite build OK (2026-11-04)
+
+## 2026-11-04 — طلب إضافي (حرفياً)
+(الرقم موجود: "This phone number is already registered to rdrg dfsef (card 524109)...")
+admin/user/membership/quick-add  انا عايز زرار اروح لبروفايل العضو لو موجود قبل كده
+- [ ] phone-check يرجّع بيانات صاحب الرقم (slug, name, card) + الصفحة تعرض زرار "فتح بروفايل العضو" (route admin.user.membership.show) ؛ بدون لينك لو الأدمن مش مسموح له يشوف العضو (نطاق الصلاحيات)
+- [x] phone-check returns member{name,number,relative,url}; QuickAddView shows 'Open the member profile' button (Link) in the taken box; url null when the admin's scope can't open that member; test extended

@@ -74,9 +74,12 @@ onMounted(() => {
   }
 });
 
-watch(() => props.sale, (newSale) => {
-  if (newSale && newSale.id) salesStore.setSale(newSale);
-}, { deep: true });
+// Reload the form only when ANOTHER sales rep is opened. A failed save sends the page's props back too (a new object
+// with the stored data), and refilling the form from them threw away what had just been chosen — the linked admin
+// "disappeared" from the select after a rejected save.
+watch(() => props.sale?.id, (id, oldId) => {
+  if (id && id !== oldId) salesStore.setSale(props.sale);
+});
 
 const handleSubmit = () => {
   if (isEditMode.value) {

@@ -14,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class QuickAddMemberController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ScopesByMembershipCreator;
+
     /** The exact text the customer would receive for these choices (same builder as the real send), plus its size. */
     public function preview(Request $request): \Illuminate\Http\JsonResponse
     {
@@ -74,7 +76,25 @@ class QuickAddMemberController extends Controller
         }
         $why = self::takenMessage($phone);
 
-        return response()->json(['valid' => true, 'taken' => $why !== null, 'message' => $why]);
+        // Who holds it, so the page can offer a button to their profile — only when this admin is allowed to open that member.
+        $member = null;
+        if ($why !== null && ($holder = User::query()->where('phone', $phone)->first())) {
+            $card = Membership::query()->where('user_id', $holder->id)->orderByDesc('is_active')->orderByDesc('id')->first();
+            $visible = true;
+            try {
+                $this->assertCanManageUser($holder);
+            } catch (\Illuminate\Auth\Access\AuthorizationException) {
+                $visible = false;
+            }
+            $member = [
+                'name' => $holder->name,
+                'number' => $card?->membership_number,
+                'relative' => (bool) $card?->isRelative(),
+                'url' => $visible && $holder->slug ? route('admin.user.membership.show', $holder->slug) : null,
+            ];
+        }
+
+        return response()->json(['valid' => true, 'taken' => $why !== null, 'message' => $why, 'member' => $member]);
     }
 
     public function store(Request $request, QuickAddMember $action): RedirectResponse

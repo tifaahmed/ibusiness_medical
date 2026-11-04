@@ -21,3 +21,16 @@ admin/membership-card-patches هنا انا عايز لما اطلع الكلو�
 وعايز خط رفيع خفيف بين الكروت عشان اخد بالى وانا بقطع
 - فهمي: خطوط رفيعة فاتحة في الفراغ بين الكروت (أفقية بين كل صف والتاني + الخط الرأسي اللي في النص بين العمودين)، وش وضهر، ومفيش خط بيعدي فوق أي كارت.
 - [x] guides: vertical centre line (x=10.5, in the 0.2cm column gap) + a horizontal line in the middle of every row gap (0.06cm either side), light grey 200, 0.012cm, edge-to-edge in the gaps only; built OK; not printed yet
+
+## 2026-11-04 — طلب إضافي (حرفياً)
+عايز الكارت يكون فى نص المربع الخاص بيه مش عايزه قريب من اى خط عموما
+- حساب: 5 صفوف × 5.5سم = 27.5 من 29.7 → ما يفضلش مكان لمسافة حقيقية حوالين الكارت (كان 0.06سم). عشان الكارت يبقى في نص مربعه بعيد عن الخطوط لازم الخلية تكبر → 4 صفوف = 8 كروت/صفحة بدل 10 (أفقياً 2 عمود زي ما هي). ده قرار تكلفة ورق: مذكور للمستخدم.
+- التنفيذ: CELL_PAD ثابت واحد (0.5سم)، الخلية = الكارت + 2×PAD، الكارت في نص الخلية، الخطوط = حدود الخلايا (شبكة كاملة)، الضهر نفس الشبكة.
+- [x] cell model done: CELL_PAD 0.5, cell = card+1cm each way, 2x4 = 8/page (was 10), grid top 2.1cm / bottom 1.6cm, pin at 1.05cm, card clear of every line by 0.5cm; vite build OK. (10/page impossible with real clearance: 5 rows leave ~0.07cm)
+
+## 2026-11-04 — طلب إضافي (حرفياً)
+admin/membership-card-patches  انا عايز قبل اى تحميل ل ملف حيب   عايز احدد الكلروت الى هرفعها عشان لو 11 كرت مصلا اقدر احدد 8 او 10 براحتى مش لازم كله
+- فهمي: في صفحة الدفعة، قبل أي تحميل (PDF الدفعة / zip / ضهر...) أختار الكروت اللي هتتضمن (checkbox لكل كارت + تحديد الكل/إلغاء)، والملف يتولد من المختار بس.
+- [ ] read Show.vue download buttons
+- [x] Show.vue: checkbox per card + All/None/first N + counter 'N/M selected · sheets'; 3 back-PDF buttons + new 'selected cards (fronts)' PDF use only the selection; PdfBuilder mode 'fronts'; saved batch PDF stays whole
+- [x] vite build OK (selection + cell layout). Not verified in a browser or by a real print.

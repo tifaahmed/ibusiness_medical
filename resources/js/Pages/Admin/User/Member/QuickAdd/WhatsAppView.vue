@@ -12,10 +12,10 @@
           <div class="space-y-2">
             <div class="text-xs text-muted-foreground">{{ t.card_picture || 'The card' }}</div>
             <div class="rounded-lg border border-border p-2" data-testid="wa-card">
-              <CardPreview v-if="template" :membership="{ membership_number: member.membership_number, slug: member.slug }" :template="template" :partner="null" display-width="100%" @rendered="canvas = $event.canvas" />
+              <CardPreview v-if="template" :membership="cardMembership" :template="template" :partner="null" display-width="100%" @rendered="onRendered" />
               <p v-else class="text-xs text-muted-foreground">{{ t.no_card_template || 'No card design is set up yet.' }}</p>
             </div>
-            <button type="button" :disabled="!canvas" class="h-11 w-full rounded-md border border-border px-3 text-sm disabled:opacity-50" data-testid="wa-download" @click="downloadCard">{{ t.download_card || 'Save the card picture (to attach in WhatsApp)' }}</button>
+            <button type="button" :disabled="!cardReady" class="h-11 w-full rounded-md border border-border px-3 text-sm disabled:opacity-50" data-testid="wa-download" @click="downloadCard">{{ t.download_card || 'Save the card picture (to attach in WhatsApp)' }}</button>
           </div>
 
           <dl class="space-y-2 text-sm" data-testid="wa-details">
@@ -102,12 +102,18 @@ const template = computed(() => {
   const f = props.card_templates?.no_partner || props.card_templates?.with_partner || null;
   return f ? { ...f, layout: f.layout, card_empty_url: f.card_empty_url, hidden_fields: f.hidden_fields } : null;
 });
-const canvas = ref(null);
+// One stable object: a literal written in the template is a NEW object on every render, which made the card repaint on every render.
+const cardMembership = computed(() => ({ membership_number: props.member.membership_number, slug: props.member.slug }));
+// The canvas itself is NOT reactive (a pixel buffer must not be tracked, and storing it reactively re-rendered this page after
+// every repaint). Only a plain "ready" flag is, and it is set once.
+let canvasEl = null;
+const cardReady = ref(false);
+const onRendered = (e) => { canvasEl = e.canvas; if (!cardReady.value) cardReady.value = true; };
 const downloadCard = () => {
-  if (!canvas.value) return;
+  if (!canvasEl) return;
   const a = document.createElement('a');
   a.download = `card-${props.member.membership_number}.png`;
-  a.href = canvas.value.toDataURL('image/png');
+  a.href = canvasEl.toDataURL('image/png');
   a.click();
 };
 
