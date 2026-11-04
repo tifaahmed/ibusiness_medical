@@ -13,6 +13,10 @@ class AdminSalesListResource extends JsonResource
             'id' => $this->id,
             'name' => $this->getTranslations('name'),
             'image' => $this->image,
+            'admin' => $this->adminUser ? ['id' => $this->adminUser->id, 'name' => $this->adminUser->name, 'email' => $this->adminUser->email] : null,
+            'members_count' => $this->members_count ?? 0,
+            'stores_count' => $this->stores_count ?? 0,
+            'creator' => $this->creator?->name,
             'facilities_count' => $this->facilities_count ?? 0,
             'facilities' => $this->facilities->map(fn ($facility) => [
                 'id' => $facility->id,

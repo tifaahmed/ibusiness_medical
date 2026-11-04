@@ -1,5 +1,5 @@
 <template>
-  <SalesListView :sales="sales" />
+  <SalesListView :sales="sales" :filters="filters" :filter-options="filterOptions" />
 </template>
 
 <script setup>
@@ -15,6 +15,10 @@ defineProps({
     default: () => ({
       search: '',
     }),
+  },
+  filterOptions: {
+    type: Object,
+    default: () => ({ admins: [], creators: [] }),
   },
 });
 </script>

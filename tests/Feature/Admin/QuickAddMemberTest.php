@@ -114,12 +114,28 @@ class QuickAddMemberTest extends TestCase
         $this->assertStringContainsString('[', $empty['body']);
 
         $part = $get(['member_kind' => 'company']);
-        $this->assertStringContainsString('شركتكم', $part['body']);
+        $this->assertStringContainsString('أهلاً بك في ديلر! لديك تجربة مجانية', $part['body']);
+        $this->assertStringContainsString('إذا وافقتم على المتابعة', $part['body']);
         $this->assertStringContainsString('[رابط التطبيق', $part['body']);
 
         $full = $get(['member_kind' => 'company', 'device' => 'android']);
         $this->assertTrue($full['complete']);
         $this->assertStringNotContainsString('[', $full['body']);
+    }
+
+    public function test_phone_check_answers_as_soon_as_eleven_digits_are_in(): void
+    {
+        Http::fake();
+        $by = $this->sales();
+        $this->quickAdd($by, ['name' => 'Holder One'])->assertSessionHasNoErrors();
+        $get = fn (string $p) => $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.phone-check', ['phone' => $p]))->assertOk()->json();
+
+        $this->assertFalse($get('0101234')['valid']);                       // not 11 digits yet: nothing to say
+        $this->assertTrue($get('01012345678')['taken']);                    // the one just added
+        $this->assertStringContainsString('Holder One', $get('01012345678')['message']);
+        $free = $get('01099999999');
+        $this->assertTrue($free['valid']);
+        $this->assertFalse($free['taken']);
     }
 
     public function test_company_gets_thirty_days_and_the_company_text(): void
@@ -128,7 +144,7 @@ class QuickAddMemberTest extends TestCase
         $m = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
         $this->assertSame('company', $m->member_kind);
         $this->assertSame(30, (int) round(now()->diffInDays($m->expiration_date, true)));
-        $this->assertStringContainsString('حساب تجريبي لشركتكم', SmsMessage::firstOrFail()->body);
+        $this->assertStringContainsString('أهلاً بك في ديلر! لديك تجربة مجانية', SmsMessage::firstOrFail()->body);
     }
 
     public function test_kind_is_required_and_a_taken_phone_is_refused(): void

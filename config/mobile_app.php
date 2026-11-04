@@ -17,6 +17,8 @@
  */
 return [
     'min_version_code' => (int) env('MOBILE_MIN_VERSION_CODE', 0),
+    // The app's name in Arabic, as customers read it in messages. "ديلر" — not "ديلار". Use config('mobile_app.name_ar') anywhere Arabic text names the app.
+    'name_ar' => env('APP_NAME_AR', 'ديلر'),
     'store_url' => env('MOBILE_STORE_URL', 'https://play.google.com/store/apps/details?id=com.deilar.card'),
     'ios_min_build' => (int) env('MOBILE_IOS_MIN_BUILD', 0),
     'ios_store_url' => env('MOBILE_IOS_STORE_URL', ''),

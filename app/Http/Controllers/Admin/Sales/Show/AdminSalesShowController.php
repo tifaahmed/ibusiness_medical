@@ -29,9 +29,10 @@ class AdminSalesShowController extends BaseController
     {
         $sale->load([
             'creator:id,name,email',
+            'adminUser:id,name,email',
             'facilities:id,sales_id,name,slug,facility_type_id',
             'facilities.facilityType:id,name',
-        ])->loadCount('facilities');
+        ])->loadCount(['facilities', 'members', 'stores']);
         $this->assertOwns($sale);
 
         return Inertia::render('Admin/Sales/Show', [

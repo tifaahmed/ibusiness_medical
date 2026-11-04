@@ -67,13 +67,15 @@ final class QuickAdd
      */
     public static function message(?string $kind, ?string $device, bool $wantsCard, ?int $days = null): string
     {
+        $app = (string) config('mobile_app.name_ar', 'ديلر');
+
         if ($kind === null) {
-            $body = 'أهلاً بك في ديلار! [نص التجربة المجانية حسب النوع: فرد أو شركة]';
+            $body = 'أهلاً بك في '.$app.'! لديك تجربة مجانية [المدة] [وباقي النص حسب النوع: فرد أو شركة]';
         } else {
             $days ??= self::trialDays($kind);
             $body = $kind === Membership::KIND_COMPANY
-                ? 'أهلاً بك في ديلار! تم إنشاء حساب تجريبي لشركتكم '.self::daysPhrase($days).'، وبعدها إذا وافقتم على المتابعة يتم الخصم.'
-                : 'أهلاً بك في ديلار! لديك تجربة مجانية '.self::daysPhrase($days).'، وبعدها يلزم الاشتراك من التطبيق أو عن طريقنا.';
+                ? 'أهلاً بك في '.$app.'! لديك تجربة مجانية '.self::daysPhrase($days).'، وبعدها إذا وافقتم على المتابعة يتم الخصم.'
+                : 'أهلاً بك في '.$app.'! لديك تجربة مجانية '.self::daysPhrase($days).'، وبعدها يلزم الاشتراك من التطبيق أو عن طريقنا.';
         }
 
         if ($wantsCard) {
@@ -88,7 +90,7 @@ final class QuickAdd
 
         return $body.($link !== null
             ? ' سجّل دخولك برقم تليفونك: '.$link
-            : ' سجّل دخولك بتطبيق ديلار برقم تليفونك.');
+            : ' سجّل دخولك بتطبيق '.$app.' برقم تليفونك.');
     }
 
     /** @return array{characters: int, segments: int} Arabic is UCS-2: 70 characters in one message, 67 per part when joined. */

@@ -12,6 +12,15 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap min-w-[200px]">
                   {{ t.sales?.name || 'Name' }}
                 </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 text-left align-middle font-medium whitespace-nowrap hidden md:table-cell">
+                  {{ t.sales?.linked_admin || 'Linked admin' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap text-center hidden lg:table-cell">
+                  {{ t.sales?.members || 'Members' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap text-center hidden lg:table-cell">
+                  {{ t.sales?.stores || 'Stores' }}
+                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-24 sm:w-32 text-center hidden lg:table-cell">
                   {{ t.sales?.facilities || 'Facilities' }}
                 </th>
@@ -52,6 +61,12 @@
                     {{ getTranslated(sale.name) || '-' }}
                   </Link>
                 </td>
+                <td data-slot="table-cell" class="p-2 sm:p-3 align-middle hidden md:table-cell" data-testid="sales-admin-cell">
+                  <Link v-if="sale.admin" :href="route('admin.admin-users.show', sale.admin.id)" class="chip chip-info max-w-[14rem] truncate" :title="sale.admin.email">{{ sale.admin.name }}</Link>
+                  <span v-else class="chip chip-neutral">{{ t.sales?.no_admin || 'Not linked' }}</span>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden lg:table-cell"><span class="chip chip-neutral tabular-nums">{{ sale.members_count || 0 }}</span></td>
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden lg:table-cell"><span class="chip chip-neutral tabular-nums">{{ sale.stores_count || 0 }}</span></td>
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center hidden lg:table-cell">
                   <button
                     type="button"

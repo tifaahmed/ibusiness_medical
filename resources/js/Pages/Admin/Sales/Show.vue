@@ -15,6 +15,16 @@
             <div class="md:col-span-2 space-y-3">
               <TranslatedField label="Name" :value="sale.name" />
               <ShowField label="Facilities" :value="sale.facilities_count ?? 0" />
+              <ShowField label="Members" :value="sale.members_count ?? 0" />
+              <ShowField label="Stores" :value="sale.stores_count ?? 0" />
+              <div data-testid="sales-show-admin">
+                <label class="text-xs font-medium text-muted-foreground">Linked admin</label>
+                <div class="mt-1">
+                  <Link v-if="sale.admin" :href="route('admin.admin-users.show', sale.admin.id)" class="chip chip-info">{{ sale.admin.name }}<span v-if="sale.admin.email" class="opacity-70"> · {{ sale.admin.email }}</span></Link>
+                  <span v-else class="chip chip-neutral">Not linked to an admin account</span>
+                </div>
+                <Link v-if="sale.admin" :href="route('admin.sales.list', { admin_id: sale.admin.id })" class="mt-1 inline-block text-xs underline">Filter the sales list by this admin</Link>
+              </div>
             </div>
             <div v-if="sale.image">
               <label class="text-xs font-medium text-muted-foreground">Image</label>

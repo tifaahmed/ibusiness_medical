@@ -100,6 +100,16 @@ class Sales extends Model implements HasMedia
         }
     }
 
+    public function members(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'sales_id');
+    }
+
+    public function stores(): HasMany
+    {
+        return $this->hasMany(Store::class, 'sales_id');
+    }
+
     public function facilities(): HasMany
     {
         return $this->hasMany(Facility::class);

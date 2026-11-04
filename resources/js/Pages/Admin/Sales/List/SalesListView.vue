@@ -52,6 +52,9 @@
             </div>
           </div>
 
+          <div class="px-3 sm:px-4 md:px-6 pb-2">
+            <SalesListFilterContent :initial-filters="filters" :options="filterOptions" />
+          </div>
         </div>
       </div>
 
@@ -65,6 +68,7 @@
 <script setup>
 import SalesLayout from "../SalesLayout.vue";
 import SalesListTable from "./SalesListTable.vue";
+import SalesListFilterContent from "./SalesListFilterContent.vue";
 import { useSalesStore } from "../Stores/SalesStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
@@ -84,6 +88,8 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  filters: { type: Object, default: () => ({}) },
+  filterOptions: { type: Object, default: () => ({ admins: [], creators: [] }) },
 });
 
 const salesStore = useSalesStore();

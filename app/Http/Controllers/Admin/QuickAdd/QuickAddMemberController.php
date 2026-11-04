@@ -48,20 +48,40 @@ class QuickAddMemberController extends Controller
         ]);
     }
 
+    /** Why this phone cannot be added (who holds it), or null when it is free. One wording for the live check and the save. */
+    public static function takenMessage(string $phone): ?string
+    {
+        $holder = User::query()->where('phone', $phone)->first();
+        if ($holder === null) {
+            return null;
+        }
+        $card = Membership::query()->where('user_id', $holder->id)->orderByDesc('is_active')->orderByDesc('id')->first();
+
+        return 'This phone number is already registered to '.($holder->name ?: 'another member')
+            .($card ? ' (card '.$card->membership_number.($card->isRelative() ? ', relative' : '').')' : '')
+            .'. A phone can belong to one member only, so it cannot be added again.';
+    }
+
+    /** Live check while typing: asked as soon as 11 digits are in. */
+    public function phoneCheck(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $phone = (string) $request->query('phone', '');
+        if (! preg_match('/^01\d{9}$/', $phone)) {
+            return response()->json(['valid' => false, 'taken' => false, 'message' => null]);
+        }
+        $why = self::takenMessage($phone);
+
+        return response()->json(['valid' => true, 'taken' => $why !== null, 'message' => $why]);
+    }
+
     public function store(Request $request, QuickAddMember $action): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'regex:/^01\d{9}$/', function ($attribute, $value, $fail) {
-                // Say WHO already holds the number, so sales can tell the customer (or find the card) instead of guessing.
-                $holder = User::query()->where('phone', $value)->first();
-                if ($holder === null) {
-                    return;
+                if ($why = self::takenMessage((string) $value)) {
+                    $fail($why);
                 }
-                $card = Membership::query()->where('user_id', $holder->id)->orderByDesc('is_active')->orderByDesc('id')->first();
-                $fail('This phone number is already registered to '.($holder->name ?: 'another member')
-                    .($card ? ' (card '.$card->membership_number.($card->isRelative() ? ', relative' : '').')' : '')
-                    .'. A phone can belong to one member only, so it cannot be added again.');
             }],
             'device' => ['required', Rule::in(QuickAdd::devices())],
             'member_kind' => ['required', Rule::in(Membership::kinds())],
