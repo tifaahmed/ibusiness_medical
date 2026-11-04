@@ -12,4 +12,4 @@
 ## PROGRESS
 - [x] found existing ErrorTrace + flash.error_debug (only 4 controllers used it)
 - [x] CapturedError (log listener) + AttachErrorDebug middleware (web group, admin/* only) flash error_debug for ALL catch sites; errorTrack.recordResponse falls back to flash.error_debug; MemberStore + FamilyMemberCard use recordResponse
-- [~] test AdvancedErrorDebugTest + MemberUpdateUncheckedTest on ibusiness_phpunit_test; vite build
+- [x] AdvancedErrorDebugTest 2 passed; MemberUpdateUncheckedTest passed; vite build OK

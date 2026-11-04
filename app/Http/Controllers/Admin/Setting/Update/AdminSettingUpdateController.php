@@ -17,6 +17,7 @@ class AdminSettingUpdateController extends BaseController
     {
         try {
             $setting = Setting::findOrFail($setting);
+            abort_unless(\App\Support\SettingAccess::canEdit($request->user(), $setting), 403);
             $updated = $this->updateAction->execute($setting, $request->validated());
             Log::info('Setting updated', ['id' => $updated->id, 'slug' => $updated->slug, 'ip' => $request->ip()]);
 

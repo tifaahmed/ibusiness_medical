@@ -95,7 +95,9 @@ export const useSalesStore = defineStore('sales', {
                 const url = route('admin.sales.update', this.form.id);
                 this.debugLog = buildDebugLog({ method: 'PUT', url, fields: this.form.data() });
 
-                this.form.put(url, {
+                // A literal PUT with a multipart body is dropped by PHP before Laravel sees it (the server then
+                // reports every field "required"). Send a real POST with a spoofed _method, as MemberStore does.
+                this.form.transform((data) => ({ ...data, _method: 'put' })).post(url, {
                     preserveScroll: true,
                     forceFormData: true,
                     onSuccess: () => {

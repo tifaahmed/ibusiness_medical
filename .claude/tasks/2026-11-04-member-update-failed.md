@@ -8,5 +8,5 @@
 ## PROGRESS
 - [x] prod log is on the server (storage/logs/failures.log: run `php artisan logs:failures --examples` there) — local has no trace
 - [x] controller now returns the real reason + ValidationException field errors (was generic)
-- [ ] fix + show the real reason to the admin
-- [ ] reproduce on phpunit test DB (is_active/visible/paid/trial all false on member update); waiting for QuickAdd test run to free DB
+- [x] real reason now shown (controller + AttachErrorDebug). ROOT CAUSE of member 2192 still unknown: needs prod report after deploy
+- [x] reproduced payload on test DB: saves fine, so the cause is prod data-specific

@@ -13,5 +13,9 @@ admin/sales/752/edit  انا عايز انى اقدر اربط حساب ادمن
 - [x] Store/Update requests + actions
 - [x] Edit/Create controllers pass admin options; edit resource returns admin_user_id
 - [x] Vue form select + store form field
-- [ ] verify (php -l, throwaway DB only - never live DB)
+- [x] php -l ok; SalesListFilterTest + QuickAdd tests cover the link
 - [~] vite build running; migration NOT yet run (deploy: backup then php artisan migrate --force)
+
+# 2026-11-04 sales update fails: PUT /admin/sales/752 -> name required (server saw no name)
+- [x] SalesStore.updateSale: PUT+forceFormData -> POST with _method=put (same as MemberStore). Same pattern (unfixed) in ServiceTypeStore, PartnerStore, ServiceStore
+- [~] vite build

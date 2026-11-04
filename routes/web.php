@@ -333,6 +333,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::get('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'create'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.page');
     Route::post('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'store'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add');
     Route::get('/admin/user/membership/quick-add/phone-check', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'phoneCheck'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.phone-check');
+    Route::get('/admin/user/membership/{user}/quick-added', [\App\Http\Controllers\Admin\QuickAdd\QuickAddAfterController::class, 'done'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.done');
+    Route::get('/admin/user/membership/{user}/whatsapp', [\App\Http\Controllers\Admin\QuickAdd\QuickAddAfterController::class, 'whatsapp'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.whatsapp');
+    Route::post('/admin/user/membership/{user}/extra-phones', [\App\Http\Controllers\Admin\QuickAdd\QuickAddAfterController::class, 'storePhone'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.extra-phones.store');
+    Route::delete('/admin/user/membership/{user}/extra-phones/{phone}', [\App\Http\Controllers\Admin\QuickAdd\QuickAddAfterController::class, 'destroyPhone'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->whereNumber('phone')->name('admin.user.membership.extra-phones.destroy');
     Route::get('/admin/user/membership/quick-add/preview', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'preview'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.preview');
     Route::get('/admin/sms', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'index'])->name('admin.sms.index');
     Route::put('/admin/sms/toggle', [\App\Http\Controllers\Admin\QuickAdd\SmsOutboxController::class, 'toggle'])->name('admin.sms.toggle');
@@ -1177,11 +1181,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage settings')->group(function () {
         Route::get('/admin/setting/create', AdminSettingCreateController::class)->name('admin.setting.create');
         Route::post('/admin/setting', AdminSettingStoreController::class)->name('admin.setting.store');
-        Route::get('/admin/setting/{setting}/edit', AdminSettingEditController::class)->name('admin.setting.edit');
-        Route::put('/admin/setting/{setting}', AdminSettingUpdateController::class)->name('admin.setting.update');
         Route::delete('/admin/setting/{setting}', AdminSettingDeleteController::class)->name('admin.setting.destroy');
     });
-    Route::middleware('permission:manage settings|view settings')->group(function () {
+    // Edit/update: `manage settings`, OR the quick-add message templates permission (then only the quick_msg_* rows — see SettingAccess).
+    Route::middleware('permission:manage settings|edit quick add message templates|edit whatsapp message templates')->group(function () {
+        Route::get('/admin/setting/{setting}/edit', AdminSettingEditController::class)->name('admin.setting.edit');
+        Route::put('/admin/setting/{setting}', AdminSettingUpdateController::class)->name('admin.setting.update');
+    });
+    Route::middleware('permission:manage settings|view settings|edit quick add message templates|edit whatsapp message templates')->group(function () {
         Route::get('/admin/setting', AdminSettingListController::class)->name('admin.setting.list');
         Route::get('/admin/setting/{setting}', AdminSettingShowController::class)->name('admin.setting.show');
     });

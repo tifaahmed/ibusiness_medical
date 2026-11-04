@@ -68,6 +68,9 @@ class AdminUserMembershipShowController extends BaseController
             'loyalty' => AdminMemberLoyalty::summary($user),
             // Extra physical / soft cards per member id (primary and relatives).
             'extraCards' => $this->extraCards($user),
+            // Other numbers kept as notes (not used to sign in or for SMS).
+            'extraPhones' => \App\Models\MemberExtraPhone::query()->where('user_id', $user->id)->orderBy('id')->get()
+                ->map(fn ($p) => ['id' => $p->id, 'phone' => $p->phone, 'note' => $p->note, 'wa' => $p->whatsappDigits()])->all(),
             // Staff notes about this member (everyone reads, only the author edits).
             'notes' => $request->user()->can(\App\Enums\User\UserPermissionEnum::VIEW_MEMBER_NOTES)
                 ? \App\Models\MemberNote::query()->where('user_id', $user->id)->with('author:id,name')->latest('id')->get()

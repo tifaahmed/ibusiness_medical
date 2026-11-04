@@ -26,7 +26,7 @@ class QuickAddMember
     public function __construct(private readonly StartTrialCard $trial, private readonly SmsOutbox $outbox) {}
 
     /**
-     * @param  array{name: string, phone: string, device: string, member_kind: string, wants_card?: bool, sales_id?: int|null}  $data
+     * @param  array{name: string, phone: string, device: string, member_kind: string, wants_card?: bool, sales_id?: int|null, message_override?: string|null}  $data
      * @return array{membership: Membership, sms: \App\Models\SmsMessage|null}
      */
     public function handle(array $data, User $admin, ?Request $request = null): array
@@ -58,7 +58,7 @@ class QuickAddMember
                 adminId: $admin->id,
                 action: MemberLog::ACTION_CREATED,
                 oldValues: null,
-                newValues: ['quick_add' => true, 'member_kind' => $data['member_kind'], 'device' => $data['device'], 'wants_card' => (bool) ($data['wants_card'] ?? false), 'trial_days' => $days],
+                newValues: ['quick_add' => true, 'member_kind' => $data['member_kind'], 'device' => $data['device'], 'wants_card' => (bool) ($data['wants_card'] ?? false), 'trial_days' => $days, 'message_edited' => trim((string) ($data['message_override'] ?? '')) !== ''],
                 request: $request,
             );
 
@@ -69,7 +69,7 @@ class QuickAddMember
         try {
             $sms = $this->outbox->submit(
                 (string) $membership->user->phone,
-                QuickAdd::message($data['member_kind'], $data['device'], (bool) ($data['wants_card'] ?? false)),
+                trim((string) ($data['message_override'] ?? '')) !== '' ? trim($data['message_override']) : QuickAdd::message($data['member_kind'], $data['device'], (bool) ($data['wants_card'] ?? false)),
                 'quick_add',
                 ['user_id' => $membership->user_id, 'membership_id' => $membership->id, 'created_by' => $admin->id],
             );

@@ -5,9 +5,13 @@ import { loadImage, renderCardCanvas } from './cardRenderer.js';
 // A4 portrait dimensions in cm.
 const PAGE_W = 21.0;
 const PAGE_H = 29.7;
-// White-space gutters between cards.
-const GAP_X = 0.5; // gap between columns
-const GAP_Y = 0.3; // gap between rows
+// White-space gutters between cards — kept small on purpose: the space saved goes to the top and bottom margins.
+const GAP_X = 0.2; // gap between columns
+const GAP_Y = 0.12; // gap between rows
+// Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
+const TOP_RESERVE = 1.0;
+const BOTTOM_RESERVE = 0.5;
+const PIN_RADIUS = 0.2; // the pin mark: a small circle with a cross, 0.4 cm wide
 const DEFAULT_PRINT = { width: 8.5, height: 5.5, back_width: 8.0, back_height: 5.0 };
 const BACK_FALLBACK = '/images/cards/card-backside.png';
 
@@ -19,7 +23,10 @@ export function sheetLayout(print) {
   const w = Number(print?.width) > 0 ? Number(print.width) : DEFAULT_PRINT.width;
   const h = Number(print?.height) > 0 ? Number(print.height) : DEFAULT_PRINT.height;
   const cols = Math.max(1, Math.floor((PAGE_W + GAP_X) / (w + GAP_X)));
-  const rows = Math.max(1, Math.floor((PAGE_H + GAP_Y) / (h + GAP_Y)));
+  const rows = Math.max(1, Math.floor((PAGE_H - TOP_RESERVE - BOTTOM_RESERVE + GAP_Y) / (h + GAP_Y)));
+  // Whatever is left after the cards and the two reserves is shared evenly, so the cards never touch the paper's edge.
+  const spare = Math.max(0, PAGE_H - TOP_RESERVE - BOTTOM_RESERVE - (rows * h + (rows - 1) * GAP_Y));
+  const marginTop = TOP_RESERVE + spare / 2;
   return {
     w,
     h,
@@ -27,8 +34,38 @@ export function sheetLayout(print) {
     rows,
     perPage: cols * rows,
     marginX: (PAGE_W - cols * w - (cols - 1) * GAP_X) / 2,
-    marginY: (PAGE_H - rows * h - (rows - 1) * GAP_Y) / 2,
+    marginY: marginTop,
+    // The pin mark sits in the middle of the strip above the first row, clear of every card rectangle.
+    gapY: GAP_Y,
+    pinX: PAGE_W / 2,
+    pinY: marginTop / 2,
   };
+}
+
+/**
+ * The pin/staple mark and the centre cutting line. Drawn at the SAME spot on every page — fronts and backs — and it lies on the sheet's centre line,
+ * which the mirrored back keeps in place, so a stack of printed sheets can be pinned through one point and cut alike.
+ */
+function drawPin(pdf, L) {
+  pdf.setDrawColor(150);
+  pdf.setLineWidth(0.02);
+  pdf.circle(L.pinX, L.pinY, PIN_RADIUS, 'S');
+  pdf.line(L.pinX - PIN_RADIUS * 0.6, L.pinY, L.pinX + PIN_RADIUS * 0.6, L.pinY);
+  pdf.line(L.pinX, L.pinY - PIN_RADIUS * 0.6, L.pinX, L.pinY + PIN_RADIUS * 0.6);
+
+  // Cutting guides: thin, light lines that run ONLY through the gaps between cards, so one never lands on a card.
+  //  - one straight down the middle of the sheet (the gap between the two columns), to cut the paper in half;
+  //  - one across the middle of every gap between two rows.
+  // Same place on fronts and backs (the mirror only swaps columns; the centre and every row stay put).
+  pdf.setDrawColor(200);
+  pdf.setLineWidth(0.012);
+  // The vertical one stops short of the pin mark so the two do not run together.
+  pdf.line(L.pinX, 0, L.pinX, L.pinY - PIN_RADIUS - 0.05);
+  pdf.line(L.pinX, L.pinY + PIN_RADIUS + 0.05, L.pinX, PAGE_H);
+  for (let r = 1; r < L.rows; r++) {
+    const y = L.marginY + r * L.h + (r - 1) * L.gapY + L.gapY / 2;
+    pdf.line(0, y, PAGE_W, y);
+  }
 }
 
 function slotXY(L, pos, mirror) {
@@ -87,14 +124,15 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
   const total = memberships.length;
   const pages = Math.ceil(total / L.perPage);
   let first = true;
+  // Every sheet gets the pin mark in the same place; the first one exists already, later ones are added below.
+  const newPage = () => { if (!first) pdf.addPage(); first = false; drawPin(pdf, L); };
 
   for (let page = 0; page < pages; page++) {
     const from = page * L.perPage;
     const count = Math.min(L.perPage, total - from);
 
     if (withFronts) {
-      if (!first) pdf.addPage();
-      first = false;
+      newPage();
       for (let k = 0; k < count; k++) {
         const canvas = await renderCardCanvas({
           membership: memberships[from + k],
@@ -110,8 +148,7 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
       }
     }
 
-    if (!first) pdf.addPage();
-    first = false;
+    newPage();
     for (let k = 0; k < count; k++) {
       const { x, y } = slotXY(L, k, !mirror);
       pdf.addImage(back, 'JPEG', x + (L.w - bw) / 2, y + (L.h - bh) / 2, bw, bh, undefined, 'FAST');
@@ -161,6 +198,7 @@ export async function buildBatchAndZip(memberships, partner, template, onProgres
     // ---- Batch PDF placement (10 per A4 page) ----
     const posOnPage = i % L.perPage;
     if (i > 0 && posOnPage === 0) batchPdf.addPage();
+    if (posOnPage === 0) drawPin(batchPdf, L);
     const { x, y } = slotXY(L, posOnPage, false);
     batchPdf.addImage(dataUrl, 'JPEG', x, y, L.w, L.h, undefined, 'FAST');
 

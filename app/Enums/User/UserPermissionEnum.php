@@ -106,6 +106,20 @@ enum UserPermissionEnum
 
     public const TAKE_WALLET_MONEY = 'take wallet money';
 
+    /**
+     * Quick add messages. The first lets an admin rewrite the text sent to ONE customer on the quick-add page; the second
+     * edits the general templates (rows in `settings`, slugs from QuickAdd::templateSlugs()) used for every customer.
+     * Standalone, added by migration 2026_11_04_150000; only the super admin holds them until a role is given them.
+     */
+    public const EDIT_QUICK_ADD_MESSAGE = 'edit quick add customer message';
+
+    public const EDIT_QUICK_ADD_TEMPLATES = 'edit quick add message templates';
+
+    /** The same pair for the WhatsApp text of a quick-added customer (migration 2026_11_04_160000). */
+    public const EDIT_WHATSAPP_MESSAGE = 'edit whatsapp customer message';
+
+    public const EDIT_WHATSAPP_TEMPLATES = 'edit whatsapp message templates';
+
     public const MANAGE_STORE_CATEGORIES = 'manage store categories';
 
     public const MANAGE_OWN_STORE_CATEGORIES = 'manage own store categories';
@@ -315,6 +329,10 @@ enum UserPermissionEnum
             self::TAKE_LOYALTY_POINTS,
             self::ADD_WALLET_MONEY,
             self::TAKE_WALLET_MONEY,
+            self::EDIT_QUICK_ADD_MESSAGE,
+            self::EDIT_QUICK_ADD_TEMPLATES,
+            self::EDIT_WHATSAPP_MESSAGE,
+            self::EDIT_WHATSAPP_TEMPLATES,
         ];
     }
 

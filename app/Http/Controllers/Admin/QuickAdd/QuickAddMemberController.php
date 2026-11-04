@@ -45,6 +45,9 @@ class QuickAddMemberController extends Controller
         return \Inertia\Inertia::render('Admin/User/Member/QuickAdd/QuickAddView', [
             'locked_sales' => $mine ? ['value' => $mine->id, 'label' => $mine->displayName()] : null,
             'sales_options' => $mine ? [] : Sales::pickerOptions(),
+            // May this admin rewrite the text for THIS customer / the general templates (settings page)?
+            'can_edit_message' => $request->user()->can(\App\Enums\User\UserPermissionEnum::EDIT_QUICK_ADD_MESSAGE),
+            'can_edit_templates' => $request->user()->can(\App\Enums\User\UserPermissionEnum::EDIT_QUICK_ADD_TEMPLATES),
         ]);
     }
 
@@ -87,7 +90,14 @@ class QuickAddMemberController extends Controller
             'member_kind' => ['required', Rule::in(Membership::kinds())],
             'wants_card' => ['nullable', 'boolean'],
             'sales_id' => ['nullable', 'integer', 'exists:sales,id'],
+            'message_override' => ['nullable', 'string', 'max:500'],
         ]);
+
+        // The text for this one customer may be rewritten only with its own permission; without it the field is refused, never ignored silently.
+        $data['message_override'] = trim((string) ($data['message_override'] ?? ''));
+        if ($data['message_override'] !== '' && ! $request->user()->can(\App\Enums\User\UserPermissionEnum::EDIT_QUICK_ADD_MESSAGE)) {
+            return back()->withErrors(['message_override' => 'You do not have permission to edit the message for a customer.'])->withInput();
+        }
 
         // An admin tied to a rep always files under THAT rep: whatever the browser sent is ignored.
         $mine = Sales::where('admin_user_id', $request->user()->id)->value('id');
@@ -103,7 +113,8 @@ class QuickAddMemberController extends Controller
             default => 'The message is queued (sending is off).',
         };
 
-        return redirect()->route('admin.user.membership.edit', $result['membership']->user_id)
+        // Next steps live on their own page: edit, view, back, send on WhatsApp.
+        return redirect()->route('admin.user.membership.quick-add.done', $result['membership']->user->slug)
             ->with('success', 'Member added. '.$note);
     }
 }

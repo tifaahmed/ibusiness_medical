@@ -14,7 +14,10 @@ class UpdateSettingRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        // Decided BEFORE validation, so a refused row answers 403 rather than a validation error. A missing row is left to the controller's 404.
+        $row = Setting::find($this->route('setting'));
+
+        return $row === null || \App\Support\SettingAccess::canEdit($this->user(), $row);
     }
 
     /**
@@ -61,6 +64,12 @@ class UpdateSettingRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Someone who may only edit the quick-add messages changes the TEXT and nothing else: key, names and type stay as stored.
+        $row = Setting::find($this->route('setting'));
+        if ($row && \App\Support\SettingAccess::isTemplate($row) && ! $this->user()?->can(\App\Enums\User\UserPermissionEnum::MANAGE_SETTINGS)) {
+            $this->merge(['slug' => $row->slug, 'name' => $row->getTranslations('name'), 'value_type' => $row->value_type]);
+        }
+
         $slug = $this->input('slug');
 
         if (is_string($slug)) {

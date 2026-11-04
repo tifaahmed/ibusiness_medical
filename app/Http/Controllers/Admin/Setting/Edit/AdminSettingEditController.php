@@ -13,6 +13,7 @@ class AdminSettingEditController extends BaseController
     public function __invoke(int $setting): Response
     {
         $setting = Setting::findOrFail($setting);
+        abort_unless(\App\Support\SettingAccess::canEdit(request()->user(), $setting), 403);
 
         return Inertia::render('Admin/Setting/Edit/SettingEditView', [
             'setting' => new AdminSettingShowResource($setting),

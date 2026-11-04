@@ -29,6 +29,8 @@ class AdminSettingListController extends BaseController
         $type = in_array($type, Setting::VALUE_TYPES, true) ? $type : '';
 
         $settings = Setting::query()
+            // Someone who may only edit the quick-add messages sees just those rows.
+            ->when(! \App\Support\SettingAccess::seesAllRows($request->user()), fn ($q) => $q->whereIn('slug', \App\Support\SettingAccess::editableTemplateSlugs($request->user())))
             ->when($search, function ($q) use ($search) {
                 // The key and both names are all visible in the table, so all
                 // three are searchable.

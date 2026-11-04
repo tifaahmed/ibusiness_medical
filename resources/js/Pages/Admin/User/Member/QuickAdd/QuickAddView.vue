@@ -53,17 +53,24 @@
           <span class="chip" :class="preview.sending ? 'chip-positive' : 'chip-warning'">{{ preview.sending ? (t.sending_on || 'Will be sent now') : (t.sending_off || 'Sending is off — will only be queued') }}</span>
           <span v-if="preview.link === false" class="chip chip-warning">{{ t.no_link || 'No store link set for this phone' }}</span>
         </div>
-        <p class="whitespace-pre-line break-words text-sm" dir="rtl" data-testid="qa-preview-text">{{ preview.body }}</p>
+        <!-- With the permission the text for THIS customer can be rewritten; it starts as the template text and follows the choices until edited. -->
+        <div v-if="can_edit_message" class="space-y-1" data-testid="qa-edit-box">
+          <textarea v-model="custom" rows="4" dir="rtl" maxlength="500" class="w-full rounded-md border border-border bg-background p-2 text-base" data-testid="qa-edit-text" @input="edited = true"></textarea>
+          <button v-if="edited" type="button" class="text-xs underline" data-testid="qa-edit-reset" @click="resetText">{{ t.reset_message || 'Back to the standard message' }}</button>
+          <span v-if="edited" class="chip chip-warning ms-2">{{ t.edited_message || 'Edited for this customer only' }}</span>
+        </div>
+        <p v-else class="whitespace-pre-line break-words text-sm" dir="rtl" data-testid="qa-preview-text">{{ preview.body }}</p>
+        <a v-if="can_edit_templates" :href="route('admin.setting.list', { search: 'quick_msg' })" class="inline-block text-xs underline" data-testid="qa-templates-link">{{ t.edit_templates || 'Edit the standard message texts (site settings)' }}</a>
 
         <!-- Letter counter: Arabic SMS is 70 characters for ONE message (67 per part once it is longer). -->
         <div class="space-y-1" data-testid="qa-counter">
           <div class="flex items-center justify-between gap-2 text-xs">
-            <span class="chip tabular-nums" :class="over ? 'chip-warning' : 'chip-positive'" dir="ltr" data-testid="qa-counter-chars">{{ preview.characters }} / {{ SINGLE }}</span>
+            <span class="chip tabular-nums" :class="over ? 'chip-warning' : 'chip-positive'" dir="ltr" data-testid="qa-counter-chars">{{ shownLength }} / {{ SINGLE }}</span>
             <span :class="over ? 'value-warning' : 'value-positive'" data-testid="qa-counter-text">
-              {{ over ? (t.over_one || 'Over one message') + ' — ' + preview.segments + ' ' + (t.messages || 'messages') + ' (' + (t.billed || 'billed as') + ' ' + preview.segments + ')' : (t.within_one || 'Fits in one message') + ' — ' + (SINGLE - preview.characters) + ' ' + (t.left || 'left') }}
+              {{ over ? (t.over_one || 'Over one message') + ' — ' + segments + ' ' + (t.messages || 'messages') + ' (' + (t.billed || 'billed as') + ' ' + segments + ')' : (t.within_one || 'Fits in one message') + ' — ' + (SINGLE - shownLength) + ' ' + (t.left || 'left') }}
             </span>
           </div>
-          <div class="h-1.5 w-full overflow-hidden rounded bg-muted"><div class="h-full rounded" :class="over ? 'bg-amber-500' : 'bg-emerald-500'" :style="{ width: Math.min(100, (preview.characters / SINGLE) * 100) + '%' }"></div></div>
+          <div class="h-1.5 w-full overflow-hidden rounded bg-muted"><div class="h-full rounded" :class="over ? 'bg-amber-500' : 'bg-emerald-500'" :style="{ width: Math.min(100, (shownLength / SINGLE) * 100) + '%' }"></div></div>
         </div>
       </section>
       <p v-else class="text-xs text-muted-foreground" data-testid="qa-preview-loading">…</p>
@@ -89,6 +96,8 @@ import SearchableSelect from '@/Components/ui/SearchableSelect.vue';
 const props = defineProps({
   locked_sales: { type: Object, default: null },
   sales_options: { type: Array, default: () => [] },
+  can_edit_message: { type: Boolean, default: false },
+  can_edit_templates: { type: Boolean, default: false },
 });
 const lockedSales = computed(() => props.locked_sales);
 const salesOptions = computed(() => props.sales_options);
@@ -127,7 +136,14 @@ watch(() => form.phone, async (v) => {
 });
 
 const SINGLE = 70; // one Arabic (UCS-2) SMS
-const over = computed(() => (preview.value?.characters || 0) > SINGLE);
+// The text in the counter is the one that will be sent: the typed one when edited, else the standard one.
+const custom = ref('');
+const edited = ref(false);
+const shownLength = computed(() => (props.can_edit_message && edited.value ? custom.value.length : (preview.value?.characters || 0)));
+const segments = computed(() => (shownLength.value <= SINGLE ? 1 : Math.ceil(shownLength.value / 67)));
+const over = computed(() => shownLength.value > SINGLE);
+const resetText = () => { edited.value = false; custom.value = preview.value?.body || ''; };
+watch(() => preview.value?.body, (b) => { if (!edited.value) custom.value = b || ''; });
 
 const preview = ref(null);
 let seq = 0;
@@ -144,7 +160,7 @@ const close = () => router.visit(route('admin.user.membership.list'));
 const submit = () => {
   error.value = '';
   busy.value = true;
-  router.post(route('admin.user.membership.quick-add'), { ...form, sales_id: lockedSales.value ? lockedSales.value.value : form.sales_id }, {
+  router.post(route('admin.user.membership.quick-add'), { ...form, sales_id: lockedSales.value ? lockedSales.value.value : form.sales_id, message_override: props.can_edit_message && edited.value ? custom.value : '' }, {
     onError: (e) => { error.value = Object.values(e)[0] || 'Could not add.'; },
     onFinish: () => { busy.value = false; },
   });

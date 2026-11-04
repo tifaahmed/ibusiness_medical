@@ -71,7 +71,7 @@ class QuickAddMemberTest extends TestCase
 
         $m = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
         $this->assertSame($mine->id, (int) $m->sales_id);
-        $res->assertRedirect(route('admin.user.membership.edit', $m->user_id));
+        $res->assertRedirect(route('admin.user.membership.quick-add.done', $m->user->slug));
     }
 
     public function test_one_admin_one_sales_rep(): void

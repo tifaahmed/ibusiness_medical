@@ -11,4 +11,4 @@ admin/sales  حط فلاتر هنا لكل الافكار وحط فى صفحه �
 - [x] read: SalesListFilterContent.vue exists but is NOT mounted in SalesListView; list has only search
 - [x] backend filters (admin yes/no, admin_id, image, facilities/members/stores yes/no, creator, dates, sort) + counts + admin in list/show resources
 - [x] list: filters mounted (SalesListFilterContent rewritten, old file unused before), admin+members+stores columns; show: admin + counts
-- [~] build + tests (SalesListFilterTest) on ibusiness_phpunit_test
+- [x] SalesListFilterTest passed + vite build OK

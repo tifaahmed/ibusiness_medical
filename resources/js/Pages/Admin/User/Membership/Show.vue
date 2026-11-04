@@ -520,6 +520,9 @@
       </div>
 
       <!-- Loyalty points, wallet money, quiz plays, conversions, transfers and the family's own figures (read only; changes are made in Loyalty). -->
+      <!-- Other numbers: notes only -->
+      <ExtraPhones v-if="user.slug" :slug="user.slug" :phones="extraPhones" />
+
       <!-- Extra physical / soft cards: any number per member (primary or relative), same number or a different one. -->
       <div class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="extra-cards">
         <h3 class="text-base font-semibold text-white flex items-center gap-2">
@@ -882,6 +885,7 @@ import DeliveryForm from "@/Pages/Admin/CardDeliveries/DeliveryForm.vue";
 import DeliveryItem from "@/Pages/Admin/CardDeliveries/DeliveryItem.vue";
 import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
 import CardPreview from "@/Pages/Admin/MembershipCard/_components/CardPreview.vue";
+import ExtraPhones from "@/Pages/Admin/User/Member/QuickAdd/ExtraPhones.vue";
 import { publicMembershipUrl, membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
 const props = defineProps({
@@ -889,6 +893,7 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  extraPhones: { type: Array, default: () => [] },
   cardTemplates: {
     type: Object,
     default: () => ({}),
