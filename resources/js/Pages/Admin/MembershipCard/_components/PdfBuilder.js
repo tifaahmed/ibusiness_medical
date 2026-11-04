@@ -9,7 +9,9 @@ const PAGE_H = 29.7;
 //
 // Down the sheet A4 has little spare (5 rows of 5.5 cm leave 2.2 cm in all), so what is left after the top reserve is shared
 // by the rows evenly: each card is centred vertically in a band of equal height, and the cut lines run on the band borders.
-const CELL_PAD_Y_MIN = 0.08; // never tighter than this per side, otherwise a row would not fit and the count would drop
+// The count is a RULE (10 = 2 × 5), so this floor is kept low: a row is only dropped when TOP_RESERVE + 5 × (5.5 + 2 × this) would
+// not fit on the sheet, i.e. TOP_RESERVE above ~1.8 cm. Raising TOP_RESERVE past that silently gives 8 per sheet — check the count.
+const CELL_PAD_Y_MIN = 0.04;
 //
 // Across the sheet the columns are pushed OUT to the paper's sides: the left column hugs the left edge, the right column the
 // right edge, and all the free width sits in the middle around the cut line. SIDE_MARGIN is all that is left at each edge
@@ -17,7 +19,7 @@ const CELL_PAD_Y_MIN = 0.08; // never tighter than this per side, otherwise a ro
 const SIDE_MARGIN = 0.25;
 const MIN_COLUMN_GAP = 1.0; // never let two columns come closer than this
 // Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
-const TOP_RESERVE = 0.85;
+const TOP_RESERVE = 1.5; // the pin strip; every extra mm here is taken from the gaps between rows (10 per sheet is fixed)
 const BOTTOM_RESERVE = 0; // the grid runs to the foot of the sheet (a printer that cannot print to the edge will clip the last row)
 const PIN_RADIUS = 0.15; // the pin mark: a small circle with a cross, 0.3 cm wide
 const DEFAULT_PRINT = { width: 8.5, height: 5.5, back_width: 8.0, back_height: 5.0 };
