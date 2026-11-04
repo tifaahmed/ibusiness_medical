@@ -34,3 +34,8 @@ admin/membership-card-patches  انا عايز قبل اى تحميل ل ملف 
 - [ ] read Show.vue download buttons
 - [x] Show.vue: checkbox per card + All/None/first N + counter 'N/M selected · sheets'; 3 back-PDF buttons + new 'selected cards (fronts)' PDF use only the selection; PdfBuilder mode 'fronts'; saved batch PDF stays whole
 - [x] vite build OK (selection + cell layout). Not verified in a browser or by a real print.
+
+## 2026-11-04 — قانون من المستخدم (حرفياً)
+انا مهم عندى فى ورقه الكروت انها تاخد 10 فى الصفحه الواحده ده قانون
+- القرار: 10 كروت/صفحة (2×5) ثابتة لحجم 8.5×5.5. تراجع عن 8/صفحة. الباقي (هامش فوق/تحت، دايرة الدبوس، خطوط القطع، توسيط الكارت في مربعه) ياخد المتبقي: أفقياً مساحة كبيرة (0.5سم) ورأسياً قليلة بحكم A4 (≈0.1سم).
+- [x] sheetLayout: PAD_X 0.5 ثابت، PAD_Y يتحسب من المتبقي (0.095)، TOP 0.85 / BOTTOM 0.4، pin r=0.15 → 2×5 = 10/صفحة (تأكدت بحساب Node لـ 8.5×5.5 و8.5×5.4 و8.6×5.4). لم أشغّل vite build (خادم dev المستخدم شغال، HMR يلتقط التعديل).

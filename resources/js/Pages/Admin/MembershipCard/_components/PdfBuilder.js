@@ -5,14 +5,17 @@ import { loadImage, renderCardCanvas } from './cardRenderer.js';
 // A4 portrait dimensions in cm.
 const PAGE_W = 21.0;
 const PAGE_H = 29.7;
-// Every card sits in its own square (a "cell"): the card, centred, with CELL_PAD of clear paper on all four sides.
-// The cut lines are the cells' borders, so a card is never near a line. Neighbouring cells share a border, which makes
-// the distance between two cards 2 × CELL_PAD with the cut line exactly halfway.
-const CELL_PAD = 0.5;
+// RULE: a sheet holds 10 cards (2 × 5 of 8.5 × 5.5 cm). Everything else gives way to that.
+// Every card sits in the middle of its own square (a "cell") and the cut lines are the cells' borders. Across the sheet
+// there is plenty of room, so the card keeps CELL_PAD_X clear on each side. Down the sheet A4 has little spare (5 rows
+// of 5.5 cm leave 2.2 cm in all), so what is left after the top and bottom reserves is shared by the rows evenly —
+// the card is centred vertically in its square too, just with a thinner border of paper.
+const CELL_PAD_X = 0.5;
+const CELL_PAD_Y_MIN = 0.08; // never tighter than this per side, otherwise a row would not fit and the count would drop
 // Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
-const TOP_RESERVE = 1.0;
-const BOTTOM_RESERVE = 0.5;
-const PIN_RADIUS = 0.2; // the pin mark: a small circle with a cross, 0.4 cm wide
+const TOP_RESERVE = 0.85;
+const BOTTOM_RESERVE = 0.4;
+const PIN_RADIUS = 0.15; // the pin mark: a small circle with a cross, 0.3 cm wide
 const DEFAULT_PRINT = { width: 8.5, height: 5.5, back_width: 8.0, back_height: 5.0 };
 const BACK_FALLBACK = '/images/cards/card-backside.png';
 
@@ -23,17 +26,16 @@ const BACK_FALLBACK = '/images/cards/card-backside.png';
 export function sheetLayout(print) {
   const w = Number(print?.width) > 0 ? Number(print.width) : DEFAULT_PRINT.width;
   const h = Number(print?.height) > 0 ? Number(print.height) : DEFAULT_PRINT.height;
-  const cellW = w + 2 * CELL_PAD;
-  const cellH = h + 2 * CELL_PAD;
+  const cellW = w + 2 * CELL_PAD_X;
   const cols = Math.max(1, Math.floor(PAGE_W / cellW));
-  const rows = Math.max(1, Math.floor((PAGE_H - TOP_RESERVE - BOTTOM_RESERVE) / cellH));
+  const avail = PAGE_H - TOP_RESERVE - BOTTOM_RESERVE;
+  const rows = Math.max(1, Math.floor(avail / (h + 2 * CELL_PAD_Y_MIN)));
+  // The rows share the whole band between the two reserves, so each card is centred in a square of equal height.
+  const cellH = avail / rows;
   const gridW = cols * cellW;
   const gridH = rows * cellH;
-  // The grid sits in the middle of the page; what is left above/below it is shared evenly on top of the two reserves,
-  // so the squares never touch the paper's edge.
   const gridLeft = (PAGE_W - gridW) / 2;
-  const spare = Math.max(0, PAGE_H - TOP_RESERVE - BOTTOM_RESERVE - gridH);
-  const gridTop = TOP_RESERVE + spare / 2;
+  const gridTop = TOP_RESERVE;
   return {
     w,
     h,
@@ -42,7 +44,8 @@ export function sheetLayout(print) {
     perPage: cols * rows,
     cellW,
     cellH,
-    pad: CELL_PAD,
+    padX: CELL_PAD_X,
+    padY: (cellH - h) / 2,
     gridLeft,
     gridTop,
     gridW,
@@ -59,8 +62,8 @@ function slotXY(L, pos, mirror) {
   // Flipped: the columns run right-to-left, so a sheet printed on its back
   // lines every back up behind its own front.
   if (mirror) col = L.cols - 1 - col;
-  // The card's own position: inside its cell, CELL_PAD in from the borders.
-  return { x: L.gridLeft + col * L.cellW + L.pad, y: L.gridTop + row * L.cellH + L.pad };
+  // The card's own position: centred inside its cell.
+  return { x: L.gridLeft + col * L.cellW + L.padX, y: L.gridTop + row * L.cellH + L.padY };
 }
 
 /**
