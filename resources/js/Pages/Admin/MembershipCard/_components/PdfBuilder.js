@@ -6,15 +6,19 @@ import { loadImage, renderCardCanvas } from './cardRenderer.js';
 const PAGE_W = 21.0;
 const PAGE_H = 29.7;
 // RULE: a sheet holds 10 cards (2 × 5 of 8.5 × 5.5 cm). Everything else gives way to that.
-// Every card sits in the middle of its own square (a "cell") and the cut lines are the cells' borders. Across the sheet
-// there is plenty of room, so the card keeps CELL_PAD_X clear on each side. Down the sheet A4 has little spare (5 rows
-// of 5.5 cm leave 2.2 cm in all), so what is left after the top and bottom reserves is shared by the rows evenly —
-// the card is centred vertically in its square too, just with a thinner border of paper.
-const CELL_PAD_X = 0.5;
+//
+// Down the sheet A4 has little spare (5 rows of 5.5 cm leave 2.2 cm in all), so what is left after the top reserve is shared
+// by the rows evenly: each card is centred vertically in a band of equal height, and the cut lines run on the band borders.
 const CELL_PAD_Y_MIN = 0.08; // never tighter than this per side, otherwise a row would not fit and the count would drop
+//
+// Across the sheet the columns are pushed OUT to the paper's sides: the left column hugs the left edge, the right column the
+// right edge, and all the free width sits in the middle around the cut line. SIDE_MARGIN is all that is left at each edge
+// (a printer that cannot print to the very edge will clip it).
+const SIDE_MARGIN = 0.25;
+const MIN_COLUMN_GAP = 1.0; // never let two columns come closer than this
 // Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
 const TOP_RESERVE = 0.85;
-const BOTTOM_RESERVE = 0.4;
+const BOTTOM_RESERVE = 0; // the grid runs to the foot of the sheet (a printer that cannot print to the edge will clip the last row)
 const PIN_RADIUS = 0.15; // the pin mark: a small circle with a cross, 0.3 cm wide
 const DEFAULT_PRINT = { width: 8.5, height: 5.5, back_width: 8.0, back_height: 5.0 };
 const BACK_FALLBACK = '/images/cards/card-backside.png';
@@ -26,30 +30,26 @@ const BACK_FALLBACK = '/images/cards/card-backside.png';
 export function sheetLayout(print) {
   const w = Number(print?.width) > 0 ? Number(print.width) : DEFAULT_PRINT.width;
   const h = Number(print?.height) > 0 ? Number(print.height) : DEFAULT_PRINT.height;
-  const cellW = w + 2 * CELL_PAD_X;
-  const cols = Math.max(1, Math.floor(PAGE_W / cellW));
+  const cols = Math.max(1, Math.floor((PAGE_W - 2 * SIDE_MARGIN + MIN_COLUMN_GAP) / (w + MIN_COLUMN_GAP)));
   const avail = PAGE_H - TOP_RESERVE - BOTTOM_RESERVE;
   const rows = Math.max(1, Math.floor(avail / (h + 2 * CELL_PAD_Y_MIN)));
   // The rows share the whole band between the two reserves, so each card is centred in a square of equal height.
   const cellH = avail / rows;
-  const gridW = cols * cellW;
-  const gridH = rows * cellH;
-  const gridLeft = (PAGE_W - gridW) / 2;
   const gridTop = TOP_RESERVE;
+  // Columns spread from the left edge to the right edge; one column alone sits in the middle.
+  const span = PAGE_W - 2 * SIDE_MARGIN - w;
+  const colX = (c) => (cols === 1 ? (PAGE_W - w) / 2 : SIDE_MARGIN + (c * span) / (cols - 1));
   return {
     w,
     h,
     cols,
     rows,
     perPage: cols * rows,
-    cellW,
     cellH,
-    padX: CELL_PAD_X,
     padY: (cellH - h) / 2,
-    gridLeft,
+    colX,
     gridTop,
-    gridW,
-    gridH,
+    gridH: rows * cellH,
     // The pin mark sits in the middle of the strip above the grid, clear of every square.
     pinX: PAGE_W / 2,
     pinY: gridTop / 2,
@@ -60,10 +60,9 @@ function slotXY(L, pos, mirror) {
   let col = pos % L.cols;
   const row = Math.floor(pos / L.cols);
   // Flipped: the columns run right-to-left, so a sheet printed on its back
-  // lines every back up behind its own front.
+  // lines every back up behind its own front. (The columns are placed symmetrically, so the swap lands exactly.)
   if (mirror) col = L.cols - 1 - col;
-  // The card's own position: centred inside its cell.
-  return { x: L.gridLeft + col * L.cellW + L.padX, y: L.gridTop + row * L.cellH + L.padY };
+  return { x: L.colX(col), y: L.gridTop + row * L.cellH + L.padY };
 }
 
 /**
@@ -77,24 +76,22 @@ function drawPin(pdf, L) {
   pdf.line(L.pinX - PIN_RADIUS * 0.6, L.pinY, L.pinX + PIN_RADIUS * 0.6, L.pinY);
   pdf.line(L.pinX, L.pinY - PIN_RADIUS * 0.6, L.pinX, L.pinY + PIN_RADIUS * 0.6);
 
-  // Cutting guides: thin, light lines = the borders of the squares, so every card sits in the middle of its own square.
-  // Same place on fronts and backs (the mirror only swaps columns; the borders and the centre stay put).
+  // Cutting guides: thin, light lines that never touch a card.
+  //  - across the sheet, edge to edge, on every border between two rows (and above the first / below the last);
+  //  - down the sheet, in the middle of the free strip between two columns — for two columns that is the centre line,
+  //    one unbroken line from the top edge to the bottom edge (to cut the paper in half).
+  // Same place on fronts and backs (the mirror only swaps columns, which are placed symmetrically).
   pdf.setDrawColor(200);
   pdf.setLineWidth(0.012);
-  const right = L.gridLeft + L.gridW;
-  const bottom = L.gridTop + L.gridH;
   for (let r = 0; r <= L.rows; r++) {
     const y = L.gridTop + r * L.cellH;
-    pdf.line(L.gridLeft, y, right, y);
+    pdf.line(0, y, PAGE_W, y);
   }
-  for (let c = 0; c <= L.cols; c++) {
-    const x = L.gridLeft + c * L.cellW;
-    if (Math.abs(x - PAGE_W / 2) < 0.01) continue; // the centre line is drawn full height below
-    pdf.line(x, L.gridTop, x, bottom);
+  for (let c = 0; c < L.cols - 1; c++) {
+    const x = (L.colX(c) + L.w + L.colX(c + 1)) / 2;
+    // Every column divider is ONE unbroken line from the top edge to the bottom edge (the middle one passes through the pin mark).
+    pdf.line(x, 0, x, PAGE_H);
   }
-  // The line down the middle of the sheet runs the full height, to cut the paper in half; it stops short of the pin mark.
-  pdf.line(PAGE_W / 2, 0, PAGE_W / 2, L.pinY - PIN_RADIUS - 0.05);
-  pdf.line(PAGE_W / 2, L.pinY + PIN_RADIUS + 0.05, PAGE_W / 2, PAGE_H);
 }
 
 
