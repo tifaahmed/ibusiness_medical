@@ -23,13 +23,13 @@ class GuestMembershipUsageStoreController extends BaseController
             ->firstOrFail();
 
         $validated = $request->validate([
-            'facility_id'        => 'required|exists:facilities,id',
+            'facility_id' => 'required|exists:facilities,id',
             'facility_branch_id' => 'nullable|exists:facility_branches,id',
-            'facility_type_id'   => 'required|exists:facility_types,id',
-            'amount'             => 'required|numeric|min:0',
-            'description'        => 'nullable|string|max:1000',
-            'gallery'            => 'nullable|array',
-            'gallery.*'          => 'image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'facility_type_id' => 'required|exists:facility_types,id',
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string|max:1000',
+            'gallery' => 'nullable|array',
+            'gallery.*' => 'image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
         ]);
 
         $validated['membership_id'] = $membershipModel->id;

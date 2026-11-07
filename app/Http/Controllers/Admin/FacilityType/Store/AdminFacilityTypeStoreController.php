@@ -14,7 +14,7 @@ class AdminFacilityTypeStoreController extends BaseController
 
     public function __construct(StoreFacilityTypeAction $storeAction)
     {
-        $this->storeAction = $storeAction;  
+        $this->storeAction = $storeAction;
     }
 
     /**
@@ -45,12 +45,9 @@ class AdminFacilityTypeStoreController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to create facility type. Please try again.'])
                 ->withInput();
         }
     }
 }
-
-
-

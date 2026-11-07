@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\User\UserRoleEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Enums\User\UserRoleEnum;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,10 +61,11 @@ class AuthenticatedSessionController extends Controller
                 'user_exists' => $user !== null,
             ]);
 
-            if (!$user) {
+            if (! $user) {
                 Log::error('Login: User not found after authentication', [
                     'email' => $request->input('email'),
                 ]);
+
                 return redirect()->route('home');
             }
 
@@ -109,6 +110,7 @@ class AuthenticatedSessionController extends Controller
                 Log::info('Login: Admin redirect response created', [
                     'target_url' => $redirectUrl,
                 ]);
+
                 return $response;
             }
 
@@ -136,6 +138,7 @@ class AuthenticatedSessionController extends Controller
                         Log::info('Login: Member redirect response created', [
                             'target_url' => $redirectUrl,
                         ]);
+
                         return $response;
                     }
                 } catch (\Exception $e) {
@@ -161,6 +164,7 @@ class AuthenticatedSessionController extends Controller
             Log::info('Login: Fallback redirect response created', [
                 'target_url' => $redirectUrl,
             ]);
+
             return $response;
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Login: Validation exception', [

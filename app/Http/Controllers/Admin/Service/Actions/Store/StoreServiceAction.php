@@ -46,6 +46,7 @@ class StoreServiceAction
 
             DB::commit();
             Log::info('Service created', ['id' => $service->id, 'slug' => $service->slug]);
+
             return $service;
         } catch (\Exception $e) {
             DB::rollBack();

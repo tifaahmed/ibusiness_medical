@@ -19,10 +19,9 @@ use App\Models\Order;
 use App\Models\OrderLog;
 use App\Models\OrderProduct;
 use App\Models\Product;
-use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
-use App\Support\ShopDelivery;
 use App\Support\PointsPayments;
+use App\Support\ShopDelivery;
 use App\Support\WalletPayments;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -304,11 +303,11 @@ class OrderController extends Controller
         if ($order->isOnlinePayment() && $order->amountDue() > 0) {
             $request->validate(['paymob_channel' => ['nullable', 'in:card,wallet']]);
 
-        if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'), \App\Support\PaymentMethods::CONTEXT_PRODUCTS)) {
-            return response()->json(['message' => 'This way of paying online is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+            if (! \App\Support\PaymentMethods::channelAllowed($request->input('paymob_channel'), \App\Support\PaymentMethods::CONTEXT_PRODUCTS)) {
+                return response()->json(['message' => 'This way of paying online is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
-        $payment = $this->openPayment($order, $request);
+            $payment = $this->openPayment($order, $request);
         } else {
             /* Cash on delivery / transfer: the receipt of the order goes out now, when there is an address. */
             $this->sendReceipt->handle($order, null, $request);

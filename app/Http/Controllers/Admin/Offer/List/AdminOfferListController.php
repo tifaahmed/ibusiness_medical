@@ -15,8 +15,15 @@ class AdminOfferListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_OFFERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_OFFERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OFFERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_OFFERS;
+    }
 
     /**
      * Display a listing of offers.
@@ -26,16 +33,16 @@ class AdminOfferListController extends BaseController
         $filters = $this->getFilters($request);
 
         $offers = Offer::with(['offerable', 'creator:id,name,email'])
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('title->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('phone', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('price', 'like', '%' . $filters['search'] . '%');
+                    $query->where('title->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('phone', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('price', 'like', '%'.$filters['search'].'%');
                 });
             })
-            ->when(!empty($filters['offerable_type']), function ($q) use ($filters) {
+            ->when(! empty($filters['offerable_type']), function ($q) use ($filters) {
                 $q->where('offerable_type', $filters['offerable_type']);
             })
             ->latest()

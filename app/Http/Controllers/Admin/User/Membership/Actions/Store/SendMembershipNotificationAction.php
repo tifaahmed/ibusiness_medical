@@ -2,20 +2,15 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Actions\Store;
 
-use App\Models\User;
-use App\Models\Membership;
 use App\Jobs\Admin\User\Membership\AdminToMemberMembershipCreatedNotificationJob;
+use App\Models\Membership;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 class SendMembershipNotificationAction
 {
     /**
      * Execute the action to send membership notification.
-     *
-     * @param User $user
-     * @param Membership $membership
-     * @param string $plainPassword
-     * @return void
      */
     public function execute(User $user, Membership $membership, string $plainPassword): void
     {
@@ -43,4 +38,3 @@ class SendMembershipNotificationAction
         }
     }
 }
-

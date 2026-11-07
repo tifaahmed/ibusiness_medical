@@ -15,8 +15,15 @@ class AdminServiceTypeShowController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SERVICES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+    }
 
     public function __invoke(Request $request, int $serviceType): Response
     {

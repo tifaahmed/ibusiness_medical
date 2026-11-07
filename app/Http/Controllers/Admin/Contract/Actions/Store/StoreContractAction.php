@@ -12,8 +12,6 @@ class StoreContractAction
     /**
      * Execute the action to store a contract.
      *
-     * @param array $validated
-     * @return Contract
      * @throws \Exception
      */
     public function execute(array $validated): Contract

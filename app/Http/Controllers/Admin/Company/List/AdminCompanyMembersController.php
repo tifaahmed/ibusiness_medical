@@ -13,8 +13,15 @@ class AdminCompanyMembersController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     /**
      * List the members (via their memberships) belonging to a company, for
@@ -34,28 +41,28 @@ class AdminCompanyMembersController extends BaseController
 
         $members = $company->memberships()->primary()
             ->with('user:id,name,phone')
-            ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%' . $name . '%')))
-            ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%' . $membershipNumber . '%'))
-            ->when($phone !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%' . $phone . '%')))
+            ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%'.$name.'%')))
+            ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%'.$membershipNumber.'%'))
+            ->when($phone !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%'.$phone.'%')))
             ->orderBy('id')
             ->paginate($perPage);
 
         $members->getCollection()->transform(fn ($membership) => [
-            'id'                 => $membership->id,
-            'membership_number'  => $membership->membership_number,
-            'name'               => $membership->user?->name,
-            'phone'              => $membership->user?->phone,
+            'id' => $membership->id,
+            'membership_number' => $membership->membership_number,
+            'name' => $membership->user?->name,
+            'phone' => $membership->user?->phone,
         ]);
 
         return response()->json([
             'data' => $members->items(),
             'meta' => [
                 'current_page' => $members->currentPage(),
-                'last_page'    => $members->lastPage(),
-                'per_page'     => $members->perPage(),
-                'total'        => $members->total(),
-                'from'         => $members->firstItem(),
-                'to'           => $members->lastItem(),
+                'last_page' => $members->lastPage(),
+                'per_page' => $members->perPage(),
+                'total' => $members->total(),
+                'from' => $members->firstItem(),
+                'to' => $members->lastItem(),
             ],
         ]);
     }

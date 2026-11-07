@@ -31,7 +31,7 @@ class QuickAddMemberTest extends TestCase
     private function quickAdd(User $by, array $over = [])
     {
         return $this->actingAs($by)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)->post(route('admin.user.membership.quick-add'), $over + [
-            'name' => 'Omar', 'phone' => '01012345678', 'device' => 'android', 'member_kind' => 'individual', 'wants_card' => false,
+            'name' => 'Omar', 'phone' => '01012345678', 'member_kind' => 'individual', 'wants_card' => false,
         ]);
     }
 
@@ -45,7 +45,7 @@ class QuickAddMemberTest extends TestCase
         $m = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
         $this->assertSame($by->id, $m->quick_added_by);
         $this->assertSame('individual', $m->member_kind);
-        $this->assertSame('android', $m->quick_device);
+        $this->assertNull($m->quick_device); // the rep no longer picks a phone type
         $this->assertTrue($m->quick_wants_card);
         $this->assertSame(7, (int) round(now()->diffInDays($m->expiration_date, true)));
 
@@ -54,6 +54,7 @@ class QuickAddMemberTest extends TestCase
         $this->assertStringContainsString('تجربة مجانية 7 أيام', $sms->body);
         $this->assertStringContainsString('مندوبنا سيتواصل معك قريباً لتوصيل الكارت', $sms->body);
         $this->assertStringNotContainsString($m->membership_number, $sms->body); // the customer signs in with the phone
+        $this->assertStringContainsString('https://deilar.com/app', $sms->body);  // the short link, same for Android and iPhone
         $this->assertStringNotContainsString('جنيه', $sms->body);                // and no prices
         $this->assertSame(mb_strlen($sms->body), $sms->characters);
         Http::assertNothingSent();
@@ -116,9 +117,9 @@ class QuickAddMemberTest extends TestCase
         $part = $get(['member_kind' => 'company']);
         $this->assertStringContainsString('أهلاً بك في ديلر! لديك تجربة مجانية', $part['body']);
         $this->assertStringContainsString('إذا وافقتم على المتابعة', $part['body']);
-        $this->assertStringContainsString('[رابط التطبيق', $part['body']);
+        $this->assertStringContainsString('https://deilar.com/app', $part['body']); // ONE short link for every phone
 
-        $full = $get(['member_kind' => 'company', 'device' => 'android']);
+        $full = $get(['member_kind' => 'company']);
         $this->assertTrue($full['complete']);
         $this->assertStringNotContainsString('[', $full['body']);
     }
@@ -143,7 +144,7 @@ class QuickAddMemberTest extends TestCase
 
     public function test_company_gets_thirty_days_and_the_company_text(): void
     {
-        $this->quickAdd($this->sales(), ['member_kind' => 'company', 'device' => 'iphone'])->assertRedirect();
+        $this->quickAdd($this->sales(), ['member_kind' => 'company'])->assertRedirect();
         $m = Membership::query()->whereNotNull('quick_added_at')->firstOrFail();
         $this->assertSame('company', $m->member_kind);
         $this->assertSame(30, (int) round(now()->diffInDays($m->expiration_date, true)));
@@ -186,12 +187,12 @@ class QuickAddMemberTest extends TestCase
     public function test_preview_returns_the_exact_text_that_would_be_sent(): void
     {
         $by = $this->sales();
-        $preview = $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.preview', ['device' => 'android', 'member_kind' => 'individual', 'wants_card' => 1]))->assertOk()->json();
+        $preview = $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.preview', ['member_kind' => 'individual', 'wants_card' => 1]))->assertOk()->json();
 
         $this->quickAdd($by, ['wants_card' => true])->assertRedirect();
         $this->assertSame(SmsMessage::firstOrFail()->body, $preview['body']);
         $this->assertSame(mb_strlen($preview['body']), $preview['characters']);
         $this->assertFalse($preview['sending']);
-        $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.preview', ['device' => 'x', 'member_kind' => 'individual']))->assertStatus(422);
+        $this->actingAs($by)->getJson(route('admin.user.membership.quick-add.preview', ['member_kind' => 'x']))->assertStatus(422);
     }
 }

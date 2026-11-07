@@ -14,15 +14,15 @@ class StoreMembershipUsageAction
 
         try {
             $usage = MembershipUsage::create([
-                'membership_id'      => $validated['membership_id'],
-                'facility_id'        => $validated['facility_id'],
+                'membership_id' => $validated['membership_id'],
+                'facility_id' => $validated['facility_id'],
                 'facility_branch_id' => $validated['facility_branch_id'] ?? null,
-                'facility_type_id'   => $validated['facility_type_id'],
-                'amount'             => $validated['amount'],
-                'description'        => $validated['description'] ?? null,
+                'facility_type_id' => $validated['facility_type_id'],
+                'amount' => $validated['amount'],
+                'description' => $validated['description'] ?? null,
             ]);
 
-            if (!empty($validated['gallery'])) {
+            if (! empty($validated['gallery'])) {
                 foreach ($validated['gallery'] as $file) {
                     $usage->addMedia($file)->toMediaCollection('gallery');
                 }

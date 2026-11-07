@@ -7,20 +7,14 @@ use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContactMessageResource;
-use App\Models\ContactMessage;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\ContactMessageReceived;
 
 class ContactMessageController extends Controller
 {
     /**
      * Store a newly created contact message.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -37,7 +31,7 @@ class ContactMessageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -65,16 +59,15 @@ class ContactMessageController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Your message has been sent successfully! We will get back to you soon.',
-                'data' => new ContactMessageResource($contactMessage)
+                'data' => new ContactMessageResource($contactMessage),
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while sending your message. Please try again later.',
-                'error' => config('app.debug') ? $e->getMessage() : null
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
 }
-

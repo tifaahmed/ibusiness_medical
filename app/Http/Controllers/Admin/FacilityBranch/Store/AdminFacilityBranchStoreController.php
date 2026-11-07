@@ -14,7 +14,7 @@ class AdminFacilityBranchStoreController extends BaseController
 
     public function __construct(StoreFacilityBranchAction $storeAction)
     {
-        $this->storeAction = $storeAction;  
+        $this->storeAction = $storeAction;
     }
 
     /**
@@ -45,12 +45,9 @@ class AdminFacilityBranchStoreController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to create facility branch. Please try again.'])
                 ->withInput();
         }
     }
 }
-
-
-

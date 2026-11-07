@@ -11,9 +11,6 @@ class UpdateOfferAction
     /**
      * Execute the action to update an offer.
      *
-     * @param Offer $offer
-     * @param array $validated
-     * @return Offer
      * @throws \Exception
      */
     public function execute(Offer $offer, array $validated): Offer

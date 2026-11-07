@@ -173,14 +173,23 @@ final class QuickAdd
         };
     }
 
+    /** The short link texted to customers, or null when none is set. */
+    public static function shortLink(): ?string
+    {
+        $url = trim((string) config('mobile_app.short_link'));
+
+        return $url === '' ? null : $url;
+    }
+
     /**
-     * The customer's text. With a null kind or device (only the live preview passes those, while the form is
-     * still being filled) the missing piece shows as a [bracketed placeholder]; a real send always has both.
+     * The customer's SMS. It carries ONE short link ({@see shortLink()}) that opens the right store for the phone, so the
+     * rep never picks Android/iPhone. With a null kind (only the live preview, while the form is still being filled) the
+     * missing piece shows as a [bracketed placeholder].
      */
-    public static function message(?string $kind, ?string $device, bool $wantsCard, ?int $days = null): string
+    public static function message(?string $kind, bool $wantsCard, ?int $days = null): string
     {
         $app = (string) config('mobile_app.name_ar', 'ديلر');
-        $fill = fn (string $text, ?string $link = null, ?string $daysText = null) => strtr($text, ['{app}' => $app, '{days}' => $daysText ?? '[المدة]', '{link}' => $link ?? '[رابط التطبيق حسب نوع الهاتف]']);
+        $fill = fn (string $text, ?string $link = null, ?string $daysText = null) => strtr($text, ['{app}' => $app, '{days}' => $daysText ?? '[المدة]', '{link}' => $link ?? '']);
 
         // The sentences are stored trimmed (the settings form trims what is saved), so THIS code puts one space between them.
         if ($kind === null) {
@@ -194,12 +203,8 @@ final class QuickAdd
             $parts[] = $fill(self::template(self::MSG_CARD));
         }
 
-        if ($device === null) {
-            $parts[] = $fill(self::template(self::MSG_LINK));
-        } else {
-            $link = self::storeLink($device);
-            $parts[] = $link !== null ? $fill(self::template(self::MSG_LINK), $link) : $fill(self::template(self::MSG_NO_LINK));
-        }
+        $link = self::shortLink();
+        $parts[] = $link !== null ? $fill(self::template(self::MSG_LINK), $link) : $fill(self::template(self::MSG_NO_LINK));
 
         return implode(' ', array_map('trim', $parts));
     }

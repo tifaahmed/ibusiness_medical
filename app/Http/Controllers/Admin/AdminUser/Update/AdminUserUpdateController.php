@@ -37,9 +37,9 @@ class AdminUserUpdateController extends Controller
         if (array_key_exists('email_verified', $data)) {
             $shouldBeVerified = (bool) $data['email_verified'];
             $isVerified = $adminUser->email_verified_at !== null;
-            if ($shouldBeVerified && !$isVerified) {
+            if ($shouldBeVerified && ! $isVerified) {
                 $update['email_verified_at'] = now();
-            } elseif (!$shouldBeVerified && $isVerified) {
+            } elseif (! $shouldBeVerified && $isVerified) {
                 $update['email_verified_at'] = null;
             }
         }

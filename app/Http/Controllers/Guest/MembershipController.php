@@ -2,22 +2,23 @@
 
 namespace App\Http\Controllers\Guest;
 
-use App\Http\Controllers\Controller as BaseController;
-use App\Http\Controllers\Concerns\ProvidesCardTemplates;
-use App\Http\Resources\Guest\MembershipResource;
 use App\Actions\Membership\StartSubscription;
+use App\Http\Controllers\Concerns\ProvidesCardTemplates;
+use App\Http\Controllers\Controller as BaseController;
+use App\Http\Resources\Guest\MembershipResource;
 use App\Models\Membership;
 use App\Models\MembershipSubscription;
 use App\Services\Paymob\PaymobException;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class MembershipController extends BaseController
 {
     use ProvidesCardTemplates;
+
     /**
      * Handle membership number lookup and redirect.
      */

@@ -15,7 +15,7 @@ class PartnerOfferController extends Controller
     public function index(Request $request): JsonResponse
     {
         $offers = PartnerOffer::with(['partner', 'media'])
-            ->when($request->filled('operator'), fn($q) => $q->where('operator', $request->input('operator')))
+            ->when($request->filled('operator'), fn ($q) => $q->where('operator', $request->input('operator')))
             ->latest()
             ->get();
 

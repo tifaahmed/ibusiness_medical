@@ -15,8 +15,15 @@ class AdminFacilityTypeDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Remove the specified facility type from storage.
@@ -90,6 +97,3 @@ class AdminFacilityTypeDeleteController extends BaseController
         }
     }
 }
-
-
-

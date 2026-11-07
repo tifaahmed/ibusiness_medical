@@ -12,8 +12,6 @@ class StoreFacilityTypeAction
     /**
      * Execute the action to store a facility type.
      *
-     * @param array $validated
-     * @return FacilityType
      * @throws \Exception
      */
     public function execute(array $validated): FacilityType
@@ -47,6 +45,3 @@ class StoreFacilityTypeAction
         }
     }
 }
-
-
-

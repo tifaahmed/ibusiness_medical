@@ -11,9 +11,6 @@ class UpdateProductTypeAction
     /**
      * Execute the action to update a product type.
      *
-     * @param ProductType $productType
-     * @param array $validated
-     * @return ProductType
      * @throws \Exception
      */
     public function execute(ProductType $productType, array $validated): ProductType

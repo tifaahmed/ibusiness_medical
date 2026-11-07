@@ -64,6 +64,8 @@ class ApplyPaymobSubscriptionTransaction
                 if ($subscription->status === MembershipSubscription::STATUS_ACCEPTED) {
                     $subscription->forceFill(['status' => MembershipSubscription::STATUS_REFUNDED])->save();
                     $result['changed'] = true;
+                    /* The referrer's commission on this payment is taken back (a reversal debit, once). */
+                    \App\Support\Referrals::subscriptionRefunded($subscription, 'paymob refund');
                     Log::warning('A paid membership subscription was refunded at Paymob — review the card.', ['subscription_id' => $subscription->id]);
                 }
                 $result['note'] = 'Refund recorded. The card was NOT shortened — review it.';

@@ -15,7 +15,7 @@ class CardLayoutController extends Controller
     {
         $membership = Membership::withTrashed()->where('membership_number', $membershipNumber)->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return response()->json(['message' => 'Membership not found.'], 404);
         }
 
@@ -66,14 +66,14 @@ class CardLayoutController extends Controller
             ])
         );
 
-        if (!empty($validated['image'])) {
+        if (! empty($validated['image'])) {
             $oldPath = $layout->generated_image_path;
             $imageData = $validated['image'];
             $imageData = preg_replace('/^data:image\/\w+;base64,/', '', $imageData);
             $imageData = base64_decode($imageData);
 
-            $filename = 'card-' . $layout->membership_id . '-' . time() . '.png';
-            $path = 'cards/' . $filename;
+            $filename = 'card-'.$layout->membership_id.'-'.time().'.png';
+            $path = 'cards/'.$filename;
 
             Storage::disk('public')->put($path, $imageData);
 

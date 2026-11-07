@@ -15,8 +15,15 @@ class AdminServiceListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SERVICES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -24,15 +31,15 @@ class AdminServiceListController extends BaseController
 
         $services = Service::query()
             ->with(['category', 'governorate', 'city', 'creator:id,name,email', 'tags:id,name,icon,color'])
-            ->tap(fn($q) => $this->applyCreatorScope($q))
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($query) use ($search) {
                     $query->where('title', 'like', "%$search%")
-                          ->orWhere('short_subject', 'like', "%$search%")
-                          ->orWhere('subject', 'like', "%$search%")
-                          ->orWhere('slug', 'like', "%$search%")
-                          ->orWhere('new_price', 'like', "%$search%")
-                          ->orWhere('old_price', 'like', "%$search%");
+                        ->orWhere('short_subject', 'like', "%$search%")
+                        ->orWhere('subject', 'like', "%$search%")
+                        ->orWhere('slug', 'like', "%$search%")
+                        ->orWhere('new_price', 'like', "%$search%")
+                        ->orWhere('old_price', 'like', "%$search%");
                 });
             })
             ->latest()
@@ -41,7 +48,7 @@ class AdminServiceListController extends BaseController
 
         return Inertia::render('Admin/Service/List', [
             'services' => new AdminServiceListCollection($services)->toArray($request),
-            'filters'   => ['search' => $search],
+            'filters' => ['search' => $search],
         ]);
     }
 }

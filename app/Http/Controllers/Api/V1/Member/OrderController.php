@@ -15,8 +15,8 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * A signed-in member's own orders.

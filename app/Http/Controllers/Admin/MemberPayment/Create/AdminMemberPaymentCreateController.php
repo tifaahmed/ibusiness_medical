@@ -22,23 +22,23 @@ class AdminMemberPaymentCreateController extends BaseController
             ->orderBy('membership_number')
             ->get()
             ->map(fn ($m) => [
-                'id'                => $m->id,
+                'id' => $m->id,
                 'membership_number' => $m->membership_number,
-                'slug'              => $m->user?->slug,
-                'user_id'           => $m->user?->id,
-                'user_name'         => $m->user?->name,
-                'payment_type'      => $m->payment_type,
+                'slug' => $m->user?->slug,
+                'user_id' => $m->user?->id,
+                'user_name' => $m->user?->name,
+                'payment_type' => $m->payment_type,
                 'registration_date' => $m->registration_date?->format('Y-m-d'),
-                'expiration_date'   => $m->expiration_date?->format('Y-m-d'),
-                'is_active'         => $m->is_active,
-                'is_paid'           => $m->is_paid,
-                'payments'          => $m->memberPayments->map(fn ($p) => [
-                    'id'          => $p->id,
-                    'amount'      => (float) $p->amount,
+                'expiration_date' => $m->expiration_date?->format('Y-m-d'),
+                'is_active' => $m->is_active,
+                'is_paid' => $m->is_paid,
+                'payments' => $m->memberPayments->map(fn ($p) => [
+                    'id' => $p->id,
+                    'amount' => (float) $p->amount,
                     'months_paid' => $p->months_paid,
-                    'from_date'   => $p->from_date?->format('Y-m-d'),
-                    'to_date'     => $p->to_date?->format('Y-m-d'),
-                    'notes'       => $p->notes,
+                    'from_date' => $p->from_date?->format('Y-m-d'),
+                    'to_date' => $p->to_date?->format('Y-m-d'),
+                    'notes' => $p->notes,
                 ]),
             ]);
 

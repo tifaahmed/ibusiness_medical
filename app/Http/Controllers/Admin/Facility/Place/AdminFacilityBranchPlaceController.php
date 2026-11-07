@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Facility\ResolveFacilityBranchPlaceRequest;
 use App\Models\City;
 use App\Models\Governorate;
-use App\Services\BranchPlaceResolver;
 use App\Services\Ai\RateLimitException;
+use App\Services\BranchPlaceResolver;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;
 

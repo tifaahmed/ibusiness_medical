@@ -17,10 +17,10 @@ class AdminPartnerOfferRequestListController extends BaseController
 
         $requests = PartnerOfferRequest::query()
             ->with('partnerOffer:id,title,partner_id', 'partnerOffer.partner:id,title')
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
-                $q->where('phone_number', 'like', '%' . $filters['search'] . '%');
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
+                $q->where('phone_number', 'like', '%'.$filters['search'].'%');
             })
-            ->when(!empty($filters['partner_offer_id']), function ($q) use ($filters) {
+            ->when(! empty($filters['partner_offer_id']), function ($q) use ($filters) {
                 $q->where('partner_offer_id', $filters['partner_offer_id']);
             })
             ->orderBy('id', 'desc')

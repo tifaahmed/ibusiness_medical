@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\ActiveHistory;
 
-use App\Http\Controllers\Controller as BaseController;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
+use App\Http\Controllers\Controller as BaseController;
 use App\Models\MemberActiveHistory;
 use App\Models\Membership;
 use App\Models\Partner;
@@ -43,23 +43,23 @@ class AdminActiveHistoryController extends BaseController
                 if ($restricted) {
                     $listingFilter($mq);
                 }
-                $mq->when(!empty($filters['search']), fn($q) => $q->where(function ($wq) use ($filters) {
-                    $wq->where('membership_number', 'like', '%' . $filters['search'] . '%')
-                      ->orWhereHas('user', fn($uq) => $uq->where(function ($uw) use ($filters) {
-                          $uw->where('name', 'like', '%' . $filters['search'] . '%')
-                             ->orWhere('email', 'like', '%' . $filters['search'] . '%')
-                             ->orWhere('phone', 'like', '%' . $filters['search'] . '%');
-                      }));
+                $mq->when(! empty($filters['search']), fn ($q) => $q->where(function ($wq) use ($filters) {
+                    $wq->where('membership_number', 'like', '%'.$filters['search'].'%')
+                        ->orWhereHas('user', fn ($uq) => $uq->where(function ($uw) use ($filters) {
+                            $uw->where('name', 'like', '%'.$filters['search'].'%')
+                                ->orWhere('email', 'like', '%'.$filters['search'].'%')
+                                ->orWhere('phone', 'like', '%'.$filters['search'].'%');
+                        }));
                 }));
-                $mq->when(!empty($filters['membership_number']), fn($q) => $q->where('membership_number', 'like', '%' . $filters['membership_number'] . '%'));
-                $mq->when(!empty($filters['phone']), fn($q) => $q->whereHas('user', fn($uq) => $uq->where('phone', 'like', '%' . $filters['phone'] . '%')));
-                $mq->when(!empty($filters['partner_id']), fn($q) => $q->where('partner_id', $filters['partner_id']));
-                $mq->when(!empty($filters['sale_id']), fn($q) => $q->where('sales_id', $filters['sale_id']));
-                $mq->when(!empty($filters['creator_id']), fn($q) => $q->where('created_by', $filters['creator_id']));
+                $mq->when(! empty($filters['membership_number']), fn ($q) => $q->where('membership_number', 'like', '%'.$filters['membership_number'].'%'));
+                $mq->when(! empty($filters['phone']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%'.$filters['phone'].'%')));
+                $mq->when(! empty($filters['partner_id']), fn ($q) => $q->where('partner_id', $filters['partner_id']));
+                $mq->when(! empty($filters['sale_id']), fn ($q) => $q->where('sales_id', $filters['sale_id']));
+                $mq->when(! empty($filters['creator_id']), fn ($q) => $q->where('created_by', $filters['creator_id']));
             })
-            ->when(!empty($filters['changed_by']), fn($q) => $q->whereHas('changer', fn($cq) => $cq->where('name', $filters['changed_by'])))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
+            ->when(! empty($filters['changed_by']), fn ($q) => $q->whereHas('changer', fn ($cq) => $cq->where('name', $filters['changed_by'])))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest('created_at');
 
         $histories = $historiesQuery
@@ -69,6 +69,7 @@ class AdminActiveHistoryController extends BaseController
         $histories->getCollection()->transform(function (MemberActiveHistory $history) {
             $sales = $history->membership?->sales;
             $partner = $history->membership?->partner;
+
             return [
                 'id' => $history->id,
                 'membership_id' => $history->membership_id,
@@ -111,13 +112,13 @@ class AdminActiveHistoryController extends BaseController
                 ->distinct())
             ->orderBy('title')
             ->get()
-            ->map(fn($p) => ['value' => $p->id, 'label' => $p->title])
+            ->map(fn ($p) => ['value' => $p->id, 'label' => $p->title])
             ->toArray();
 
         $sales = Sales::query()
             ->orderBy('id')
             ->get()
-            ->map(fn($s) => [
+            ->map(fn ($s) => [
                 'value' => $s->id,
                 'label' => $s->getTranslation('name', app()->getLocale())
                     ?: $s->getTranslation('name', 'ar')
@@ -133,7 +134,7 @@ class AdminActiveHistoryController extends BaseController
         $creators = User::whereIn('id', $creatorIdsQuery)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
-            ->map(fn($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
+            ->map(fn ($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
             ->toArray();
 
         $changerIdsQuery = MemberActiveHistory::query()
@@ -147,7 +148,7 @@ class AdminActiveHistoryController extends BaseController
         $changedByOptions = User::whereIn('id', $changerIdsQuery)
             ->orderBy('name')
             ->get(['name'])
-            ->map(fn($u) => ['value' => $u->name, 'label' => $u->name])
+            ->map(fn ($u) => ['value' => $u->name, 'label' => $u->name])
             ->toArray();
 
         $userNames = User::query()
@@ -163,7 +164,7 @@ class AdminActiveHistoryController extends BaseController
             ->orderBy('created_at', 'desc')
             ->limit(2000)
             ->get(['id', 'name', 'slug', 'created_at'])
-            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'slug' => $u->slug])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'slug' => $u->slug])
             ->toArray();
 
         return Inertia::render('Admin/ActiveHistory/List', [

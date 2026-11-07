@@ -15,8 +15,15 @@ class AdminFaqUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FAQS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FAQS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FAQS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FAQS;
+    }
 
     private UpdateFaqAction $updateAction;
 

@@ -31,7 +31,7 @@ class QuickAddAfterTest extends TestCase
     private function quickAdd(User $by)
     {
         return $this->actingAs($by)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
-            ->post(route('admin.user.membership.quick-add'), ['name' => 'Omar Ali', 'phone' => '01012345678', 'device' => 'android', 'member_kind' => 'company', 'wants_card' => true]);
+            ->post(route('admin.user.membership.quick-add'), ['name' => 'Omar Ali', 'phone' => '01012345678', 'member_kind' => 'company', 'wants_card' => true]);
     }
 
     public function test_after_adding_the_admin_lands_on_the_next_steps_page_and_the_whatsapp_page_has_everything(): void
@@ -51,9 +51,10 @@ class QuickAddAfterTest extends TestCase
         $msg = $wa['message'];
         $this->assertStringContainsString('Omar Ali', $msg);
         $this->assertStringContainsString($m->membership_number, $msg);          // membership number
-        $this->assertStringContainsString('/membership/', $msg);                  // card link
-        $this->assertStringContainsString('play.google.com', $msg);               // android link
-        $this->assertStringNotContainsString('آيفون:', $msg);                     // no iOS link set: that line is dropped, not left empty
+        $this->assertStringContainsString('/membership/'.$m->membership_number.'?slug='.$m->membership_number, $msg); // card link carries the number
+        $this->assertStringContainsString('play.google.com', $msg);               // full android link
+        $this->assertStringContainsString('apps.apple.com', $msg);                // full iPhone link
+        $this->assertStringNotContainsString('deilar.com/app', $msg); // WhatsApp gets the full links, not the short one
         $this->assertStringContainsString('مندوبنا', $msg);                       // wanted a card
         $this->assertFalse($wa['can_edit_message']);                              // read only without the permission
         $this->assertSame('2010'.'12345678', $wa['wa_own']);

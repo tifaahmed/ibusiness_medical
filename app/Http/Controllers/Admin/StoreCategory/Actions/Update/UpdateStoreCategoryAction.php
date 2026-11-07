@@ -11,9 +11,6 @@ class UpdateStoreCategoryAction
     /**
      * Execute the action to update a store category.
      *
-     * @param StoreCategory $storeCategory
-     * @param array $validated
-     * @return StoreCategory
      * @throws \Exception
      */
     public function execute(StoreCategory $storeCategory, array $validated): StoreCategory

@@ -15,8 +15,15 @@ class AdminGovernorateDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_GOVERNORATES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_GOVERNORATES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_GOVERNORATES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_GOVERNORATES;
+    }
 
     /**
      * Remove the specified governorate from storage.
@@ -90,6 +97,3 @@ class AdminGovernorateDeleteController extends BaseController
         }
     }
 }
-
-
-

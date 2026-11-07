@@ -26,7 +26,7 @@ class AdminMembershipUsageStoreController extends BaseController
         $validated = $request->validated();
 
         try {
-            if (!empty($validated['membership_id'])) {
+            if (! empty($validated['membership_id'])) {
                 $membership = Membership::find($validated['membership_id']);
                 if ($membership) {
                     $this->assertCanManageMembership($membership);

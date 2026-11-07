@@ -16,8 +16,15 @@ class AdminFacilityTypeEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Show the form for editing the specified facility type.
@@ -35,4 +42,3 @@ class AdminFacilityTypeEditController extends BaseController
         return Inertia::render('Admin/FacilityType/Edit/FacilityTypeEditView', $result);
     }
 }
-

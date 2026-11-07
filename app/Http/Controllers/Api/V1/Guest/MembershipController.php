@@ -24,7 +24,7 @@ class MembershipController extends Controller
             })
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             throw ValidationException::withMessages([
                 'membership_number' => __('home.member_card_modal.not_found'),
             ]);

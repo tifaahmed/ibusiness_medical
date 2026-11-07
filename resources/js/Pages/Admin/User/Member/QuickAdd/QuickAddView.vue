@@ -32,13 +32,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <fieldset class="space-y-1">
-          <legend class="text-xs text-muted-foreground">{{ t.phone_type || 'Phone type' }}</legend>
-          <div class="grid grid-cols-2 gap-2">
-            <button v-for="d in devices" :key="d.v" type="button" class="h-12 rounded-md border px-3 text-sm font-medium" :class="form.device === d.v ? 'chip-positive border-transparent' : 'border-border'" :data-testid="'qa-device-' + d.v" @click="form.device = d.v">{{ d.l }}</button>
-          </div>
-        </fieldset>
+      <div class="grid grid-cols-1 gap-4">
         <fieldset class="space-y-1">
           <legend class="text-xs text-muted-foreground">{{ t.customer_kind || 'Individual or company' }}</legend>
           <div class="grid grid-cols-2 gap-2">
@@ -112,15 +106,14 @@ const page = usePage();
 const t = computed(() => ({ ...(page.props.translations?.admin?.member_list || {}), ...(page.props.translations?.admin?.quick_add || {}) }));
 const me = computed(() => page.props.auth?.user?.name || '—');
 
-const devices = computed(() => [{ v: 'android', l: t.value.android || 'Android' }, { v: 'iphone', l: t.value.iphone || 'iPhone' }]);
 const kinds = computed(() => [{ v: 'individual', l: t.value.individual || 'Individual' }, { v: 'company', l: t.value.company || 'Company' }]);
 
-// Android + company are what sales usually register, so they start selected.
-const form = reactive({ name: '', phone: '', device: 'android', member_kind: 'company', wants_card: false, sales_id: null });
+// Company is what sales usually register, so it starts selected. The text carries one short link that opens the right store for each phone.
+const form = reactive({ name: '', phone: '', member_kind: 'company', wants_card: false, sales_id: null });
 const error = ref('');
 const busy = ref(false);
 const phone = reactive({ state: 'idle', message: '', member: null }); // idle | checking | free | taken
-const ready = computed(() => form.name.trim() && /^01\d{9}$/.test(form.phone) && form.device && form.member_kind && phone.state !== 'taken' && phone.state !== 'checking');
+const ready = computed(() => form.name.trim() && /^01\d{9}$/.test(form.phone) && form.member_kind && phone.state !== 'taken' && phone.state !== 'checking');
 
 // The moment the 11th digit is in, ask whether the number is already registered (and by whom).
 let phoneSeq = 0;
@@ -155,10 +148,10 @@ const resetText = () => { edited.value = false; custom.value = preview.value?.bo
 watch(() => preview.value?.body, (b) => { if (!edited.value) custom.value = b || ''; });
 
 let seq = 0;
-watch(() => [form.device, form.member_kind, form.wants_card], async () => {
+watch(() => [form.member_kind, form.wants_card], async () => {
     const mine = ++seq;
   try {
-    const url = route('admin.user.membership.quick-add.preview', { device: form.device || '', member_kind: form.member_kind || '', wants_card: form.wants_card ? 1 : 0 });
+    const url = route('admin.user.membership.quick-add.preview', { member_kind: form.member_kind || '', wants_card: form.wants_card ? 1 : 0 });
     const r = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
     if (mine === seq) preview.value = r.ok ? await r.json() : null;
   } catch (e) { if (mine === seq) preview.value = null; }

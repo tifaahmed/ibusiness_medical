@@ -23,12 +23,12 @@ class AdminMembershipUsageListController extends BaseController
         $scopeFilter = $this->membershipScopeFilter();
 
         $usages = MembershipUsage::with(['membership.user', 'membership.creator:id,name,email', 'facility', 'facilityBranch', 'facilityType'])
-            ->when($restricted, fn($q) => $q->whereHas('membership', $scopeFilter))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->when($restricted, fn ($q) => $q->whereHas('membership', $scopeFilter))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->whereHas('membership', function ($mq) use ($filters) {
-                    $mq->where('membership_number', 'like', '%' . $filters['search'] . '%')
+                    $mq->where('membership_number', 'like', '%'.$filters['search'].'%')
                         ->orWhereHas('user', function ($uq) use ($filters) {
-                            $uq->where('name', 'like', '%' . $filters['search'] . '%');
+                            $uq->where('name', 'like', '%'.$filters['search'].'%');
                         });
                 });
             })
@@ -41,20 +41,20 @@ class AdminMembershipUsageListController extends BaseController
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
-        $facilities = Facility::all()->map(fn($f) => [
-            'id'   => $f->id,
+        $facilities = Facility::all()->map(fn ($f) => [
+            'id' => $f->id,
             'name' => $f->getTranslation('name', app()->getLocale()),
         ]);
 
-        $facilityTypes = FacilityType::all()->map(fn($t) => [
-            'id'   => $t->id,
+        $facilityTypes = FacilityType::all()->map(fn ($t) => [
+            'id' => $t->id,
             'name' => $t->getTranslation('name', app()->getLocale()),
         ]);
 
         return Inertia::render('Admin/MembershipUsage/List', [
-            'usages'        => new AdminMembershipUsageListCollection($usages)->toArray($request),
-            'filters'       => $filters,
-            'facilities'    => $facilities,
+            'usages' => new AdminMembershipUsageListCollection($usages)->toArray($request),
+            'filters' => $filters,
+            'facilities' => $facilities,
             'facilityTypes' => $facilityTypes,
         ]);
     }
@@ -62,8 +62,8 @@ class AdminMembershipUsageListController extends BaseController
     protected function getFilters(Request $request): array
     {
         return [
-            'search'           => $request->input('search', ''),
-            'facility_id'      => $request->input('facility_id'),
+            'search' => $request->input('search', ''),
+            'facility_id' => $request->input('facility_id'),
             'facility_type_id' => $request->input('facility_type_id'),
         ];
     }

@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers\Admin\MemberPayment\Import;
 
-use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\Membership;
 use App\Models\Partner;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
@@ -27,9 +24,9 @@ class AdminMemberPaymentImportPreviewController extends BaseController
             $request->file('file')->getClientOriginalExtension()
         );
 
-        $rows = array_values(array_filter($rows, fn($row) => !empty($row['membership_number']) || !empty($row['email'])));
+        $rows = array_values(array_filter($rows, fn ($row) => ! empty($row['membership_number']) || ! empty($row['email'])));
 
-        $partners = Partner::all()->keyBy(fn($p) => mb_strtolower(trim((string) $p->title)));
+        $partners = Partner::all()->keyBy(fn ($p) => mb_strtolower(trim((string) $p->title)));
 
         $preview = [];
         foreach ($rows as $i => $raw) {
@@ -37,14 +34,14 @@ class AdminMemberPaymentImportPreviewController extends BaseController
             $errors = $this->validateRow($parsed);
 
             $match = null;
-            if (!empty($parsed['membership_number'])) {
+            if (! empty($parsed['membership_number'])) {
                 $match = Membership::with('user', 'partner')
                     ->where('membership_number', $parsed['membership_number'])
                     ->first();
             }
-            if (!$match && !empty($parsed['email'])) {
+            if (! $match && ! empty($parsed['email'])) {
                 $match = Membership::with('user', 'partner')
-                    ->whereHas('user', fn($q) => $q->where('email', $parsed['email']))
+                    ->whereHas('user', fn ($q) => $q->where('email', $parsed['email']))
                     ->first();
             }
 
@@ -60,7 +57,7 @@ class AdminMemberPaymentImportPreviewController extends BaseController
                 }
             }
 
-            $status = !empty($errors) ? 'error' : ($match ? 'matched' : 'unmatched');
+            $status = ! empty($errors) ? 'error' : ($match ? 'matched' : 'unmatched');
 
             $preview[] = [
                 'index' => $i,
@@ -88,7 +85,7 @@ class AdminMemberPaymentImportPreviewController extends BaseController
     {
         $extension = strtolower($extension);
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
             $reader->setDelimiter(',');
         } else {
@@ -113,6 +110,7 @@ class AdminMemberPaymentImportPreviewController extends BaseController
         );
 
         $spreadsheet->disconnectWorksheets();
+
         return $rows;
     }
 
@@ -131,7 +129,9 @@ class AdminMemberPaymentImportPreviewController extends BaseController
                     $headerRow = $r;
                     break 2;
                 }
-                if ($col === $highestCol) break;
+                if ($col === $highestCol) {
+                    break;
+                }
                 $col++;
             }
         }
@@ -146,7 +146,9 @@ class AdminMemberPaymentImportPreviewController extends BaseController
             if ($val !== '') {
                 $headerMap[mb_strtolower($val)] = $col;
             }
-            if ($col === $highestCol) break;
+            if ($col === $highestCol) {
+                break;
+            }
             $col++;
         }
 
@@ -160,11 +162,12 @@ class AdminMemberPaymentImportPreviewController extends BaseController
             foreach ($columnAliases as $key => $candidates) {
                 $row[$key] = $this->cell($sheet, $headerMap, $candidates, $r);
             }
-            if (collect($row)->filter(fn($v) => $v !== '')->isEmpty()) {
+            if (collect($row)->filter(fn ($v) => $v !== '')->isEmpty()) {
                 continue;
             }
             $rows[] = $row;
         }
+
         return $rows;
     }
 
@@ -174,21 +177,23 @@ class AdminMemberPaymentImportPreviewController extends BaseController
             $key = mb_strtolower($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
     private function parseRow(array $raw, $partners): array
     {
         $type = mb_strtolower(trim($raw['type'] ?? ''));
-        if (!in_array($type, ['commission', 'profit', 'free', ''], true)) {
+        if (! in_array($type, ['commission', 'profit', 'free', ''], true)) {
             $type = '';
         }
 
         $partnerId = null;
-        if (!empty($raw['partner'])) {
+        if (! empty($raw['partner'])) {
             $key = mb_strtolower(trim($raw['partner']));
             $partnerId = $partners->get($key)?->id;
         }
@@ -208,10 +213,15 @@ class AdminMemberPaymentImportPreviewController extends BaseController
     private function parseAmount(string $raw): ?float
     {
         $raw = trim($raw);
-        if ($raw === '') return null;
+        if ($raw === '') {
+            return null;
+        }
         $clean = str_replace([',', ' '], '', $raw);
-        if (!is_numeric($clean)) return null;
+        if (! is_numeric($clean)) {
+            return null;
+        }
         $val = (float) $clean;
+
         return $val >= 0 ? $val : null;
     }
 
@@ -224,9 +234,10 @@ class AdminMemberPaymentImportPreviewController extends BaseController
         if ($parsed['amount'] === null || $parsed['amount'] === '') {
             $errors['amount'] = 'Amount is required and must be a non-negative number.';
         }
-        if (!empty($parsed['type']) && !in_array($parsed['type'], ['commission', 'profit', 'free'], true)) {
+        if (! empty($parsed['type']) && ! in_array($parsed['type'], ['commission', 'profit', 'free'], true)) {
             $errors['type'] = 'Type must be Commission, Profit, Free, or left empty (defaults to Commission).';
         }
+
         return $errors;
     }
 }

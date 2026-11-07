@@ -15,8 +15,15 @@ class AdminOfferDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_OFFERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_OFFERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OFFERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_OFFERS;
+    }
 
     /**
      * Remove the specified offer from storage.

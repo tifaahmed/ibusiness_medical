@@ -15,8 +15,15 @@ class AdminFacilityTypeShowController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Display the specified facility type.
@@ -36,4 +43,3 @@ class AdminFacilityTypeShowController extends BaseController
         return Inertia::render('Admin/FacilityType/Show', $result);
     }
 }
-

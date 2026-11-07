@@ -15,8 +15,15 @@ class AdminProductUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PRODUCTS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PRODUCTS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PRODUCTS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PRODUCTS;
+    }
 
     private UpdateProductAction $updateAction;
 

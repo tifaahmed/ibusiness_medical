@@ -12,9 +12,6 @@ class UpdateGovernorateAction
     /**
      * Execute the action to update a governorate.
      *
-     * @param Governorate $governorate
-     * @param array $validated
-     * @return Governorate
      * @throws \Exception
      */
     public function execute(Governorate $governorate, array $validated): Governorate
@@ -57,16 +54,12 @@ class UpdateGovernorateAction
 
     /**
      * Handle cities CRUD scoped to the governorate.
-     *
-     * @param Governorate $governorate
-     * @param array $citiesData
-     * @return void
      */
     private function handleCities(Governorate $governorate, array $citiesData): void
     {
         $keepIds = [];
         foreach ($citiesData as $cityData) {
-            if (!empty($cityData['id'])) {
+            if (! empty($cityData['id'])) {
                 $keepIds[] = $cityData['id'];
             }
         }
@@ -80,7 +73,7 @@ class UpdateGovernorateAction
         foreach ($citiesData as $cityData) {
             $name = $cityData['name'] ?? [];
 
-            if (!empty($cityData['id'])) {
+            if (! empty($cityData['id'])) {
                 $city = City::where('id', $cityData['id'])
                     ->where('governorate_id', $governorate->id)
                     ->first();

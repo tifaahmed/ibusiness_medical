@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\V1\Guest;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Guest\ServiceResource;
+use App\Models\Governorate;
 use App\Models\Service;
 use App\Models\ServiceType;
-use App\Models\Governorate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,24 +24,24 @@ class ServiceController extends Controller
         ];
 
         $services = Service::with(['serviceType', 'governorate', 'city', 'tags'])
-            ->when($filters['category_id'], fn($q) => $q->where('category_id', $filters['category_id']))
-            ->when($filters['governorate_id'], fn($q) => $q->where('governorate_id', $filters['governorate_id']))
-            ->when($filters['city_id'], fn($q) => $q->where('city_id', $filters['city_id']))
-            ->when($filters['tag'], fn($q) => $q->where('tag', $filters['tag']))
-            ->when($filters['has_discount'], fn($q) => $q->withDiscount())
-            ->when($filters['search'], fn($q) => $q->where('title', 'like', '%' . $filters['search'] . '%'))
+            ->when($filters['category_id'], fn ($q) => $q->where('category_id', $filters['category_id']))
+            ->when($filters['governorate_id'], fn ($q) => $q->where('governorate_id', $filters['governorate_id']))
+            ->when($filters['city_id'], fn ($q) => $q->where('city_id', $filters['city_id']))
+            ->when($filters['tag'], fn ($q) => $q->where('tag', $filters['tag']))
+            ->when($filters['has_discount'], fn ($q) => $q->withDiscount())
+            ->when($filters['search'], fn ($q) => $q->where('title', 'like', '%'.$filters['search'].'%'))
             ->ordered()
             ->paginate($request->input('per_page', 12))
             ->withQueryString();
 
-        $categories = ServiceType::active()->get()->map(fn($t) => [
+        $categories = ServiceType::active()->get()->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
             'icon' => $t->icon,
             'color' => $t->color,
         ]);
 
-        $governorates = Governorate::all()->map(fn($g) => [
+        $governorates = Governorate::all()->map(fn ($g) => [
             'id' => $g->id,
             'name' => $g->name,
         ]);

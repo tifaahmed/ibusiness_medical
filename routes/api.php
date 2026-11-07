@@ -143,6 +143,11 @@ Route::prefix('v1')
                 ->middleware('throttle:60,1,api.mobile.loyalty.badges')
                 ->name('loyalty.badges');
 
+            /* First launch after an install: which invitation link was tapped from this IP (see `ReferralLinkController`). */
+            Route::post('/referral/match', [\App\Http\Controllers\Api\V1\ReferralLinkController::class, 'match'])
+                ->middleware('throttle:10,1,api.mobile.referral.match')
+                ->name('referral.match');
+
             Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
             Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
             Route::get('/facilities', [V1MobileFacilityController::class, 'index'])->name('facilities.index');
@@ -383,6 +388,10 @@ Route::prefix('v1')
                 Route::post('/auth/phone-check', [V1PartnerOtpAuthController::class, 'lookup'])
                     ->middleware('throttle:60,1,api.partner.auth.phone.check')
                     ->name('auth.phone.check');
+                /* A visitor tapped an invitation link on the storefront; the visitor's IP comes in the body. */
+                Route::post('/referral/click', [\App\Http\Controllers\Api\V1\ReferralLinkController::class, 'click'])
+                    ->middleware('throttle:120,1,api.partner.referral.click')
+                    ->name('referral.click');
 
                 /*
                  * Enquiries from a partner storefront's public forms. Key-gated
@@ -544,7 +553,15 @@ Route::prefix('v1')
             Route::get('/loyalty/history', [V1MemberLoyaltyController::class, 'history'])->name('me.loyalty.history');
             Route::post('/loyalty/convert', [V1MemberLoyaltyController::class, 'convert'])
                 ->middleware('throttle:20,1,api.me.loyalty.convert')->name('me.loyalty.convert');
+            /* Member-gets-member: my code / who I brought, and "this card number brought me" — `ReferralController`. */
+            Route::get('/referral', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'show'])->name('me.referral.show');
+            Route::post('/referral/claim', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'claim'])
+                ->middleware('throttle:10,1,api.me.referral.claim')->name('me.referral.claim');
             Route::get('/wallet', [V1MemberLoyaltyController::class, 'wallet'])->name('me.wallet');
+            /* Cash wallet money out to Vodafone Cash (off until the admin switches it on) — `WithdrawalController`. */
+            Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\V1\Member\WithdrawalController::class, 'index'])->name('me.wallet.withdrawals');
+            Route::post('/wallet/withdrawals', [\App\Http\Controllers\Api\V1\Member\WithdrawalController::class, 'store'])->middleware('throttle:5,1,api.me.wallet.withdraw')->name('me.wallet.withdrawals.store');
+            Route::post('/wallet/withdrawals/{withdrawal}/cancel', [\App\Http\Controllers\Api\V1\Member\WithdrawalController::class, 'cancel'])->middleware('throttle:10,1,api.me.wallet.withdraw.cancel')->name('me.wallet.withdrawals.cancel');
             Route::post('/wallet/topup', [V1MemberLoyaltyController::class, 'topup'])->middleware('throttle:10,1,api.me.wallet.topup')->name('me.wallet.topup');
             /* Points / wallet money sent to another member, who must accept — `TransferController`. */
             Route::post('/transfers/lookup', [V1MemberTransferController::class, 'lookup'])->middleware('throttle:20,1,api.me.transfers.lookup')->name('me.transfers.lookup');

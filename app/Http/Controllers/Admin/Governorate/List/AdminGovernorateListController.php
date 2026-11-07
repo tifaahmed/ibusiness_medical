@@ -16,8 +16,15 @@ class AdminGovernorateListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_GOVERNORATES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_GOVERNORATES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_GOVERNORATES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_GOVERNORATES;
+    }
 
     /**
      * Display a listing of governorates.
@@ -41,11 +48,11 @@ class AdminGovernorateListController extends BaseController
                             ->whereColumn('facility_branches.governorate_id', 'governorates.id'));
                 }),
             ])
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
+                    $query->where('name->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })
             ->latest()
@@ -67,4 +74,3 @@ class AdminGovernorateListController extends BaseController
         ];
     }
 }
-

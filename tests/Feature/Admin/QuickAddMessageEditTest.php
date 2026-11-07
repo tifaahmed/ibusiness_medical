@@ -31,7 +31,7 @@ class QuickAddMessageEditTest extends TestCase
     private function add(User $by, array $over = [])
     {
         return $this->actingAs($by)->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)->post(route('admin.user.membership.quick-add'), $over + [
-            'name' => 'Omar', 'phone' => '01012345678', 'device' => 'android', 'member_kind' => 'company', 'wants_card' => false,
+            'name' => 'Omar', 'phone' => '01012345678', 'member_kind' => 'company', 'wants_card' => false,
         ]);
     }
 
@@ -42,17 +42,17 @@ class QuickAddMessageEditTest extends TestCase
         Setting::where('slug', QuickAdd::MSG_COMPANY)->update(['value' => 'مرحباً بشركتكم في {app} — {days} مجاناً']);
         SiteSettings::forget();
 
-        $this->assertStringContainsString('مرحباً بشركتكم في ديلر — 30 يوماً مجاناً', QuickAdd::message('company', 'android', false));
+        $this->assertStringContainsString('مرحباً بشركتكم في ديلر — 30 يوماً مجاناً', QuickAdd::message('company', false));
 
         // Sentences are joined by one space, whatever spaces the stored text has.
         Setting::where('slug', QuickAdd::MSG_COMPANY)->update(['value' => QuickAdd::templateDefaults()[QuickAdd::MSG_COMPANY]]);
         SiteSettings::forget();
-        $this->assertStringContainsString('يتم الخصم. مندوبنا', QuickAdd::message('company', 'android', true));
+        $this->assertStringContainsString('يتم الخصم. مندوبنا', QuickAdd::message('company', true));
 
         // A blanked template falls back to the built-in wording: never an empty SMS.
         Setting::where('slug', QuickAdd::MSG_COMPANY)->update(['value' => '']);
         SiteSettings::forget();
-        $this->assertStringContainsString('أهلاً بك في ديلر! لديك تجربة مجانية', QuickAdd::message('company', 'android', false));
+        $this->assertStringContainsString('أهلاً بك في ديلر! لديك تجربة مجانية', QuickAdd::message('company', false));
     }
 
     public function test_one_customers_message_needs_its_permission(): void

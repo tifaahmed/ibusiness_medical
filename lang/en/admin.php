@@ -2489,4 +2489,13 @@ return [
         'arabic' => 'Arabic',
         'english' => 'English',
     ],
+
+    'referrals' => [
+        't_count' => 'Members brought', 't_trials' => 'Of them started a trial', 't_subscribed' => 'Of them subscribed',
+        't_paid' => 'Paid to referrers (EGP)', 't_reversed' => 'Commission reversed (refunds, EGP)', 't_discounts' => 'Discounts used (EGP)',
+        'referrer' => 'Brought by', 'referred' => 'New member', 'card' => 'Typed card number', 'link' => 'Link / QR',
+        'subscribed' => 'Subscribed', 'waiting' => 'Not subscribed yet', 'paid_trial' => 'Trial reward', 'paid_commission' => 'Commission',
+        'discount' => 'Discount', 'used' => 'used', 'pending' => 'waiting',
+    ],
+
 ];

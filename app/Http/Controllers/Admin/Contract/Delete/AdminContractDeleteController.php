@@ -15,8 +15,15 @@ class AdminContractDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_CONTRACTS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_CONTRACTS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_CONTRACTS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_CONTRACTS;
+    }
 
     /**
      * Remove the specified contract from storage.

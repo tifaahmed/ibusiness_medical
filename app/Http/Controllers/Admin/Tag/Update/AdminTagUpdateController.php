@@ -15,8 +15,15 @@ class AdminTagUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_TAGS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_TAGS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_TAGS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_TAGS;
+    }
 
     public function __construct(private UpdateTagAction $updateAction) {}
 
@@ -28,6 +35,7 @@ class AdminTagUpdateController extends BaseController
 
             $updated = $this->updateAction->execute($tag, $request->validated());
             Log::info('Tag updated', ['id' => $updated->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.tag.list')->with('success', 'Tag updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update tag. Please try again.'])->withInput();

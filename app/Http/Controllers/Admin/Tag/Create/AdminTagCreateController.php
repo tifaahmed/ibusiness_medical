@@ -14,8 +14,15 @@ class AdminTagCreateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_TAGS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_TAGS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_TAGS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_TAGS;
+    }
 
     public function __invoke(): Response
     {

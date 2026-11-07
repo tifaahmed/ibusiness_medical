@@ -34,7 +34,7 @@ class AdminCompanyImportTemplateController extends BaseController
 
         $spreadsheet = $this->buildSpreadsheet($isExample);
         $filename = ($isExample ? 'companies_import_example_' : 'companies_import_template_')
-            . now()->format('Y-m-d_His') . '.xlsx';
+            .now()->format('Y-m-d_His').'.xlsx';
 
         return response()->stream(function () use ($spreadsheet) {
             $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
@@ -59,7 +59,7 @@ class AdminCompanyImportTemplateController extends BaseController
         }
         $lastCol = end($letters) ?: 'A';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('admin.company_import.template_sheet_title'));
         if ($isRtl) {
@@ -81,22 +81,22 @@ class AdminCompanyImportTemplateController extends BaseController
         if ($isExample) {
             $rows = [
                 [
-                    'id'               => '',
-                    'name_en'          => 'Acme Medical Center',
-                    'name_ar'          => 'مركز أكيم الطبي',
-                    'slug'             => 'acme-medical-center',
+                    'id' => '',
+                    'name_en' => 'Acme Medical Center',
+                    'name_ar' => 'مركز أكيم الطبي',
+                    'slug' => 'acme-medical-center',
                     'created_by_email' => 'admin@example.com',
-                    'created_at'       => '2026-01-01 10:00:00',
-                    'updated_at'       => '2026-01-15 12:30:00',
+                    'created_at' => '2026-01-01 10:00:00',
+                    'updated_at' => '2026-01-15 12:30:00',
                 ],
                 [
-                    'id'               => '',
-                    'name_en'          => 'Green Valley Hospital',
-                    'name_ar'          => 'مستشفى الوادي الأخضر',
-                    'slug'             => '',
+                    'id' => '',
+                    'name_en' => 'Green Valley Hospital',
+                    'name_ar' => 'مستشفى الوادي الأخضر',
+                    'slug' => '',
                     'created_by_email' => '',
-                    'created_at'       => '2026-02-10 09:15:00',
-                    'updated_at'       => '',
+                    'created_at' => '2026-02-10 09:15:00',
+                    'updated_at' => '',
                 ],
             ];
         } else {

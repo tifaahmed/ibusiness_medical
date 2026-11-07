@@ -59,7 +59,7 @@ class UpdateServiceAction
             $updates['tag'] = $validated['tag'];
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $service->update($updates);
         }
 
@@ -69,7 +69,7 @@ class UpdateServiceAction
                 ->toMediaCollection('image');
         }
 
-        if (!empty($validated['deleted_gallery_ids'])) {
+        if (! empty($validated['deleted_gallery_ids'])) {
             $this->mediaService->deleteMediaByIds($service, $validated['deleted_gallery_ids'], 'gallery');
         }
 

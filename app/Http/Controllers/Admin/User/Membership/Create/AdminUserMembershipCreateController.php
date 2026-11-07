@@ -9,7 +9,6 @@ use App\Models\Company;
 use App\Models\Governorate;
 use App\Models\Partner;
 use App\Models\Sales;
-use Illuminate\Http\Request;
 use Illuminate\Auth\Access\AuthorizationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,16 +32,16 @@ class AdminUserMembershipCreateController extends BaseController
             throw new AuthorizationException('No partner is attached to your account. Ask a super admin to assign one before creating memberships.');
         }
 
-        $companies = Company::orderBy('slug')->get()->map(fn($c) => [
+        $companies = Company::orderBy('slug')->get()->map(fn ($c) => [
             'value' => $c->id,
             'label' => $c->getTranslation('name', $locale) ?: $c->getTranslation('name', 'ar') ?: $c->getTranslation('name', 'en'),
         ])->toArray();
 
         $partners = Partner::query()
-            ->when($partnerLocked, fn($q) => $q->where('id', $adminPartnerId))
+            ->when($partnerLocked, fn ($q) => $q->where('id', $adminPartnerId))
             ->orderBy('title')
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'value' => $p->id,
                 'label' => $p->title,
             ])->toArray();
@@ -50,18 +49,18 @@ class AdminUserMembershipCreateController extends BaseController
         $salesOptions = Sales::query()
             ->orderBy('name')
             ->get()
-            ->map(fn($s) => [
+            ->map(fn ($s) => [
                 'value' => $s->id,
                 'label' => $s->name,
             ])->toArray();
 
-        $governorates = Governorate::with(['cities' => fn($q) => $q->orderBy('slug')])
+        $governorates = Governorate::with(['cities' => fn ($q) => $q->orderBy('slug')])
             ->orderBy('slug')
             ->get()
-            ->map(fn(Governorate $g) => [
+            ->map(fn (Governorate $g) => [
                 'value' => $g->id,
                 'label' => $g->getTranslation('name', $locale) ?: $g->getTranslation('name', 'ar') ?: $g->getTranslation('name', 'en'),
-                'cities' => $g->cities->map(fn($c) => [
+                'cities' => $g->cities->map(fn ($c) => [
                     'value' => $c->id,
                     'label' => $c->getTranslation('name', $locale) ?: $c->getTranslation('name', 'ar') ?: $c->getTranslation('name', 'en'),
                 ])->values(),

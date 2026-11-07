@@ -137,6 +137,8 @@ final class WalletPayments
             return ['ok' => false, 'reason' => 'no_plan'];
         }
 
+        $plan['price'] = Referrals::apply($plan['price'], $membership);
+
         $subscription = DB::transaction(function () use ($membership, $buyer, $plan) {
             User::query()->whereKey($buyer->id)->lockForUpdate()->first();
 

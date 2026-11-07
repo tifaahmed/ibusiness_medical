@@ -29,21 +29,21 @@ class MembershipUsageController extends Controller
         $other = $locale === 'ar' ? 'en' : 'ar';
 
         $facilities = Facility::with('facilityType')->orderBy('id')->get()
-            ->map(fn($f) => [
+            ->map(fn ($f) => [
                 'id' => $f->id,
                 'name' => $f->getTranslation('name', $locale) ?: $f->getTranslation('name', $other),
                 'facility_type_id' => $f->facility_type_id,
             ]);
 
         $facilityBranches = FacilityBranch::orderBy('facility_id')->get()
-            ->map(fn($b) => [
+            ->map(fn ($b) => [
                 'id' => $b->id,
                 'name' => $b->getTranslation('name', $locale) ?: $b->getTranslation('name', $other),
                 'facility_id' => $b->facility_id,
             ]);
 
         $facilityTypes = FacilityType::orderBy('id')->get()
-            ->map(fn($t) => [
+            ->map(fn ($t) => [
                 'id' => $t->id,
                 'name' => $t->getTranslation('name', $locale) ?: $t->getTranslation('name', $other),
             ]);

@@ -41,6 +41,7 @@ trait ScopesByMembershipCreator
         if ($user->hasPermissionTo(UserPermissionEnum::MANAGE_MEMBERSHIPS)) {
             return false;
         }
+
         return $user->hasPermissionTo(UserPermissionEnum::MANAGE_OWN_MEMBERSHIPS);
     }
 
@@ -57,6 +58,7 @@ trait ScopesByMembershipCreator
         if ($user->hasPermissionTo(UserPermissionEnum::MANAGE_MEMBERSHIPS)) {
             return false;
         }
+
         return $user->hasPermissionTo(UserPermissionEnum::MANAGE_PARTNER_MEMBERSHIPS);
     }
 
@@ -73,6 +75,7 @@ trait ScopesByMembershipCreator
         if ($user->hasPermissionTo(UserPermissionEnum::MANAGE_MEMBER_PAYMENTS)) {
             return false;
         }
+
         return $user->hasPermissionTo(UserPermissionEnum::MANAGE_PARTNER_MEMBER_PAYMENTS);
     }
 
@@ -82,10 +85,11 @@ trait ScopesByMembershipCreator
      */
     protected function currentAdminPaymentPartnerId(): ?int
     {
-        if (!$this->scopesPaymentsToPartner()) {
+        if (! $this->scopesPaymentsToPartner()) {
             return null;
         }
         $partnerId = Auth::user()?->partner_id;
+
         return $partnerId !== null ? (int) $partnerId : null;
     }
 
@@ -105,7 +109,7 @@ trait ScopesByMembershipCreator
      */
     protected function membershipPartnerLocked(): bool
     {
-        return $this->scopesMembershipsToPartner() && !$this->scopesMembershipsToCreator();
+        return $this->scopesMembershipsToPartner() && ! $this->scopesMembershipsToCreator();
     }
 
     /**
@@ -114,10 +118,11 @@ trait ScopesByMembershipCreator
      */
     protected function currentAdminPartnerId(): ?int
     {
-        if (!$this->scopesMembershipsToPartner()) {
+        if (! $this->scopesMembershipsToPartner()) {
             return null;
         }
         $partnerId = Auth::user()?->partner_id;
+
         return $partnerId !== null ? (int) $partnerId : null;
     }
 
@@ -134,7 +139,7 @@ trait ScopesByMembershipCreator
     {
         $creator = $this->scopesMembershipsToCreator();
         $partner = $this->scopesMembershipsToPartner();
-        if (!$creator && !$partner) {
+        if (! $creator && ! $partner) {
             return $query;
         }
 
@@ -149,6 +154,7 @@ trait ScopesByMembershipCreator
                 $w->orWhere('partner_id', $partnerId ?? -1);
             }
         });
+
         return $query;
     }
 
@@ -171,7 +177,7 @@ trait ScopesByMembershipCreator
      */
     protected function assertCanManageUser(User $user): void
     {
-        if (!$this->isMembershipScopeRestricted()) {
+        if (! $this->isMembershipScopeRestricted()) {
             return;
         }
 
@@ -180,7 +186,7 @@ trait ScopesByMembershipCreator
             ->where($this->membershipScopeFilter())
             ->exists();
 
-        if (!$matches) {
+        if (! $matches) {
             throw new AuthorizationException($this->scopeViolationMessage());
         }
     }
@@ -190,7 +196,7 @@ trait ScopesByMembershipCreator
      */
     protected function assertCanManageMembership(Membership $membership): void
     {
-        if (!$this->isMembershipScopeRestricted()) {
+        if (! $this->isMembershipScopeRestricted()) {
             return;
         }
 
@@ -203,7 +209,7 @@ trait ScopesByMembershipCreator
             && $partnerId !== null
             && (int) $membership->partner_id === (int) $partnerId;
 
-        if (!$matchesCreator && !$matchesPartner) {
+        if (! $matchesCreator && ! $matchesPartner) {
             throw new AuthorizationException($this->scopeViolationMessage());
         }
     }
@@ -211,12 +217,9 @@ trait ScopesByMembershipCreator
     private function scopeViolationMessage(): string
     {
         return match (true) {
-            $this->scopesMembershipsToCreator() && $this->scopesMembershipsToPartner()
-                => 'You can only manage memberships you created or memberships for your partner.',
-            $this->scopesMembershipsToCreator()
-                => 'You can only manage memberships you created.',
-            $this->scopesMembershipsToPartner()
-                => 'You can only manage memberships for your partner.',
+            $this->scopesMembershipsToCreator() && $this->scopesMembershipsToPartner() => 'You can only manage memberships you created or memberships for your partner.',
+            $this->scopesMembershipsToCreator() => 'You can only manage memberships you created.',
+            $this->scopesMembershipsToPartner() => 'You can only manage memberships for your partner.',
             default => 'You do not have access to this membership.',
         };
     }

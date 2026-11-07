@@ -31,7 +31,7 @@ class AdminUserMembershipDeleteController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'User not found.']);
         } catch (\Exception $e) {
             Log::error('Error fetching user for deletion', [
@@ -41,7 +41,7 @@ class AdminUserMembershipDeleteController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'An error occurred while fetching the user.']);
         }
 
@@ -67,6 +67,7 @@ class AdminUserMembershipDeleteController extends BaseController
                     if ($partnerScoped && $adminPartnerId !== null && (int) $m->partner_id === (int) $adminPartnerId) {
                         return true;
                     }
+
                     return false;
                 })
                 ->values();
@@ -136,9 +137,8 @@ class AdminUserMembershipDeleteController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to delete user and memberships. Please try again.']);
         }
     }
 }
-

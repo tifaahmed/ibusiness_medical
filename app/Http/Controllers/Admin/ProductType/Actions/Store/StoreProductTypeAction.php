@@ -12,8 +12,6 @@ class StoreProductTypeAction
     /**
      * Execute the action to store a product type.
      *
-     * @param array $validated
-     * @return ProductType
      * @throws \Exception
      */
     public function execute(array $validated): ProductType

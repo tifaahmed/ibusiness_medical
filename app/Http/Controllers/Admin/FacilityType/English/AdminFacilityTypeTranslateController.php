@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\FacilityType\English;
 
-use App\Http\Requests\Admin\FacilityType\TranslateFacilityTypeRequest;
 use App\Http\Controllers\Controller as BaseController;
+use App\Http\Requests\Admin\FacilityType\TranslateFacilityTypeRequest;
 use App\Services\FacilityTypeEnglishBackfiller;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;

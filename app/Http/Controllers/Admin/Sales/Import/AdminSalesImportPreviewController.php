@@ -32,12 +32,12 @@ class AdminSalesImportPreviewController extends BaseController
 
         $existingIds = [];
         foreach ($rows as $row) {
-            if (!empty($row['id'])) {
+            if (! empty($row['id'])) {
                 $existingIds[(int) $row['id']] = true;
             }
         }
         $foundIds = [];
-        if (!empty($existingIds)) {
+        if (! empty($existingIds)) {
             $foundIds = Sales::query()
                 ->whereIn('id', array_keys($existingIds))
                 ->pluck('id', 'id')
@@ -51,7 +51,7 @@ class AdminSalesImportPreviewController extends BaseController
             $id = $row['id'] !== '' ? (int) $row['id'] : null;
             $errors = $this->validateRow($row, $id, $foundIds);
 
-            if (!empty($row['created_by']) && !array_key_exists((int) $row['created_by'], $validUserIds)) {
+            if (! empty($row['created_by']) && ! array_key_exists((int) $row['created_by'], $validUserIds)) {
                 $validUserIds[(int) $row['created_by']] = User::whereKey((int) $row['created_by'])->exists();
             }
 
@@ -66,7 +66,7 @@ class AdminSalesImportPreviewController extends BaseController
                 'updated_at' => $row['updated_at'],
                 'status' => ($id !== null && isset($foundIds[$id])) ? 'exists' : 'new',
                 'errors' => $errors,
-                'user_exists' => !empty($row['created_by']) && ($validUserIds[(int) $row['created_by']] ?? false),
+                'user_exists' => ! empty($row['created_by']) && ($validUserIds[(int) $row['created_by']] ?? false),
             ];
         }
 
@@ -88,7 +88,7 @@ class AdminSalesImportPreviewController extends BaseController
     private function parseSpreadsheet(string $path, string $extension): array
     {
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
             $reader->setDelimiter(',');
         } else {
@@ -118,6 +118,7 @@ class AdminSalesImportPreviewController extends BaseController
         }
         if ($headerRow === null) {
             $spreadsheet->disconnectWorksheets();
+
             return [];
         }
 
@@ -161,6 +162,7 @@ class AdminSalesImportPreviewController extends BaseController
         }
 
         $spreadsheet->disconnectWorksheets();
+
         return $rows;
     }
 
@@ -170,9 +172,11 @@ class AdminSalesImportPreviewController extends BaseController
             $key = mb_strtolower($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
@@ -195,6 +199,7 @@ class AdminSalesImportPreviewController extends BaseController
         if ($id !== null && $id <= 0) {
             $errors['id'] = 'The id must be a positive integer.';
         }
+
         return $errors;
     }
 }

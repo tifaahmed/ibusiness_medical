@@ -39,7 +39,7 @@ class AdminMembershipUsageDeleteController extends BaseController
 
             Log::error('Failed to delete MembershipUsage', [
                 'membership_usage_id' => $usageId,
-                'error_message'       => $e->getMessage(),
+                'error_message' => $e->getMessage(),
             ]);
 
             return back()->withErrors(['error' => 'Failed to delete membership usage. Please try again.']);

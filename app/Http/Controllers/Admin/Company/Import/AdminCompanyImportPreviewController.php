@@ -9,7 +9,6 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
 
@@ -18,8 +17,15 @@ class AdminCompanyImportPreviewController extends BaseController
     use CreatorScoped;
     use ExportsCompanyColumns;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     /**
      * Parse an uploaded CSV/XLSX, match each row to an existing company (by id,
@@ -51,7 +57,7 @@ class AdminCompanyImportPreviewController extends BaseController
             $diff = $match ? $this->buildDiff($match, $parsed) : [];
             $hasChanges = collect($diff)->contains(fn ($d) => $d['changed']);
 
-            $status = !empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
+            $status = ! empty($errors) ? 'error' : ($match ? ($hasChanges ? 'update' : 'unchanged') : 'new');
 
             $preview[] = [
                 'index' => $i,
@@ -84,7 +90,7 @@ class AdminCompanyImportPreviewController extends BaseController
     {
         $extension = strtolower($extension);
         if ($extension === 'csv' || $extension === 'txt') {
-            $reader = new CsvReader();
+            $reader = new CsvReader;
             $reader->setInputEncoding('UTF-8');
         } else {
             $reader = IOFactory::createReaderForFile($path);
@@ -130,7 +136,7 @@ class AdminCompanyImportPreviewController extends BaseController
         }
         if ($headerRow === null) {
             throw new \RuntimeException(
-                'No header row found. The file needs a row with at least two known column names ' .
+                'No header row found. The file needs a row with at least two known column names '.
                 '(e.g. "ID", "Name (English)", "Name (Arabic)") — export a companies file to see the expected format.'
             );
         }
@@ -169,22 +175,24 @@ class AdminCompanyImportPreviewController extends BaseController
             $key = $this->normalizeHeader($candidate);
             if (isset($headerMap[$key])) {
                 $v = $sheet->getCell("{$headerMap[$key]}{$row}")->getValue();
+
                 return trim((string) ($v ?? ''));
             }
         }
+
         return '';
     }
 
     private function parseRow(array $raw): array
     {
         return [
-            'id'               => trim((string) ($raw['id'] ?? '')),
-            'name_en'          => trim((string) ($raw['name_en'] ?? '')),
-            'name_ar'          => trim((string) ($raw['name_ar'] ?? '')),
-            'slug'             => trim((string) ($raw['slug'] ?? '')),
+            'id' => trim((string) ($raw['id'] ?? '')),
+            'name_en' => trim((string) ($raw['name_en'] ?? '')),
+            'name_ar' => trim((string) ($raw['name_ar'] ?? '')),
+            'slug' => trim((string) ($raw['slug'] ?? '')),
             'created_by_email' => trim((string) ($raw['created_by_email'] ?? '')),
-            'created_at'       => trim((string) ($raw['created_at'] ?? '')),
-            'updated_at'       => trim((string) ($raw['updated_at'] ?? '')),
+            'created_at' => trim((string) ($raw['created_at'] ?? '')),
+            'updated_at' => trim((string) ($raw['updated_at'] ?? '')),
         ];
     }
 
@@ -194,15 +202,16 @@ class AdminCompanyImportPreviewController extends BaseController
         if (empty($parsed['name_en']) && empty($parsed['name_ar'])) {
             $errors['name'] = 'At least one company name (English or Arabic) is required.';
         }
-        if (!empty($parsed['id']) && !ctype_digit($parsed['id'])) {
+        if (! empty($parsed['id']) && ! ctype_digit($parsed['id'])) {
             $errors['id'] = 'ID must be a whole number.';
         }
-        if (!empty($parsed['created_at']) && strtotime($parsed['created_at']) === false) {
+        if (! empty($parsed['created_at']) && strtotime($parsed['created_at']) === false) {
             $errors['created_at'] = 'Created At must be a valid date (YYYY-MM-DD HH:MM:SS).';
         }
-        if (!empty($parsed['updated_at']) && strtotime($parsed['updated_at']) === false) {
+        if (! empty($parsed['updated_at']) && strtotime($parsed['updated_at']) === false) {
             $errors['updated_at'] = 'Updated At must be a valid date (YYYY-MM-DD HH:MM:SS).';
         }
+
         return $errors;
     }
 
@@ -210,21 +219,21 @@ class AdminCompanyImportPreviewController extends BaseController
     {
         $query = fn () => Company::query()->tap(fn ($q) => $this->applyCreatorScope($q));
 
-        if (!empty($parsed['id'])) {
+        if (! empty($parsed['id'])) {
             $match = $query()->where('id', (int) $parsed['id'])->first();
             if ($match) {
                 return $match;
             }
         }
 
-        if (!empty($parsed['slug'])) {
+        if (! empty($parsed['slug'])) {
             $match = $query()->where('slug', $parsed['slug'])->first();
             if ($match) {
                 return $match;
             }
         }
 
-        if (!empty($parsed['name_en'])) {
+        if (! empty($parsed['name_en'])) {
             $needle = mb_strtolower(trim($parsed['name_en']));
             $match = $query()
                 ->where('name->en', $parsed['name_en'])
@@ -246,8 +255,10 @@ class AdminCompanyImportPreviewController extends BaseController
             ['field' => 'name_ar', 'label' => __('admin.company_export.col_name_ar'), 'old' => $company->getTranslation('name', 'ar'), 'new' => $parsed['name_ar']],
             ['field' => 'slug', 'label' => __('admin.company_export.col_slug'), 'old' => $company->slug, 'new' => $parsed['slug']],
         ];
+
         return array_map(function ($f) {
             $f['changed'] = (string) ($f['old'] ?? '') !== (string) ($f['new'] ?? '');
+
             return $f;
         }, $fields);
     }

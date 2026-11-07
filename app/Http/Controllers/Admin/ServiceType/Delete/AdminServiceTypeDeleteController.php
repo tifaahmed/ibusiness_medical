@@ -13,8 +13,15 @@ class AdminServiceTypeDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SERVICES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+    }
 
     public function __invoke(int $serviceType): RedirectResponse
     {
@@ -24,6 +31,7 @@ class AdminServiceTypeDeleteController extends BaseController
         try {
             $serviceType->delete();
             Log::info('ServiceType deleted', ['id' => $serviceType->id]);
+
             return redirect()->route('admin.service-type.list')->with('success', 'Service category deleted successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to delete service category. Please try again.']);

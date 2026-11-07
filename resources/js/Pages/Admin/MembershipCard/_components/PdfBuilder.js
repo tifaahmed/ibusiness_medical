@@ -2,100 +2,40 @@ import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
 import { loadImage, renderCardCanvas } from './cardRenderer.js';
 
-// A4 portrait dimensions in cm.
-const PAGE_W = 21.0;
-const PAGE_H = 29.7;
-// RULE: a sheet holds 10 cards (2 × 5 of 8.5 × 5.5 cm). Everything else gives way to that.
-//
-// Down the sheet A4 has little spare (5 rows of 5.5 cm leave 2.2 cm in all), so what is left after the top reserve is shared
-// by the rows evenly: each card is centred vertically in a band of equal height, and the cut lines run on the band borders.
-// The count is a RULE (10 = 2 × 5), so this floor is kept low: a row is only dropped when TOP_RESERVE + 5 × (5.5 + 2 × this) would
-// not fit on the sheet, i.e. TOP_RESERVE above ~1.8 cm. Raising TOP_RESERVE past that silently gives 8 per sheet — check the count.
-const CELL_PAD_Y_MIN = 0.04;
-//
-// Across the sheet the columns are pushed OUT to the paper's sides: the left column hugs the left edge, the right column the
-// right edge, and all the free width sits in the middle around the cut line. SIDE_MARGIN is all that is left at each edge
-// (a printer that cannot print to the very edge will clip it).
-const SIDE_MARGIN = 0.25;
-const MIN_COLUMN_GAP = 1.0; // never let two columns come closer than this
-// Room kept free at the top and the bottom of every sheet. The top one holds the pin/staple mark, so it is the bigger.
-const TOP_RESERVE = 1.5; // the pin strip; every extra mm here is taken from the gaps between rows (10 per sheet is fixed)
-const BOTTOM_RESERVE = 0; // the grid runs to the foot of the sheet (a printer that cannot print to the edge will clip the last row)
-const PIN_RADIUS = 0.15; // the pin mark: a small circle with a cross, 0.3 cm wide
-const DEFAULT_PRINT = { width: 8.5, height: 5.5, back_width: 8.0, back_height: 5.0 };
+import { PAGE_W, PAGE_H, sheetLayout, slotRect, backRect, guideShapes } from './sheetGeometry.js';
+
+// The sheet's geometry (10 cards = 2 × 5, columns at the paper's edges, per-card position and size) lives in sheetGeometry.js,
+// shared with the sheet editor page so what is edited there is exactly what is printed here.
+export { sheetLayout };
+
+// The back's spot when the sheet itself is not mirrored: the card's own footprint, back centred in it.
+function backRectUnmirrored(L, pos, print) {
+  const f = slotRect(L, pos, false);
+  const mirrored = backRect(L, pos, print);
+  return { x: f.x + (f.w - mirrored.w) / 2, y: f.y + (f.h - mirrored.h) / 2, w: mirrored.w, h: mirrored.h };
+}
+
 const BACK_FALLBACK = '/images/cards/card-backside.png';
 
 /**
- * Sheet geometry for a card size taken from the project settings (CardPrint):
- * as many columns/rows as fit on A4, centred.
+ * The pin/staple mark and the cutting guides. Drawn at the SAME spot on every page — fronts and backs — so a stack of
+ * printed sheets can be pinned through one point and cut alike. The guides never touch a card: row borders edge to edge,
+ * and the column divider(s) as ONE unbroken line from the top edge to the bottom edge.
  */
-export function sheetLayout(print) {
-  const w = Number(print?.width) > 0 ? Number(print.width) : DEFAULT_PRINT.width;
-  const h = Number(print?.height) > 0 ? Number(print.height) : DEFAULT_PRINT.height;
-  const cols = Math.max(1, Math.floor((PAGE_W - 2 * SIDE_MARGIN + MIN_COLUMN_GAP) / (w + MIN_COLUMN_GAP)));
-  const avail = PAGE_H - TOP_RESERVE - BOTTOM_RESERVE;
-  const rows = Math.max(1, Math.floor(avail / (h + 2 * CELL_PAD_Y_MIN)));
-  // The rows share the whole band between the two reserves, so each card is centred in a square of equal height.
-  const cellH = avail / rows;
-  const gridTop = TOP_RESERVE;
-  // Columns spread from the left edge to the right edge; one column alone sits in the middle.
-  const span = PAGE_W - 2 * SIDE_MARGIN - w;
-  const colX = (c) => (cols === 1 ? (PAGE_W - w) / 2 : SIDE_MARGIN + (c * span) / (cols - 1));
-  return {
-    w,
-    h,
-    cols,
-    rows,
-    perPage: cols * rows,
-    cellH,
-    padY: (cellH - h) / 2,
-    colX,
-    gridTop,
-    gridH: rows * cellH,
-    // The pin mark sits in the middle of the strip above the grid, clear of every square.
-    pinX: PAGE_W / 2,
-    pinY: gridTop / 2,
-  };
-}
-
-function slotXY(L, pos, mirror) {
-  let col = pos % L.cols;
-  const row = Math.floor(pos / L.cols);
-  // Flipped: the columns run right-to-left, so a sheet printed on its back
-  // lines every back up behind its own front. (The columns are placed symmetrically, so the swap lands exactly.)
-  if (mirror) col = L.cols - 1 - col;
-  return { x: L.colX(col), y: L.gridTop + row * L.cellH + L.padY };
-}
-
-/**
- * The pin/staple mark and the centre cutting line. Drawn at the SAME spot on every page — fronts and backs — and it lies on the sheet's centre line,
- * which the mirrored back keeps in place, so a stack of printed sheets can be pinned through one point and cut alike.
- */
-function drawPin(pdf, L) {
+function drawPin(pdf, L, mirror = false) {
+  const g = guideShapes(L, mirror);
   pdf.setDrawColor(150);
   pdf.setLineWidth(0.02);
-  pdf.circle(L.pinX, L.pinY, PIN_RADIUS, 'S');
-  pdf.line(L.pinX - PIN_RADIUS * 0.6, L.pinY, L.pinX + PIN_RADIUS * 0.6, L.pinY);
-  pdf.line(L.pinX, L.pinY - PIN_RADIUS * 0.6, L.pinX, L.pinY + PIN_RADIUS * 0.6);
+  pdf.circle(g.pin.x, g.pin.y, g.pin.r, 'S');
+  pdf.line(g.pin.x - g.pin.r * 0.6, g.pin.y, g.pin.x + g.pin.r * 0.6, g.pin.y);
+  pdf.line(g.pin.x, g.pin.y - g.pin.r * 0.6, g.pin.x, g.pin.y + g.pin.r * 0.6);
 
-  // Cutting guides: thin, light lines that never touch a card.
-  //  - across the sheet, edge to edge, on every border between two rows (and above the first / below the last);
-  //  - down the sheet, in the middle of the free strip between two columns — for two columns that is the centre line,
-  //    one unbroken line from the top edge to the bottom edge (to cut the paper in half).
-  // Same place on fronts and backs (the mirror only swaps columns, which are placed symmetrically).
+  if (!L.guides) return;
   pdf.setDrawColor(200);
   pdf.setLineWidth(0.012);
-  for (let r = 0; r <= L.rows; r++) {
-    const y = L.gridTop + r * L.cellH;
-    pdf.line(0, y, PAGE_W, y);
-  }
-  for (let c = 0; c < L.cols - 1; c++) {
-    const x = (L.colX(c) + L.w + L.colX(c + 1)) / 2;
-    // Every column divider is ONE unbroken line from the top edge to the bottom edge (the middle one passes through the pin mark).
-    pdf.line(x, 0, x, PAGE_H);
-  }
+  g.hLines.forEach((y) => pdf.line(0, y, PAGE_W, y));
+  g.vLines.forEach((x) => pdf.line(x, 0, x, PAGE_H));
 }
-
 
 // The same picture turned left-to-right, as a JPEG data URL.
 function flippedDataUrl(source, w, h) {
@@ -135,8 +75,6 @@ async function backDataUrl(template, mirrorImage = false) {
 export async function buildBackPdf(memberships, partner, template, print, mode, onProgress, overridesFor = null, contact = null) {
   if (!memberships.length) throw new Error('No memberships to render');
   const L = sheetLayout(print);
-  const bw = Math.min(L.w, Number(print?.back_width) > 0 ? Number(print.back_width) : DEFAULT_PRINT.back_width);
-  const bh = Math.min(L.h, Number(print?.back_height) > 0 ? Number(print.back_height) : DEFAULT_PRINT.back_height);
   const mirror = mode === 'mirror';
   // 'fronts': only the fronts of the chosen cards, no back sheets.
   const frontsOnly = mode === 'fronts';
@@ -148,14 +86,15 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
   const pages = Math.ceil(total / L.perPage);
   let first = true;
   // Every sheet gets the pin mark in the same place; the first one exists already, later ones are added below.
-  const newPage = () => { if (!first) pdf.addPage(); first = false; drawPin(pdf, L); };
+  // `flipped`: this page is turned over (a back sheet, or the front page of the 'mirror' mode) so its pin and column lines are mirrored too.
+  const newPage = (flipped = false) => { if (!first) pdf.addPage(); first = false; drawPin(pdf, L, flipped); };
 
   for (let page = 0; page < pages; page++) {
     const from = page * L.perPage;
     const count = Math.min(L.perPage, total - from);
 
     if (withFronts) {
-      newPage();
+      newPage(mirror);
       for (let k = 0; k < count; k++) {
         const canvas = await renderCardCanvas({
           membership: memberships[from + k],
@@ -164,18 +103,20 @@ export async function buildBackPdf(memberships, partner, template, print, mode, 
           overrides: overridesFor ? overridesFor(from + k) : null,
           contact,
         });
-        const { x, y } = slotXY(L, k, mirror);
+        const r = slotRect(L, k, mirror);
         const front = mirror ? flippedDataUrl(canvas, canvas.width, canvas.height) : canvas.toDataURL('image/jpeg', 0.92);
-        pdf.addImage(front, 'JPEG', x, y, L.w, L.h, undefined, 'FAST');
+        pdf.addImage(front, 'JPEG', r.x, r.y, r.w, r.h, undefined, 'FAST');
         if (onProgress) onProgress((from + k + 1) / steps);
       }
     }
 
     if (frontsOnly) continue;
-    newPage();
+    newPage(!mirror);
     for (let k = 0; k < count; k++) {
-      const { x, y } = slotXY(L, k, !mirror);
-      pdf.addImage(back, 'JPEG', x + (L.w - bw) / 2, y + (L.h - bh) / 2, bw, bh, undefined, 'FAST');
+      // The back sits exactly behind its front, at its own (smaller) printed size, centred in the card's footprint.
+      // (In 'mirror' mode the page is the true mirror image, so the back is placed where the unmirrored sheet would have it.)
+      const b = mirror ? backRectUnmirrored(L, k, print) : backRect(L, k, print);
+      pdf.addImage(back, 'JPEG', b.x, b.y, b.w, b.h, undefined, 'FAST');
     }
     if (onProgress) onProgress(withFronts ? (from + count + total) / (total * 2) : (from + count) / total);
   }
@@ -223,12 +164,13 @@ export async function buildBatchAndZip(memberships, partner, template, onProgres
     const posOnPage = i % L.perPage;
     if (i > 0 && posOnPage === 0) batchPdf.addPage();
     if (posOnPage === 0) drawPin(batchPdf, L);
-    const { x, y } = slotXY(L, posOnPage, false);
-    batchPdf.addImage(dataUrl, 'JPEG', x, y, L.w, L.h, undefined, 'FAST');
+    const r = slotRect(L, posOnPage, false);
+    batchPdf.addImage(dataUrl, 'JPEG', r.x, r.y, r.w, r.h, undefined, 'FAST');
 
     // ---- Single-card PDF for the zip ----
-    const single = new jsPDF({ unit: 'cm', format: [L.w, L.h], orientation: 'landscape' });
-    single.addImage(dataUrl, 'JPEG', 0, 0, L.w, L.h, undefined, 'FAST');
+    // The single-card PDF has the card's own printed size (its slot's, when the sheet editor gave that card another one).
+    const single = new jsPDF({ unit: 'cm', format: [r.w, r.h], orientation: 'landscape' });
+    single.addImage(dataUrl, 'JPEG', 0, 0, r.w, r.h, undefined, 'FAST');
     const rawName = String(memberships[i].membership_number ?? `card-${i + 1}`);
     const safeName = rawName.replace(/[^A-Za-z0-9_-]+/g, '_') || `card-${i + 1}`;
     zip.file(`${safeName}.pdf`, single.output('blob'));

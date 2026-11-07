@@ -15,8 +15,15 @@ class AdminStoreCategoryShowController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_STORE_CATEGORIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_STORE_CATEGORIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES;
+    }
 
     /**
      * Display the specified store category.

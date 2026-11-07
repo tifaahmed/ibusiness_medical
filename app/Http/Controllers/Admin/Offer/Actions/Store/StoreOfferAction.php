@@ -12,8 +12,6 @@ class StoreOfferAction
     /**
      * Execute the action to store an offer.
      *
-     * @param array $validated
-     * @return Offer
      * @throws \Exception
      */
     public function execute(array $validated): Offer

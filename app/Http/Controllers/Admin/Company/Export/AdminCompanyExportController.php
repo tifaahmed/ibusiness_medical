@@ -23,8 +23,15 @@ class AdminCompanyExportController extends BaseController
     use CreatorScoped;
     use ExportsCompanyColumns;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     /**
      * Export every company the current admin can see (creator scope applied)
@@ -41,7 +48,7 @@ class AdminCompanyExportController extends BaseController
             ->get();
 
         $spreadsheet = $this->buildSpreadsheet($companies);
-        $filename = 'companies_export_' . now()->format('Y-m-d_His') . '.xlsx';
+        $filename = 'companies_export_'.now()->format('Y-m-d_His').'.xlsx';
 
         return response()->stream(function () use ($spreadsheet) {
             $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
@@ -55,7 +62,7 @@ class AdminCompanyExportController extends BaseController
     }
 
     /**
-     * @param Collection<int, Company> $companies
+     * @param  Collection<int, Company>  $companies
      */
     private function buildSpreadsheet(Collection $companies): Spreadsheet
     {
@@ -70,7 +77,7 @@ class AdminCompanyExportController extends BaseController
         $firstCol = reset($letters) ?: 'A';
         $lastCol = end($letters) ?: 'A';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('admin.company_export.sheet_title'));
         if ($isRtl) {
@@ -96,13 +103,13 @@ class AdminCompanyExportController extends BaseController
             $creator = $company->creator;
 
             $values = [
-                'id'               => (string) $company->id,
-                'name_en'          => (string) ($company->getTranslation('name', 'en') ?: ''),
-                'name_ar'          => (string) ($company->getTranslation('name', 'ar') ?: ''),
-                'slug'             => (string) $company->slug,
+                'id' => (string) $company->id,
+                'name_en' => (string) ($company->getTranslation('name', 'en') ?: ''),
+                'name_ar' => (string) ($company->getTranslation('name', 'ar') ?: ''),
+                'slug' => (string) $company->slug,
                 'created_by_email' => (string) ($creator?->email ?? ''),
-                'created_at'       => $company->created_at?->format('Y-m-d H:i:s') ?? '',
-                'updated_at'       => $company->updated_at?->format('Y-m-d H:i:s') ?? '',
+                'created_at' => $company->created_at?->format('Y-m-d H:i:s') ?? '',
+                'updated_at' => $company->updated_at?->format('Y-m-d H:i:s') ?? '',
             ];
 
             foreach ($keys as $key) {
@@ -116,7 +123,7 @@ class AdminCompanyExportController extends BaseController
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
             ]);
             foreach ($keys as $key) {
-                if (!empty($defs[$key]['align'])) {
+                if (! empty($defs[$key]['align'])) {
                     $sheet->getStyle("{$letters[$key]}{$dataRow}")->getAlignment()->setHorizontal($defs[$key]['align']);
                 }
             }

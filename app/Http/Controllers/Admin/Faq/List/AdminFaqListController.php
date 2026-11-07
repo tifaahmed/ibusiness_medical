@@ -15,8 +15,15 @@ class AdminFaqListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FAQS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FAQS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FAQS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FAQS;
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -24,11 +31,11 @@ class AdminFaqListController extends BaseController
 
         $faqs = Faq::query()
             ->with('creator:id,name,email')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('question->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('answer->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%');
+                    $query->where('question->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('answer->'.app()->getLocale(), 'like', '%'.$filters['search'].'%');
                 });
             })
             ->when(isset($filters['is_active']) && $filters['is_active'] !== '', function ($q) use ($filters) {

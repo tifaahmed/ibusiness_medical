@@ -133,6 +133,19 @@ return [
      * `api_key` is only needed for the admin's "check with Paymob" inquiry.
      * `integration_ids` is a comma-separated list of the payment-method ids to offer.
      */
+    /*
+     * Paymob Payouts (cash wallet money out to Vodafone Cash). A SEPARATE product from Accept: its own host and its own login
+     * (OAuth password grant). Staging host: https://stagingpayouts.paymobsolutions.com — production host comes from Paymob.
+     * Nothing is sent unless the admin switch `wallet_withdrawals_enabled` is on AND these are set.
+     */
+    'paymob_payouts' => [
+        'base_url' => env('PAYMOB_PAYOUTS_BASE_URL'),
+        'client_id' => env('PAYMOB_PAYOUTS_CLIENT_ID'),
+        'client_secret' => env('PAYMOB_PAYOUTS_CLIENT_SECRET'),
+        'username' => env('PAYMOB_PAYOUTS_USERNAME'),
+        'password' => env('PAYMOB_PAYOUTS_PASSWORD'),
+    ],
+
     'paymob' => [
         'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com'),
         'secret_key' => env('PAYMOB_SECRET_KEY'),

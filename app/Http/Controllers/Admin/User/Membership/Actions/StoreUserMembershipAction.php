@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Actions;
 
-use App\Models\User;
 use App\Models\Membership;
+use App\Models\User;
 use App\Services\MediaService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +19,8 @@ class StoreUserMembershipAction
     /**
      * Execute the action to store a user with membership.
      *
-     * @param array $validated
-     * @param UploadedFile|null $avatar
      * @return array{user: User, membership: Membership}
+     *
      * @throws \Exception
      */
     public function execute(array $validated, ?UploadedFile $avatar = null): array
@@ -68,7 +67,7 @@ class StoreUserMembershipAction
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Failed to create user with membership', [
                 'email' => $validated['email'] ?? null,
                 'membership_number' => $validated['membership_number'] ?? null,
@@ -80,5 +79,3 @@ class StoreUserMembershipAction
         }
     }
 }
-
-

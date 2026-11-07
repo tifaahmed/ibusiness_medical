@@ -242,6 +242,40 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.loyalty_log || 'Points & wallet log' }}</template>
                 </SidebarLink>
 
+                <!-- Wallet cash-outs to Vodafone Cash (top admin only). -->
+                <SidebarLink
+                    v-if="isSuperAdmin"
+                    :href="route('admin.withdrawals.index')"
+                    :active="route().current('admin.withdrawals.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.withdrawals || 'Wallet cash-outs' }}</template>
+                </SidebarLink>
+
+                <!-- Referrals: who brought whom, who paid, and what each side got. -->
+                <SidebarLink
+                    v-if="canAny('manage memberships')"
+                    :href="route('admin.referrals.index')"
+                    :active="route().current('admin.referrals.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.sidebar?.referrals || 'Referrals' }}</template>
+                </SidebarLink>
+
                 <!-- Customer SMS: the sending switch and every message written (top admin only). -->
                 <SidebarLink
                     v-if="isSuperAdmin"

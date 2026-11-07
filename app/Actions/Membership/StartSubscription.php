@@ -13,6 +13,7 @@ use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
 use App\Support\MembershipPlan;
 use App\Support\PaymentMethods;
+use App\Support\Referrals;
 use App\Support\WalletPayments;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -67,6 +68,9 @@ class StartSubscription
         if ($plan === null) {
             throw ValidationException::withMessages(['plan' => ['This subscription plan is not available right now.']]);
         }
+
+        /* A member brought by another gets the referral discount off the FIRST subscription (never below 1 pound). */
+        $plan['price'] = Referrals::apply($plan['price'], $membership);
 
         return $method === MembershipSubscription::METHOD_PAYMOB
             ? $this->online($membership, $email, $returnUrl, $request, $plan)

@@ -11,10 +11,10 @@ class PartnerCompanyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $partners = Partner::with(['media', 'offers' => fn($q) => $q->latest()])
+        $partners = Partner::with(['media', 'offers' => fn ($q) => $q->latest()])
             ->latest()
             ->get()
-            ->map(fn($partner) => [
+            ->map(fn ($partner) => [
                 'id' => $partner->id,
                 'title' => $partner->title,
                 'short_description' => $partner->short_description,
@@ -29,7 +29,7 @@ class PartnerCompanyController extends Controller
 
     public function show(Partner $partner): JsonResponse
     {
-        $partner->load(['media', 'offers' => fn($q) => $q->with('media')->latest()->limit(5)]);
+        $partner->load(['media', 'offers' => fn ($q) => $q->with('media')->latest()->limit(5)]);
 
         return response()->json([
             'partner' => [
@@ -38,7 +38,7 @@ class PartnerCompanyController extends Controller
                 'short_description' => $partner->short_description,
                 'description' => $partner->description,
                 'header_image' => $partner->header_image,
-                'offers' => $partner->offers->map(fn($offer) => [
+                'offers' => $partner->offers->map(fn ($offer) => [
                     'id' => $offer->id,
                     'title' => $offer->title,
                     'short_description' => $offer->short_description,
@@ -61,7 +61,7 @@ class PartnerCompanyController extends Controller
             ->with('media')
             ->latest()
             ->get()
-            ->map(fn($offer) => [
+            ->map(fn ($offer) => [
                 'id' => $offer->id,
                 'title' => $offer->title,
                 'short_description' => $offer->short_description,

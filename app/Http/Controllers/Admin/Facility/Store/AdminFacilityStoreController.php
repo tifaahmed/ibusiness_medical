@@ -15,7 +15,7 @@ class AdminFacilityStoreController extends BaseController
 
     public function __construct(StoreFacilityAction $storeAction)
     {
-        $this->storeAction = $storeAction;  
+        $this->storeAction = $storeAction;
     }
 
     /**
@@ -53,6 +53,3 @@ class AdminFacilityStoreController extends BaseController
         }
     }
 }
-
-
-

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\MemberPayment\UpdateMemberPaymentRequest;
 use App\Models\MemberPayment;
 use App\Models\Membership;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -39,14 +38,14 @@ class AdminMemberPaymentUpdateController extends BaseController
 
         $newToDate = $memberPayment->to_date;
 
-        if ($oldToDate && $newToDate && !$oldToDate->equalTo($newToDate)) {
+        if ($oldToDate && $newToDate && ! $oldToDate->equalTo($newToDate)) {
             $diffInDays = $newToDate->diffInDays($oldToDate);
             if ($newToDate->lessThan($oldToDate)) {
                 $diffInDays = -$diffInDays;
             }
 
             if ($diffInDays !== 0) {
-                $interval = ($diffInDays >= 0 ? '+' : '') . $diffInDays;
+                $interval = ($diffInDays >= 0 ? '+' : '').$diffInDays;
 
                 DB::table('member_payments')
                     ->where('membership_id', $membershipId)

@@ -11,9 +11,6 @@ class UpdateContractAction
     /**
      * Execute the action to update a contract.
      *
-     * @param Contract $contract
-     * @param array $validated
-     * @return Contract
      * @throws \Exception
      */
     public function execute(Contract $contract, array $validated): Contract

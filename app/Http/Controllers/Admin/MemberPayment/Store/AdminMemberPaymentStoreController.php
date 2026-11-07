@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\MemberPayment\StoreMemberPaymentRequest;
 use App\Models\MemberPayment;
 use App\Models\Membership;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 
 class AdminMemberPaymentStoreController extends BaseController
 {

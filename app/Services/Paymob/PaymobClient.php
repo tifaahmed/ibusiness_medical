@@ -3,9 +3,9 @@
 namespace App\Services\Paymob;
 
 use App\Models\MembershipSubscription;
-use App\Models\WalletTopup;
 use App\Models\Order;
 use App\Models\OrderPaymentLog;
+use App\Models\WalletTopup;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
@@ -419,7 +419,7 @@ class PaymobClient
     ): array {
         $url = rtrim((string) config('services.paymob.base_url'), '/').$path;
         $started = microtime(true);
-        $startedAt = Carbon::createFromTimestamp($started, config("app.timezone"));
+        $startedAt = Carbon::createFromTimestamp($started, config('app.timezone'));
 
         $log = $this->write([
             'order_id' => $order instanceof Order ? $order->id : null,
@@ -542,7 +542,7 @@ class PaymobClient
 
         try {
             $log->update($attributes + [
-                'finished_at' => Carbon::createFromTimestamp($finished, config("app.timezone")),
+                'finished_at' => Carbon::createFromTimestamp($finished, config('app.timezone')),
                 'duration_ms' => (int) round(($finished - $started) * 1000),
             ]);
         } catch (Throwable $exception) {

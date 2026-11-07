@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin\QuickAdd;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\SmsMessage;
 use App\Services\Sms\SmsGateway;
 use App\Services\Sms\SmsOutbox;
 use App\Support\QuickAdd;
 use App\Support\SiteSettings;
-use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

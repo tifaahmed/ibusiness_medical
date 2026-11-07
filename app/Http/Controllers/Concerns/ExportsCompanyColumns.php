@@ -19,13 +19,13 @@ trait ExportsCompanyColumns
     protected function companyColumnDefinitions(): array
     {
         return [
-            'id'               => ['label' => __('admin.company_export.col_id'), 'width' => 10, 'align' => Alignment::HORIZONTAL_CENTER],
-            'name_en'          => ['label' => __('admin.company_export.col_name_en'), 'width' => 44],
-            'name_ar'          => ['label' => __('admin.company_export.col_name_ar'), 'width' => 44],
-            'slug'             => ['label' => __('admin.company_export.col_slug'), 'width' => 32],
+            'id' => ['label' => __('admin.company_export.col_id'), 'width' => 10, 'align' => Alignment::HORIZONTAL_CENTER],
+            'name_en' => ['label' => __('admin.company_export.col_name_en'), 'width' => 44],
+            'name_ar' => ['label' => __('admin.company_export.col_name_ar'), 'width' => 44],
+            'slug' => ['label' => __('admin.company_export.col_slug'), 'width' => 32],
             'created_by_email' => ['label' => __('admin.company_export.col_created_by_email'), 'width' => 34],
-            'created_at'       => ['label' => __('admin.company_export.col_created_at'), 'width' => 24, 'align' => Alignment::HORIZONTAL_CENTER],
-            'updated_at'       => ['label' => __('admin.company_export.col_updated_at'), 'width' => 24, 'align' => Alignment::HORIZONTAL_CENTER],
+            'created_at' => ['label' => __('admin.company_export.col_created_at'), 'width' => 24, 'align' => Alignment::HORIZONTAL_CENTER],
+            'updated_at' => ['label' => __('admin.company_export.col_updated_at'), 'width' => 24, 'align' => Alignment::HORIZONTAL_CENTER],
         ];
     }
 
@@ -39,13 +39,13 @@ trait ExportsCompanyColumns
     protected function companyColumnAliases(): array
     {
         return [
-            'id'               => ['id', 'المعرّف'],
-            'name_en'          => ['nameenglish', 'nameen', 'name', 'الاسم (إنجليزي)', 'الاسم (انجليزي)', 'الاسم'],
-            'name_ar'          => ['namearabic', 'namear', 'arabicname', 'الاسم (عربي)', 'الاسم (العربية)', 'اسم عربي'],
-            'slug'             => ['slug', 'الرابط المختصر', 'الرابط'],
+            'id' => ['id', 'المعرّف'],
+            'name_en' => ['nameenglish', 'nameen', 'name', 'الاسم (إنجليزي)', 'الاسم (انجليزي)', 'الاسم'],
+            'name_ar' => ['namearabic', 'namear', 'arabicname', 'الاسم (عربي)', 'الاسم (العربية)', 'اسم عربي'],
+            'slug' => ['slug', 'الرابط المختصر', 'الرابط'],
             'created_by_email' => ['createdbyemail', 'createdby', 'creator', 'creatorname', 'المنشئ (البريد الإلكتروني)', 'المنشئ', 'البريد الإلكتروني'],
-            'created_at'       => ['createdat', 'createdate', 'creationdate', 'تاريخ الإنشاء'],
-            'updated_at'       => ['updatedat', 'updatedate', 'تاريخ التحديث'],
+            'created_at' => ['createdat', 'createdate', 'creationdate', 'تاريخ الإنشاء'],
+            'updated_at' => ['updatedat', 'updatedate', 'تاريخ التحديث'],
         ];
     }
 

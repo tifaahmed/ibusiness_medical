@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Concerns;
 
-use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 trait CreatorScoped
 {
     abstract protected function fullPermission(): string;
+
     abstract protected function ownPermission(): string;
 
     /**
@@ -35,6 +35,7 @@ trait CreatorScoped
         if ($user->hasPermissionTo($this->fullPermission())) {
             return false;
         }
+
         return $user->hasPermissionTo($this->ownPermission());
     }
 
@@ -46,6 +47,7 @@ trait CreatorScoped
         if ($this->scopesToCreator()) {
             $query->where($column, Auth::id());
         }
+
         return $query;
     }
 
@@ -54,7 +56,7 @@ trait CreatorScoped
      */
     protected function assertOwns(Model $model, string $column = 'created_by'): void
     {
-        if (!$this->scopesToCreator()) {
+        if (! $this->scopesToCreator()) {
             return;
         }
         if ((int) ($model->{$column} ?? 0) !== (int) Auth::id()) {

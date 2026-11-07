@@ -2,23 +2,24 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Store;
 
-
 use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressAction;
-use App\Http\Controllers\Admin\User\Membership\Actions\Store\StoreUserMembershipAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Store\SendMembershipNotificationAction;
+use App\Http\Controllers\Admin\User\Membership\Actions\Store\StoreUserMembershipAction;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\User\Membership\StoreMembershipRequest;
 use App\Services\MediaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\UploadedFile;
 
 class AdminUserMembershipStoreController extends BaseController
 {
     private SendMembershipNotificationAction $notificationAction;
+
     private StoreUserMembershipAction $storeAction;
+
     private UpsertMemberAddressAction $upsertAddressAction;
+
     private MediaService $mediaService;
 
     public function __construct(
@@ -32,6 +33,7 @@ class AdminUserMembershipStoreController extends BaseController
         $this->upsertAddressAction = $upsertAddressAction;
         $this->mediaService = $mediaService;
     }
+
     /**
      * Store a newly created user with membership in storage.
      */
@@ -189,10 +191,9 @@ class AdminUserMembershipStoreController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
-            return back()->withErrors(['error' => 'Failed to create user with membership: ' . $e->getMessage()])
+
+            return back()->withErrors(['error' => 'Failed to create user with membership: '.$e->getMessage()])
                 ->withInput();
         }
     }
 }
-

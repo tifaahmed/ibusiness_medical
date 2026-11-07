@@ -24,12 +24,12 @@ class AdminMembershipCardListController extends BaseController
 
         $cards = MembershipCard::query()
             ->with(['creator:id,name,email', 'media'])
-            ->when($restricted, fn($q) => $this->applyCardScope($q))
+            ->when($restricted, fn ($q) => $this->applyCardScope($q))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('batch_name', 'like', "%{$search}%")
-                       ->orWhere('id', $search)
-                       ->orWhere('start_number', $search);
+                        ->orWhere('id', $search)
+                        ->orWhere('start_number', $search);
                 });
             })
             ->when($membershipNumber !== '', function ($q) use ($membershipNumber) {
@@ -41,6 +41,7 @@ class AdminMembershipCardListController extends BaseController
                 if (empty($matchingIds)) {
                     // No memberships match — short-circuit to an empty result set.
                     $q->whereRaw('1 = 0');
+
                     return;
                 }
 
@@ -61,7 +62,7 @@ class AdminMembershipCardListController extends BaseController
 
         $allIds = $cardMembershipIds->flatten()->unique()->values()->all();
 
-        $completedIds = !empty($allIds)
+        $completedIds = ! empty($allIds)
             ? Membership::whereIn('id', $allIds)->whereNotNull('completed_at')->pluck('id')->all()
             : [];
 
@@ -74,7 +75,7 @@ class AdminMembershipCardListController extends BaseController
 
         // Stats only count cards visible to this admin.
         $statsQuery = MembershipCard::query()
-            ->when($restricted, fn($q) => $this->applyCardScope($q));
+            ->when($restricted, fn ($q) => $this->applyCardScope($q));
 
         $allCardMembershipIds = (clone $statsQuery)->pluck('membership_ids')
             ->filter()

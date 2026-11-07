@@ -17,6 +17,7 @@ class AdminTagStoreController extends BaseController
         try {
             $tag = $this->storeAction->execute($request->validated());
             Log::info('Tag store request', ['id' => $tag->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.tag.list')->with('success', 'Tag created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create tag. Please try again.'])->withInput();

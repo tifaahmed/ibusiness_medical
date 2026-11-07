@@ -15,8 +15,15 @@ class AdminContractEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_CONTRACTS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_CONTRACTS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_CONTRACTS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_CONTRACTS;
+    }
 
     /**
      * Show the form for editing the specified contract.

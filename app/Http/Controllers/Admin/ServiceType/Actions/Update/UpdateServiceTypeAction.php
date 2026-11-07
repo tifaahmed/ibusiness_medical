@@ -27,7 +27,7 @@ class UpdateServiceTypeAction
             $updates['is_active'] = $validated['is_active'];
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $serviceType->update($updates);
         }
 

@@ -79,9 +79,9 @@ class AdminMemberPaymentListController extends BaseController
             ->toArray();
 
         return inertia('Admin/MemberPayment/List', [
-            'payments'      => AdminMemberPaymentListResource::collection($query->paginate($perPage)),
+            'payments' => AdminMemberPaymentListResource::collection($query->paginate($perPage)),
             'partnerOptions' => $partners,
-            'userNames'      => $userNames,
+            'userNames' => $userNames,
         ]);
     }
 }

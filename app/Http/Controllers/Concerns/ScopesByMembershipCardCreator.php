@@ -30,7 +30,10 @@ trait ScopesByMembershipCardCreator
     protected function hasFullAccess(): bool
     {
         $user = Auth::user();
-        if ($user === null) return false;
+        if ($user === null) {
+            return false;
+        }
+
         return $user->hasPermissionTo(UserPermissionEnum::VIEW_MEMBERSHIP_CARD_PATCHES)
             || $user->hasPermissionTo(UserPermissionEnum::CREATE_MEMBERSHIP_CARD_PATCHES);
     }
@@ -38,8 +41,13 @@ trait ScopesByMembershipCardCreator
     protected function scopesCardsToCreator(): bool
     {
         $user = Auth::user();
-        if ($user === null) return false;
-        if ($this->hasFullAccess()) return false;
+        if ($user === null) {
+            return false;
+        }
+        if ($this->hasFullAccess()) {
+            return false;
+        }
+
         return $user->hasPermissionTo(UserPermissionEnum::VIEW_OWN_MEMBERSHIP_CARD_PATCHES)
             || $user->hasPermissionTo(UserPermissionEnum::CREATE_OWN_MEMBERSHIP_CARD_PATCHES);
     }
@@ -47,8 +55,13 @@ trait ScopesByMembershipCardCreator
     protected function scopesCardsToPartner(): bool
     {
         $user = Auth::user();
-        if ($user === null) return false;
-        if ($this->hasFullAccess()) return false;
+        if ($user === null) {
+            return false;
+        }
+        if ($this->hasFullAccess()) {
+            return false;
+        }
+
         return $user->hasPermissionTo(UserPermissionEnum::VIEW_PARTNER_MEMBERSHIP_CARD_PATCHES)
             || $user->hasPermissionTo(UserPermissionEnum::CREATE_PARTNER_MEMBERSHIP_CARD_PATCHES);
     }
@@ -65,15 +78,16 @@ trait ScopesByMembershipCardCreator
      */
     protected function cardPartnerLocked(): bool
     {
-        return $this->scopesCardsToPartner() && !$this->scopesCardsToCreator();
+        return $this->scopesCardsToPartner() && ! $this->scopesCardsToCreator();
     }
 
     protected function currentAdminCardPartnerId(): ?int
     {
-        if (!$this->scopesCardsToPartner()) {
+        if (! $this->scopesCardsToPartner()) {
             return null;
         }
         $partnerId = Auth::user()?->partner_id;
+
         return $partnerId !== null ? (int) $partnerId : null;
     }
 
@@ -86,7 +100,7 @@ trait ScopesByMembershipCardCreator
     {
         $creator = $this->scopesCardsToCreator();
         $partner = $this->scopesCardsToPartner();
-        if (!$creator && !$partner) {
+        if (! $creator && ! $partner) {
             return $query;
         }
 
@@ -101,6 +115,7 @@ trait ScopesByMembershipCardCreator
                 $w->orWhere('partner_id', $partnerId ?? -1);
             }
         });
+
         return $query;
     }
 
@@ -116,7 +131,7 @@ trait ScopesByMembershipCardCreator
      */
     protected function assertCanManageCard(MembershipCard $card): void
     {
-        if (!$this->isCardScopeRestricted()) {
+        if (! $this->isCardScopeRestricted()) {
             return;
         }
 
@@ -129,7 +144,7 @@ trait ScopesByMembershipCardCreator
             && $partnerId !== null
             && (int) $card->partner_id === (int) $partnerId;
 
-        if (!$matchesCreator && !$matchesPartner) {
+        if (! $matchesCreator && ! $matchesPartner) {
             throw new AuthorizationException($this->cardScopeViolationMessage());
         }
     }
@@ -137,12 +152,9 @@ trait ScopesByMembershipCardCreator
     private function cardScopeViolationMessage(): string
     {
         return match (true) {
-            $this->scopesCardsToCreator() && $this->scopesCardsToPartner()
-                => 'You can only manage card batches you created or batches for your partner.',
-            $this->scopesCardsToCreator()
-                => 'You can only manage card batches you created.',
-            $this->scopesCardsToPartner()
-                => 'You can only manage card batches for your partner.',
+            $this->scopesCardsToCreator() && $this->scopesCardsToPartner() => 'You can only manage card batches you created or batches for your partner.',
+            $this->scopesCardsToCreator() => 'You can only manage card batches you created.',
+            $this->scopesCardsToPartner() => 'You can only manage card batches for your partner.',
             default => 'You do not have access to this card batch.',
         };
     }

@@ -46,7 +46,7 @@ class MembershipNumberController extends Controller
 
         $membership = $query->first();
 
-        if (!$membership) {
+        if (! $membership) {
             // Nobody holds it, but a card batch may have reserved it: the member saved with it is filed under that batch.
             $batch = \App\Support\BatchNumbers::reservingBatch($number);
 
@@ -130,7 +130,7 @@ class MembershipNumberController extends Controller
             return response()->json(['message' => 'Check failed'], 500);
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['unique' => true]);
         }
 
@@ -203,8 +203,6 @@ class MembershipNumberController extends Controller
 
     /**
      * Generate a unique 4-digit membership number.
-     *
-     * @return JsonResponse
      */
     public function generateUnique(): JsonResponse
     {
@@ -230,7 +228,7 @@ class MembershipNumberController extends Controller
         }
 
         return response()->json([
-            'membership_number' => $membershipNumber
+            'membership_number' => $membershipNumber,
         ]);
     }
 }

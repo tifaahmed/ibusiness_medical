@@ -16,8 +16,15 @@ class AdminGovernorateEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_GOVERNORATES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_GOVERNORATES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_GOVERNORATES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_GOVERNORATES;
+    }
 
     /**
      * Show the form for editing the specified governorate.
@@ -44,4 +51,3 @@ class AdminGovernorateEditController extends BaseController
         return Inertia::render('Admin/Governorate/Edit/GovernorateEditView', $result);
     }
 }
-

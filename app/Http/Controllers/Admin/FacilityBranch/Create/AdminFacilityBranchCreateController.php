@@ -64,6 +64,3 @@ class AdminFacilityBranchCreateController extends BaseController
         ]);
     }
 }
-
-
-

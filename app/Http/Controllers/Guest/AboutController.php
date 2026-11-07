@@ -42,4 +42,3 @@ class AboutController extends BaseController
         ]);
     }
 }
-

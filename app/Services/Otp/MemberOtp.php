@@ -280,10 +280,15 @@ class MemberOtp
             return;
         }
 
-        User::query()
+        $query = User::query()
             ->whereNull('phone_verified_at')
-            ->whereRaw(User::phoneDigitsSql().' IN (?, ?, ?)', [$national, ltrim($national, '0'), '20'.ltrim($national, '0')])
-            ->update(['phone_verified_at' => now()]);
+            ->whereRaw(User::phoneDigitsSql().' IN (?, ?, ?)', [$national, ltrim($national, '0'), '20'.ltrim($national, '0')]);
+
+        $ids = (clone $query)->pluck('id')->all();
+        $query->update(['phone_verified_at' => now()]);
+
+        /* A trial reward that waited for a verified phone is paid now. */
+        \App\Support\Referrals::phoneVerified($ids);
     }
 
     /**

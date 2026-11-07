@@ -12,8 +12,6 @@ class StoreGovernorateAction
     /**
      * Execute the action to store a governorate.
      *
-     * @param array $validated
-     * @return Governorate
      * @throws \Exception
      */
     public function execute(array $validated): Governorate
@@ -47,6 +45,3 @@ class StoreGovernorateAction
         }
     }
 }
-
-
-

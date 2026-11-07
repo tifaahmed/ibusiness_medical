@@ -15,8 +15,15 @@ class AdminNewsTickerUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_NEWS_TICKERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_NEWS_TICKERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_NEWS_TICKERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_NEWS_TICKERS;
+    }
 
     public function __invoke(UpdateNewsTickerRequest $request, NewsTicker $newsTicker): RedirectResponse
     {

@@ -33,6 +33,7 @@ class AdminRoleIndexController extends Controller
 
         $roles->getCollection()->transform(function (Role $role) use ($userCounts) {
             $role->setAttribute('users_count', (int) ($userCounts[$role->id] ?? 0));
+
             return $role;
         });
 

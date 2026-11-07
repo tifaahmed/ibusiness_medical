@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin\Facility\Location;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\Facility\LocateFacilityBranchRequest;
-use App\Services\BranchGeocoder;
 use App\Services\Ai\RateLimitException;
+use App\Services\BranchGeocoder;
 use Illuminate\Http\JsonResponse;
 use RuntimeException;
 

@@ -14,7 +14,7 @@ class AdminGovernorateStoreController extends BaseController
 
     public function __construct(StoreGovernorateAction $storeAction)
     {
-        $this->storeAction = $storeAction;  
+        $this->storeAction = $storeAction;
     }
 
     /**
@@ -45,12 +45,9 @@ class AdminGovernorateStoreController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to create governorate. Please try again.'])
                 ->withInput();
         }
     }
 }
-
-
-

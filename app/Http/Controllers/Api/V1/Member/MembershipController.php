@@ -9,8 +9,8 @@ use App\Enums\Contact\ContactChannelEnum;
 use App\Enums\Contact\ContactSourceEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Membership;
-use App\Models\NationalIdChangeRequest;
 use App\Models\MembershipSubscription;
+use App\Models\NationalIdChangeRequest;
 use App\Models\User;
 use App\Services\Paymob\PaymobException;
 use App\Support\MembershipStatus;
@@ -240,6 +240,7 @@ class MembershipController extends Controller
 
         return response()->json(['data' => ['requested' => true, 'already_open' => $already]]);
     }
+
     /**
      * Ask an admin to change the national ID on the card. The ID cannot be edited directly once it is set:
      * the member sends the number they want, optionally with photos of both sides of the ID card, and it

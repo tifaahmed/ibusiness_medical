@@ -10,7 +10,6 @@ use App\Models\Sales;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -78,7 +77,7 @@ class DashboardController extends Controller
             $activeMembers = Membership::primary()->where('is_active', true)
                 ->where('expiration_date', '>', $now)
                 ->whereNotNull('completed_at')
-                ->when($restricted, fn($q) => $q->where($scopeFilter))
+                ->when($restricted, fn ($q) => $q->where($scopeFilter))
                 ->whereHas('user', function ($q) {
                     $q->whereNull('deleted_at');
                 })
@@ -87,13 +86,13 @@ class DashboardController extends Controller
             // New members this month
             $newThisMonth = Membership::primary()->where('registration_date', '>=', $startOfMonth)
                 ->whereNotNull('completed_at')
-                ->when($restricted, fn($q) => $q->where($scopeFilter))
+                ->when($restricted, fn ($q) => $q->where($scopeFilter))
                 ->count();
 
             // New members last month (for percentage calculation)
             $newLastMonth = Membership::primary()->whereBetween('registration_date', [$startOfLastMonth, $endOfLastMonth])
                 ->whereNotNull('completed_at')
-                ->when($restricted, fn($q) => $q->where($scopeFilter))
+                ->when($restricted, fn ($q) => $q->where($scopeFilter))
                 ->count();
 
             // Calculate percentage change
@@ -105,7 +104,7 @@ class DashboardController extends Controller
             // Exclude trashed users and memberships
             $recentMemberships = Membership::primary()->where('is_active', true)
                 ->whereNotNull('completed_at')
-                ->when($restricted, fn($q) => $q->where($scopeFilter))
+                ->when($restricted, fn ($q) => $q->where($scopeFilter))
                 ->whereHas('user', function ($q) {
                     $q->whereNull('deleted_at');
                 })
@@ -120,7 +119,7 @@ class DashboardController extends Controller
                 })
                 ->map(function ($membership) use ($now) {
                     $user = $membership->user;
-                    if (!$user) {
+                    if (! $user) {
                         return null;
                     }
 
@@ -174,7 +173,7 @@ class DashboardController extends Controller
                 ->latest()
                 ->limit(5)
                 ->get()
-                ->map(fn($s) => [
+                ->map(fn ($s) => [
                     'id' => $s->id,
                     'name' => $s->name,
                     'image' => $s->image,
@@ -189,4 +188,3 @@ class DashboardController extends Controller
         ]);
     }
 }
-

@@ -60,10 +60,11 @@ class AdminSalesImportCommitController extends BaseController
 
                 if ($nameAr === '' && $nameEn === '') {
                     $skipped++;
+
                     continue;
                 }
 
-                $id = !empty($row['id']) ? (int) $row['id'] : null;
+                $id = ! empty($row['id']) ? (int) $row['id'] : null;
                 $existing = null;
 
                 if ($strategy === 'update' && $id !== null) {
@@ -72,6 +73,7 @@ class AdminSalesImportCommitController extends BaseController
 
                 if ($strategy === 'add_only' && $id !== null && Sales::whereKey($id)->exists()) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -88,6 +90,7 @@ class AdminSalesImportCommitController extends BaseController
                         $existing->update(['name' => $name]);
                         $this->syncImage($existing, $row['image_url'] ?? '');
                         $updated++;
+
                         continue;
                     }
 
@@ -125,7 +128,8 @@ class AdminSalesImportCommitController extends BaseController
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([
@@ -151,6 +155,7 @@ class AdminSalesImportCommitController extends BaseController
         if ($nameEn === '') {
             $nameEn = $nameAr;
         }
+
         return ['ar' => $nameAr, 'en' => $nameEn];
     }
 
@@ -160,9 +165,10 @@ class AdminSalesImportCommitController extends BaseController
      */
     private function resolveCreatedBy($raw): ?int
     {
-        if (!empty($raw) && User::whereKey((int) $raw)->exists()) {
+        if (! empty($raw) && User::whereKey((int) $raw)->exists()) {
             return (int) $raw;
         }
+
         return Auth::id();
     }
 
@@ -179,12 +185,12 @@ class AdminSalesImportCommitController extends BaseController
 
         try {
             $response = Http::timeout(15)->get($url);
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 return;
             }
 
             $mime = $response->header('Content-Type');
-            if (!is_string($mime) || !str_starts_with($mime, 'image/')) {
+            if (! is_string($mime) || ! str_starts_with($mime, 'image/')) {
                 return;
             }
 
@@ -196,7 +202,7 @@ class AdminSalesImportCommitController extends BaseController
 
             $sales->clearMediaCollection('image');
             $sales->addMedia($temp)
-                ->usingFileName('image_' . $sales->id . $this->extensionForMime($mime))
+                ->usingFileName('image_'.$sales->id.$this->extensionForMime($mime))
                 ->toMediaCollection('image');
             @unlink($temp);
         } catch (\Throwable $e) {

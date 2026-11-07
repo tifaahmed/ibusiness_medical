@@ -41,12 +41,12 @@ class AdminUserMembershipTrashController extends BaseController
 
         $users = User::onlyTrashed()
             ->whereHas('memberships', $trashScope)
-            ->when(!empty($filters['search']), fn($q) => $q->search($filters['search']))
-            ->when($filters['is_active'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($trashScope) {
+            ->when(! empty($filters['search']), fn ($q) => $q->search($filters['search']))
+            ->when($filters['is_active'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($trashScope) {
                 $trashScope($mq);
                 $mq->where('is_active', true);
             }))
-            ->when($filters['is_active'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($trashScope) {
+            ->when($filters['is_active'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($trashScope) {
                 $trashScope($mq);
                 $mq->where('is_active', false);
             })->whereDoesntHave('memberships', function ($mq) use ($trashScope) {
@@ -61,7 +61,7 @@ class AdminUserMembershipTrashController extends BaseController
                 $loadActive ? $q->active() : $q->inactive();
                 $q->ordered();
             }])
-            ->when($sort !== null, fn($q) => $q->orderBy($sort, $direction), fn($q) => $q->latest('deleted_at'))
+            ->when($sort !== null, fn ($q) => $q->orderBy($sort, $direction), fn ($q) => $q->latest('deleted_at'))
             ->paginate($request->input('per_page', 15))->withQueryString();
 
         return Inertia::render('Admin/User/Membership/Trash', [

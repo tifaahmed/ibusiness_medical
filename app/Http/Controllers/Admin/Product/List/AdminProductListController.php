@@ -16,8 +16,15 @@ class AdminProductListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PRODUCTS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PRODUCTS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PRODUCTS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PRODUCTS;
+    }
 
     /**
      * Display a listing of products.
@@ -28,16 +35,16 @@ class AdminProductListController extends BaseController
 
         $products = Product::query()
             ->with(['creator:id,name,email', 'productType:id,name', 'tags:id,name,icon,color'])
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
                     // Both names are listed, so both are searchable.
-                    $query->where('name->en', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('name->ar', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
+                    $query->where('name->en', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('name->ar', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })
-            ->when(!empty($filters['creator_id']), fn($q) => $q->where('created_by', $filters['creator_id']))
+            ->when(! empty($filters['creator_id']), fn ($q) => $q->where('created_by', $filters['creator_id']))
             ->latest()
             ->paginate($request->input('per_page', 15))->withQueryString();
 
@@ -45,12 +52,12 @@ class AdminProductListController extends BaseController
         // A creator-scoped admin only ever sees their own id here, and the
         // dropdown itself is hidden for them via `canFilterByCreator`.
         $creatorQuery = Product::query()
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->en', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('name->ar', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
+                    $query->where('name->en', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('name->ar', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })
             ->whereNotNull('created_by')
@@ -59,14 +66,14 @@ class AdminProductListController extends BaseController
         $creatorOptions = User::whereIn('id', $creatorQuery)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
-            ->map(fn($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
+            ->map(fn ($u) => ['value' => $u->id, 'label' => $u->name, 'email' => $u->email])
             ->toArray();
 
         return Inertia::render('Admin/Product/List', [
             'products' => new AdminProductListCollection($products)->toArray($request),
             'filters' => $filters,
             'creatorOptions' => $creatorOptions,
-            'canFilterByCreator' => !$this->scopesToCreator(),
+            'canFilterByCreator' => ! $this->scopesToCreator(),
         ]);
     }
 

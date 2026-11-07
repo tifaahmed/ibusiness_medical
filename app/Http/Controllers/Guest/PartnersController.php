@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller as BaseController;
-use App\Models\Contract;
 use App\Http\Resources\Guest\FacilityCollection;
+use App\Models\Contract;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Governorate;
@@ -24,13 +24,13 @@ class PartnersController extends BaseController
 
         // Fetch facilities with related data and pagination
         $facilities = Facility::with(['facilityType', 'branches.governorate', 'branches.city', 'branches.area', 'media'])
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
-                $locale     = app()->getLocale();
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
+                $locale = app()->getLocale();
                 $normalized = $this->normalizeSearch($filters['search']);
 
                 $words = collect(preg_split('/\s+/', $normalized))
-                    ->map(fn($w) => trim($w))
-                    ->filter(fn($w) => mb_strlen($w) > 1)
+                    ->map(fn ($w) => trim($w))
+                    ->filter(fn ($w) => mb_strlen($w) > 1)
                     ->values();
 
                 if ($words->isEmpty()) {
@@ -38,15 +38,15 @@ class PartnersController extends BaseController
                 }
 
                 // Normalize Arabic variants directly in SQL so stored data is also normalized
-                $path     = '$.' . $locale;
-                $nameExpr = "replace(replace(replace(replace(" .
-                            "json_unquote(json_extract(`name`, '{$path}')), " .
+                $path = '$.'.$locale;
+                $nameExpr = 'replace(replace(replace(replace('.
+                            "json_unquote(json_extract(`name`, '{$path}')), ".
                             "'أ', 'ا'), 'إ', 'ا'), 'آ', 'ا'), 'ى', 'ي')";
 
                 foreach ($words as $word) {
                     $q->where(function ($query) use ($word, $nameExpr) {
-                        $query->whereRaw("{$nameExpr} like ?", ['%' . $word . '%'])
-                              ->orWhere('slug', 'like', '%' . $word . '%');
+                        $query->whereRaw("{$nameExpr} like ?", ['%'.$word.'%'])
+                            ->orWhere('slug', 'like', '%'.$word.'%');
                     });
                 }
             })
@@ -57,7 +57,7 @@ class PartnersController extends BaseController
                 $governorateId = (int) $filters['governorate_id'];
                 $q->where(function ($query) use ($governorateId) {
                     $query->where('governorate_id', $governorateId)
-                          ->orWhereHas('branches', fn($b) => $b->where('governorate_id', $governorateId));
+                        ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
                 });
             })
             ->latest()
@@ -73,26 +73,26 @@ class PartnersController extends BaseController
 
         // Get facility types - filter by governorate if selected
         $facilityTypesQuery = FacilityType::query();
-        
+
         if (isset($filters['governorate_id']) && $filters['governorate_id'] !== '' && $filters['governorate_id'] !== null) {
             // Get facility types that have facilities in the selected governorate
             $facilityTypeIds = Facility::where(function ($q) use ($filters) {
-                    $governorateId = (int) $filters['governorate_id'];
-                    $q->where('governorate_id', $governorateId)
-                      ->orWhereHas('branches', fn($b) => $b->where('governorate_id', $governorateId));
-                })->distinct()
+                $governorateId = (int) $filters['governorate_id'];
+                $q->where('governorate_id', $governorateId)
+                    ->orWhereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId));
+            })->distinct()
                 ->pluck('facility_type_id')
                 ->filter()
                 ->toArray();
-            
-            if (!empty($facilityTypeIds)) {
+
+            if (! empty($facilityTypeIds)) {
                 $facilityTypesQuery->whereIn('id', $facilityTypeIds);
             } else {
                 // If no facilities found, return empty result
                 $facilityTypesQuery->whereRaw('1 = 0');
             }
         }
-        
+
         $facilityTypes = $facilityTypesQuery->get()->map(function ($type) {
             return [
                 'id' => $type->id,
@@ -168,6 +168,7 @@ class PartnersController extends BaseController
         $term = str_replace(['أ', 'إ', 'آ', 'ٱ'], 'ا', $term);
         $term = str_replace('ى', 'ي', $term);
         $term = preg_replace('/[\x{064B}-\x{065F}\x{0670}]/u', '', $term);
+
         return $term;
     }
 
@@ -183,4 +184,3 @@ class PartnersController extends BaseController
         ];
     }
 }
-

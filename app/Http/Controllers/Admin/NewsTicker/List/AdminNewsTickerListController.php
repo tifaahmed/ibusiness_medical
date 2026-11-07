@@ -15,8 +15,15 @@ class AdminNewsTickerListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_NEWS_TICKERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_NEWS_TICKERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_NEWS_TICKERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_NEWS_TICKERS;
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -24,17 +31,17 @@ class AdminNewsTickerListController extends BaseController
 
         $newsTickers = NewsTicker::query()
             ->with('creator:id,name,email')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('title->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('description->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%');
+                    $query->where('title->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('description->'.app()->getLocale(), 'like', '%'.$filters['search'].'%');
                 });
             })
             ->when(isset($filters['is_active']) && $filters['is_active'] !== '', function ($q) use ($filters) {
                 $q->where('is_active', (bool) $filters['is_active']);
             })
-            ->when(!empty($filters['category']), function ($q) use ($filters) {
+            ->when(! empty($filters['category']), function ($q) use ($filters) {
                 $q->where('category', $filters['category']);
             })
             ->orderBy('sort_order', 'asc')

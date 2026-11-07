@@ -13,7 +13,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -27,11 +26,12 @@ use ZipArchive;
 
 class AdminUserMembershipExportController extends BaseController
 {
-    use ScopesByMembershipCreator;
     use ExportsMemberColumns;
+    use ScopesByMembershipCreator;
 
     // Upper bound is a safety net so a typo can't kick off a giant in-memory build.
     private const MIN_CHUNK_SIZE = 1;
+
     private const MAX_CHUNK_SIZE = 10000;
 
     public function __invoke(Request $request): StreamedResponse
@@ -42,7 +42,7 @@ class AdminUserMembershipExportController extends BaseController
         // from the session — same logic as the Inertia middleware — so the
         // exported file matches the admin's active language.
         $locale = Session::get('locale', config('app.locale'));
-        if (!in_array($locale, ['en', 'ar'], true)) {
+        if (! in_array($locale, ['en', 'ar'], true)) {
             $locale = config('app.locale');
         }
         App::setLocale($locale);
@@ -107,7 +107,7 @@ class AdminUserMembershipExportController extends BaseController
         $cardPatchMembershipIds = MembershipCard::query()
             ->whereNotNull('membership_ids')
             ->lazyById(200)
-            ->flatMap(fn(MembershipCard $card) => $card->membership_ids ?? [])
+            ->flatMap(fn (MembershipCard $card) => $card->membership_ids ?? [])
             ->unique()
             ->values()
             ->toArray();
@@ -115,87 +115,87 @@ class AdminUserMembershipExportController extends BaseController
         $users = User::query()
             ->whereNull('deleted_at')
             ->whereHas('memberships', $listingFilter)
-            ->when(!empty($filters['search']), fn($q) => $q->where('name', 'like', '%' . $filters['search'] . '%'))
-            ->when(!empty($filters['email']), fn($q) => $q->where('email', 'like', '%' . $filters['email'] . '%'))
-            ->when(!empty($filters['phone']), fn($q) => $q->where('phone', 'like', '%' . $filters['phone'] . '%'))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
-            ->when(!empty($filters['registration_date_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['search']), fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+            ->when(! empty($filters['email']), fn ($q) => $q->where('email', 'like', '%'.$filters['email'].'%'))
+            ->when(! empty($filters['phone']), fn ($q) => $q->where('phone', 'like', '%'.$filters['phone'].'%'))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
+            ->when(! empty($filters['registration_date_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('registration_date', '>=', $filters['registration_date_from']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['registration_date_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['registration_date_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('registration_date', '<=', $filters['registration_date_to']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['expiration_date_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['expiration_date_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('expiration_date', '>=', $filters['expiration_date_from']);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['expiration_date_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+            ->when(! empty($filters['expiration_date_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
                 $mq->whereDate('expiration_date', '<=', $filters['expiration_date_to']);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_active'] === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_active'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', true);
                 $listingFilter($mq);
             }))
-            ->when($filters['is_active'] === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($filters['is_active'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', false);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_active', true);
                 $listingFilter($mq);
             }))
-            ->when($isPaidFilter === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($isPaidFilter === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_paid', true);
                 $listingFilter($mq);
             }))
-            ->when($isPaidFilter === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
+            ->when($isPaidFilter === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
                 $mq->where('is_paid', false);
                 $listingFilter($mq);
             }))
-            ->when($partnerId !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($partnerId, $listingFilter) {
+            ->when($partnerId !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($partnerId, $listingFilter) {
                 $mq->where('partner_id', $partnerId);
                 $listingFilter($mq);
             }))
-            ->when($creatorFilterId !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($creatorFilterId, $listingFilter) {
+            ->when($creatorFilterId !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($creatorFilterId, $listingFilter) {
                 $mq->where('created_by', $creatorFilterId);
                 $listingFilter($mq);
             }))
-            ->when($saleIdFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($saleIdFilter, $listingFilter) {
+            ->when($saleIdFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($saleIdFilter, $listingFilter) {
                 $mq->where('sales_id', $saleIdFilter);
                 $listingFilter($mq);
             }))
-            ->when($companyIdFilter !== null, fn($q) => $q->whereHas('memberships', function ($mq) use ($companyIdFilter, $listingFilter) {
+            ->when($companyIdFilter !== null, fn ($q) => $q->whereHas('memberships', function ($mq) use ($companyIdFilter, $listingFilter) {
                 $mq->where('company_id', $companyIdFilter);
                 $listingFilter($mq);
             }))
-            ->when(!empty($membershipNumberFilter), fn($q) => $q->whereHas('memberships', function ($mq) use ($membershipNumberFilter, $listingFilter) {
+            ->when(! empty($membershipNumberFilter), fn ($q) => $q->whereHas('memberships', function ($mq) use ($membershipNumberFilter, $listingFilter) {
                 $mq->where('membership_number', $membershipNumberFilter);
                 $listingFilter($mq);
             }))
-            ->when($isFromCardPatch === true, fn($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
+            ->when($isFromCardPatch === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when($isFromCardPatch === false, fn($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
+            ->when($isFromCardPatch === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereNotIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             })->whereDoesntHave('memberships', function ($mq) use ($cardPatchMembershipIds, $listingFilter) {
                 $mq->whereIn('id', $cardPatchMembershipIds);
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_changer']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
-                $mq->whereHas('activeHistories', fn($ahq) => $ahq->whereHas('changer', fn($cq) => $cq->where('name', 'like', '%'.$filters['last_activation_changer'].'%')));
+            ->when(! empty($filters['last_activation_changer']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+                $mq->whereHas('activeHistories', fn ($ahq) => $ahq->whereHas('changer', fn ($cq) => $cq->where('name', 'like', '%'.$filters['last_activation_changer'].'%')));
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_from']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
-                $mq->whereHas('activeHistories', fn($ahq) => $ahq->whereDate('created_at', '>=', $filters['last_activation_from']));
+            ->when(! empty($filters['last_activation_from']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+                $mq->whereHas('activeHistories', fn ($ahq) => $ahq->whereDate('created_at', '>=', $filters['last_activation_from']));
                 $listingFilter($mq);
             }))
-            ->when(!empty($filters['last_activation_to']), fn($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
-                $mq->whereHas('activeHistories', fn($ahq) => $ahq->whereDate('created_at', '<=', $filters['last_activation_to']));
+            ->when(! empty($filters['last_activation_to']), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
+                $mq->whereHas('activeHistories', fn ($ahq) => $ahq->whereDate('created_at', '<=', $filters['last_activation_to']));
                 $listingFilter($mq);
             }))
             ->with(['memberships' => function ($q) use ($isActiveFilter, $isPaidFilter, $partnerId, $creatorFilterId, $saleIdFilter, $companyIdFilter, $membershipNumberFilter, $includeFamily, $listingFilter) {
@@ -220,7 +220,7 @@ class AdminUserMembershipExportController extends BaseController
                 if ($companyIdFilter !== null) {
                     $q->where('company_id', $companyIdFilter);
                 }
-                if (!empty($membershipNumberFilter)) {
+                if (! empty($membershipNumberFilter)) {
                     $q->where('membership_number', $membershipNumberFilter);
                 }
                 $q->orderBy('is_active', 'desc');
@@ -228,7 +228,7 @@ class AdminUserMembershipExportController extends BaseController
                 $q->with(['company', 'partner', 'creator:id,name,email', 'memberPayments', 'latestActiveHistory', 'sales', 'governorate', 'city']);
                 $q->withCount('relatives as family_members_count');
                 if ($includeFamily) {
-                    $q->with(['relatives' => fn($fq) => $fq->with('user')->orderBy('created_at')]);
+                    $q->with(['relatives' => fn ($fq) => $fq->with('user')->orderBy('created_at')]);
                 }
             }])
             ->latest()
@@ -243,6 +243,7 @@ class AdminUserMembershipExportController extends BaseController
         $companyName = $companyIdFilter !== null
             ? (function () use ($companyIdFilter) {
                 $c = Company::find($companyIdFilter);
+
                 return $c
                     ? ($c->getTranslation('name', app()->getLocale()) ?: ($c->getTranslation('name', 'ar') ?: $c->getTranslation('name', 'en')))
                     : "#{$companyIdFilter}";
@@ -271,41 +272,42 @@ class AdminUserMembershipExportController extends BaseController
         // Single-file export — keep the existing behavior.
         if ($chunkSize === 0 || $users->count() <= $chunkSize) {
             $spreadsheet = $this->buildSpreadsheet($users, $partnerName, $creatorName, $statusLabel, $paidLabel, $sourceLabel, $saleLabel, $filters, $includeFamily, null, $selectedColumns, $companyName);
-            $filename = ($includeFamily ? 'members_with_family_' : 'members_export_') . $timestamp . '.xlsx';
+            $filename = ($includeFamily ? 'members_with_family_' : 'members_export_').$timestamp.'.xlsx';
+
             return $this->streamXlsx($spreadsheet, $filename);
         }
 
         // Split mode: build one XLSX per chunk and bundle into a ZIP.
         $chunks = $users->chunk($chunkSize)->values();
         $totalParts = $chunks->count();
-        $tmpDir = sys_get_temp_dir() . '/members_export_' . uniqid('', true);
+        $tmpDir = sys_get_temp_dir().'/members_export_'.uniqid('', true);
         mkdir($tmpDir, 0700, true);
 
         $partFiles = [];
         foreach ($chunks as $i => $chunk) {
             $partNumber = $i + 1;
             $partLabel = __('admin.member_export.part_label', ['current' => $partNumber, 'total' => $totalParts]);
-                    $partSpreadsheet = $this->buildSpreadsheet(
-                        $chunk,
-                        $partnerName,
-                        $creatorName,
-                        $statusLabel,
-                        $paidLabel,
-                        $sourceLabel,
-                        $saleLabel,
-                        $filters,
-                        $includeFamily,
-                        $partLabel,
-                        $selectedColumns,
-                        $companyName
-                    );
+            $partSpreadsheet = $this->buildSpreadsheet(
+                $chunk,
+                $partnerName,
+                $creatorName,
+                $statusLabel,
+                $paidLabel,
+                $sourceLabel,
+                $saleLabel,
+                $filters,
+                $includeFamily,
+                $partLabel,
+                $selectedColumns,
+                $companyName
+            );
             $partFilename = sprintf(
                 '%smembers_part_%02d_of_%02d.xlsx',
                 $includeFamily ? 'with_family_' : '',
                 $partNumber,
                 $totalParts
             );
-            $partPath = $tmpDir . '/' . $partFilename;
+            $partPath = $tmpDir.'/'.$partFilename;
             (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
             $partSpreadsheet->disconnectWorksheets();
             unset($partSpreadsheet);
@@ -318,8 +320,8 @@ class AdminUserMembershipExportController extends BaseController
             $timestamp,
             $chunkSize
         );
-        $zipPath = $tmpDir . '/' . $zipName;
-        $zip = new ZipArchive();
+        $zipPath = $tmpDir.'/'.$zipName;
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($partFiles as $part) {
             $zip->addFile($part['path'], $part['name']);
@@ -329,7 +331,7 @@ class AdminUserMembershipExportController extends BaseController
         return response()->stream(function () use ($zipPath, $tmpDir) {
             readfile($zipPath);
             // Cleanup temp files after the response has been streamed.
-            foreach (glob($tmpDir . '/*') as $f) {
+            foreach (glob($tmpDir.'/*') as $f) {
                 @unlink($f);
             }
             @rmdir($tmpDir);
@@ -376,7 +378,7 @@ class AdminUserMembershipExportController extends BaseController
         $isRtl = app()->getLocale() === 'ar';
 
         $allDefs = $this->getMemberColumnDefinitions();
-        if (!empty($selectedColumns)) {
+        if (! empty($selectedColumns)) {
             $allDefs = array_intersect_key($allDefs, array_flip($selectedColumns));
         }
         $colKeys = array_keys($allDefs);
@@ -388,7 +390,7 @@ class AdminUserMembershipExportController extends BaseController
         }
         $lastLetter = count($letters) ? end($letters) : 'A';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('admin.member_export.members_sheet_title'));
         if ($isRtl) {
@@ -553,7 +555,7 @@ class AdminUserMembershipExportController extends BaseController
             $def = $allDefs[$key];
             $col = $letters[$key];
             $sheet->getColumnDimension($col)->setWidth($def['width']);
-            if (!empty($def['hidden'])) {
+            if (! empty($def['hidden'])) {
                 $sheet->getColumnDimension($col)->setVisible(false);
             }
         }
@@ -627,7 +629,7 @@ class AdminUserMembershipExportController extends BaseController
         $famIndex = 0;
         foreach ($users as $user) {
             $membership = $user->memberships->first();
-            if ($membership === null || !$membership->relationLoaded('relatives')) {
+            if ($membership === null || ! $membership->relationLoaded('relatives')) {
                 continue;
             }
             foreach ($membership->relatives as $fm) {

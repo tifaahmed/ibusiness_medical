@@ -15,8 +15,15 @@ class AdminStoreCategoryListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_STORE_CATEGORIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_STORE_CATEGORIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES;
+    }
 
     /**
      * Display a listing of store categories.
@@ -27,13 +34,13 @@ class AdminStoreCategoryListController extends BaseController
 
         $storeCategories = StoreCategory::query()
             ->with('creator:id,name,email')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
                     // Both names are listed, so both are searchable.
-                    $query->where('name->en', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('name->ar', 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
+                    $query->where('name->en', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('name->ar', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })
             ->latest()

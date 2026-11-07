@@ -22,6 +22,10 @@ class WalletTransaction extends Model
 
     public const SOURCE_TOPUP = 'topup';
 
+    public const SOURCE_REFERRAL = 'referral';
+
+    public const SOURCE_WITHDRAWAL = 'withdrawal';
+
     protected $fillable = ['user_id', 'source', 'client_id', 'amount', 'points', 'points_per_egp', 'note', 'created_by'];
 
     protected function casts(): array

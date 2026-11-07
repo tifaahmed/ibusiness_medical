@@ -41,7 +41,7 @@ class AdminMembershipCardStoreController extends BaseController
             ]);
 
             return response()->json([
-                'message' => 'Failed to create membership card patches batch: ' . $e->getMessage(),
+                'message' => 'Failed to create membership card patches batch: '.$e->getMessage(),
             ], 500);
         }
     }

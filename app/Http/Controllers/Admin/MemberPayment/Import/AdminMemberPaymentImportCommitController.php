@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Admin\MemberPayment\Import;
 
 use App\Http\Controllers\Controller as BaseController;
 use App\Models\MemberPayment;
-use App\Models\Membership;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,8 +55,9 @@ class AdminMemberPaymentImportCommitController extends BaseController
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'message' => 'Some rows failed; nothing was saved.',
                     'errors' => $errors,
@@ -69,7 +68,8 @@ class AdminMemberPaymentImportCommitController extends BaseController
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Payment import commit failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([

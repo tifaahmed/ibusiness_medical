@@ -19,6 +19,7 @@ class StoreCompanyAction
             ]);
             DB::commit();
             Log::info('Company created', ['id' => $company->id, 'slug' => $company->slug]);
+
             return $company;
         } catch (\Exception $e) {
             DB::rollBack();

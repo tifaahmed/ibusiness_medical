@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Admin\Sales\Export;
 
+use App\Enums\User\UserPermissionEnum;
 use App\Http\Controllers\Concerns\CreatorScoped;
 use App\Http\Controllers\Controller as BaseController;
-use App\Enums\User\UserPermissionEnum;
 use App\Models\Sales;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -21,8 +21,15 @@ class AdminSalesExportController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SALES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SALES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SALES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SALES;
+    }
 
     /**
      * Export every sales row the current user can see to an XLSX file that is
@@ -35,7 +42,7 @@ class AdminSalesExportController extends BaseController
         // StreamedResponse never runs HandleInertiaRequests::share(), so
         // re-resolve the session locale exactly like the membership export does.
         $locale = Session::get('locale', config('app.locale'));
-        if (!in_array($locale, ['en', 'ar'], true)) {
+        if (! in_array($locale, ['en', 'ar'], true)) {
             $locale = config('app.locale');
         }
         App::setLocale($locale);
@@ -48,7 +55,7 @@ class AdminSalesExportController extends BaseController
 
         $timestamp = now()->format('Y-m-d_His');
         $spreadsheet = $this->buildSpreadsheet($sales);
-        $filename = 'sales_export_' . $timestamp . '.xlsx';
+        $filename = 'sales_export_'.$timestamp.'.xlsx';
 
         return response()->stream(function () use ($spreadsheet) {
             $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
@@ -62,11 +69,11 @@ class AdminSalesExportController extends BaseController
     }
 
     /**
-     * @param Collection<int, Sales> $sales
+     * @param  Collection<int, Sales>  $sales
      */
     private function buildSpreadsheet(Collection $sales): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Sales');
 
@@ -114,7 +121,7 @@ class AdminSalesExportController extends BaseController
             $nameEn = (string) ($sale->getTranslation('name', 'en') ?: '');
             $nameAr = (string) ($sale->getTranslation('name', 'ar') ?: '');
             $creator = $sale->creator;
-            $creatorCell = $creator ? $creator->id . ' ' . trim($creator->name) : '';
+            $creatorCell = $creator ? $creator->id.' '.trim($creator->name) : '';
 
             $sheet->setCellValue("A{$dataRow}", (string) $sale->id);
             $sheet->setCellValue("B{$dataRow}", $nameEn);
@@ -142,7 +149,7 @@ class AdminSalesExportController extends BaseController
         }
 
         $footerRow = $dataRow + 1;
-        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — ' . $sales->count() . ' sales row(s) exported');
+        $sheet->setCellValue("A{$footerRow}", 'END OF REPORT — '.$sales->count().' sales row(s) exported');
         $sheet->mergeCells("A{$footerRow}:G{$footerRow}");
         $sheet->getStyle("A{$footerRow}")->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '6B7280']],
@@ -150,6 +157,7 @@ class AdminSalesExportController extends BaseController
         ]);
 
         $spreadsheet->setActiveSheetIndex(0);
+
         return $spreadsheet;
     }
 }

@@ -15,8 +15,15 @@ class AdminFacilityTypeListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FACILITIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FACILITIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FACILITIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FACILITIES;
+    }
 
     /**
      * Display a listing of facility types.
@@ -28,11 +35,11 @@ class AdminFacilityTypeListController extends BaseController
         $facilityTypes = FacilityType::query()
             ->with('creator:id,name,email')
             ->withCount('facilities')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
                 $q->where(function ($query) use ($filters) {
-                    $query->where('name->' . app()->getLocale(), 'like', '%' . $filters['search'] . '%')
-                          ->orWhere('slug', 'like', '%' . $filters['search'] . '%');
+                    $query->where('name->'.app()->getLocale(), 'like', '%'.$filters['search'].'%')
+                        ->orWhere('slug', 'like', '%'.$filters['search'].'%');
                 });
             })
             ->latest()
@@ -54,4 +61,3 @@ class AdminFacilityTypeListController extends BaseController
         ];
     }
 }
-

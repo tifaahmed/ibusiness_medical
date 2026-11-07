@@ -19,7 +19,7 @@ class HomeController extends Controller
             Offer::with(['offerable'])->orderByDesc('created_at')->get()
         );
 
-        $contracts = Contract::active()->ordered()->get()->map(fn($contract) => [
+        $contracts = Contract::active()->ordered()->get()->map(fn ($contract) => [
             'id' => $contract->id,
             'name' => $contract->name,
             'description' => $contract->description,

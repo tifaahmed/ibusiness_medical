@@ -20,22 +20,20 @@ class QuickAddMemberController extends Controller
     public function preview(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->validate([
-            'device' => ['nullable', Rule::in(QuickAdd::devices())],
             'member_kind' => ['nullable', Rule::in(Membership::kinds())],
             'wants_card' => ['nullable', 'boolean'],
         ]);
-        $device = $data['device'] ?? null;
         $kind = $data['member_kind'] ?? null;
 
         // Always answers (even with nothing chosen yet): the page shows the message from the first moment, placeholders where a choice is missing.
-        $body = QuickAdd::message($kind, $device, $request->boolean('wants_card'));
+        $body = QuickAdd::message($kind, $request->boolean('wants_card'));
 
         return response()->json([
             'body' => $body,
             'days' => $kind ? QuickAdd::trialDays($kind) : null,
-            'link' => $device ? QuickAdd::storeLink($device) !== null : null,
+            'link' => QuickAdd::shortLink() !== null,
             'sending' => QuickAdd::smsEnabled(),
-            'complete' => $kind !== null && $device !== null,
+            'complete' => $kind !== null,
         ] + QuickAdd::size($body));
     }
 
@@ -106,7 +104,6 @@ class QuickAddMemberController extends Controller
                     $fail($why);
                 }
             }],
-            'device' => ['required', Rule::in(QuickAdd::devices())],
             'member_kind' => ['required', Rule::in(Membership::kinds())],
             'wants_card' => ['nullable', 'boolean'],
             'sales_id' => ['nullable', 'integer', 'exists:sales,id'],

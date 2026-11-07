@@ -15,14 +15,21 @@ class AdminPartnerListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PARTNERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PARTNERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PARTNERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PARTNERS;
+    }
 
     public function __invoke(Request $request): Response
     {
         $partners = Partner::query()
             ->with('creator:id,name,email')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->orderBy('id', 'desc')
             ->paginate($request->input('per_page', 15))->withQueryString();
 

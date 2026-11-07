@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin\User\Membership\Actions\Store;
 use App\Enums\Membership\PaymentTypeEnum;
 use App\Models\MemberLog;
 use App\Models\MemberPayment;
-use App\Models\User;
 use App\Models\Membership;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,10 +22,10 @@ class StoreUserMembershipAction
      * Execute the action to store a user with membership (essential data only).
      * Avatar and family members are processed in a background job.
      *
-     * @param array $validated
-     * @param User|null $admin Admin performing the action (for audit log).
-     * @param Request|null $request Current request (for ip/user-agent).
+     * @param  User|null  $admin  Admin performing the action (for audit log).
+     * @param  Request|null  $request  Current request (for ip/user-agent).
      * @return array{user: User, membership: Membership, plainPassword: string}
+     *
      * @throws \Exception
      */
     public function execute(array $validated, ?User $admin = null, ?Request $request = null): array
@@ -38,11 +38,11 @@ class StoreUserMembershipAction
             ]);
 
             // Use provided email or null (no automatic generation)
-            $email = !empty($validated['email']) ? $validated['email'] : null;
+            $email = ! empty($validated['email']) ? $validated['email'] : null;
 
             // Generate membership number first — it doubles as the account password
-            $membershipNumber = !empty($validated['membership_number']) 
-                ? $validated['membership_number'] 
+            $membershipNumber = ! empty($validated['membership_number'])
+                ? $validated['membership_number']
                 : $this->generateUniqueMembershipNumber();
 
             // Create the user with password = membership_number
@@ -66,14 +66,14 @@ class StoreUserMembershipAction
             $paymentType = null;
             if ($isPaid) {
                 $paymentType = $validated['payment_type'] ?? null;
-                if (!$paymentType && !empty($validated['partner_id'])) {
+                if (! $paymentType && ! empty($validated['partner_id'])) {
                     $paymentType = PaymentTypeEnum::MONTHLY->value;
                 }
             }
 
             // A membership is "completed" when its owner has a real name. Members
             // imported or staged without a name stay incomplete until the name is filled in.
-            $completedAt = !empty(trim((string) ($validated['name'] ?? ''))) ? now() : null;
+            $completedAt = ! empty(trim((string) ($validated['name'] ?? ''))) ? now() : null;
 
             // If setting as active, deactivate all existing memberships
             if ($isActive) {
@@ -104,7 +104,7 @@ class StoreUserMembershipAction
             // A paid membership created via the admin form can carry an initial
             // payment record, filled in the same "Payment" card shown on the
             // member-payment create form — mirrored here so both stay in sync.
-            if ($isPaid && !empty($validated['initial_payment_months_paid']) && !empty($validated['initial_payment_from_date']) && !empty($validated['initial_payment_to_date'])) {
+            if ($isPaid && ! empty($validated['initial_payment_months_paid']) && ! empty($validated['initial_payment_from_date']) && ! empty($validated['initial_payment_to_date'])) {
                 $paymentCategory = $validated['initial_payment_type'] ?? 'commission';
 
                 MemberPayment::create([
@@ -147,7 +147,7 @@ class StoreUserMembershipAction
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('=== StoreUserMembershipAction: Failed ===', [
                 'email' => $validated['email'] ?? null,
                 'membership_number' => $validated['membership_number'] ?? null,
@@ -196,17 +196,16 @@ class StoreUserMembershipAction
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 
     /**
      * Generate a unique membership number.
-     *
-     * @return string
      */
     private function generateUniqueMembershipNumber(): string
     {
@@ -219,9 +218,9 @@ class StoreUserMembershipAction
             $randomNumber = str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
             $year = Carbon::now()->format('Y');
             $sequence = str_pad(rand(1, 99), 2, '0', STR_PAD_LEFT);
-            
+
             $membershipNumber = "MEM-{$randomNumber}-{$year}-{$sequence}";
-            
+
             $exists = Membership::where('membership_number', $membershipNumber)->exists();
             $attempt++;
         } while ($exists && $attempt < $maxAttempts);
@@ -235,4 +234,3 @@ class StoreUserMembershipAction
         return $membershipNumber;
     }
 }
-

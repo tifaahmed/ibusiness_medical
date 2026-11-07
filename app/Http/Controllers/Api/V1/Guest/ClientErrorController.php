@@ -52,7 +52,7 @@ class ClientErrorController extends Controller
 
             return response()->json(['success' => true], 201);
         } catch (\Exception $e) {
-            Log::error('Failed to store client error log: ' . $e->getMessage());
+            Log::error('Failed to store client error log: '.$e->getMessage());
 
             return response()->json(['success' => false], 500);
         }

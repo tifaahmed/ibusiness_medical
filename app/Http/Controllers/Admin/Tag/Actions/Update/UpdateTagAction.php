@@ -25,7 +25,7 @@ class UpdateTagAction
             $updates['applies_to'] = array_values($validated['applies_to']);
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $tag->update($updates);
         }
 

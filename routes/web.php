@@ -455,9 +455,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:view membership card patches|view own membership card patches|view partner membership card patches')->group(function () {
         Route::get('/admin/membership-card-patches', AdminMembershipCardListController::class)->name('admin.membership-card-patches.list');
         Route::get('/admin/membership-card-patches/{card}', AdminMembershipCardShowController::class)->name('admin.membership-card-patches.show');
+        Route::get('/admin/membership-card-patches/{card}/sheet', [\App\Http\Controllers\Admin\MembershipCard\Sheet\AdminMembershipCardSheetController::class, 'show'])->name('admin.membership-card-patches.sheet');
     });
     Route::middleware('permission:create membership card patches|create own membership card patches|create partner membership card patches')->group(function () {
         Route::post('/admin/membership-card-patches/{card}/pdf', AdminMembershipCardUploadPdfController::class)->name('admin.membership-card-patches.upload-pdf');
+        Route::post('/admin/membership-card-patches/{card}/sheet', [\App\Http\Controllers\Admin\MembershipCard\Sheet\AdminMembershipCardSheetController::class, 'save'])->name('admin.membership-card-patches.sheet.save');
         Route::delete('/admin/membership-card-patches/{card}', AdminMembershipCardDeleteController::class)->name('admin.membership-card-patches.destroy');
     });
 
@@ -537,6 +539,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             Route::post('/convert', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'convertPoints'])->name('convert');
             Route::get('/members/{user}/ledger', [\App\Http\Controllers\Admin\QuizLoyaltyController::class, 'ledger'])->whereNumber('user')->name('members.ledger');
         });
+        /* Wallet cash-outs to Vodafone Cash: top admin only (checked in the controller). */
+        Route::get('/admin/withdrawals', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'index'])->name('admin.withdrawals.index');
+        Route::post('/admin/withdrawals/{withdrawal}/approve', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'approve'])->name('admin.withdrawals.approve');
+        Route::post('/admin/withdrawals/{withdrawal}/reject', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'reject'])->name('admin.withdrawals.reject');
+        Route::post('/admin/withdrawals/{withdrawal}/refresh', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'refresh'])->name('admin.withdrawals.refresh');
+        /* Referrals: who brought whom, who paid, what each side got. Read only. */
+        Route::get('/admin/referrals', [\App\Http\Controllers\Admin\ReferralController::class, 'index'])->middleware('permission:manage memberships')->name('admin.referrals.index');
         /* Everything an admin gave or took (loyalty points + wallet money): its own page, apart from /admin/loyalty. */
         Route::get('/admin/points-wallet-log', [\App\Http\Controllers\Admin\LoyaltyAdjustmentLogController::class, 'index'])->middleware('permission:manage memberships')->name('admin.points-wallet-log');
         // Extra physical / soft cards of ONE member (primary or relative): same number or a different one.

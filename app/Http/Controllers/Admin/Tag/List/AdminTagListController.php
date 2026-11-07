@@ -65,9 +65,9 @@ class AdminTagListController extends BaseController
             ->when($sort === 'most_used' || $sort === 'least_used', function ($q) use ($sort) {
                 $direction = $sort === 'most_used' ? 'desc' : 'asc';
                 $usage = '(select count(*) from service_tag where service_tag.tag_id = tags.id)'
-                    . ' + (select count(*) from facility_tag where facility_tag.tag_id = tags.id)'
-                    . ' + (select count(*) from product_tag where product_tag.tag_id = tags.id)'
-                    . ' + (select count(*) from store_tag where store_tag.tag_id = tags.id)';
+                    .' + (select count(*) from facility_tag where facility_tag.tag_id = tags.id)'
+                    .' + (select count(*) from product_tag where product_tag.tag_id = tags.id)'
+                    .' + (select count(*) from store_tag where store_tag.tag_id = tags.id)';
                 $q->orderByRaw("$usage $direction")->orderByDesc('tags.id');
             })
             ->when($sort !== 'most_used' && $sort !== 'least_used', fn ($q) => $q->latest())

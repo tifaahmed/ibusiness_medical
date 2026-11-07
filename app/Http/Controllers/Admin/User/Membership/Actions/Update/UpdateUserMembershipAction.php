@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin\User\Membership\Actions\Update;
 use App\Enums\Membership\PaymentTypeEnum;
 use App\Models\MemberLog;
 use App\Models\MemberPayment;
-use App\Models\User;
 use App\Models\Membership;
+use App\Models\User;
 use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -23,12 +23,10 @@ class UpdateUserMembershipAction
     /**
      * Execute the action to update a user with membership.
      *
-     * @param User $user
-     * @param array $validated
-     * @param UploadedFile|null $avatar
-     * @param User|null $admin Admin performing the action (for audit log).
-     * @param Request|null $request Current request (for ip/user-agent).
+     * @param  User|null  $admin  Admin performing the action (for audit log).
+     * @param  Request|null  $request  Current request (for ip/user-agent).
      * @return array{user: User, membership: Membership, membershipWasCreated: bool, passwordUpdated: bool}
+     *
      * @throws \Exception
      */
     public function execute(
@@ -55,7 +53,7 @@ class UpdateUserMembershipAction
             $oldSnapshot = $existingMembershipForSnapshot
                 ? $this->snapshot($oldUserName, $oldEmail, $existingMembershipForSnapshot)
                 : null;
-            $passwordUpdated = !empty($validated['password']);
+            $passwordUpdated = ! empty($validated['password']);
 
             // Update the user
             $user->update([
@@ -89,14 +87,14 @@ class UpdateUserMembershipAction
             $paymentType = null;
             if ($isPaid) {
                 $paymentType = $validated['payment_type'] ?? null;
-                if (!$paymentType && !empty($validated['partner_id'])) {
+                if (! $paymentType && ! empty($validated['partner_id'])) {
                     $paymentType = PaymentTypeEnum::MONTHLY->value;
                 }
             }
 
             // Mirror the create logic: a membership is "completed" when the owner's
             // name has a value. Filling in a previously empty name flips it to the current time.
-            $completedAt = !empty(trim((string) ($validated['name'] ?? ''))) ? now() : null;
+            $completedAt = ! empty(trim((string) ($validated['name'] ?? ''))) ? now() : null;
 
             // Debug logging
             Log::info('UpdateUserMembershipAction - Values received', [
@@ -182,9 +180,9 @@ class UpdateUserMembershipAction
             // membership is still incomplete and has never had a payment.
             if ($isPaid
                 && $updatedMembership->memberPayments()->count() === 0
-                && !empty($validated['initial_payment_months_paid'])
-                && !empty($validated['initial_payment_from_date'])
-                && !empty($validated['initial_payment_to_date'])
+                && ! empty($validated['initial_payment_months_paid'])
+                && ! empty($validated['initial_payment_from_date'])
+                && ! empty($validated['initial_payment_to_date'])
             ) {
                 $paymentCategory = $validated['initial_payment_type'] ?? 'commission';
 
@@ -247,7 +245,7 @@ class UpdateUserMembershipAction
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Failed to update user and membership', [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
@@ -297,20 +295,17 @@ class UpdateUserMembershipAction
             return null;
         }
         $decoded = is_array($raw) ? $raw : json_decode($raw, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
         $filtered = array_filter($decoded, fn ($v) => $v !== null && $v !== '');
+
         return $filtered === [] ? null : $filtered;
     }
 
     /**
      * Ensure only one active membership per user.
      * This mirrors the logic in the Membership model's boot method.
-     *
-     * @param User $user
-     * @param int $activeMembershipId
-     * @return void
      */
     private function ensureOnlyOneActiveMembership(User $user, int $activeMembershipId): void
     {
@@ -320,4 +315,3 @@ class UpdateUserMembershipAction
             ->update(['is_active' => false]);
     }
 }
-

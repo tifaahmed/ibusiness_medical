@@ -7,6 +7,7 @@ use App\Models\MemberLog;
 use App\Models\MemberPayment;
 use App\Models\Membership;
 use App\Models\MembershipSubscription;
+use App\Support\Referrals;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -106,6 +107,12 @@ class ActivateSubscription
         });
 
         if ($activated) {
+            /* The member who brought this one earns their second reward (idempotent, never undoes the activation). */
+            $card = Membership::withTrashed()->find($subscription->membership_id);
+            if ($card !== null && (float) $subscription->amount > 0) {
+                Referrals::subscriptionPaid($card, $subscription);
+            }
+
             $this->emailReceipt($subscription->fresh('membership.user'), $request);
         }
 

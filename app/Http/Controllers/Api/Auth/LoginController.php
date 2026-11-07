@@ -23,7 +23,7 @@ class LoginController extends Controller
             ->orWhere('phone', $request->login)
             ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             Log::warning('API login failed', ['login' => $request->login]);
             throw ValidationException::withMessages([
                 'login' => ['The provided credentials are incorrect.'],

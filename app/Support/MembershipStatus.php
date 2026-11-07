@@ -40,7 +40,12 @@ final class MembershipStatus
             'price' => MembershipPlan::price(),
             'months' => MembershipPlan::months(),
             /* Every plan on sale — `year` and/or `half` — each with its price and months; draw these and send back `plan`. */
-            'plans' => MembershipPlan::plans($kind),
+            'plans' => array_map(
+                fn (array $plan) => $plan + ['discounted_price' => Referrals::apply($plan['price'], $membership)],
+                MembershipPlan::plans($kind),
+            ),
+            /* Pounds a referral takes off the first subscription (0 = none); `plans[].discounted_price` is the price after it. */
+            'referral_discount' => Referrals::pendingDiscount($membership),
             /* Whether "buy now with Paymob" may be drawn; the contact options are always available. */
             'can_pay_online' => MembershipPlan::canPayOnline($kind),
             /* Every way of paying the admin has switched on, in display order; draw exactly these. */

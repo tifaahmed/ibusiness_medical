@@ -17,6 +17,7 @@ class AdminCompanyStoreController extends BaseController
         try {
             $company = $this->storeAction->execute($request->validated());
             Log::info('Company store request', ['id' => $company->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.company.list')->with('success', 'Company created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create company. Please try again.'])->withInput();

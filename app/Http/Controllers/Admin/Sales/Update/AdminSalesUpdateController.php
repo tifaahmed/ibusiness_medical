@@ -15,8 +15,15 @@ class AdminSalesUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SALES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SALES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SALES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SALES;
+    }
 
     private UpdateSalesAction $updateAction;
 

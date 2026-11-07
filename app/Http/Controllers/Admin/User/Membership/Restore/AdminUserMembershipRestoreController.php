@@ -100,7 +100,7 @@ class AdminUserMembershipRestoreController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to restore user and memberships. Please try again.']);
         }
     }

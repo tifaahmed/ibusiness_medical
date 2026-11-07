@@ -28,10 +28,18 @@ class AdminCompanyMembersExportController extends BaseController
     use ExportsMemberColumns;
 
     private const MIN_CHUNK_SIZE = 1;
+
     private const MAX_CHUNK_SIZE = 10000;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     /**
      * XLSX export of a company's members — uses the same full column
@@ -45,7 +53,7 @@ class AdminCompanyMembersExportController extends BaseController
         // Same locale re-resolution as the membership export: this is a
         // StreamedResponse, so HandleInertiaRequests::share() never runs.
         $locale = Session::get('locale', config('app.locale'));
-        if (!in_array($locale, ['en', 'ar'], true)) {
+        if (! in_array($locale, ['en', 'ar'], true)) {
             $locale = config('app.locale');
         }
         App::setLocale($locale);
@@ -72,9 +80,9 @@ class AdminCompanyMembersExportController extends BaseController
             ->with(['user', 'company', 'partner', 'creator:id,name,email', 'sales', 'governorate', 'city', 'memberPayments', 'latestActiveHistory'])
             ->primary()
             ->withCount('relatives as family_members_count')
-            ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%' . $name . '%')))
-            ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%' . $membershipNumber . '%'))
-            ->when($phone !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%' . $phone . '%')))
+            ->when($name !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('name', 'like', '%'.$name.'%')))
+            ->when($membershipNumber !== '', fn ($q) => $q->where('membership_number', 'like', '%'.$membershipNumber.'%'))
+            ->when($phone !== '', fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('phone', 'like', '%'.$phone.'%')))
             ->orderBy('id')
             ->get();
 
@@ -85,14 +93,15 @@ class AdminCompanyMembersExportController extends BaseController
 
         if ($chunkSize === 0 || $members->count() <= $chunkSize) {
             $spreadsheet = $this->buildSpreadsheet($members, $companyName, $name, $membershipNumber, $phone, $selectedColumns);
-            $filename = 'company_members_' . $company->slug . '_' . $timestamp . '.xlsx';
+            $filename = 'company_members_'.$company->slug.'_'.$timestamp.'.xlsx';
+
             return $this->streamXlsx($spreadsheet, $filename);
         }
 
         // Split mode: one XLSX per chunk, bundled into a ZIP.
         $chunks = $members->chunk($chunkSize)->values();
         $totalParts = $chunks->count();
-        $tmpDir = sys_get_temp_dir() . '/company_members_export_' . uniqid('', true);
+        $tmpDir = sys_get_temp_dir().'/company_members_export_'.uniqid('', true);
         mkdir($tmpDir, 0700, true);
 
         $partFiles = [];
@@ -101,7 +110,7 @@ class AdminCompanyMembersExportController extends BaseController
             $partLabel = "Part {$partNumber} of {$totalParts}";
             $partSpreadsheet = $this->buildSpreadsheet($chunk, $companyName, $name, $membershipNumber, $phone, $selectedColumns, $partLabel);
             $partFilename = sprintf('members_part_%02d_of_%02d.xlsx', $partNumber, $totalParts);
-            $partPath = $tmpDir . '/' . $partFilename;
+            $partPath = $tmpDir.'/'.$partFilename;
             (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
             $partSpreadsheet->disconnectWorksheets();
             unset($partSpreadsheet);
@@ -109,8 +118,8 @@ class AdminCompanyMembersExportController extends BaseController
         }
 
         $zipName = sprintf('company_members_%s_%s_split_%d.zip', $company->slug, $timestamp, $chunkSize);
-        $zipPath = $tmpDir . '/' . $zipName;
-        $zip = new ZipArchive();
+        $zipPath = $tmpDir.'/'.$zipName;
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($partFiles as $part) {
             $zip->addFile($part['path'], $part['name']);
@@ -119,7 +128,7 @@ class AdminCompanyMembersExportController extends BaseController
 
         return response()->stream(function () use ($zipPath, $tmpDir) {
             readfile($zipPath);
-            foreach (glob($tmpDir . '/*') as $f) {
+            foreach (glob($tmpDir.'/*') as $f) {
                 @unlink($f);
             }
             @rmdir($tmpDir);
@@ -145,7 +154,7 @@ class AdminCompanyMembersExportController extends BaseController
     }
 
     /**
-     * @param Collection<int, Membership> $members
+     * @param  Collection<int, Membership>  $members
      */
     private function buildSpreadsheet(
         Collection $members,
@@ -159,7 +168,7 @@ class AdminCompanyMembersExportController extends BaseController
         $isRtl = app()->getLocale() === 'ar';
 
         $allDefs = $this->getMemberColumnDefinitions();
-        if (!empty($selectedColumns)) {
+        if (! empty($selectedColumns)) {
             $allDefs = array_intersect_key($allDefs, array_flip($selectedColumns));
         }
         $colKeys = array_keys($allDefs);
@@ -171,7 +180,7 @@ class AdminCompanyMembersExportController extends BaseController
         $lastLetter = count($letters) ? end($letters) : 'A';
         $firstCol = reset($letters) ?: 'A';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('admin.member_export.members_sheet_title'));
         if ($isRtl) {
@@ -314,7 +323,7 @@ class AdminCompanyMembersExportController extends BaseController
         foreach ($colKeys as $key) {
             $def = $allDefs[$key];
             $sheet->getColumnDimension($letters[$key])->setWidth($def['width']);
-            if (!empty($def['hidden'])) {
+            if (! empty($def['hidden'])) {
                 $sheet->getColumnDimension($letters[$key])->setVisible(false);
             }
         }

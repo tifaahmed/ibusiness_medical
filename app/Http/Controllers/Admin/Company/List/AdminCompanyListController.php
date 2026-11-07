@@ -15,8 +15,15 @@ class AdminCompanyListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -25,11 +32,11 @@ class AdminCompanyListController extends BaseController
         $companies = Company::query()
             ->with('creator:id,name,email')
             ->withCount('memberships')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($query) use ($search) {
-                    $query->where('name->' . app()->getLocale(), 'like', "%{$search}%")
-                          ->orWhere('slug', 'like', "%{$search}%");
+                    $query->where('name->'.app()->getLocale(), 'like', "%{$search}%")
+                        ->orWhere('slug', 'like', "%{$search}%");
                 });
             })
             ->latest()
@@ -38,7 +45,7 @@ class AdminCompanyListController extends BaseController
 
         return Inertia::render('Admin/Company/List', [
             'companies' => new AdminCompanyListCollection($companies)->toArray($request),
-            'filters'   => ['search' => $search],
+            'filters' => ['search' => $search],
         ]);
     }
 }

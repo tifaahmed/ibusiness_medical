@@ -12,8 +12,6 @@ class StoreStoreCategoryAction
     /**
      * Execute the action to store a store category.
      *
-     * @param array $validated
-     * @return StoreCategory
      * @throws \Exception
      */
     public function execute(array $validated): StoreCategory

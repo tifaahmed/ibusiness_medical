@@ -309,7 +309,7 @@ class ContactMessageController extends Controller
         // Single-file export — keep the existing behavior.
         if ($chunkSize === 0 || $messages->count() <= $chunkSize) {
             $spreadsheet = $this->buildExportSpreadsheet($messages, $filters, $statusLabel, $sourceLabel, null, $selectedColumns);
-            $filename = 'contact_messages_export_' . $timestamp . '.xlsx';
+            $filename = 'contact_messages_export_'.$timestamp.'.xlsx';
 
             return $this->streamXlsx($spreadsheet, $filename);
         }
@@ -317,7 +317,7 @@ class ContactMessageController extends Controller
         // Split mode: build one XLSX per chunk and bundle into a ZIP.
         $chunks = $messages->chunk($chunkSize)->values();
         $totalParts = $chunks->count();
-        $tmpDir = sys_get_temp_dir() . '/contact_messages_export_' . uniqid('', true);
+        $tmpDir = sys_get_temp_dir().'/contact_messages_export_'.uniqid('', true);
         mkdir($tmpDir, 0700, true);
 
         $partFiles = [];
@@ -326,7 +326,7 @@ class ContactMessageController extends Controller
             $partLabel = __('admin.contact_message_export.part_label', ['current' => $partNumber, 'total' => $totalParts]);
             $partSpreadsheet = $this->buildExportSpreadsheet($chunk, $filters, $statusLabel, $sourceLabel, $partLabel, $selectedColumns);
             $partFilename = sprintf('contact_messages_part_%02d_of_%02d.xlsx', $partNumber, $totalParts);
-            $partPath = $tmpDir . '/' . $partFilename;
+            $partPath = $tmpDir.'/'.$partFilename;
             (IOFactory::createWriter($partSpreadsheet, 'Xlsx'))->save($partPath);
             $partSpreadsheet->disconnectWorksheets();
             unset($partSpreadsheet);
@@ -334,8 +334,8 @@ class ContactMessageController extends Controller
         }
 
         $zipName = sprintf('contact_messages_export_%s_split_%d.zip', $timestamp, $chunkSize);
-        $zipPath = $tmpDir . '/' . $zipName;
-        $zip = new ZipArchive();
+        $zipPath = $tmpDir.'/'.$zipName;
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($partFiles as $part) {
             $zip->addFile($part['path'], $part['name']);
@@ -344,7 +344,7 @@ class ContactMessageController extends Controller
 
         return response()->stream(function () use ($zipPath, $tmpDir) {
             readfile($zipPath);
-            foreach (glob($tmpDir . '/*') as $f) {
+            foreach (glob($tmpDir.'/*') as $f) {
                 @unlink($f);
             }
             @rmdir($tmpDir);
@@ -389,7 +389,7 @@ class ContactMessageController extends Controller
         $firstCol = reset($letters) ?: 'A';
         $lastCol = end($letters) ?: 'A';
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('admin.contact_message_export.sheet_title'));
         if ($isRtl) {
@@ -476,20 +476,20 @@ class ContactMessageController extends Controller
             $rowIndex++;
 
             $values = [
-                'id'                  => (string) $message->id,
-                'name'                => (string) ($message->name ?? ''),
-                'email'               => (string) ($message->email ?? ''),
-                'phone'               => (string) ($message->phone ?? ''),
+                'id' => (string) $message->id,
+                'name' => (string) ($message->name ?? ''),
+                'email' => (string) ($message->email ?? ''),
+                'phone' => (string) ($message->phone ?? ''),
                 'commercial_register' => (string) ($message->commercial_register ?? ''),
-                'source'              => (string) ($message->source?->label() ?? ''),
-                'status'              => (string) ($message->status?->label() ?? ''),
-                'sales_name'          => (string) ($message->sales?->name ?? ''),
-                'subject'             => (string) ($message->subject ?? ''),
-                'message'             => (string) ($message->message ?? ''),
-                'admin_notes'         => (string) ($message->admin_notes ?? ''),
-                'created_at'          => $message->created_at?->format('Y-m-d H:i:s') ?? '',
-                'read_at'             => $message->read_at?->format('Y-m-d H:i:s') ?? '',
-                'replied_at'          => $message->replied_at?->format('Y-m-d H:i:s') ?? '',
+                'source' => (string) ($message->source?->label() ?? ''),
+                'status' => (string) ($message->status?->label() ?? ''),
+                'sales_name' => (string) ($message->sales?->name ?? ''),
+                'subject' => (string) ($message->subject ?? ''),
+                'message' => (string) ($message->message ?? ''),
+                'admin_notes' => (string) ($message->admin_notes ?? ''),
+                'created_at' => $message->created_at?->format('Y-m-d H:i:s') ?? '',
+                'read_at' => $message->read_at?->format('Y-m-d H:i:s') ?? '',
+                'replied_at' => $message->replied_at?->format('Y-m-d H:i:s') ?? '',
             ];
 
             foreach ($keys as $key) {

@@ -56,7 +56,7 @@ class UpdatePartnerOfferAction
                     ->toMediaCollection('mobile_small_image');
             }
 
-            if (!empty($validated['deleted_gallery_ids'])) {
+            if (! empty($validated['deleted_gallery_ids'])) {
                 $this->mediaService->deleteMediaByIds($offer, $validated['deleted_gallery_ids'], 'gallery');
             }
 

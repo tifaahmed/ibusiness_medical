@@ -29,6 +29,7 @@ class StoreServiceTypeAction
 
             DB::commit();
             Log::info('ServiceType created', ['id' => $serviceType->id]);
+
             return $serviceType;
         } catch (\Exception $e) {
             DB::rollBack();

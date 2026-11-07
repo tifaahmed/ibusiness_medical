@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin\User\Membership\Update;
 
 use App\Http\Controllers\Admin\User\Membership\Actions\Address\UpsertMemberAddressAction;
-use App\Http\Controllers\Admin\User\Membership\Actions\Update\UpdateUserMembershipAction;
 use App\Http\Controllers\Admin\User\Membership\Actions\Update\SendMembershipUpdateNotificationAction;
+use App\Http\Controllers\Admin\User\Membership\Actions\Update\UpdateUserMembershipAction;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
 use App\Http\Requests\Admin\User\Membership\UpdateMembershipRequest;
@@ -18,18 +18,22 @@ class AdminUserMembershipUpdateController extends BaseController
 {
     use ScopesByMembershipCreator;
 
-
     private UpdateUserMembershipAction $updateAction;
+
     private SendMembershipUpdateNotificationAction $notificationAction;
+
     private UpsertMemberAddressAction $upsertAddressAction;
+
     private MediaService $mediaService;
+
     public function __construct(UpdateUserMembershipAction $updateAction, SendMembershipUpdateNotificationAction $notificationAction, UpsertMemberAddressAction $upsertAddressAction, MediaService $mediaService)
     {
         $this->updateAction = $updateAction;
         $this->notificationAction = $notificationAction;
         $this->upsertAddressAction = $upsertAddressAction;
         $this->mediaService = $mediaService;
-    }       
+    }
+
     /**
      * Update the specified user and membership.
      */
@@ -165,7 +169,7 @@ class AdminUserMembershipUpdateController extends BaseController
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-            
+
             // Admin-only screen: say WHAT failed (class + message), not just that something did.
             $reason = class_basename($e).': '.\Illuminate\Support\Str::limit($e->getMessage(), 300);
 
@@ -174,4 +178,3 @@ class AdminUserMembershipUpdateController extends BaseController
         }
     }
 }
-

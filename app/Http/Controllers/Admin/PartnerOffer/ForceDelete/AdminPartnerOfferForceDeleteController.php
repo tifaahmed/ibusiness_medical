@@ -14,8 +14,15 @@ class AdminPartnerOfferForceDeleteController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PARTNER_OFFERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PARTNER_OFFERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PARTNER_OFFERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PARTNER_OFFERS;
+    }
 
     public function __invoke(Request $request, int $partnerOffer): RedirectResponse
     {

@@ -15,8 +15,15 @@ class AdminStoreCategoryEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_STORE_CATEGORIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_STORE_CATEGORIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_STORE_CATEGORIES;
+    }
 
     /**
      * Show the form for editing the specified store category.

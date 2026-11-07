@@ -12,7 +12,7 @@ class PartnersListController extends Controller
     {
         $partners = Partner::orderBy('title')
             ->get()
-            ->map(fn(Partner $p) => [
+            ->map(fn (Partner $p) => [
                 'id' => $p->id,
                 'title' => $p->title,
                 'image' => $p->image ?: null,

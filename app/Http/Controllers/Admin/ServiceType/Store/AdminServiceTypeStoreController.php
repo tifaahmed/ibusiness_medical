@@ -17,6 +17,7 @@ class AdminServiceTypeStoreController extends BaseController
         try {
             $serviceType = $this->storeAction->execute($request->validated());
             Log::info('ServiceType store request', ['id' => $serviceType->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.service-type.list')->with('success', 'Service category created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create service category. Please try again.'])->withInput();

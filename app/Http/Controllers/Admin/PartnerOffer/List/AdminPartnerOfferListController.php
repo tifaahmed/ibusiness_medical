@@ -15,8 +15,15 @@ class AdminPartnerOfferListController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PARTNER_OFFERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PARTNER_OFFERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PARTNER_OFFERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PARTNER_OFFERS;
+    }
 
     public function __invoke(Request $request): Response
     {
@@ -24,11 +31,11 @@ class AdminPartnerOfferListController extends BaseController
 
         $offers = PartnerOffer::query()
             ->with('creator:id,name,email', 'partner:id,title')
-            ->tap(fn($q) => $this->applyCreatorScope($q))
-            ->when(!empty($filters['search']), function ($q) use ($filters) {
-                $q->where('title', 'like', '%' . $filters['search'] . '%');
+            ->tap(fn ($q) => $this->applyCreatorScope($q))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
+                $q->where('title', 'like', '%'.$filters['search'].'%');
             })
-            ->when(!empty($filters['partner_id']), function ($q) use ($filters) {
+            ->when(! empty($filters['partner_id']), function ($q) use ($filters) {
                 $q->where('partner_id', $filters['partner_id']);
             })
             ->orderBy('id', 'desc')

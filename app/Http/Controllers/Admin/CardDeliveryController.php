@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\CardDelivery;
 use App\Models\CardDeliveryNote;
 use App\Models\DeliveryCourier;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;

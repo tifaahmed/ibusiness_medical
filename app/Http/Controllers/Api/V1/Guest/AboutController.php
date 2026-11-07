@@ -12,7 +12,7 @@ class AboutController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
-        $contracts = Contract::active()->ordered()->get()->map(fn($contract) => [
+        $contracts = Contract::active()->ordered()->get()->map(fn ($contract) => [
             'id' => $contract->id,
             'name' => $contract->name,
             'description' => $contract->description,
@@ -21,7 +21,7 @@ class AboutController extends Controller
             'image' => $contract->image,
         ]);
 
-        $faqs = Faq::active()->ordered()->get()->map(fn($faq) => [
+        $faqs = Faq::active()->ordered()->get()->map(fn ($faq) => [
             'id' => $faq->id,
             'question' => $faq->question,
             'answer' => $faq->answer,

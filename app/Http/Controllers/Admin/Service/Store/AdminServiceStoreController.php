@@ -17,6 +17,7 @@ class AdminServiceStoreController extends BaseController
         try {
             $service = $this->storeAction->execute($request->validated());
             Log::info('Service store request', ['id' => $service->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.service.list')->with('success', 'Service created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create service. Please try again.'])->withInput();

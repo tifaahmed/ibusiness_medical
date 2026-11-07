@@ -27,7 +27,7 @@ class ClientErrorLogController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('message', 'like', "%{$search}%")
-                  ->orWhere('route', 'like', "%{$search}%");
+                    ->orWhere('route', 'like', "%{$search}%");
             });
         }
 

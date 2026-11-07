@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\LoyaltyTransaction;
 use App\Models\QuizBadge;
 use App\Models\User;
-use App\Services\Loyalty\QuizBadges;
 use App\Models\WalletTransaction;
+use App\Services\Loyalty\QuizBadges;
 use App\Support\LoyaltyPoints;
 use App\Support\LoyaltyWallet;
 use App\Support\WalletPayments;
@@ -210,6 +210,7 @@ class LoyaltyController extends Controller
             'wallet_min_egp' => LoyaltyWallet::minEgp(),
             'wallet_min_topup' => WalletPayments::minTopup(),
             'wallet_membership_enabled' => WalletPayments::membershipEnabled(),
+            'withdrawal' => \App\Support\WalletWithdrawals::summary(),
         ];
     }
 

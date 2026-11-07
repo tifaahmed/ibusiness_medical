@@ -49,7 +49,7 @@ class AdminSalesImportTemplateController extends BaseController
 
     private function buildSpreadsheet(bool $includeExample): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Sales');
 

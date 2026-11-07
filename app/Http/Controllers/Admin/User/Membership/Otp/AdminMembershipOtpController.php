@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Otp;
 
-use App\Http\Controllers\Controller as BaseController;
 use App\Enums\User\UserRoleEnum;
+use App\Http\Controllers\Controller as BaseController;
 use App\Models\MemberLog;
 use App\Models\Setting;
 use App\Models\User;

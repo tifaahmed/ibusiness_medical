@@ -42,31 +42,31 @@ class AdminMemberPaymentExportToPayController extends BaseController
 
         $memberships = Membership::query()->primary()
             ->whereNotNull('completed_at')
-            ->when($partnerId !== null, fn($q) => $q->where('partner_id', $partnerId))
-            ->whereHas('user', fn($uq) => $uq
+            ->when($partnerId !== null, fn ($q) => $q->where('partner_id', $partnerId))
+            ->whereHas('user', fn ($uq) => $uq
                 ->whereNull('deleted_at')
-                ->when(!empty($filters['search']), fn($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
-                ->when(!empty($filters['email']), fn($q) => $q->where('email', 'like', '%'.$filters['email'].'%'))
-                ->when(!empty($filters['phone']), fn($q) => $q->where('phone', 'like', '%'.$filters['phone'].'%'))
+                ->when(! empty($filters['search']), fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+                ->when(! empty($filters['email']), fn ($q) => $q->where('email', 'like', '%'.$filters['email'].'%'))
+                ->when(! empty($filters['phone']), fn ($q) => $q->where('phone', 'like', '%'.$filters['phone'].'%'))
             )
-            ->when(!empty($filters['membership_number']), fn($q) => $q->where('membership_number', $filters['membership_number']))
-            ->when($filters['is_active'] === true, fn($q) => $q->where('is_active', true))
-            ->when($filters['is_active'] === false, fn($q) => $q->where('is_active', false))
-            ->when($filters['is_paid'] === true, fn($q) => $q->where('is_paid', true))
-            ->when($filters['is_paid'] === false, fn($q) => $q->where('is_paid', false))
-            ->when($filters['creator_id'] !== null, fn($q) => $q->where('created_by', $filters['creator_id']))
-            ->when($filters['sale_id'] !== null, fn($q) => $q->where('sales_id', $filters['sale_id']))
-            ->when(!empty($filters['created_from']), fn($q) => $q->whereHas('user', fn($uq) => $uq->whereDate('created_at', '>=', $filters['created_from'])))
-            ->when(!empty($filters['created_to']), fn($q) => $q->whereHas('user', fn($uq) => $uq->whereDate('created_at', '<=', $filters['created_to'])))
-            ->when(!empty($filters['registration_date_from']), fn($q) => $q->whereDate('registration_date', '>=', $filters['registration_date_from']))
-            ->when(!empty($filters['registration_date_to']), fn($q) => $q->whereDate('registration_date', '<=', $filters['registration_date_to']))
-            ->when(!empty($filters['expiration_date_from']), fn($q) => $q->whereDate('expiration_date', '>=', $filters['expiration_date_from']))
-            ->when(!empty($filters['expiration_date_to']), fn($q) => $q->whereDate('expiration_date', '<=', $filters['expiration_date_to']))
+            ->when(! empty($filters['membership_number']), fn ($q) => $q->where('membership_number', $filters['membership_number']))
+            ->when($filters['is_active'] === true, fn ($q) => $q->where('is_active', true))
+            ->when($filters['is_active'] === false, fn ($q) => $q->where('is_active', false))
+            ->when($filters['is_paid'] === true, fn ($q) => $q->where('is_paid', true))
+            ->when($filters['is_paid'] === false, fn ($q) => $q->where('is_paid', false))
+            ->when($filters['creator_id'] !== null, fn ($q) => $q->where('created_by', $filters['creator_id']))
+            ->when($filters['sale_id'] !== null, fn ($q) => $q->where('sales_id', $filters['sale_id']))
+            ->when(! empty($filters['created_from']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereDate('created_at', '>=', $filters['created_from'])))
+            ->when(! empty($filters['created_to']), fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereDate('created_at', '<=', $filters['created_to'])))
+            ->when(! empty($filters['registration_date_from']), fn ($q) => $q->whereDate('registration_date', '>=', $filters['registration_date_from']))
+            ->when(! empty($filters['registration_date_to']), fn ($q) => $q->whereDate('registration_date', '<=', $filters['registration_date_to']))
+            ->when(! empty($filters['expiration_date_from']), fn ($q) => $q->whereDate('expiration_date', '>=', $filters['expiration_date_from']))
+            ->when(! empty($filters['expiration_date_to']), fn ($q) => $q->whereDate('expiration_date', '<=', $filters['expiration_date_to']))
             ->when($filters['is_from_card_patch'] === true, function ($q) {
                 $cardPatchIds = MembershipCard::query()
                     ->whereNotNull('membership_ids')
                     ->lazyById(200)
-                    ->flatMap(fn($c) => $c->membership_ids ?? [])
+                    ->flatMap(fn ($c) => $c->membership_ids ?? [])
                     ->unique()
                     ->values()
                     ->toArray();
@@ -76,7 +76,7 @@ class AdminMemberPaymentExportToPayController extends BaseController
                 $cardPatchIds = MembershipCard::query()
                     ->whereNotNull('membership_ids')
                     ->lazyById(200)
-                    ->flatMap(fn($c) => $c->membership_ids ?? [])
+                    ->flatMap(fn ($c) => $c->membership_ids ?? [])
                     ->unique()
                     ->values()
                     ->toArray();
@@ -117,7 +117,7 @@ class AdminMemberPaymentExportToPayController extends BaseController
         $lastCol = 'G';
         $headerRow = 1;
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Members');
 
@@ -162,39 +162,39 @@ class AdminMemberPaymentExportToPayController extends BaseController
         ]);
 
         $none = '—';
-        $partnerName = !empty($filters['partner_id'])
-            ? (\App\Models\Partner::find($filters['partner_id'])?->title ?? '#' . $filters['partner_id'])
+        $partnerName = ! empty($filters['partner_id'])
+            ? (\App\Models\Partner::find($filters['partner_id'])?->title ?? '#'.$filters['partner_id'])
             : $none;
-        $creatorName = !empty($filters['creator_id'])
-            ? (\App\Models\User::find($filters['creator_id'])?->name ?? '#' . $filters['creator_id'])
+        $creatorName = ! empty($filters['creator_id'])
+            ? (\App\Models\User::find($filters['creator_id'])?->name ?? '#'.$filters['creator_id'])
             : $none;
-        $saleName = !empty($filters['sale_id'])
+        $saleName = ! empty($filters['sale_id'])
             ? (\App\Models\Sales::find($filters['sale_id'])?->getTranslation('name', app()->getLocale())
                 ?: \App\Models\Sales::find($filters['sale_id'])?->getTranslation('name', 'ar')
                 ?: \App\Models\Sales::find($filters['sale_id'])?->getTranslation('name', 'en')
-                ?: '#' . $filters['sale_id'])
+                ?: '#'.$filters['sale_id'])
             : $none;
         $statusLabel = $filters['is_active'] === null ? $none : ($filters['is_active'] ? 'Active only' : 'Inactive only');
         $paidLabel = $filters['is_paid'] === null ? $none : ($filters['is_paid'] ? 'Paid only' : 'Unpaid only');
         $sourceLabel = $filters['is_from_card_patch'] === null ? $none : ($filters['is_from_card_patch'] ? 'Card patch only' : 'Manual only');
 
         $filterRows = [
-            ['Search', !empty($filters['search']) ? $filters['search'] : $none],
-            ['Email', !empty($filters['email']) ? $filters['email'] : $none],
-            ['Phone', !empty($filters['phone']) ? $filters['phone'] : $none],
-            ['Membership #', !empty($filters['membership_number']) ? $filters['membership_number'] : $none],
+            ['Search', ! empty($filters['search']) ? $filters['search'] : $none],
+            ['Email', ! empty($filters['email']) ? $filters['email'] : $none],
+            ['Phone', ! empty($filters['phone']) ? $filters['phone'] : $none],
+            ['Membership #', ! empty($filters['membership_number']) ? $filters['membership_number'] : $none],
             ['Status', $statusLabel],
             ['Payment', $paidLabel],
             ['Source', $sourceLabel],
             ['Partner', $partnerName],
             ['Creator', $creatorName],
             ['Sales', $saleName],
-            ['Created from', !empty($filters['created_from']) ? $filters['created_from'] : $none],
-            ['Created to', !empty($filters['created_to']) ? $filters['created_to'] : $none],
-            ['Registration from', !empty($filters['registration_date_from']) ? $filters['registration_date_from'] : $none],
-            ['Registration to', !empty($filters['registration_date_to']) ? $filters['registration_date_to'] : $none],
-            ['Expiration from', !empty($filters['expiration_date_from']) ? $filters['expiration_date_from'] : $none],
-            ['Expiration to', !empty($filters['expiration_date_to']) ? $filters['expiration_date_to'] : $none],
+            ['Created from', ! empty($filters['created_from']) ? $filters['created_from'] : $none],
+            ['Created to', ! empty($filters['created_to']) ? $filters['created_to'] : $none],
+            ['Registration from', ! empty($filters['registration_date_from']) ? $filters['registration_date_from'] : $none],
+            ['Registration to', ! empty($filters['registration_date_to']) ? $filters['registration_date_to'] : $none],
+            ['Expiration from', ! empty($filters['expiration_date_from']) ? $filters['expiration_date_from'] : $none],
+            ['Expiration to', ! empty($filters['expiration_date_to']) ? $filters['expiration_date_to'] : $none],
         ];
         $row = $filterStart + 1;
         foreach ($filterRows as [$label, $value]) {
@@ -229,7 +229,9 @@ class AdminMemberPaymentExportToPayController extends BaseController
 
         foreach ($memberships as $membership) {
             $user = $membership->user;
-            if (!$user) continue;
+            if (! $user) {
+                continue;
+            }
 
             $rowIndex++;
 
@@ -255,7 +257,7 @@ class AdminMemberPaymentExportToPayController extends BaseController
         // Dropdown validation for the type column (G)
         $lastDataRow = $dataRow - 1;
         if ($lastDataRow >= $dataStart) {
-            $validation = new DataValidation();
+            $validation = new DataValidation;
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);

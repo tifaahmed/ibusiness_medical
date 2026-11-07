@@ -11,9 +11,6 @@ class UpdateFacilityTypeAction
     /**
      * Execute the action to update a facility type.
      *
-     * @param FacilityType $facilityType
-     * @param array $validated
-     * @return FacilityType
      * @throws \Exception
      */
     public function execute(FacilityType $facilityType, array $validated): FacilityType
@@ -38,7 +35,7 @@ class UpdateFacilityTypeAction
             return $facilityType;
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Failed to update facility type', [
                 'facility_type_id' => $facilityType->id,
                 'error_message' => $e->getMessage(),
@@ -49,6 +46,3 @@ class UpdateFacilityTypeAction
         }
     }
 }
-
-
-

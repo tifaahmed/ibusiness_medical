@@ -39,7 +39,7 @@ class UpdatePartnerAction
                     ->toMediaCollection('header_image');
             }
 
-            if (!empty($validated['deleted_gallery_ids'])) {
+            if (! empty($validated['deleted_gallery_ids'])) {
                 $this->mediaService->deleteMediaByIds($partner, $validated['deleted_gallery_ids'], 'gallery');
             }
 

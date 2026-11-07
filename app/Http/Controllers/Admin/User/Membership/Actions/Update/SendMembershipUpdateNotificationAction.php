@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers\Admin\User\Membership\Actions\Update;
 
-use App\Models\User;
-use App\Models\Membership;
 use App\Jobs\Admin\User\Membership\AdminToMemberMembershipUpdatedNotificationJob;
+use App\Models\Membership;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 class SendMembershipUpdateNotificationAction
 {
     /**
      * Execute the action to send membership update notification.
-     *
-     * @param User $user
-     * @param Membership $membership
-     * @return void
      */
     public function execute(User $user, Membership $membership): void
     {
@@ -42,4 +38,3 @@ class SendMembershipUpdateNotificationAction
         }
     }
 }
-

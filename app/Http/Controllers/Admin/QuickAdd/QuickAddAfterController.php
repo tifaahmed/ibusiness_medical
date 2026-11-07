@@ -48,7 +48,7 @@ class QuickAddAfterController extends Controller
             'device' => $card->quick_device,
             'wants_card' => (bool) $card->quick_wants_card,
             'expiration_date' => $card->expiration_date?->format('Y-m-d'),
-            'card_link' => PublicMembershipUrl::forSlug($user->slug),
+            'card_link' => PublicMembershipUrl::qrForSlug((string) $card->membership_number),
             'sms' => $sms ? ['body' => $sms->body, 'status' => $sms->status, 'characters' => $sms->characters, 'segments' => $sms->segments] : null,
             'links' => ['android' => QuickAdd::storeLink(QuickAdd::DEVICE_ANDROID), 'iphone' => QuickAdd::storeLink(QuickAdd::DEVICE_IPHONE)],
         ];

@@ -15,8 +15,15 @@ class AdminCompanyUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     public function __construct(private UpdateCompanyAction $updateAction) {}
 
@@ -28,6 +35,7 @@ class AdminCompanyUpdateController extends BaseController
 
             $updated = $this->updateAction->execute($company, $request->validated());
             Log::info('Company updated', ['id' => $updated->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.company.list')->with('success', 'Company updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update company. Please try again.'])->withInput();

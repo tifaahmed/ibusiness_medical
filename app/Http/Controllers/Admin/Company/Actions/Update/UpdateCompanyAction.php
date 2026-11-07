@@ -16,6 +16,7 @@ class UpdateCompanyAction
             $company->refresh();
             DB::commit();
             Log::info('Company updated', ['id' => $company->id, 'slug' => $company->slug]);
+
             return $company;
         } catch (\Exception $e) {
             DB::rollBack();

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin\User\Membership\FamilyMember\Approval;
 
 use App\Enums\FamilyMember\ApprovalStatusEnum;
+use App\Http\Controllers\Concerns\FindsRelatives;
 use App\Http\Controllers\Concerns\ScopesByMembershipCreator;
 use App\Http\Controllers\Controller as BaseController;
-use App\Http\Controllers\Concerns\FindsRelatives;
-use App\Models\Membership;
 use App\Models\MemberLog;
+use App\Models\Membership;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

@@ -18,8 +18,15 @@ class AdminCompanyImportCommitController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_COMPANIES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_COMPANIES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_COMPANIES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_COMPANIES;
+    }
 
     /**
      * Apply the (possibly edited) preview rows to the database.
@@ -68,6 +75,7 @@ class AdminCompanyImportCommitController extends BaseController
                 foreach ($companies as $company) {
                     if ($company->memberships()->exists()) {
                         $skippedDelete++;
+
                         continue;
                     }
                     $company->delete();
@@ -81,6 +89,7 @@ class AdminCompanyImportCommitController extends BaseController
                     $nameAr = trim((string) ($row['name_ar'] ?? ''));
                     if ($nameEn === '' && $nameAr === '') {
                         $skipped++;
+
                         continue;
                     }
 
@@ -94,17 +103,20 @@ class AdminCompanyImportCommitController extends BaseController
                     // "Add only" never touches rows that already exist.
                     if ($mode === 'create_only' && $existing) {
                         $skipped++;
+
                         continue;
                     }
 
                     if ($existing && $mode === 'upsert') {
                         $this->applyUpdate($existing, $nameEn, $nameAr, $rowSlug);
                         $updated++;
+
                         continue;
                     }
 
                     if ($rowId !== null && Company::where('id', $rowId)->exists()) {
                         $skipped++;
+
                         continue;
                     }
 
@@ -119,8 +131,9 @@ class AdminCompanyImportCommitController extends BaseController
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'message' => 'Some rows failed; nothing was saved.',
                     'errors' => $errors,
@@ -131,7 +144,8 @@ class AdminCompanyImportCommitController extends BaseController
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Company import commit failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
 
         return response()->json([
@@ -253,6 +267,7 @@ class AdminCompanyImportCommitController extends BaseController
                 return $user->id;
             }
         }
+
         return Auth::id();
     }
 }

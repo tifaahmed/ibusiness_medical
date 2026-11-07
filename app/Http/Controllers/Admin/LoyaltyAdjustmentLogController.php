@@ -57,7 +57,7 @@ class LoyaltyAdjustmentLogController extends Controller
         }
 
         $base = DB::query()->fromSub($union, 't');
-        $totals = (clone $base)->selectRaw("ledger, SUM(CASE WHEN value > 0 THEN value ELSE 0 END) as given, SUM(CASE WHEN value < 0 THEN value ELSE 0 END) as taken, COUNT(*) as n")->groupBy('ledger')->get()->keyBy('ledger');
+        $totals = (clone $base)->selectRaw('ledger, SUM(CASE WHEN value > 0 THEN value ELSE 0 END) as given, SUM(CASE WHEN value < 0 THEN value ELSE 0 END) as taken, COUNT(*) as n')->groupBy('ledger')->get()->keyBy('ledger');
 
         $page = (clone $base)->orderByDesc('created_at')->orderByDesc('id')->paginate(30)->withQueryString();
 

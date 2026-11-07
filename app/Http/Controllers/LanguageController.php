@@ -11,7 +11,7 @@ class LanguageController extends Controller
 {
     public function switch(Request $request, string $locale)
     {
-        if (!in_array($locale, ['en', 'ar'])) {
+        if (! in_array($locale, ['en', 'ar'])) {
             $locale = 'en';
         }
 
@@ -22,4 +22,3 @@ class LanguageController extends Controller
         return Inertia::location(url()->previous());
     }
 }
-

@@ -19,16 +19,16 @@ class MembershipCardDataUpdateController extends Controller
         }
 
         $data = $request->validate([
-            'name'      => ['nullable', 'string', 'max:255'],
-            'policy'    => ['nullable', 'string', 'max:255'],
-            'member'    => ['nullable', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'policy' => ['nullable', 'string', 'max:255'],
+            'member' => ['nullable', 'string', 'max:255'],
             'member_ar' => ['nullable', 'string', 'max:255'],
             'member_en' => ['nullable', 'string', 'max:255'],
-            'status'    => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'max:255'],
             'status_ar' => ['nullable', 'string', 'max:255'],
             'status_en' => ['nullable', 'string', 'max:255'],
-            'valid'     => ['nullable', 'string', 'max:50'],
-            'partner'   => ['nullable', 'integer', 'exists:partners,id'],
+            'valid' => ['nullable', 'string', 'max:50'],
+            'partner' => ['nullable', 'integer', 'exists:partners,id'],
         ]);
 
         if (array_key_exists('name', $data) && $membership->user) {
@@ -90,9 +90,9 @@ class MembershipCardDataUpdateController extends Controller
             'message' => 'Updated successfully.',
             'membership' => [
                 'membership_number' => $membership->membership_number,
-                'expiration_date'  => $membership->expiration_date?->format('Y-m-d'),
-                'partner_id'       => $membership->partner_id,
-                'job_title'        => $membership->getTranslations('job_title'),
+                'expiration_date' => $membership->expiration_date?->format('Y-m-d'),
+                'partner_id' => $membership->partner_id,
+                'job_title' => $membership->getTranslations('job_title'),
             ],
             'user' => $membership->user ? [
                 'name' => $membership->user->name,

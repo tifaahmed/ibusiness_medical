@@ -15,8 +15,15 @@ class AdminFaqEditController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_FAQS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_FAQS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_FAQS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_FAQS;
+    }
 
     public function __invoke(Request $request, Faq $faq): Response
     {

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * A salesperson registers a customer on the phone: name, phone, Android/iPhone, individual/company, wants a card or not.
+ * A salesperson registers a customer on the phone: name, phone, individual/company, wants a card or not.
  *
  * Builds the member through the ordinary trial path ({@see StartTrialCard}: trial claim, number, log), then stamps it
  * for good as "quick added" by that admin, sets the trial length for its kind (7 days individuals, 30 companies — settings)
@@ -26,7 +26,7 @@ class QuickAddMember
     public function __construct(private readonly StartTrialCard $trial, private readonly SmsOutbox $outbox) {}
 
     /**
-     * @param  array{name: string, phone: string, device: string, member_kind: string, wants_card?: bool, sales_id?: int|null, message_override?: string|null}  $data
+     * @param  array{name: string, phone: string, member_kind: string, wants_card?: bool, sales_id?: int|null, message_override?: string|null}  $data
      * @return array{membership: Membership, sms: \App\Models\SmsMessage|null}
      */
     public function handle(array $data, User $admin, ?Request $request = null): array
@@ -49,7 +49,7 @@ class QuickAddMember
                 'sales_id' => $data['sales_id'] ?? $card->sales_id,
                 'quick_added_at' => now(),
                 'quick_added_by' => $admin->id,
-                'quick_device' => $data['device'],
+                'quick_device' => $data['device'] ?? null,
                 'quick_wants_card' => (bool) ($data['wants_card'] ?? false),
             ])->save();
 
@@ -58,7 +58,7 @@ class QuickAddMember
                 adminId: $admin->id,
                 action: MemberLog::ACTION_CREATED,
                 oldValues: null,
-                newValues: ['quick_add' => true, 'member_kind' => $data['member_kind'], 'device' => $data['device'], 'wants_card' => (bool) ($data['wants_card'] ?? false), 'trial_days' => $days, 'message_edited' => trim((string) ($data['message_override'] ?? '')) !== ''],
+                newValues: ['quick_add' => true, 'member_kind' => $data['member_kind'], 'wants_card' => (bool) ($data['wants_card'] ?? false), 'trial_days' => $days, 'message_edited' => trim((string) ($data['message_override'] ?? '')) !== ''],
                 request: $request,
             );
 
@@ -69,7 +69,7 @@ class QuickAddMember
         try {
             $sms = $this->outbox->submit(
                 (string) $membership->user->phone,
-                trim((string) ($data['message_override'] ?? '')) !== '' ? trim($data['message_override']) : QuickAdd::message($data['member_kind'], $data['device'], (bool) ($data['wants_card'] ?? false)),
+                trim((string) ($data['message_override'] ?? '')) !== '' ? trim($data['message_override']) : QuickAdd::message($data['member_kind'], (bool) ($data['wants_card'] ?? false)),
                 'quick_add',
                 ['user_id' => $membership->user_id, 'membership_id' => $membership->id, 'created_by' => $admin->id],
             );

@@ -24,7 +24,7 @@ class AdminMembershipCardDeleteController extends BaseController
         // placeholders — hard-delete them (and their placeholder users) instead
         // of leaving soft-deleted stubs around. Completed memberships are left intact.
         $purged = 0;
-        if (!empty($ids)) {
+        if (! empty($ids)) {
             $purged = DB::transaction(function () use ($ids) {
                 $notCompleted = Membership::withTrashed()
                     ->whereIn('id', $ids)
@@ -34,10 +34,10 @@ class AdminMembershipCardDeleteController extends BaseController
                 $userIds = $notCompleted->pluck('user_id')->filter()->unique()->all();
                 $membershipIds = $notCompleted->pluck('id')->all();
 
-                if (!empty($membershipIds)) {
+                if (! empty($membershipIds)) {
                     Membership::withTrashed()->whereIn('id', $membershipIds)->forceDelete();
                 }
-                if (!empty($userIds)) {
+                if (! empty($userIds)) {
                     // Only purge users whose name is still empty — i.e. they
                     // were never filled in by the admin. A real user whose
                     // (different) membership happens to be in this batch is

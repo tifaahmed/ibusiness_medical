@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Otp\MemberRegistration;
 use App\Support\MembershipPlan;
 use App\Support\PhoneNumbers;
+use App\Support\Referrals;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,7 @@ class StartTrialCard
         $this->assertNotTaken($user, $phone);
 
         try {
-            return DB::transaction(function () use ($user, $name, $phone, $existing, $request) {
+            $card = DB::transaction(function () use ($user, $name, $phone, $existing, $request) {
                 $number = $this->newNumber();
                 $now = now();
 
@@ -112,6 +113,11 @@ class StartTrialCard
 
                 return $membership->refresh();
             });
+
+            /* The member who brought this one is rewarded now (idempotent; never fails the trial). */
+            Referrals::trialStarted($user);
+
+            return $card;
         } catch (QueryException $exception) {
             /* Lost a race on the unique index: somebody else claimed the phone a moment ago. */
             if (str_contains($exception->getMessage(), 'trial_claims')) {

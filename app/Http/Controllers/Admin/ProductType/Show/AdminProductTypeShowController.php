@@ -15,8 +15,15 @@ class AdminProductTypeShowController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PRODUCT_TYPES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PRODUCT_TYPES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PRODUCT_TYPES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PRODUCT_TYPES;
+    }
 
     /**
      * Display the specified product type.

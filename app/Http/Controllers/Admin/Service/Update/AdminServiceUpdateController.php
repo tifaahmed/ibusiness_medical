@@ -15,8 +15,15 @@ class AdminServiceUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_SERVICES; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_SERVICES; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_SERVICES;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_SERVICES;
+    }
 
     public function __construct(private UpdateServiceAction $updateAction) {}
 
@@ -28,6 +35,7 @@ class AdminServiceUpdateController extends BaseController
 
             $updated = $this->updateAction->execute($service, $request->validated());
             Log::info('Service updated', ['id' => $updated->id, 'ip' => $request->ip()]);
+
             return redirect()->route('admin.service.list')->with('success', 'Service updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update service. Please try again.'])->withInput();

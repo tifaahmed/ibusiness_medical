@@ -15,8 +15,15 @@ class AdminPartnerUpdateController extends BaseController
 {
     use CreatorScoped;
 
-    protected function fullPermission(): string { return UserPermissionEnum::MANAGE_PARTNERS; }
-    protected function ownPermission(): string { return UserPermissionEnum::MANAGE_OWN_PARTNERS; }
+    protected function fullPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_PARTNERS;
+    }
+
+    protected function ownPermission(): string
+    {
+        return UserPermissionEnum::MANAGE_OWN_PARTNERS;
+    }
 
     private UpdatePartnerAction $updateAction;
 
