@@ -309,12 +309,11 @@
               :error="memberStore.validationErrors?.registration_date"
               required
             />
+            <div>
             <FormDateInput
-              v-if="false"
               v-model="memberStore.form.expiration_date"
               :label="t.member?.expiration_date || 'Expiration Date'"
               :error="memberStore.validationErrors?.expiration_date"
-              required
             >
               <template #label-action>
                 <button
@@ -339,6 +338,30 @@
                 </button>
               </template>
             </FormDateInput>
+            <div class="mt-2 flex flex-wrap items-center gap-1.5" data-testid="expiration-presets">
+              <button
+                v-for="p in expirationPresets"
+                :key="p.months"
+                type="button"
+                :disabled="!memberStore.form.registration_date"
+                class="chip chip-neutral min-w-[3.5rem] justify-center cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                @click="memberStore.form.expiration_date = addMonths(memberStore.form.registration_date, p.months)"
+              >{{ p.label }}</button>
+              <button
+                v-if="memberStore.form.expiration_date"
+                type="button"
+                class="chip chip-neutral min-w-[3.5rem] justify-center cursor-pointer"
+                @click="memberStore.form.expiration_date = ''"
+              >{{ t.member?.expiration_clear || 'Clear' }}</button>
+            </div>
+            <p
+              v-if="expirationSummary"
+              class="mt-2 text-xs"
+              :class="expirationSummary.cls"
+              data-testid="expiration-summary"
+            >{{ expirationSummary.text }}</p>
+            <p v-else class="mt-2 text-xs value-muted">{{ t.member?.expiration_none || 'No end date — the card does not expire.' }}</p>
+            </div>
           </div>
           <div class="pt-2 space-y-4">
             <div>
@@ -606,6 +629,46 @@ const recalcPaymentPeriod = () => {
   memberStore.form.initial_payment_from_date = fromDate;
   memberStore.form.initial_payment_to_date = addMonths(fromDate, months);
 };
+
+const expirationPresets = [
+  { months: 1, label: '1 M' },
+  { months: 3, label: '3 M' },
+  { months: 6, label: '6 M' },
+  { months: 12, label: '1 Y' },
+  { months: 24, label: '2 Y' },
+];
+
+// Plain-words summary under the field: how long the card lasts, and when it ends.
+const expirationSummary = computed(() => {
+  const from = memberStore.form.registration_date;
+  const to = memberStore.form.expiration_date;
+  if (!to) return null;
+  const end = new Date(to);
+  if (isNaN(end)) return null;
+  const DAY = 86400000;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const left = Math.round((end - today) / DAY);
+  let text = '';
+  if (from) {
+    const start = new Date(from);
+    const total = Math.round((end - start) / DAY);
+    if (total <= 0) return { text: t.value.member?.expiration_before_reg || 'The end date must be after the registration date.', cls: 'value-negative' };
+    let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    const probe = new Date(start); probe.setMonth(probe.getMonth() + months);
+    if (probe > end) months -= 1;
+    const rest = new Date(start); rest.setMonth(rest.getMonth() + months);
+    const days = Math.round((end - rest) / DAY);
+    const parts = [];
+    if (months >= 12) parts.push(Math.floor(months / 12) + ' y');
+    if (months % 12) parts.push((months % 12) + ' mo');
+    if (days) parts.push(days + ' d');
+    text = (t.value.member?.card_lasts || 'The card lasts') + ' ' + (parts.join(' ') || '0 d') + ' (' + total + ' ' + (t.value.member?.days || 'days') + ') — ';
+  }
+  text += left < 0
+    ? (t.value.member?.card_ended || 'ended') + ' ' + to + ' (' + (-left) + ' ' + (t.value.member?.days_ago || 'days ago') + ')'
+    : (t.value.member?.card_ends || 'ends on') + ' ' + to + ' (' + left + ' ' + (t.value.member?.days_left || 'days left') + ')';
+  return { text, cls: left < 0 ? 'value-negative' : left <= 30 ? 'value-warning' : 'value-positive' };
+});
 
 // Shortcut on the Expiration Date label: the usual membership term is one year
 // from registration, so offer it in one click rather than making admins count.
