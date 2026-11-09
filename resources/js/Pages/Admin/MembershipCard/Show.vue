@@ -189,7 +189,16 @@
                       Card
                     </button>
                     <Link
-                      v-if="m.user?.slug"
+                      v-if="m.is_unissued"
+                      :href="route('admin.user.membership.create', { membership_number: m.membership_number })"
+                      class="inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors"
+                      :data-testid="'add-' + m.membership_number"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                      Add
+                    </Link>
+                    <Link
+                      v-else-if="m.user?.slug"
                       :href="route('admin.user.membership.edit', m.user.slug)"
                       class="inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 px-2.5 py-1 text-xs font-medium shadow-sm transition-colors"
                     >

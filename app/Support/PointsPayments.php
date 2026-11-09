@@ -18,6 +18,28 @@ use App\Models\User;
  */
 final class PointsPayments
 {
+    /**
+     * The pounds of an order that points may discount, after the caps: each product line is limited to its product's cap
+     * (`Product::pointsCap()`: the product's own or the system's), then the whole order to `loyalty_points_max_per_order`.
+     * The caps are in POINTS; they turn into pounds at the admin's rate.
+     *
+     * @param  list<array{amount: float, cap: ?int}>  $lines  one per product that accepts points
+     */
+    public static function eligible(array $lines): float
+    {
+        $perEgp = LoyaltyPoints::pointsPerEgp();
+        $sum = 0.0;
+
+        foreach ($lines as $line) {
+            $amount = max(0.0, (float) $line['amount']);
+            $sum += $line['cap'] !== null && $perEgp > 0 ? min($amount, $line['cap'] / $perEgp) : $amount;
+        }
+
+        $orderCap = LoyaltyPoints::maxPerOrder();
+
+        return $orderCap !== null && $perEgp > 0 ? min($sum, $orderCap / $perEgp) : $sum;
+    }
+
     /** Whole pounds the buyer's points could take off `$eligible` pounds, and the points that costs. */
     public static function quote(int $balance, float $eligible): array
     {

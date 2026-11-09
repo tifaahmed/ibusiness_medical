@@ -25,6 +25,7 @@ class WalletTopupTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->markTestSkipped('Wallet top-up was closed on 2026-11-09 (see WalletClosedTest). Kept for reference; it opens a top-up through the retired endpoint.');
 
         config([
             'services.paymob.secret_key' => 'egy_sk_test_secret_value', 'services.paymob.public_key' => 'egy_pk_test_public',

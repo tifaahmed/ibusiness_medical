@@ -20,8 +20,12 @@ use Throwable;
  *
  *   referral_enabled             the switch (default on)
  *   referral_signup_bonus        pounds the REFERRER gets in the wallet when the new member STARTS A TRIAL      (default 10; once per member)
- *   referral_commission_percent  percent of EVERY successful subscription payment of that member (renewals too)  (default 10)
- *   referral_discount            pounds off the NEW member's first subscription (year or half-year)             (default 50)
+ *   PER PLAN (`month` | `half` | `year`, the keys of `MembershipPlan::plans()`), each its own admin setting:
+ *   referral_discount_<plan>             pounds off the NEW member's first subscription IF it is that plan      (month 25 / half 50 / year 100)
+ *   referral_commission_use_fixed_<plan> on = the referrer earns a FIXED sum for that plan, off = a percent    (default off)
+ *   referral_commission_percent_<plan>   percent of what the member really paid for that plan                  (default 10)
+ *   referral_commission_fixed_<plan>     pounds the referrer earns for that plan (never more than was paid)    (default 0)
+ *   The old single `referral_discount` / `referral_commission_percent` settings are only the fallback when a per-plan row is missing.
  *   referral_window_days         how long after creating the account a code may still be claimed                (default 30)
  *   referral_signup_daily_limit  trial rewards per referrer per day (anti-farming; past it the reward is 0)      (default 10)
  *
@@ -40,7 +44,10 @@ final class Referrals
 
     public const COMMISSION_PERCENT = 'referral_commission_percent';
 
+    /** Legacy single discount: only the fallback for a plan whose own setting row is missing. */
     public const DISCOUNT = 'referral_discount';
+
+    public const PLANS = ['month', 'half', 'year'];
 
     public const WINDOW_DAYS = 'referral_window_days';
 
@@ -56,15 +63,83 @@ final class Referrals
         return max(0.0, round((float) SiteSettings::get(self::SIGNUP_BONUS, 10), 2));
     }
 
-    /** Percent of each paid subscription the referrer earns (0–100). */
-    public static function commissionPercent(): float
+    private static function planKey(?string $plan): string
     {
-        return min(100.0, max(0.0, round((float) SiteSettings::get(self::COMMISSION_PERCENT, 10), 2)));
+        return in_array($plan, self::PLANS, true) ? $plan : 'year';
     }
 
+    /** Pounds off the new member's first subscription when it is plan `$plan`. */
+    public static function discountFor(?string $plan): float
+    {
+        $slug = self::DISCOUNT.'_'.self::planKey($plan);
+
+        return max(0.0, round((float) SiteSettings::get($slug, SiteSettings::get(self::DISCOUNT, 50)), 2));
+    }
+
+    /** The legacy "one discount" figure = the yearly plan's (what an old client that reads `referral_discount` expects). */
     public static function discount(): float
     {
-        return max(0.0, round((float) SiteSettings::get(self::DISCOUNT, 50), 2));
+        return self::discountFor('year');
+    }
+
+    /** Percent of a paid subscription of `$plan` the referrer earns (0–100) when that plan pays a percent. */
+    public static function commissionPercentFor(?string $plan): float
+    {
+        $slug = self::COMMISSION_PERCENT.'_'.self::planKey($plan);
+
+        return min(100.0, max(0.0, round((float) SiteSettings::get($slug, SiteSettings::get(self::COMMISSION_PERCENT, 10)), 2)));
+    }
+
+    public static function commissionFixedFor(?string $plan): float
+    {
+        return max(0.0, round((float) SiteSettings::get('referral_commission_fixed_'.self::planKey($plan), 0), 2));
+    }
+
+    public static function commissionUsesFixed(?string $plan): bool
+    {
+        return (bool) SiteSettings::get('referral_commission_use_fixed_'.self::planKey($plan), false);
+    }
+
+    /** Legacy: the yearly plan's percent. */
+    public static function commissionPercent(): float
+    {
+        return self::commissionPercentFor('year');
+    }
+
+    /**
+     * What the referrer earns for ONE paid subscription of `$plan` that cost `$paid`: a fixed sum (never more than was paid) or a percent.
+     *
+     * @return array{type: string, rate: float, amount: float}
+     */
+    public static function commissionFor(?string $plan, float $paid): array
+    {
+        if (self::commissionUsesFixed($plan)) {
+            return ['type' => 'fixed', 'rate' => 0.0, 'amount' => round(min(self::commissionFixedFor($plan), max(0.0, $paid)), 2)];
+        }
+
+        $rate = self::commissionPercentFor($plan);
+
+        return ['type' => 'percent', 'rate' => $rate, 'amount' => round($paid * $rate / 100, 2)];
+    }
+
+    /**
+     * The rules per plan, for the clients to draw ("invite → your friend gets X off the yearly plan, you earn Y").
+     *
+     * @return array<string, array{discount: float, commission_type: string, commission_percent: float, commission_fixed: float}>
+     */
+    public static function rulesByPlan(): array
+    {
+        $rules = [];
+        foreach (self::PLANS as $plan) {
+            $rules[$plan] = [
+                'discount' => self::discountFor($plan),
+                'commission_type' => self::commissionUsesFixed($plan) ? 'fixed' : 'percent',
+                'commission_percent' => self::commissionPercentFor($plan),
+                'commission_fixed' => self::commissionFixedFor($plan),
+            ];
+        }
+
+        return $rules;
     }
 
     /** Referrals per referrer per 24 hours that still pay the sign-up reward; the rest are recorded (the new member keeps the discount) but pay 0. */
@@ -135,7 +210,7 @@ final class Referrals
                     'referrer_number' => $referrerCard->membership_number,
                     'referred_user_id' => $member->id,
                     'source' => $source === Referral::SOURCE_CARD ? Referral::SOURCE_CARD : Referral::SOURCE_LINK,
-                    'discount_amount' => self::discount(),
+                    'discount_amount' => max(array_map(self::discountFor(...), self::PLANS)),
                 ]);
 
                 return $referral;
@@ -204,8 +279,8 @@ final class Referrals
         });
     }
 
-    /** The pounds still to be taken off this card's FIRST subscription (0 when there is no unused referral). */
-    public static function pendingDiscount(?Membership $membership): float
+    /** The pounds still to be taken off this card's FIRST subscription IF it is plan `$plan` (0 when there is no unused referral). */
+    public static function pendingDiscount(?Membership $membership, ?string $plan = null): float
     {
         if ($membership === null || ! self::enabled()) {
             return 0.0;
@@ -213,13 +288,13 @@ final class Referrals
 
         $referral = Referral::query()->where('referred_user_id', $membership->user_id)->whereNull('subscribed_at')->first();
 
-        return $referral === null ? 0.0 : max(0.0, (float) $referral->discount_amount);
+        return $referral === null ? 0.0 : self::discountFor($plan);
     }
 
     /** `$price` after the member's referral discount; never below 1 pound, so a discount cannot make a card free. */
-    public static function apply(float $price, ?Membership $membership): float
+    public static function apply(float $price, ?Membership $membership, ?string $plan = null): float
     {
-        $discount = self::pendingDiscount($membership);
+        $discount = self::pendingDiscount($membership, $plan);
 
         return $discount > 0 && $price > 1 ? max(1.0, round($price - $discount, 2)) : $price;
     }
@@ -320,9 +395,11 @@ final class Referrals
                     return;
                 }
 
-                /* The first accepted payment spends the new member's discount. */
+                $plan = self::planOf((int) $subscription->months);
+
+                /* The first accepted payment spends the new member's discount (the one of the plan they bought). */
                 if ($referral->subscribed_at === null) {
-                    $referral->forceFill(['subscription_id' => $subscription->id, 'subscribed_at' => now()])->save();
+                    $referral->forceFill(['subscription_id' => $subscription->id, 'subscribed_at' => now(), 'discount_amount' => self::discountFor($plan)])->save();
                 }
 
                 if (! self::enabled()) {
@@ -330,12 +407,12 @@ final class Referrals
                 }
 
                 $paid = round((float) $subscription->amount, 2);
-                $rate = self::commissionPercent();
-                $amount = round($paid * $rate / 100, 2);
+                $commission = self::commissionFor($plan, $paid);
 
-                self::book($referral, ReferralReward::KIND_COMMISSION, 'commission:'.$subscription->id, $amount, [
-                    'subscription_id' => $subscription->id, 'plan' => self::planOf((int) $subscription->months),
-                    'base_amount' => $paid, 'rate' => $rate, 'note' => 'Subscription #'.$subscription->id.' ('.$subscription->method.')',
+                self::book($referral, ReferralReward::KIND_COMMISSION, 'commission:'.$subscription->id, $commission['amount'], [
+                    'subscription_id' => $subscription->id, 'plan' => $plan,
+                    'base_amount' => $paid, 'rate' => $commission['rate'],
+                    'note' => 'Subscription #'.$subscription->id.' ('.$subscription->method.($commission['type'] === 'fixed' ? ', fixed' : '').')',
                 ]);
             });
         } catch (Throwable $exception) {
@@ -415,11 +492,11 @@ final class Referrals
             ->whereIn('membership_id', Membership::withTrashed()->whereIn('user_id', $referrals->pluck('referred_user_id'))->select('id'))
             ->with('membership:id,user_id')->get()->groupBy(fn ($sub) => $sub->membership?->user_id);
         $pendingSubs = MembershipSubscription::query()->where('status', MembershipSubscription::STATUS_PENDING)->where('amount', '>', 0)
-            ->whereIn('membership_id', Membership::withTrashed()->whereIn('user_id', $referrals->pluck('referred_user_id'))->select('id'))->sum('amount');
+            ->whereIn('membership_id', Membership::withTrashed()->whereIn('user_id', $referrals->pluck('referred_user_id'))->select('id'))->get();
 
-        $rate = self::commissionPercent();
         $waitingTrial = $referrals->filter(fn (Referral $r) => $r->trial_started_at !== null && $r->trial_rewarded_at === null);
-        $pending = round($waitingTrial->count() * self::signupBonus() + (float) $pendingSubs * $rate / 100, 2);
+        $pendingCommission = $pendingSubs->sum(fn ($sub) => self::commissionFor(self::planOf((int) $sub->months), (float) $sub->amount)['amount']);
+        $pending = round($waitingTrial->count() * self::signupBonus() + $pendingCommission, 2);
 
         $paid = fn ($list, string $kind) => round((float) collect($list)->where('kind', $kind)->where('status', ReferralReward::STATUS_PAID)->sum('amount'), 2);
         $all = $rewards->flatten(1);
@@ -482,10 +559,27 @@ final class Referrals
         return [
             ['slug' => self::ENABLED, 'name' => ['en' => 'Referral programme on', 'ar' => 'تشغيل نظام الدعوات'], 'value' => '1', 'value_type' => Setting::TYPE_BOOLEAN],
             ['slug' => self::SIGNUP_BONUS, 'name' => ['en' => 'Referral: wallet pounds for the member who brought someone (when the new member starts a trial)', 'ar' => 'الدعوات: جنيهات المحفظة لمن جاب عضواً جديداً (عند بدء العضو للتجربة)'], 'value' => '10', 'value_type' => Setting::TYPE_NUMBER],
-            ['slug' => self::COMMISSION_PERCENT, 'name' => ['en' => 'Referral: commission percent on every paid subscription of the new member (renewals included)', 'ar' => 'الدعوات: نسبة العمولة على كل اشتراك مدفوع للعضو الجديد (بما فيها التجديد)'], 'value' => '10', 'value_type' => Setting::TYPE_NUMBER],
-            ['slug' => self::DISCOUNT, 'name' => ['en' => 'Referral: discount (EGP) on the new member\'s first subscription', 'ar' => 'الدعوات: خصم (ج.م) على أول اشتراك للعضو الجديد'], 'value' => '50', 'value_type' => Setting::TYPE_NUMBER],
+            ...self::planSeedRows(),
             ['slug' => self::DAILY_LIMIT, 'name' => ['en' => 'Referral: trial rewards per member per day that still pay', 'ar' => 'الدعوات: عدد مكافآت التجربة اليومية لكل عضو'], 'value' => '10', 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::WINDOW_DAYS, 'name' => ['en' => 'Referral: days after sign-up a code may still be entered', 'ar' => 'الدعوات: عدد الأيام بعد التسجيل التي يمكن فيها إدخال الكود'], 'value' => '30', 'value_type' => Setting::TYPE_NUMBER],
         ];
+    }
+
+    /** The per-plan settings: discount, fixed-or-percent switch, percent, fixed sum — for month, half and year. */
+    public static function planSeedRows(): array
+    {
+        $names = ['month' => ['Monthly', 'الشهري'], 'half' => ['Half-year', 'النصف سنوي'], 'year' => ['Yearly', 'السنوي']];
+        $discounts = ['month' => '25', 'half' => '50', 'year' => '100'];
+        $rows = [];
+
+        foreach (self::PLANS as $plan) {
+            [$en, $ar] = $names[$plan];
+            $rows[] = ['slug' => self::DISCOUNT.'_'.$plan, 'name' => ['en' => "Referral: discount (EGP) on the new member's first subscription — $en plan", 'ar' => "الدعوات: خصم (ج.م) على أول اشتراك للعضو الجديد — الباقة $ar"], 'value' => $discounts[$plan], 'value_type' => Setting::TYPE_NUMBER];
+            $rows[] = ['slug' => 'referral_commission_use_fixed_'.$plan, 'name' => ['en' => "Referral: $en plan commission is a FIXED sum (off = a percent)", 'ar' => "الدعوات: عمولة الباقة $ar مبلغ ثابت (مغلق = نسبة مئوية)"], 'value' => '0', 'value_type' => Setting::TYPE_BOOLEAN];
+            $rows[] = ['slug' => self::COMMISSION_PERCENT.'_'.$plan, 'name' => ['en' => "Referral: commission percent — $en plan", 'ar' => "الدعوات: نسبة العمولة — الباقة $ar"], 'value' => '10', 'value_type' => Setting::TYPE_NUMBER];
+            $rows[] = ['slug' => 'referral_commission_fixed_'.$plan, 'name' => ['en' => "Referral: commission fixed sum (EGP) — $en plan", 'ar' => "الدعوات: العمولة كمبلغ ثابت (ج.م) — الباقة $ar"], 'value' => '0', 'value_type' => Setting::TYPE_NUMBER];
+        }
+
+        return $rows;
     }
 }

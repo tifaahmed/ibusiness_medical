@@ -90,6 +90,8 @@ class StoreOrderRequest extends FormRequest
 
             /* A signed-in buyer's loyalty points cut the price of the products that accept them, unless the buyer turns it off. */
             'use_points' => ['nullable', 'boolean'],
+            /* The wallet cuts the bill only when the buyer presses for it. */
+            'use_wallet' => ['nullable', 'boolean'],
 
             'membership_number' => ['nullable', 'string', 'max:64'],
             'notes' => ['nullable', 'string', 'max:2000'],

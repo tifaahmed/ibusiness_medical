@@ -95,8 +95,13 @@ const hasValidationErrors = computed(() =>
   || !!memberStore.debugLog?.response
 );
 
-onMounted(() => {
-  memberStore.initializeForm();
+onMounted(async () => {
+  await memberStore.initializeForm();
+  // Coming from a card batch ("Add" on a reserved number): start with that number in the field.
+  try {
+    const n = new URLSearchParams(window.location.search).get('membership_number');
+    if (n && /^[A-Za-z0-9._-]{1,40}$/.test(n)) memberStore.form.membership_number = n;
+  } catch (e) { /* the field simply stays empty */ }
 });
 
 const handleSubmit = () => {

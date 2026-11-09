@@ -42,10 +42,12 @@ class ReferralController extends Controller
                 'signup_bonus' => Referrals::signupBonus(),
                 'commission_percent' => Referrals::commissionPercent(),
                 'discount' => Referrals::discount(),
+                /* PER PLAN (month|half|year): the new member's discount and what the referrer earns (a percent OR a fixed sum). Draw these. */
+                'plans' => Referrals::rulesByPlan(),
             ],
             'totals' => $board['totals'] + ['count' => $board['totals']['registered']],
             'referrals' => $board['rows'],
-            'brought_by' => $mine ? ['number' => $mine->referrer_number, 'discount' => (float) $mine->discount_amount, 'discount_used' => $mine->isSubscribed()] : null,
+            'brought_by' => $mine ? ['number' => $mine->referrer_number, 'discount' => $mine->isSubscribed() ? (float) $mine->discount_amount : Referrals::discount(), 'discounts' => array_map(fn ($rule) => $rule['discount'], Referrals::rulesByPlan()), 'discount_used' => $mine->isSubscribed()] : null,
         ]]);
     }
 

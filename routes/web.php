@@ -506,6 +506,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             ->name('admin.membership-number.release');
         Route::get('/api/member-field/check', [MembershipNumberController::class, 'checkField'])
             ->name('admin.member-field.check');
+        Route::post('/api/member-field/phone/release', [MembershipNumberController::class, 'releasePhone'])
+            ->name('admin.member-phone.release');
         Route::get('/api/membership-number/generate', [MembershipNumberController::class, 'generateUnique'])
             ->name('admin.membership-number.generate');
 

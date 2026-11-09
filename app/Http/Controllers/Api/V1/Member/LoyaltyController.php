@@ -206,9 +206,12 @@ class LoyaltyController extends Controller
             'egp_value' => LoyaltyWallet::egpValue($points),
             'convertible_egp' => LoyaltyWallet::wholeEgp($points),
             'wallet_balance' => WalletTransaction::balanceOf($userId),
-            'wallet_enabled' => LoyaltyWallet::enabled(),
+            /* Points → wallet and paying money INTO the wallet are closed for good (owner decision 2026-11-09); old builds read these as "closed". */
+            'wallet_enabled' => false,
             'wallet_min_egp' => LoyaltyWallet::minEgp(),
-            'wallet_min_topup' => WalletPayments::minTopup(),
+            'topup_enabled' => false,
+            /* Most points one order may spend (null = no limit). Per-product caps come with each product (`points_max`). */
+            'points_max_per_order' => LoyaltyPoints::maxPerOrder(),
             'wallet_membership_enabled' => WalletPayments::membershipEnabled(),
             'withdrawal' => \App\Support\WalletWithdrawals::summary(),
         ];
@@ -217,6 +220,8 @@ class LoyaltyController extends Controller
     /** Turns points into pounds in the member's wallet: `egp` whole pounds, `id` made by the phone (a repeat books once). */
     public function convert(Request $request): JsonResponse
     {
+        return response()->json(['success' => false, 'reason' => 'disabled', 'message' => 'Points can no longer be converted to the wallet.'], 410);
+
         /** @var User $member */
         $member = $request->user();
         $data = $request->validate([
@@ -242,6 +247,9 @@ class LoyaltyController extends Controller
     /** Adds money to the wallet: opens a Paymob checkout for `amount` pounds. The wallet is credited only when the signed callback arrives. */
     public function topup(Request $request, \App\Actions\Payment\StartWalletTopup $start): JsonResponse
     {
+        /* Closed for good. A top-up opened earlier still credits through its signed Paymob callback (nobody loses money they paid). */
+        return response()->json(['success' => false, 'reason' => 'disabled', 'message' => 'Adding money to the wallet is no longer available.'], 410);
+
         /** @var User $member */
         $member = $request->user();
         $data = $request->validate(['amount' => ['required', 'numeric', 'min:1', 'max:'.\App\Actions\Payment\StartWalletTopup::MAX], 'return_url' => ['nullable', 'string', 'max:500']]);

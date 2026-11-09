@@ -39,6 +39,7 @@ class UpdateProductAction
                 'is_purchasable' => Product::normalizeFlag($validated, 'is_purchasable', $product->is_purchasable),
                 'wallet_payable' => Product::normalizeFlag($validated, 'wallet_payable', (bool) $product->wallet_payable),
                 'points_payable' => Product::normalizeFlag($validated, 'points_payable', (bool) $product->points_payable),
+                'points_max' => array_key_exists('points_max', $validated) ? ($validated['points_max'] ?: null) : $product->points_max,
                 'admin_note' => $validated['admin_note'] ?? null,
                 'banner_config' => Product::normalizeBannerConfig($validated['banner_config'] ?? null),
                 // Empty translation maps are stored as null so fallbacks kick in.

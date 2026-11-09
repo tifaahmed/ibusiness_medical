@@ -38,6 +38,7 @@ class UpdateProductRequest extends FormRequest
             'is_purchasable' => 'nullable|boolean',
             'wallet_payable' => 'nullable|boolean',
             'points_payable' => 'nullable|boolean',
+            'points_max' => 'nullable|integer|min:1|max:100000000',
             'admin_note' => 'nullable|string|max:5000',
             'meta_title' => 'nullable|array',
             'meta_title.*' => 'nullable|string|max:60',

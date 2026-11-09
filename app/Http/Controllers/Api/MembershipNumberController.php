@@ -134,15 +134,70 @@ class MembershipNumberController extends Controller
             return response()->json(['unique' => true]);
         }
 
-        return response()->json([
-            'unique' => false,
-            'member' => [
-                'name' => $user->name,
-                'phone' => $user->phone,
-                'slug' => $user->slug,
-                'membership_number' => $membership?->membership_number,
-            ],
+        $member = [
+            'name' => $user->name,
+            'phone' => $user->phone,
+            'slug' => $user->slug,
+            'membership_number' => $membership?->membership_number,
+        ];
+
+        if ($data['field'] === 'phone') {
+            $member['takeover'] = $this->phoneTakeover($user);
+            $member['email'] = $user->email;
+            $member['avatar_url'] = get_image_url($user, 'avatar');
+        }
+
+        return response()->json(['unique' => false, 'member' => $member]);
+    }
+
+    /** What the admin may do with the person who holds a phone — only inside their own scope. */
+    private function phoneTakeover(User $holder): array
+    {
+        try {
+            $this->assertCanManageUser($holder);
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            return ['can_take_over' => false];
+        }
+
+        return ['can_take_over' => true, ...app(\App\Actions\Membership\TakeOverPhone::class)->describe($holder)];
+    }
+
+    /**
+     * "Take this phone": the person who holds it gets another phone, none, or (no membership only) goes to the trash.
+     * Then the admin's own form can be saved with the number.
+     */
+    public function releasePhone(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'action' => ['required', 'in:change,clear,delete'],
+            'new_phone' => ['nullable', 'string', 'max:20'],
+            'exclude_user_id' => ['nullable', 'integer'],
         ]);
+
+        $holder = User::query()
+            ->where('phone', $data['phone'])
+            ->when($request->filled('exclude_user_id'), fn ($q) => $q->where('id', '!=', (int) $data['exclude_user_id']))
+            ->first();
+
+        if (! $holder) {
+            return response()->json(['message' => 'Nobody holds this phone any more.', 'released' => false], 404);
+        }
+
+        $this->assertCanManageUser($holder);
+
+        try {
+            $result = app(\App\Actions\Membership\TakeOverPhone::class)
+                ->run($holder, $data['action'], $data['new_phone'] ?? null, \Illuminate\Support\Facades\Auth::id(), $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Phone takeover failed', ['user_id' => $holder->id, 'action' => $data['action'], 'exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['message' => 'Could not free the phone. Nothing was changed.', 'released' => false], 500);
+        }
+
+        return response()->json(['released' => true, ...$result]);
     }
 
     private function inScope(Membership $membership): bool

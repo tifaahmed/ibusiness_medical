@@ -52,7 +52,7 @@ class WalletPaymentsTest extends TestCase
         }
 
         return $this->withHeader('X-Api-Key', 'partner-test-key')->postJson('/api/v1/partner/orders', [
-            'customer_full_name' => 'Mona Adel', 'customer_phone' => '01000000000', 'customer_address' => 'Flat 4, Giza', 'payment_type' => 'cod', 'items' => $items,
+            'customer_full_name' => 'Mona Adel', 'customer_phone' => '01000000000', 'customer_address' => 'Flat 4, Giza', 'payment_type' => 'cod', 'items' => $items, 'use_wallet' => true,
         ]);
     }
 

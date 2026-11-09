@@ -115,7 +115,7 @@ class FacilityController extends Controller
 
         if ($hasPoint) {
             $query->leftJoinSub(
-                $this->nearestBranchKm('facility_branches', 'facility_id', $lat, $lng),
+                $this->nearestBranchKm('facility_branches', 'facility_id', $lat, $lng, $governorateId, $cityId),
                 'nearest_branch',
                 fn ($join) => $join->on('facilities.id', '=', 'nearest_branch.facility_id'),
             )->addSelect('nearest_branch.distance_km');

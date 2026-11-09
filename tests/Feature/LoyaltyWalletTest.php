@@ -17,6 +17,12 @@ class LoyaltyWalletTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->markTestSkipped('Points → wallet was closed on 2026-11-09 (see WalletClosedTest). Kept for reference.');
+    }
+
     private function member(int $points): User
     {
         $user = User::factory()->create();

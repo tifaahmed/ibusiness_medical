@@ -153,6 +153,20 @@
           </div>
         </div>
 
+        <div v-if="productStore.form.points_payable" class="space-y-2">
+          <label class="text-sm font-medium">Most loyalty points this product may take in one order</label>
+          <input
+            v-model="productStore.form.points_max"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Follow the system limit"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <p v-if="fieldError('points_max')" class="text-xs text-destructive">{{ fieldError('points_max') }}</p>
+          <p v-else class="text-[11px] text-muted-foreground">Empty = the system limit (Settings → "Most loyalty points one product may take"). A number here replaces it for this product, higher or lower. The per-order limit still applies on top.</p>
+        </div>
+
         <div class="space-y-2">
           <label class="text-sm font-medium">Admin Note</label>
           <textarea
@@ -686,7 +700,7 @@ const activeTab = ref('general');
 // Which tab owns which field — drives the tab error badges and the jump from
 // a row of the validation dialog.
 const TAB_FIELDS = {
-  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'store_id', 'is_visible', 'is_accessible', 'is_purchasable', 'points_payable', 'admin_note', 'tag_ids'],
+  general: ['name', 'short_subject', 'description', 'old_price', 'new_price', 'cost_price', 'profit_price', 'product_type_id', 'store_id', 'is_visible', 'is_accessible', 'is_purchasable', 'points_payable', 'points_max', 'admin_note', 'tag_ids'],
   media: ['large_image', 'small_image', 'gallery', 'banner_config', 'editor_gallery_paths'],
   seo: ['meta_title', 'meta_description', 'meta_keywords', 'canonical_url', 'og_image'],
 };

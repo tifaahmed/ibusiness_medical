@@ -40,6 +40,13 @@
                   {{ t.member?.recheck || 'Recheck' }}
                 </button>
               </div>
+              <PhoneConflict
+                v-if="phoneCheck.status.value === 'taken' || /already belongs/i.test(String(memberStore.validationErrors?.phone || ''))"
+                :phone="phone"
+                :exclude-user-id="editingUserId"
+                :exclude-membership-id="editingMembershipId"
+                @released="onPhoneReleased"
+              />
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -479,6 +486,7 @@ import { FormInput, FormDateInput, FormCheckbox, FormSelect, FormTranslatableInp
 import Modal from "@/Components/Modal.vue";
 import { useMemberStore } from "../../Stores/MemberStore";
 import { usePage } from "@inertiajs/vue3";
+import PhoneConflict from './PhoneConflict.vue';
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 
@@ -764,6 +772,11 @@ function useUniqueCheck(field, valueRef, length, takenText, failedText) {
   });
 
   return { status, message, canRecheck, run };
+}
+
+function onPhoneReleased() {
+  if (memberStore.validationErrors) memberStore.validationErrors = { ...memberStore.validationErrors, phone: undefined };
+  phoneCheck.run();
 }
 
 const phoneCheck = useUniqueCheck(

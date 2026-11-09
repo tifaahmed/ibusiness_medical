@@ -111,7 +111,7 @@ class OrderController extends Controller
                 $total = 0.0;
                 $totalBeforeDiscount = 0.0;
                 /* The part of the basket loyalty points may discount: only products the admin allowed (`points_payable`). */
-                $pointsEligible = 0.0;
+                $pointsLines = [];
 
                 foreach ($items as $slug => $quantity) {
                     $product = $products->get($slug);
@@ -130,7 +130,7 @@ class OrderController extends Controller
 
                     $total += (float) $line->line_total;
                     if ($product->points_payable) {
-                        $pointsEligible += (float) $line->line_total;
+                        $pointsLines[] = ['amount' => (float) $line->line_total, 'cap' => $product->pointsCap()];
                     }
                     $totalBeforeDiscount += (float) ($line->old_price ?? $line->new_price ?? 0) * $quantity;
 
@@ -213,13 +213,19 @@ class OrderController extends Controller
 
                 $order->products()->saveMany($lines);
 
+                /* The caps (the product's own or the system's, then the whole order's) shrink what points may discount. */
+                $pointsEligible = PointsPayments::eligible($pointsLines);
+
                 /* Points first (only for products that accept them), then the wallet on whatever products are left to pay.
                    Delivery and the COD fee stay real money. */
-                /* The app draws the discount, so it defaults on there; the website does not yet, so it must ask (`use_points`). */
-                $pointsAmount = $request->boolean('use_points', $request->input('source') === Order::SOURCE_MOBILE_APP)
+                /* Neither points nor the wallet are spent unless the buyer asked for it with a press (`use_points`, `use_wallet`): someone may
+                   prefer to keep them. Both default to NO, for the app and the website alike. */
+                $pointsAmount = $request->boolean('use_points', false)
                     ? PointsPayments::applyToOrder($order, $buyer, $pointsEligible)
                     : 0.0;
-                WalletPayments::applyToOrder($order, $buyer, max(0.0, round($total - $pointsAmount, 2)));
+                if ($request->boolean('use_wallet', false)) {
+                    WalletPayments::applyToOrder($order, $buyer, max(0.0, round($total - $pointsAmount, 2)));
+                }
 
                 return $order;
             });

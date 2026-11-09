@@ -17,11 +17,14 @@ trait NearestBranch
      * One row per owner that has a geocoded branch: its NEAREST branch's
      * distance in km. Joined once, instead of a Haversine call per row.
      */
-    protected function nearestBranchKm(string $table, string $ownerColumn, float $lat, float $lng): QueryBuilder
+    protected function nearestBranchKm(string $table, string $ownerColumn, float $lat, float $lng, ?int $governorateId = null, ?int $cityId = null): QueryBuilder
     {
+        // With a chosen governorate / city only the branches INSIDE it count, so the list leads with what is nearest within that place.
         return DB::table($table)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->when($governorateId, fn ($q) => $q->where('governorate_id', $governorateId))
+            ->when($cityId, fn ($q) => $q->where('city_id', $cityId))
             ->groupBy($ownerColumn)
             ->selectRaw("{$ownerColumn}, MIN(".self::distanceSql().') as distance_km', [$lat, $lng, $lat]);
     }
@@ -57,7 +60,8 @@ trait NearestBranch
         }
 
         if ($lat !== null && $lng !== null) {
-            $geocoded = $branches->filter(fn ($b) => $b->latitude !== null && $b->longitude !== null);
+            $inPlace = $branches->filter(fn ($b) => ($cityId === null || (int) $b->city_id === $cityId) && ($governorateId === null || (int) $b->governorate_id === $governorateId));
+            $geocoded = ($inPlace->isNotEmpty() ? $inPlace : $branches)->filter(fn ($b) => $b->latitude !== null && $b->longitude !== null);
 
             if ($geocoded->isNotEmpty()) {
                 return $geocoded->sortBy(fn ($b) => self::distanceKm($lat, $lng, (float) $b->latitude, (float) $b->longitude))->first();

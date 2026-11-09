@@ -48,6 +48,7 @@ class AdminProductEditResource extends JsonResource
             'is_purchasable' => (bool) $this->is_purchasable,
             'wallet_payable' => (bool) $this->wallet_payable,
             'points_payable' => (bool) $this->points_payable,
+            'points_max' => $this->points_max,
             'admin_note' => $this->admin_note,
             'banner_config' => $this->banner_config,
             'creator_id' => $this->created_by,

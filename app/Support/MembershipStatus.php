@@ -41,7 +41,7 @@ final class MembershipStatus
             'months' => MembershipPlan::months(),
             /* Every plan on sale — `year` and/or `half` — each with its price and months; draw these and send back `plan`. */
             'plans' => array_map(
-                fn (array $plan) => $plan + ['discounted_price' => Referrals::apply($plan['price'], $membership)],
+                fn (array $plan) => $plan + ['discounted_price' => Referrals::apply($plan['price'], $membership, $plan['key']), 'referral_discount' => Referrals::pendingDiscount($membership, $plan['key'])],
                 MembershipPlan::plans($kind),
             ),
             /* Pounds a referral takes off the first subscription (0 = none); `plans[].discounted_price` is the price after it. */

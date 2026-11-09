@@ -70,7 +70,7 @@ class StartSubscription
         }
 
         /* A member brought by another gets the referral discount off the FIRST subscription (never below 1 pound). */
-        $plan['price'] = Referrals::apply($plan['price'], $membership);
+        $plan['price'] = Referrals::apply($plan['price'], $membership, $plan['key']);
 
         return $method === MembershipSubscription::METHOD_PAYMOB
             ? $this->online($membership, $email, $returnUrl, $request, $plan)

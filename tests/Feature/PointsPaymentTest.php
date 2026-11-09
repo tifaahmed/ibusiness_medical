@@ -51,7 +51,7 @@ class PointsPaymentTest extends TestCase
 
         return $this->withHeader('X-Api-Key', 'partner-test-key')->postJson('/api/v1/partner/orders', $extra + [
             'customer_full_name' => 'Mona Adel', 'customer_phone' => '01000000000', 'customer_address' => 'Flat 4, Giza', 'payment_type' => 'cod', 'items' => $items,
-            'use_points' => true,
+            'use_points' => true, 'use_wallet' => true,
         ]);
     }
 
@@ -107,8 +107,13 @@ class PointsPaymentTest extends TestCase
         $web = $this->withHeader('X-Api-Key', 'partner-test-key')->postJson('/api/v1/partner/orders', $body)->assertCreated();
         $this->assertEquals(0, $web->json('order.points_amount'));
 
+        /* The app does not spend points either unless the buyer pressed for it. */
         $app = $this->postJson('/api/v1/mobile/orders', $body)->assertCreated();
-        $this->assertEquals(50, $app->json('order.points_amount'));
+        $this->assertEquals(0, $app->json('order.points_amount'));
+        $this->assertSame(5000, \App\Models\LoyaltyTransaction::balanceOf($user->id));
+
+        $pressed = $this->postJson('/api/v1/mobile/orders', $body + ['use_points' => true])->assertCreated();
+        $this->assertEquals(50, $pressed->json('order.points_amount'));
     }
 
     /** @test */

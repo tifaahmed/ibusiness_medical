@@ -28,6 +28,8 @@ class ReferralTest extends TestCase
         $this->showAllPaymentMethods();
         SiteSettings::put(MembershipPlan::PRICE, 600, Setting::TYPE_NUMBER);
         SiteSettings::put(MembershipPlan::MONTHS, 12, Setting::TYPE_NUMBER);
+        /* The yearly discount these older tests were written for; the per-plan tests below set their own. */
+        SiteSettings::put('referral_discount_year', 50, Setting::TYPE_NUMBER);
         SiteSettings::forget();
     }
 
@@ -124,7 +126,9 @@ class ReferralTest extends TestCase
     /** @test */
     public function the_commission_is_ten_percent_of_every_paid_subscription_and_renewals_too(): void
     {
-        SiteSettings::put('referral_discount', 0, Setting::TYPE_NUMBER);
+        foreach (['month', 'half', 'year'] as $plan) {
+            SiteSettings::put('referral_discount_'.$plan, 0, Setting::TYPE_NUMBER);
+        }
         SiteSettings::forget();
         [$referrer] = $this->member('111111', '01011111111');
         [$friend, $card] = $this->member('222222', '01022222222');
@@ -288,8 +292,8 @@ class ReferralTest extends TestCase
 
         SiteSettings::put('referral_enabled', '1', Setting::TYPE_BOOLEAN);
         SiteSettings::put('referral_signup_bonus', 5, Setting::TYPE_NUMBER);
-        SiteSettings::put('referral_commission_percent', 20, Setting::TYPE_NUMBER);
-        SiteSettings::put('referral_discount', 20, Setting::TYPE_NUMBER);
+        SiteSettings::put('referral_commission_percent_year', 20, Setting::TYPE_NUMBER);
+        SiteSettings::put('referral_discount_year', 20, Setting::TYPE_NUMBER);
         SiteSettings::forget();
         $this->postJson('/api/v1/referral/claim', ['number' => '111111'])->assertCreated();
         $this->assertSame(5.0, WalletTransaction::balanceOf($referrer->id));
@@ -360,5 +364,53 @@ class ReferralTest extends TestCase
         $this->assertSame(0.0, (float) Referral::query()->latest('id')->first()->trial_bonus);
         $this->assertNotNull(Referral::query()->latest('id')->first()->trial_rewarded_at); // settled, never paid later
         $this->assertSame(50.0, (float) Referral::query()->latest('id')->first()->discount_amount);
+    }
+
+    /** @test */
+    public function every_plan_has_its_own_discount_and_its_own_commission_percent_or_fixed_sum(): void
+    {
+        SiteSettings::put(MembershipPlan::HALF_PRICE, 400, Setting::TYPE_NUMBER);
+        SiteSettings::put(MembershipPlan::INDIVIDUAL_MONTH_PRICE, 100, Setting::TYPE_NUMBER);
+        foreach (['month' => 25, 'half' => 50, 'year' => 100] as $plan => $off) {
+            SiteSettings::put('referral_discount_'.$plan, $off, Setting::TYPE_NUMBER);
+        }
+        SiteSettings::put('referral_commission_use_fixed_month', true, Setting::TYPE_BOOLEAN);
+        SiteSettings::put('referral_commission_fixed_month', 15, Setting::TYPE_NUMBER);
+        SiteSettings::put('referral_commission_percent_half', 5, Setting::TYPE_NUMBER);
+        SiteSettings::put('referral_commission_percent_year', 10, Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+
+        [$referrer] = $this->member('111111', '01011111111');
+        [$friend, $card] = $this->member('222222', '01022222222');
+        Sanctum::actingAs($friend);
+        $this->postJson('/api/v1/referral/claim', ['number' => '111111'])->assertCreated();
+
+        $plans = collect($this->getJson('/api/v1/membership')->json('data.plans'))->keyBy('key');
+        $this->assertSame(75.0, (float) $plans['month']['discounted_price']);
+        $this->assertSame(350.0, (float) $plans['half']['discounted_price']);
+        $this->assertSame(500.0, (float) $plans['year']['discounted_price']);
+        $this->assertSame(25.0, (float) $plans['month']['referral_discount']);
+
+        $rules = $this->getJson('/api/v1/referral')->json('data.amounts.plans');
+        $this->assertEquals(['discount' => 50, 'commission_type' => 'percent', 'commission_percent' => 5, 'commission_fixed' => 0], $rules['half']);
+        $this->assertSame('fixed', $rules['month']['commission_type']);
+
+        $this->pay($card, 75, 1);     // fixed 15
+        $this->pay($card, 350, 6);    // 5% of 350 = 17.5 (renewal: no discount was meant, amount is what was paid)
+        $this->pay($card, 500, 12);   // 10% of 500 = 50
+
+        $this->assertSame([15.0, 17.5, 50.0], ReferralReward::query()->where('kind', 'commission')->orderBy('id')->get()->map(fn ($r) => (float) $r->amount)->all());
+        $this->assertSame(10.0 + 15 + 17.5 + 50, WalletTransaction::balanceOf($referrer->id));
+        $this->assertSame(25.0, (float) Referral::query()->first()->discount_amount); // the discount of the plan that was bought first
+    }
+
+    /** @test */
+    public function a_fixed_commission_is_never_more_than_what_the_member_paid(): void
+    {
+        SiteSettings::put('referral_commission_use_fixed_year', true, Setting::TYPE_BOOLEAN);
+        SiteSettings::put('referral_commission_fixed_year', 900, Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+
+        $this->assertSame(['type' => 'fixed', 'rate' => 0.0, 'amount' => 550.0], Referrals::commissionFor('year', 550));
     }
 }

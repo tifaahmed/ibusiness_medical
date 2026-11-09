@@ -63,6 +63,7 @@ class Product extends Model implements HasMedia
         'is_purchasable',
         'wallet_payable',
         'points_payable',
+        'points_max',
         'admin_note',
         'banner_config',
         'meta_title',
@@ -79,6 +80,7 @@ class Product extends Model implements HasMedia
         'is_purchasable' => 'boolean',
         'wallet_payable' => 'boolean',
         'points_payable' => 'boolean',
+        'points_max' => 'integer',
         'old_price' => 'decimal:2',
         'new_price' => 'decimal:2',
         'cost_price' => 'decimal:2',
@@ -244,5 +246,11 @@ class Product extends Model implements HasMedia
 
         $this->addMediaCollection('og_image')
             ->singleFile();
+    }
+
+    /** Most loyalty points this product may take in one order: its own `points_max` if set, else the system's; null = no limit. */
+    public function pointsCap(): ?int
+    {
+        return $this->points_max !== null && (int) $this->points_max > 0 ? (int) $this->points_max : \App\Support\LoyaltyPoints::maxPerProduct();
     }
 }
