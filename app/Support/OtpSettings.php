@@ -46,8 +46,8 @@ final class OtpSettings
 
     public const DEFAULT_FIXED_CODE = '1234';
 
-    /** `:code` is filled in with the digits; anything else is sent as written. */
-    public const DEFAULT_MESSAGE = 'Your :app verification code is :code';
+    /** `:code` is filled in with the digits (`:app` is the site name, optional); anything else is sent as written. Kept short on purpose: long or branded texts get filtered by SMS gateways. */
+    public const DEFAULT_MESSAGE = 'Your code is :code';
 
     /** Bounds, so an admin typing 400 into the length box cannot break sending. */
     private const MIN_LENGTH = 4;

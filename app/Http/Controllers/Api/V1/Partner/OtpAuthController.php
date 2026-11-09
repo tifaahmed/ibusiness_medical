@@ -8,6 +8,7 @@ use App\Services\Otp\MemberOtp;
 use App\Services\Otp\MemberRegistration;
 use App\Services\Otp\RegistrationProgress;
 use App\Support\OtpSettings;
+use App\Support\MembershipPlan;
 use App\Support\PhoneNumbers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -162,7 +163,7 @@ class OtpAuthController extends Controller
 
         /* `registered`: the phone already has an account (even with no card yet, or only a sign-up placeholder), so the
            client sends it a code and signs it in instead of treating it as a stranger. Still yes/no, no names. */
-        return response()->json(['data' => ['has_card' => $hasCard, 'registered' => $member instanceof User]]);
+        return response()->json(['data' => ['has_card' => $hasCard, 'registered' => $member instanceof User, 'trial_days' => MembershipPlan::trialDays()]]);
     }
 
     /**

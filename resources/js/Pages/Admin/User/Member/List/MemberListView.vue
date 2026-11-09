@@ -43,6 +43,11 @@
                   v-if="otpPolicy && !otpPolicy.sms_active"
                   class="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
                 >fixed</span>
+                <span
+                  v-if="otpPolicy?.master?.active"
+                  class="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                  title="A master login code is active"
+                >master</span>
               </button>
               <div class="flex-shrink-0">
                 <button

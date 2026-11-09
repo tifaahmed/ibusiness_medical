@@ -76,6 +76,23 @@
             </p>
           </div>
 
+          <!-- Site-wide only: the SMS wording. Short texts get through gateway filters. -->
+          <div v-if="!member" class="space-y-1.5">
+            <label class="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">SMS text</label>
+            <input
+              v-model="message"
+              type="text"
+              maxlength="160"
+              autocomplete="off"
+              placeholder="Your code is :code"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <p class="text-[11px] text-muted-foreground">
+              <code>:code</code> is replaced with the digits (e.g. “Your code is 1223”). Optional: <code>:app</code> = the site name. Keep it short — long or branded texts are often blocked by SMS providers. Empty = “Your code is :code”.
+            </p>
+            <p v-if="messageError" class="text-[11px] text-destructive">{{ messageError }}</p>
+          </div>
+
           <div v-if="member || !smsEnabled" class="space-y-1.5">
             <label class="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {{ member ? 'This member’s code' : 'Fixed code' }}
@@ -124,6 +141,46 @@
           </p>
         </div>
 
+        <!-- Site-wide only: the master code, accepted next to the real SMS code. Super admin only (the server refuses anyone else). -->
+        <div v-if="!member" class="space-y-2 border-t border-border p-4">
+          <p class="text-sm font-semibold">Master login code</p>
+          <p class="text-[11px] text-muted-foreground">
+            Accepted in addition to the real SMS code, for any phone. Stored hashed, cannot be read back. Every use is logged.
+          </p>
+          <p
+            v-if="policy?.master?.active"
+            class="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-[11px] text-amber-600 dark:text-amber-400"
+          >
+            Master code is ON{{ policy.master.expires_at ? ` until ${new Date(policy.master.expires_at).toLocaleString()}` : ' with no expiry' }}. Anyone who knows it can sign in as any member.
+          </p>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" v-model="masterEnabled" /> Enable master code
+          </label>
+          <div v-if="masterEnabled" class="flex flex-wrap items-center gap-2">
+            <input
+              v-model="masterCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              :placeholder="policy?.master?.length ? `${policy.master.length} digits (leave empty to keep)` : 'digits'"
+              class="h-9 w-48 rounded-md border border-input bg-background px-3 font-mono text-sm tracking-widest focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <input
+              v-model="masterExpires"
+              type="datetime-local"
+              class="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              title="Expires (optional)"
+            />
+          </div>
+          <p v-if="masterError" class="text-[11px] text-destructive">{{ masterError }}</p>
+          <button
+            type="button"
+            @click="saveMaster"
+            :disabled="masterSaving"
+            class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50 btn-golden cursor-pointer"
+          >{{ masterSaving ? 'Saving…' : 'Save master code' }}</button>
+        </div>
+
         <div class="flex items-center gap-2 border-t border-border p-4">
           <button type="button" @click="close" class="h-9 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted cursor-pointer">
             Cancel
@@ -159,9 +216,16 @@ const emit = defineEmits(['close']);
 
 const smsEnabled = ref(true);
 const code = ref('');
+const message = ref('');
+const messageError = ref('');
 const expiresAt = ref('');
 const saving = ref(false);
 const error = ref('');
+const masterEnabled = ref(false);
+const masterCode = ref('');
+const masterExpires = ref('');
+const masterSaving = ref(false);
+const masterError = ref('');
 
 /* Re-seeded every time it opens, so a dialog closed without saving does not
    show yesterday's answer the next time it is opened. */
@@ -170,6 +234,10 @@ watch(() => props.open, (isOpen) => {
 
   error.value = '';
   saving.value = false;
+  masterEnabled.value = props.policy?.master?.enabled === true;
+  masterCode.value = '';
+  masterExpires.value = '';
+  masterError.value = '';
 
   if (props.member) {
     // The stored code is hashed: there is nothing to show, only a new one to type.
@@ -177,11 +245,36 @@ watch(() => props.open, (isOpen) => {
     expiresAt.value = '';
   } else {
     smsEnabled.value = props.policy?.sms_enabled !== false;
+    message.value = props.policy?.message || '';
+    messageError.value = '';
     code.value = props.policy?.fixed_code || '';
   }
 }, { immediate: true });
 
 const close = () => emit('close');
+
+const saveMaster = () => {
+  const trimmed = masterCode.value.trim();
+
+  if (trimmed !== '' && !/^\d{4,8}$/.test(trimmed)) {
+    masterError.value = 'The code must be 4 to 8 digits.';
+    return;
+  }
+
+  masterSaving.value = true;
+  masterError.value = '';
+
+  router.put(route('admin.user.membership.otp.master'), {
+    enabled: masterEnabled.value,
+    code: trimmed === '' ? null : trimmed,
+    expires_at: masterEnabled.value && masterExpires.value ? masterExpires.value : null,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => close(),
+    onError: (errors) => { masterError.value = errors.code || errors.expires_at || errors.message || 'That could not be saved.'; },
+    onFinish: () => { masterSaving.value = false; },
+  });
+};
 
 const save = () => {
   const trimmed = code.value.trim();
@@ -202,12 +295,12 @@ const save = () => {
 
   const payload = props.member
     ? { fixed_code: trimmed === '' ? null : trimmed, expires_at: trimmed !== '' && expiresAt.value ? expiresAt.value : null }
-    : { sms_enabled: smsEnabled.value, fixed_code: trimmed === '' ? null : trimmed };
+    : { sms_enabled: smsEnabled.value, fixed_code: trimmed === '' ? null : trimmed, message: message.value.trim() === '' ? null : message.value.trim() };
 
   router.put(url, payload, {
     preserveScroll: true,
     onSuccess: () => close(),
-    onError: (errors) => { error.value = errors.fixed_code || errors.expires_at || 'That could not be saved.'; },
+    onError: (errors) => { error.value = errors.fixed_code || errors.expires_at || (errors.message ? '' : 'That could not be saved.'); messageError.value = errors.message || ''; },
     onFinish: () => { saving.value = false; },
   });
 };

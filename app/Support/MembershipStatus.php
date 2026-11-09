@@ -39,6 +39,8 @@ final class MembershipStatus
             'days_left' => $membership?->daysLeft() ?? 0,
             'price' => MembershipPlan::price(),
             'months' => MembershipPlan::months(),
+            /* Length of a NEW free trial card in days (admin setting `membership_trial_days`); clients only print it. */
+            'trial_days' => MembershipPlan::trialDays(),
             /* Every plan on sale — `year` and/or `half` — each with its price and months; draw these and send back `plan`. */
             'plans' => array_map(
                 fn (array $plan) => $plan + ['discounted_price' => Referrals::apply($plan['price'], $membership, $plan['key']), 'referral_discount' => Referrals::pendingDiscount($membership, $plan['key'])],

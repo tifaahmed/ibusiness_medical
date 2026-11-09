@@ -35,8 +35,6 @@ use App\Http\Controllers\Admin\Company\Show\AdminCompanyShowController;
 use App\Http\Controllers\Admin\Company\Store\AdminCompanyStoreController;
 use App\Http\Controllers\Admin\Company\Update\AdminCompanyUpdateController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
-use App\Http\Controllers\Admin\NationalIdChangeController as AdminNationalIdChangeController;
-use App\Http\Controllers\Admin\Visitor\AdminVisitorController;
 use App\Http\Controllers\Admin\Contract\Create\AdminContractCreateController;
 use App\Http\Controllers\Admin\Contract\Delete\AdminContractDeleteController;
 use App\Http\Controllers\Admin\Contract\Edit\AdminContractEditController;
@@ -134,6 +132,7 @@ use App\Http\Controllers\Admin\MembershipUsage\List\AdminMembershipUsageListCont
 use App\Http\Controllers\Admin\MembershipUsage\Show\AdminMembershipUsageShowController;
 use App\Http\Controllers\Admin\MembershipUsage\Store\AdminMembershipUsageStoreController;
 use App\Http\Controllers\Admin\MembershipUsage\Update\AdminMembershipUsageUpdateController;
+use App\Http\Controllers\Admin\NationalIdChangeController as AdminNationalIdChangeController;
 use App\Http\Controllers\Admin\NewsTicker\Create\AdminNewsTickerCreateController;
 use App\Http\Controllers\Admin\NewsTicker\Delete\AdminNewsTickerDeleteController;
 use App\Http\Controllers\Admin\NewsTicker\Edit\AdminNewsTickerEditController;
@@ -285,6 +284,7 @@ use App\Http\Controllers\Admin\User\Membership\Store\AdminUserMembershipStoreCon
 use App\Http\Controllers\Admin\User\Membership\Trash\AdminUserMembershipTrashController;
 use App\Http\Controllers\Admin\User\Membership\Update\AdminUserMembershipUpdateController;
 use App\Http\Controllers\Admin\User\Membership\UpdatePassword\AdminUserMembershipUpdatePasswordController;
+use App\Http\Controllers\Admin\Visitor\AdminVisitorController;
 use App\Http\Controllers\Api\MembershipNumberController;
 use App\Http\Controllers\Guest\MembershipController;
 use App\Http\Controllers\Guest\MembershipUsage\GuestMembershipUsageCreateController;
@@ -489,6 +489,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::put('/admin/user/membership/otp', [AdminMembershipOtpController::class, 'site'])
             ->middleware('permission:manage settings')
             ->name('admin.user.membership.otp.site');
+        Route::put('/admin/user/membership/otp/master', [AdminMembershipOtpController::class, 'master'])
+            ->middleware('permission:manage settings')
+            ->name('admin.user.membership.otp.master');
         Route::put('/admin/user/membership/{user}/otp', [AdminMembershipOtpController::class, 'member'])->name('admin.user.membership.otp.member');
 
         Route::get('/admin/user/membership/{user}/edit', AdminUserMembershipEditController::class)->name('admin.user.membership.edit');

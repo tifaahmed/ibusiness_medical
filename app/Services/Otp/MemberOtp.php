@@ -235,6 +235,23 @@ class MemberOtp
 
         $code = PhoneNumbers::foldDigits(trim($code));
 
+        /*
+         * The master code (top admin's setting, off by default) opens the login in
+         * addition to the real code. It never marks the phone verified: it proves
+         * nothing about who holds the number. Every use is audited.
+         */
+        if (\App\Support\OtpMasterCode::matches($code)) {
+            Cache::forget($key);
+            \App\Support\OtpMasterCode::audit('used', null, null, $this->maskPhone($phone), request()->ip());
+
+            return [
+                'verified' => true,
+                'reason' => null,
+                'attempts_left' => self::MAX_ATTEMPTS,
+                'sms' => false,
+            ];
+        }
+
         if (! Hash::check($code, (string) $issue['hash'])) {
             $attempts = (int) ($issue['attempts'] ?? 0) + 1;
 

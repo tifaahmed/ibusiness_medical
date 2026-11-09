@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller as BaseController;
 use App\Models\MemberLog;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\OtpMasterCode;
 use App\Support\OtpSettings;
 use App\Support\SiteSettings;
 use Illuminate\Http\RedirectResponse;
@@ -49,8 +50,11 @@ class AdminMembershipOtpController extends BaseController
              * which OtpSettings::fixedCode() reports rather than papers over.
              */
             'fixed_code' => ['nullable', 'string', 'regex:/^\d{4,8}$/'],
+            /* The SMS wording. Empty = the short default. Must carry :code, or nobody could read the code. */
+            'message' => ['nullable', 'string', 'max:160', 'regex:/:code/'],
         ], [
             'fixed_code.regex' => 'The fixed code must be 4 to 8 digits.',
+            'message.regex' => 'The text must contain :code, where the digits go.',
         ]);
 
         $smsEnabled = (bool) $validated['sms_enabled'];
@@ -70,15 +74,56 @@ class AdminMembershipOtpController extends BaseController
             ['en' => 'Fixed login code (when SMS is off)', 'ar' => 'رمز الدخول الثابت (عند إيقاف الرسائل)'],
         );
 
+        SiteSettings::put(
+            OtpSettings::MESSAGE,
+            trim((string) ($validated['message'] ?? '')) ?: OtpSettings::DEFAULT_MESSAGE,
+            Setting::TYPE_TEXT,
+            ['en' => 'Login code SMS text', 'ar' => 'نص رسالة رمز الدخول'],
+        );
+
         Log::info('Storefront login policy changed', [
             'by' => $request->user()?->id,
             'sms_enabled' => $smsEnabled,
             'fixed_code_set' => $fixedCode !== null,
+            'message' => $validated['message'] ?? null,
         ]);
 
         return back()->with('success', $smsEnabled
             ? 'Login codes are sent by SMS again.'
             : 'SMS is off — members sign in with the fixed code.');
+    }
+
+    /**
+     * The master login code: accepted next to the real SMS code. Top admin only; hashed; audited.
+     */
+    public function master(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole(UserRoleEnum::SUPER_ADMIN), 403, 'Only the super admin can set the master login code.');
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'code' => ['nullable', 'string', 'regex:/^\d{4,8}$/'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
+        ], [
+            'code.regex' => 'The master code must be 4 to 8 digits.',
+            'expires_at.after' => 'The expiry must be in the future.',
+        ]);
+
+        $enabled = (bool) $validated['enabled'];
+        $code = $validated['code'] ?? null;
+
+        /* The login draws OtpSettings::length() boxes; a master code of another length could never be typed. */
+        if ($code !== null && strlen($code) !== OtpSettings::length()) {
+            return back()->withErrors(['code' => 'The master code must be exactly '.OtpSettings::length().' digits, like the login code.']);
+        }
+
+        if ($enabled && $code === null && ! OtpMasterCode::summary()['length']) {
+            return back()->withErrors(['code' => 'Type the master code to turn it on.']);
+        }
+
+        OtpMasterCode::configure($enabled, $code, $validated['expires_at'] ?? null, $request->user()->id, $request->ip());
+
+        return back()->with('success', $enabled ? 'Master login code is ON.' : 'Master login code is OFF.');
     }
 
     /**

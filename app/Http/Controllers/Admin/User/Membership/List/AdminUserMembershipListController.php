@@ -543,6 +543,8 @@ class AdminUserMembershipListController extends BaseController
                 'sms_configured' => SmsGateway::isConfigured(),
                 'sms_active' => OtpSettings::deliversBySms(),
                 'fixed_code' => OtpSettings::fixedCode(),
+                'message' => trim((string) SiteSettings::get(OtpSettings::MESSAGE, OtpSettings::DEFAULT_MESSAGE)),
+                'master' => \App\Support\OtpMasterCode::summary(),
             ],
         ]);
     }
