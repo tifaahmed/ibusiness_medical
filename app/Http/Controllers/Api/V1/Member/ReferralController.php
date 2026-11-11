@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Membership;
 use App\Models\Referral;
 use App\Models\User;
+use App\Support\MemberTransfers;
 use App\Support\PublicMembershipUrl;
 use App\Support\Referrals;
 use Illuminate\Http\JsonResponse;
@@ -51,6 +52,40 @@ class ReferralController extends Controller
         ]]);
     }
 
+    /** Messages for every refusal, shared by `preview` and `claim`. */
+    private const REFUSALS = [
+        'disabled' => 'Invitations are not available right now.',
+        'not_found' => 'We could not find a member card with this number.',
+        'self' => 'You cannot use your own card number.',
+        'mutual' => 'This member was brought by you, so they cannot bring you.',
+        'already_referred' => 'You already told us who brought you.',
+        'company' => 'Only individual members can enter a referral code.',
+        'already_paid' => 'This code can only be added before your first subscription.',
+    ];
+
+    /**
+     * POST /referral/preview { number } — the confirm step before entering a code: WRITES NOTHING. Answers who owns the number (card
+     * number + first name + last two phone digits) and the discount per plan this member would get; or the reason it is refused.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate(['number' => ['required', 'string', 'max:32']]);
+
+        $check = Referrals::check($user, $data['number']);
+        if (! $check['ok']) {
+            return response()->json(['message' => self::REFUSALS[$check['reason']] ?? 'The code could not be used.', 'reason' => $check['reason']], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json(['data' => [
+            'number' => $check['card']->membership_number,
+            'name' => MemberTransfers::masked($check['card']->user),
+            'discounts' => array_map(fn ($rule) => $rule['discount'], Referrals::rulesByPlan()),
+            'discount' => Referrals::discount(),
+        ]]);
+    }
+
     public function claim(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -69,7 +104,7 @@ class ReferralController extends Controller
                 'self' => 'You cannot use your own card number.',
                 'mutual' => 'This member was brought by you, so they cannot bring you.',
                 'already_referred' => 'You already told us who brought you.',
-                'too_late' => 'This code can no longer be added to your account.',
+                'company' => 'Only individual members can enter a referral code.',
                 'already_paid' => 'This code can only be added before your first subscription.',
             ];
 

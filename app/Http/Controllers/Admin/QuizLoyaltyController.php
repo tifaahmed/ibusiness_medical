@@ -346,7 +346,11 @@ class QuizLoyaltyController extends Controller
             'ts' => $l->created_at?->timestamp ?? 0,
         ]);
 
-        $wallet = WalletTransaction::query()->where('user_id', $user->id)->with('creator:id,name')->latest('id')->limit(200)->get()->map(fn (WalletTransaction $w) => [
+        $walletRows = WalletTransaction::query()->where('user_id', $user->id)->with('creator:id,name')->latest('id')->limit(200)->get();
+        $related = $this->relatedMembers($walletRows);
+
+        $wallet = $walletRows->map(fn (WalletTransaction $w) => [
+            'member' => $related[$w->id] ?? null,
             'ledger' => 'wallet',
             'id' => $w->id,
             'source' => $w->source,
@@ -369,6 +373,52 @@ class QuizLoyaltyController extends Controller
             'wallet_balance' => WalletTransaction::balanceOf($user->id),
             'data' => $points->concat($wallet)->sortByDesc(fn (array $row) => [$row['ts'], $row['id']])->values()->take(200)->all(),
         ]);
+    }
+
+    /**
+     * The OTHER member a referral line is about (the one brought in): card number, name and phone, so the admin sees who it was
+     * without opening anything. Read only. The reward key in `client_id` is the exact link; the `#id` in the note is the fallback.
+     *
+     * @param  \Illuminate\Support\Collection<int, WalletTransaction>  $rows
+     * @return array<int, array{id: int, name: ?string, phone: ?string, card: ?string}>  keyed by wallet transaction id
+     */
+    private function relatedMembers($rows): array
+    {
+        $userIdByRow = [];
+        $keys = [];
+        foreach ($rows as $w) {
+            if ($w->source !== WalletTransaction::SOURCE_REFERRAL) {
+                continue;
+            }
+            if (preg_match('/^referral-(?:reversal:)?(.+)$/', (string) $w->client_id, $m)) {
+                $keys[$w->id] = $m[1];
+            } elseif (preg_match('/^referral \w+ #(\d+)/', (string) $w->note, $m)) {
+                $userIdByRow[$w->id] = (int) $m[1];
+            }
+        }
+        if ($keys) {
+            $byKey = \App\Models\ReferralReward::query()->whereIn('reward_key', array_unique($keys))->pluck('referred_user_id', 'reward_key');
+            foreach ($keys as $rowId => $key) {
+                if (isset($byKey[$key])) {
+                    $userIdByRow[$rowId] = (int) $byKey[$key];
+                }
+            }
+        }
+        if (! $userIdByRow) {
+            return [];
+        }
+
+        $ids = array_values(array_unique($userIdByRow));
+        $users = User::query()->whereIn('id', $ids)->get(['id', 'name', 'phone'])->keyBy('id');
+        $cards = \App\Models\Membership::query()->whereIn('user_id', $ids)->orderBy('id')->get(['user_id', 'membership_number'])->unique('user_id')->pluck('membership_number', 'user_id');
+
+        $out = [];
+        foreach ($userIdByRow as $rowId => $uid) {
+            $u = $users[$uid] ?? null;
+            $out[$rowId] = ['id' => $uid, 'name' => $u?->name, 'phone' => $u?->phone, 'card' => $cards[$uid] ?? null];
+        }
+
+        return $out;
     }
 
     /** @return array<string, mixed> */

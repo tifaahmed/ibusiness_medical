@@ -19,14 +19,13 @@ use Throwable;
  * Member-gets-member. The CODE is the referrer's card number (the share link, the QR and the typed field all carry it).
  *
  *   referral_enabled             the switch (default on)
- *   referral_signup_bonus        pounds the REFERRER gets in the wallet when the new member STARTS A TRIAL      (default 10; once per member)
+ *   referral_signup_bonus        pounds the REFERRER gets in the wallet when a member ENTERS their code(default 10; once per member, paid when the code is ACCEPTED)
  *   PER PLAN (`month` | `half` | `year`, the keys of `MembershipPlan::plans()`), each its own admin setting:
  *   referral_discount_<plan>             pounds off the NEW member's first subscription IF it is that plan      (month 25 / half 50 / year 100)
  *   referral_commission_use_fixed_<plan> on = the referrer earns a FIXED sum for that plan, off = a percent    (default off)
  *   referral_commission_percent_<plan>   percent of what the member really paid for that plan                  (default 10)
  *   referral_commission_fixed_<plan>     pounds the referrer earns for that plan (never more than was paid)    (default 0)
  *   The old single `referral_discount` / `referral_commission_percent` settings are only the fallback when a per-plan row is missing.
- *   referral_window_days         how long after creating the account a code may still be claimed                (default 30)
  *   referral_signup_daily_limit  trial rewards per referrer per day (anti-farming; past it the reward is 0)      (default 10)
  *
  * Rules: one referral per new member, ever (unique `referred_user_id`); never yourself; the new member must not have paid for a
@@ -154,15 +153,20 @@ final class Referrals
     }
 
     /**
-     * Records that `$member` came through the card number `$number`.
+     * Every rule for "may this member enter this code", WITHOUT writing anything (the confirm step in the profile uses it, then `claim`
+     * runs the same checks again). There is NO expiry: an old account that never subscribed may still enter a code.
      *
-     * @return array{ok: bool, reason: ?string, referral?: Referral}
-     *                                                               reason: disabled | already_referred | not_found | self | mutual | already_paid | too_late
+     * @return array{ok: bool, reason: ?string, card: ?Membership}
      */
-    public static function claim(User $member, string $number, string $source = Referral::SOURCE_LINK): array
+    public static function check(User $member, string $number): array
     {
         if (! self::enabled()) {
-            return ['ok' => false, 'reason' => 'disabled'];
+            return ['ok' => false, 'reason' => 'disabled', 'card' => null];
+        }
+
+        /* Only individuals can enter a code: a company card never gets the referral discount. */
+        if (Membership::query()->where('user_id', $member->id)->where('membership_number', 'not like', 'REG-%')->where('member_kind', Membership::KIND_COMPANY)->exists()) {
+            return ['ok' => false, 'reason' => 'company', 'card' => null];
         }
 
         $number = trim($number);
@@ -172,26 +176,22 @@ final class Referrals
             ->first();
 
         if ($referrerCard === null || $referrerCard->user === null) {
-            return ['ok' => false, 'reason' => 'not_found'];
+            return ['ok' => false, 'reason' => 'not_found', 'card' => null];
         }
 
         $referrer = $referrerCard->user;
 
         if ((int) $referrer->id === (int) $member->id || (filled($member->phone) && $member->phone === $referrer->phone)) {
-            return ['ok' => false, 'reason' => 'self'];
+            return ['ok' => false, 'reason' => 'self', 'card' => null];
         }
 
         if (Referral::query()->where('referred_user_id', $member->id)->exists()) {
-            return ['ok' => false, 'reason' => 'already_referred'];
+            return ['ok' => false, 'reason' => 'already_referred', 'card' => null];
         }
 
         /* Two members cannot bring each other: that would pay both for nothing. */
         if (Referral::query()->where('referrer_user_id', $member->id)->where('referred_user_id', $referrer->id)->exists()) {
-            return ['ok' => false, 'reason' => 'mutual'];
-        }
-
-        if ($member->created_at !== null && $member->created_at->lt(now()->subDays(self::windowDays()))) {
-            return ['ok' => false, 'reason' => 'too_late'];
+            return ['ok' => false, 'reason' => 'mutual', 'card' => null];
         }
 
         $paid = MembershipSubscription::query()
@@ -199,8 +199,27 @@ final class Referrals
             ->whereIn('membership_id', Membership::withTrashed()->where('user_id', $member->id)->select('id'))
             ->exists();
         if ($paid) {
-            return ['ok' => false, 'reason' => 'already_paid'];
+            return ['ok' => false, 'reason' => 'already_paid', 'card' => null];
         }
+
+        return ['ok' => true, 'reason' => null, 'card' => $referrerCard];
+    }
+
+    /**
+     * Records that `$member` came through the card number `$number`.
+     *
+     * @return array{ok: bool, reason: ?string, referral?: Referral}
+     *                                                               reason: disabled | already_referred | not_found | self | mutual | already_paid | company
+     */
+    public static function claim(User $member, string $number, string $source = Referral::SOURCE_LINK): array
+    {
+        $check = self::check($member, $number);
+        if (! $check['ok']) {
+            return ['ok' => false, 'reason' => $check['reason']];
+        }
+
+        $referrerCard = $check['card'];
+        $referrer = $referrerCard->user;
 
         try {
             $referral = DB::transaction(function () use ($member, $referrer, $referrerCard, $source) {
@@ -209,7 +228,7 @@ final class Referrals
                     'referrer_membership_id' => $referrerCard->id,
                     'referrer_number' => $referrerCard->membership_number,
                     'referred_user_id' => $member->id,
-                    'source' => $source === Referral::SOURCE_CARD ? Referral::SOURCE_CARD : Referral::SOURCE_LINK,
+                    'source' => in_array($source, [Referral::SOURCE_CARD, Referral::SOURCE_ADMIN], true) ? $source : Referral::SOURCE_LINK,
                     'discount_amount' => max(array_map(self::discountFor(...), self::PLANS)),
                 ]);
 
@@ -220,8 +239,9 @@ final class Referrals
             return ['ok' => false, 'reason' => 'already_referred'];
         }
 
-        /* A member who already started the trial before telling us who brought them is paid for that trial now (if their phone is verified). */
+        /* The referrer's reward is due the moment the code is accepted (if the member's phone was verified by a real SMS code; otherwise it waits for that). */
         self::trialStarted($member);
+        self::settleOnClaim($referral, $source === Referral::SOURCE_ADMIN);
 
         return ['ok' => true, 'reason' => null, 'referral' => $referral->fresh()];
     }
@@ -328,14 +348,31 @@ final class Referrals
         }
     }
 
-    /** A phone was just verified by a real SMS code: the trial rewards that waited for exactly that are paid now. */
+    /** A phone was just verified by a real SMS code: the rewards that waited for exactly that are paid now. */
     public static function phoneVerified(array $userIds): void
     {
         foreach ($userIds as $id) {
             $user = User::query()->find($id);
             if ($user !== null) {
                 self::trialStarted($user);
+                $referral = Referral::query()->where('referred_user_id', $user->id)->first();
+                if ($referral !== null) {
+                    self::settleOnClaim($referral);
+                }
             }
+        }
+    }
+
+    /** Pays the referrer's reward for an ACCEPTED code (once; waits for a verified phone). Never throws. */
+    private static function settleOnClaim(Referral $referral, bool $adminVouched = false): void
+    {
+        try {
+            if ($referral->trial_started_at === null) {
+                $referral->forceFill(['trial_started_at' => now()])->save();
+            }
+            self::settleTrial($referral, $adminVouched);
+        } catch (Throwable $exception) {
+            Log::error('Referral reward could not be booked.', ['referral_id' => $referral->id, 'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString()]);
         }
     }
 
@@ -344,18 +381,18 @@ final class Referrals
      * travelled by SMS (a fixed/admin code proves nothing about the number — fake accounts would farm it). Past the referrer's daily limit
      * the reward is booked as 0 so the member stays referred and keeps the discount.
      */
-    private static function settleTrial(Referral $referral): void
+    private static function settleTrial(Referral $referral, bool $adminVouched = false): void
     {
         if ($referral->trial_rewarded_at !== null || $referral->trial_started_at === null) {
             return;
         }
 
-        DB::transaction(function () use ($referral) {
+        DB::transaction(function () use ($referral, $adminVouched) {
             $referral = Referral::query()->lockForUpdate()->find($referral->id);
             $referred = User::query()->find($referral->referred_user_id);
             $referrer = User::query()->find($referral->referrer_user_id);
 
-            if ($referral->trial_rewarded_at !== null || $referred === null || $referrer === null || $referred->phone_verified_at === null) {
+            if ($referral->trial_rewarded_at !== null || $referred === null || $referrer === null || ($referred->phone_verified_at === null && ! $adminVouched)) {
                 return;
             }
 
@@ -365,7 +402,7 @@ final class Referrals
                 ->where('amount', '>', 0)->where('created_at', '>=', now()->subDay())->count();
             $amount = $today >= self::dailyLimit() ? 0.0 : self::signupBonus();
 
-            self::book($referral, ReferralReward::KIND_TRIAL, 'trial:'.$referral->id, $amount, ['note' => $amount > 0 ? 'Trial started' : 'Trial started (daily limit reached)']);
+            self::book($referral, ReferralReward::KIND_TRIAL, 'trial:'.$referral->id, $amount, ['note' => $amount > 0 ? 'Code accepted' : 'Code accepted (daily limit reached)']);
             $referral->forceFill(['trial_rewarded_at' => now(), 'trial_bonus' => $amount])->save();
         });
     }

@@ -13,6 +13,9 @@ class Referral extends Model
 
     public const SOURCE_CARD = 'card';
 
+    /** Entered by an admin on the member's page, after confirming it with them. */
+    public const SOURCE_ADMIN = 'admin';
+
     protected $fillable = [
         'referrer_user_id', 'referrer_membership_id', 'referrer_number', 'referred_user_id', 'source',
         'signup_bonus', 'subscription_bonus', 'discount_amount', 'subscription_id', 'subscribed_at',

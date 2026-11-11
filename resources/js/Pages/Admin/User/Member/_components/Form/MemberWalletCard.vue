@@ -22,8 +22,8 @@
         </div>
         <input v-model.number="form.amount" type="number" min="0.01" max="100000" step="0.01" required dir="ltr" data-testid="wallet-amount"
                :placeholder="t.loyalty?.amount_egp || 'Amount (EGP)'" class="h-9 w-32 rounded-md border border-border bg-background px-2 text-sm" />
-        <input v-model="form.note" type="text" maxlength="255" required data-testid="wallet-note"
-               :placeholder="t.loyalty?.reason || 'Why? (saved with the line)'" class="h-9 min-w-[14rem] flex-1 rounded-md border border-border bg-background px-2 text-sm" />
+        <textarea v-model="form.note" rows="5" maxlength="255" required data-testid="wallet-note"
+               :placeholder="t.loyalty?.reason || 'Why? (saved with the line)'" class="basis-full min-h-[8rem] w-full resize-y rounded-md border border-border bg-background p-3 text-sm"></textarea>
         <button type="submit" :disabled="saving" data-testid="wallet-save" class="h-9 min-w-[7rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
           {{ saving ? '…' : (t.loyalty?.save_line || 'Save') }}
         </button>
@@ -46,6 +46,9 @@
           <span class="chip chip-neutral">{{ sourceLabel(row.source) }}</span>
           <span v-if="row.note" class="text-xs">{{ row.note }}</span>
           <span class="text-xs text-muted-foreground" dir="ltr">→ {{ row.after }}</span>
+          <span v-if="row.member" class="chip chip-neutral" data-testid="ledger-member" dir="ltr">
+            <template v-if="row.member.card">#{{ row.member.card }} · </template>{{ row.member.name || ('#' + row.member.id) }}<template v-if="row.member.phone"> · {{ row.member.phone }}</template>
+          </span>
           <span class="chip chip-neutral" data-testid="ledger-by">{{ t.loyalty?.by || 'By' }}: {{ row.by || (t.loyalty?.by_member || 'the member / system') }}</span>
           <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ row.at }}</span>
         </div>

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class QuizBadgeDefinition extends Model
 {
-    public const KINDS = ['solved', 'streak', 'stage'];
+    public const KINDS = ['solved', 'streak', 'stage', 'plays', 'perfect', 'fast', 'days'];
 
     protected $fillable = ['quiz_key', 'kind', 'threshold', 'title', 'icon', 'reward_points', 'is_active'];
 

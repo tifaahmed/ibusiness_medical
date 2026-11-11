@@ -36,6 +36,17 @@ class LoyaltyController extends Controller
         return response()->json(['success' => true, 'data' => ['badges' => $this->badges->publicCatalog(), 'speed_tiers' => $this->speedTiers(), 'points_wrong' => LoyaltyPoints::pointsWrong(), 'points_per_egp' => LoyaltyPoints::pointsPerEgp()]]);
     }
 
+    /**
+     * Who is ahead in the quiz, by the loyalty balance each player holds now (public; a bearer token adds `me`). Points a
+     * member spends leave the balance, so their place drops. The backend ranks; the apps only draw.
+     */
+    public function leaderboard(Request $request, \App\Services\Loyalty\QuizLeaderboard $board): JsonResponse
+    {
+        $member = $request->user('sanctum');
+
+        return response()->json(['success' => true, 'data' => ['top' => $board->top($member?->id), 'me' => $member ? $board->mine($member) : null]]);
+    }
+
     public function show(Request $request): JsonResponse
     {
         /** @var User $member */

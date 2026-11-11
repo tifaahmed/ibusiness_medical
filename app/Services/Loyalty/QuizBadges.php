@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  */
 class QuizBadges
 {
-    /** @return array{correct: int, best_streak: int, max_stage: int} */
+    /** @return array{correct: int, best_streak: int, max_stage: int, plays: int, perfect: int, fast: int, days: int} */
     public function stats(int $userId, string $quizKey): array
     {
         $rows = LoyaltyTransaction::query()->where('user_id', $userId)->where('source', LoyaltyTransaction::SOURCE_QUIZ)->where('quiz_key', $quizKey);
@@ -34,7 +34,17 @@ class QuizBadges
             }
         }
 
-        return ['correct' => $correct, 'best_streak' => $best, 'max_stage' => max(1, (int) (clone $rows)->max('stage'))];
+        // Per play (a full play is PLAY_SIZE answers): plays finished, plays with every answer right, right answers within 5 seconds, distinct days played.
+        $playSize = 10;
+        $perPlay = (clone $rows)->whereNotNull('play_id')->groupBy('play_id')->selectRaw('COUNT(*) as n, SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) as ok')->get();
+
+        return [
+            'correct' => $correct, 'best_streak' => $best, 'max_stage' => max(1, (int) (clone $rows)->max('stage')),
+            'plays' => $perPlay->where('n', '>=', $playSize)->count(),
+            'perfect' => $perPlay->filter(fn ($p) => (int) $p->n >= $playSize && (int) $p->ok >= (int) $p->n)->count(),
+            'fast' => (clone $rows)->where('correct', true)->whereNotNull('answer_seconds')->where('answer_seconds', '<=', 5)->count(),
+            'days' => (clone $rows)->get(['answered_at'])->map(fn ($r) => $r->answered_at?->toDateString())->filter()->unique()->count(),
+        ];
     }
 
     /** The value a badge kind is measured by. */
@@ -44,6 +54,10 @@ class QuizBadges
             'solved' => $stats['correct'],
             'streak' => $stats['best_streak'],
             'stage' => $stats['max_stage'],
+            'plays' => $stats['plays'],
+            'perfect' => $stats['perfect'],
+            'fast' => $stats['fast'],
+            'days' => $stats['days'],
             default => 0,
         };
     }

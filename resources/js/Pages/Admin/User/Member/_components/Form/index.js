@@ -10,3 +10,4 @@ export { default as ChangePasswordCard } from './ChangePasswordCard.vue';
 export { default as MemberPaymentsCard } from './MemberPaymentsCard.vue';
 export { default as MemberLoyaltyCard } from './MemberLoyaltyCard.vue';
 export { default as MemberWalletCard } from './MemberWalletCard.vue';
+export { default as MemberReferralCard } from './MemberReferralCard.vue';

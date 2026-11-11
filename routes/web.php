@@ -549,6 +549,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::post('/admin/withdrawals/{withdrawal}/approve', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'approve'])->name('admin.withdrawals.approve');
         Route::post('/admin/withdrawals/{withdrawal}/reject', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'reject'])->name('admin.withdrawals.reject');
         Route::post('/admin/withdrawals/{withdrawal}/refresh', [\App\Http\Controllers\Admin\WalletWithdrawalController::class, 'refresh'])->name('admin.withdrawals.refresh');
+        /* An admin enters a referral code for a member (previewed, then confirmed). */
+        Route::get('/admin/user/membership/{user}/referral', [\App\Http\Controllers\Admin\MemberReferralEntryController::class, 'show'])->whereNumber('user')->middleware('permission:manage memberships')->name('admin.member.referral.show');
+        Route::post('/admin/user/membership/{user}/referral', [\App\Http\Controllers\Admin\MemberReferralEntryController::class, 'store'])->whereNumber('user')->middleware('permission:manage memberships')->name('admin.member.referral.store');
         /* Referrals: who brought whom, who paid, what each side got. Read only. */
         Route::get('/admin/referrals', [\App\Http\Controllers\Admin\ReferralController::class, 'index'])->middleware('permission:manage memberships')->name('admin.referrals.index');
         /* Everything an admin gave or took (loyalty points + wallet money): its own page, apart from /admin/loyalty. */

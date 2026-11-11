@@ -143,6 +143,11 @@ Route::prefix('v1')
                 ->middleware('throttle:60,1,api.mobile.loyalty.badges')
                 ->name('loyalty.badges');
 
+            /* The quiz ranking by current loyalty balance (public; a token adds the caller's own place). */
+            Route::get('/loyalty/leaderboard', [V1MemberLoyaltyController::class, 'leaderboard'])
+                ->middleware('throttle:60,1,api.mobile.loyalty.leaderboard')
+                ->name('loyalty.leaderboard');
+
             /* First launch after an install: which invitation link was tapped from this IP (see `ReferralLinkController`). */
             Route::post('/referral/match', [\App\Http\Controllers\Api\V1\ReferralLinkController::class, 'match'])
                 ->middleware('throttle:10,1,api.mobile.referral.match')
@@ -254,6 +259,8 @@ Route::prefix('v1')
             })->name('shop');
 
             Route::get('/store-categories', [V1MobileStoreController::class, 'categories'])->name('store-categories');
+            Route::get('/store-map-pins', [V1MobileStoreController::class, 'pins'])->name('store-map-pins');
+            Route::get('/store-map-pins/{branch}', [V1MobileStoreController::class, 'pin'])->whereNumber('branch')->name('store-map-pins.show');
             Route::get('/stores', [V1MobileStoreController::class, 'index'])->name('stores.index');
             Route::get('/stores/{store:slug}', [V1MobileStoreController::class, 'show'])->name('stores.show');
             Route::get('/stores/{store:slug}/branches', [V1MobileStoreController::class, 'branches'])->name('stores.branches');
@@ -555,6 +562,8 @@ Route::prefix('v1')
                 ->middleware('throttle:20,1,api.me.loyalty.convert')->name('me.loyalty.convert');
             /* Member-gets-member: my code / who I brought, and "this card number brought me" — `ReferralController`. */
             Route::get('/referral', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'show'])->name('me.referral.show');
+            Route::post('/referral/preview', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'preview'])
+                ->middleware('throttle:30,1,api.me.referral.preview')->name('me.referral.preview');
             Route::post('/referral/claim', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'claim'])
                 ->middleware('throttle:10,1,api.me.referral.claim')->name('me.referral.claim');
             Route::get('/wallet', [V1MemberLoyaltyController::class, 'wallet'])->name('me.wallet');

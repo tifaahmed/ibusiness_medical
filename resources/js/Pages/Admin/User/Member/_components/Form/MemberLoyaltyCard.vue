@@ -22,8 +22,8 @@
         </div>
         <input v-model.number="form.amount" type="number" min="1" max="1000000" step="1" required dir="ltr" data-testid="loyalty-amount"
                :placeholder="t.loyalty?.amount || 'Points'" class="h-9 w-32 rounded-md border border-border bg-background px-2 text-sm" />
-        <input v-model="form.note" type="text" maxlength="255" required data-testid="loyalty-note"
-               :placeholder="t.loyalty?.reason || 'Why? (saved with the line)'" class="h-9 min-w-[14rem] flex-1 rounded-md border border-border bg-background px-2 text-sm" />
+        <textarea v-model="form.note" rows="5" maxlength="255" required data-testid="loyalty-note"
+               :placeholder="t.loyalty?.reason || 'Why? (saved with the line)'" class="basis-full min-h-[8rem] w-full resize-y rounded-md border border-border bg-background p-3 text-sm"></textarea>
         <button type="submit" :disabled="saving" data-testid="loyalty-save" class="h-9 min-w-[7rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
           {{ saving ? '…' : (t.loyalty?.save_line || 'Save') }}
         </button>

@@ -36,7 +36,7 @@ class AdminUserMembershipListController extends BaseController
         $isActiveFilter = $filters['is_active'];
         $isPaidFilter = $filters['is_paid'];
 
-        $sort = in_array($request->input('sort'), ['name', 'created_at', 'updated_at', 'days_covered', 'outstanding_days', 'registration_date', 'national_id'], true) ? $request->input('sort') : null;
+        $sort = in_array($request->input('sort'), ['name', 'created_at', 'updated_at', 'days_covered', 'outstanding_days', 'registration_date', 'national_id', 'wallet', 'points'], true) ? $request->input('sort') : null;
         $direction = strtolower($request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
 
         $creatorScoped = $this->scopesMembershipsToCreator();
@@ -315,8 +315,20 @@ class AdminUserMembershipListController extends BaseController
                     )
                 ), 0)) '.$direction)
             )
+            /* Wallet money / loyalty points: highest or lowest first (balance = SUM of the append-only ledger; nobody with a ledger sorts as 0). */
+            ->when($sort === 'wallet', fn ($q) => $q->orderByRaw('COALESCE((SELECT SUM(wt.amount) FROM wallet_transactions wt WHERE wt.user_id = users.id), 0) '.$direction))
+            ->when($sort === 'points', fn ($q) => $q->orderByRaw('COALESCE((SELECT SUM(lt.points) FROM loyalty_transactions lt WHERE lt.user_id = users.id), 0) '.$direction))
             ->when($sort === null, fn ($q) => $q->latest())
             ->paginate($request->input('per_page', 15))->withQueryString();
+
+        /* Both balances for the rows on this page in two grouped queries (not one per row); the resource draws them. */
+        $pageIds = $users->getCollection()->pluck('id')->all();
+        $walletSums = \App\Models\WalletTransaction::query()->whereIn('user_id', $pageIds)->groupBy('user_id')->selectRaw('user_id, SUM(amount) as total')->pluck('total', 'user_id');
+        $pointSums = \App\Models\LoyaltyTransaction::query()->whereIn('user_id', $pageIds)->groupBy('user_id')->selectRaw('user_id, SUM(points) as total')->pluck('total', 'user_id');
+        $users->getCollection()->each(function ($user) use ($walletSums, $pointSums) {
+            $user->setAttribute('wallet_balance', round((float) ($walletSums[$user->id] ?? 0), 2));
+            $user->setAttribute('loyalty_points', (int) ($pointSums[$user->id] ?? 0));
+        });
 
         // Partner dropdown: limit to partners that appear in the admin's
         // visible memberships. A creator+partner admin sees their own

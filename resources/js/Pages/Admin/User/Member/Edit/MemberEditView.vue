@@ -110,6 +110,7 @@
       <!-- Wallet tab — balance in EGP, add / take, one ledger line per change. -->
       <div v-if="activeTab === 'wallet' && member?.id">
         <MemberWalletCard :user-id="member.id" />
+        <MemberReferralCard class="mt-4" :user-id="member.id" />
       </div>
     </div>
     </div>
@@ -122,7 +123,7 @@ import { Link, usePage } from "@inertiajs/vue3";
 import MemberLayout from "../MemberLayout.vue";
 import { Breadcrumb } from "@/Pages/Admin/Layout/Layout.js";
 import { useMemberStore } from "../Stores/MemberStore";
-import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberAddressesCard, MemberLoyaltyCard, MemberWalletCard } from "../_components/Form";
+import { MemberForm, ProfilePictureCard, ContractImageCard, GalleryImagesCard, FamilyMemberCard, ChangePasswordCard, MemberAddressesCard, MemberLoyaltyCard, MemberWalletCard, MemberReferralCard } from "../_components/Form";
 import TabBar from "@/Components/ui/TabBar.vue";
 import ValidationErrorsDialog from "@/Components/ui/ValidationErrorsDialog.vue";
 import { onMounted, computed, ref, watch } from "vue";

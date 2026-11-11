@@ -63,7 +63,7 @@ class StartSubscription
             throw ValidationException::withMessages(['receipt' => ['Please attach the transfer receipt.']]);
         }
 
-        /* The plan chosen (`plan` = year|half). A plan that is not on sale is refused, never silently swapped for another price. */
+        /* The plan chosen (`plan` = year|half|month). A plan that is not on sale is refused, never silently swapped for another price. */
         $plan = MembershipPlan::find($request?->input('plan'), $membership->kind());
         if ($plan === null) {
             throw ValidationException::withMessages(['plan' => ['This subscription plan is not available right now.']]);

@@ -229,6 +229,24 @@
                       </svg>
                     </button>
                   </th>
+                  <th v-if="cols.wallet" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-20 sm:w-28 text-center">
+                    <button type="button" data-testid="sort-wallet" @click="toggleSortByWallet" class="inline-flex items-center justify-center gap-1 text-sm font-semibold cursor-pointer" :class="sort === 'wallet' ? 'text-golden-yellow' : ''"
+                      :title="sort === 'wallet' ? (direction === 'asc' ? (t.sorted_asc_tooltip || 'Sorted low to high') : (t.sorted_desc_tooltip || 'Sorted high to low')) : 'Wallet (EGP)'">
+                      {{ t.column_wallet || 'Wallet (EGP)' }}
+                      <svg v-if="sort === 'wallet' && direction === 'asc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>
+                      <svg v-else-if="sort === 'wallet' && direction === 'desc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path></svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>
+                    </button>
+                  </th>
+                  <th v-if="cols.points" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-20 sm:w-28 text-center">
+                    <button type="button" data-testid="sort-points" @click="toggleSortByPoints" class="inline-flex items-center justify-center gap-1 text-sm font-semibold cursor-pointer" :class="sort === 'points' ? 'text-golden-yellow' : ''"
+                      :title="sort === 'points' ? (direction === 'asc' ? (t.sorted_asc_tooltip || 'Sorted low to high') : (t.sorted_desc_tooltip || 'Sorted high to low')) : 'Points'">
+                      {{ t.column_points || 'Points' }}
+                      <svg v-if="sort === 'points' && direction === 'asc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>
+                      <svg v-else-if="sort === 'points' && direction === 'desc'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path></svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>
+                    </button>
+                  </th>
                   <th v-if="cols.actions" data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] w-20 sm:w-28 text-center">
                     {{ t.column_actions || 'Actions' }}
                   </th>
@@ -509,6 +527,12 @@
                     {{ Number(member.membership?.outstanding_days || 0).toLocaleString() }}
                   </span>
                 </td>
+                <td v-if="cols.wallet" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
+                  <span class="chip chip-info tabular-nums" dir="ltr" data-testid="row-wallet">{{ Number(member.wallet_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </td>
+                <td v-if="cols.points" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
+                  <span class="chip chip-accent tabular-nums" dir="ltr" data-testid="row-points">{{ Number(member.loyalty_points || 0).toLocaleString() }}</span>
+                </td>
                 <td v-if="cols.actions" data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-center">
                   <div class="flex items-center justify-center gap-2">
                     <!-- A code just for this member. Amber while one is set, so
@@ -772,6 +796,8 @@ const defaultCols = {
   source: true,
   card: true,
   amount_paid: true,
+  wallet: true,
+  points: true,
   days_covered: true,
   outstanding_days: true,
   created: true,
@@ -791,6 +817,8 @@ const columnOptions = [
   { key: 'sales', label: 'Sales' },
   { key: 'source', label: 'Source' },
   { key: 'card', label: 'Card' },
+  { key: 'wallet', label: 'Wallet' },
+  { key: 'points', label: 'Loyalty points' },
   { key: 'created', label: 'Created Date' },
   { key: 'updated', label: 'Updated Date' },
   { key: 'registration_date', label: 'Registration Date' },
@@ -971,6 +999,8 @@ const duplicateBadgeStyle = (member) => {
   const hue = duplicateColor(member);
   return hue === null ? undefined : { backgroundColor: `hsl(${hue} 80% 50% / 0.35)`, boxShadow: `inset 0 0 0 1px hsl(${hue} 80% 40% / 0.8)` };
 };
+const toggleSortByWallet = () => cycleSort('wallet');
+const toggleSortByPoints = () => cycleSort('points');
 const toggleSortByDaysCovered = () => cycleSort('days_covered');
 const toggleSortByOutstandingDays = () => cycleSort('outstanding_days');
 

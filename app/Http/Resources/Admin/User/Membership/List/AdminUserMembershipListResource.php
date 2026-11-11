@@ -52,6 +52,8 @@ class AdminUserMembershipListResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'wallet_balance' => (float) ($this->wallet_balance ?? 0),
+            'loyalty_points' => (int) ($this->loyalty_points ?? 0),
             'email' => $this->email,
             'phone' => $this->phone,
             'slug' => $this->slug,

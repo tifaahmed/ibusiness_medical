@@ -1527,6 +1527,8 @@ return [
             'column_partner' => 'Partner',
             'column_creator' => 'Creator',
             'column_sales' => 'Sales',
+            'column_wallet' => 'Wallet (EGP)',
+            'column_points' => 'Loyalty points',
             'column_source' => 'Source',
             'column_card' => 'Card',
             'card_custom' => 'Custom',

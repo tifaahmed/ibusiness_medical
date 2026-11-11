@@ -54,6 +54,7 @@ class StoreController extends Controller
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km,lat'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:40'],
+            'sort' => ['nullable', 'in:nearest,discount'],
         ]);
 
         $lat = isset($v['lat']) ? (float) $v['lat'] : null;
@@ -81,6 +82,8 @@ class StoreController extends Controller
             ->when($governorateId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('governorate_id', $governorateId)))
             ->when($cityId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('city_id', $cityId)));
 
+        $byDiscount = ($v['sort'] ?? null) === 'discount';
+
         if ($hasPoint) {
             $query->leftJoinSub(
                 $this->nearestBranchKm('store_branches', 'store_id', $lat, $lng),
@@ -92,10 +95,18 @@ class StoreController extends Controller
                 $query->where('nearest_branch.distance_km', '<=', $radius);
             }
 
+            if ($byDiscount) {
+                $query->orderByRaw('stores.offer_percent_to is null')->orderByDesc('stores.offer_percent_to');
+            }
+
             $query->orderByRaw('nearest_branch.distance_km is null')
                 ->orderBy('nearest_branch.distance_km')
                 ->orderBy('stores.id');
         } else {
+            if ($byDiscount) {
+                $query->orderByRaw('stores.offer_percent_to is null')->orderByDesc('stores.offer_percent_to');
+            }
+
             $query->orderByDesc('stores.id');
         }
 
@@ -128,6 +139,80 @@ class StoreController extends Controller
         })->values()->all();
 
         return $this->respond($request, ['data' => $data, 'has_more' => $page->hasMorePages()], $hasPoint ? 30 : 120);
+    }
+
+    /**
+     * Light pins for the stores map: one per geocoded store branch (id, position, store title), nearest first. Same shape and
+     * limits as the facilities map (`FacilityController::pins`); the card of a tapped pin comes from `pin()`.
+     */
+    public function pins(Request $request): JsonResponse
+    {
+        $v = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
+            'category_id' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:3000'],
+        ]);
+
+        $limit = (int) ($v['limit'] ?? 300);
+        $title = DirectorySearch::translated('title', app()->getLocale());
+
+        $rows = StoreBranch::query()
+            ->select(['id', 'store_id', 'latitude', 'longitude'])
+            ->selectRaw(self::distanceSql().' as distance_km', [(float) $v['lat'], (float) $v['lng'], (float) $v['lat']])
+            ->with('store:id,title')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->when(! empty($v['category_id']), fn ($q) => $q->whereHas('store.categories', fn ($c) => $c->where('store_categories.id', (int) $v['category_id'])))
+            ->when(! empty($v['q']), function ($q) use ($v, $title) {
+                $q->whereHas('store', function ($s) use ($v, $title) {
+                    foreach (DirectorySearch::words($v['q']) as $word) {
+                        $s->where(fn ($w) => $w->whereRaw("{$title} like ?", ['%'.$word.'%'])->orWhere('slug', 'like', '%'.$word.'%'));
+                    }
+                });
+            })
+            ->when(isset($v['radius_km']), fn ($q) => $q->havingRaw('distance_km <= ?', [(int) $v['radius_km']]))
+            ->orderBy('distance_km')
+            ->limit($limit + 1)
+            ->get();
+
+        return $this->respond($request, [
+            'data' => $rows->take($limit)->map(fn (StoreBranch $b) => [
+                'id' => $b->id,
+                'lat' => round((float) $b->latitude, 5),
+                'lng' => round((float) $b->longitude, 5),
+                'name' => (string) ($b->store?->title ?? ''),
+            ])->values()->all(),
+            'has_more' => $rows->count() > $limit,
+        ], 120);
+    }
+
+    /** The popup of one store-map pin: the store (logo, offer, categories) and this branch's place and phones. */
+    public function pin(Request $request, int $branch): JsonResponse
+    {
+        $b = StoreBranch::query()
+            ->select(['id', 'store_id', 'governorate_id', 'city_id', 'latitude', 'longitude', 'name', 'address', 'area', 'phone', 'google_location_url'])
+            ->findOrFail($branch);
+
+        $store = Store::query()
+            ->select(['id', 'slug', 'title', 'offer_percent_from', 'offer_percent_to'])
+            ->with(['media' => fn ($q) => $q->whereIn('collection_name', ['logo', 'mobile_logo']), 'categories:id,name'])
+            ->withCount(['products' => fn ($q) => $q->visibleInShop()])
+            ->findOrFail($b->store_id);
+
+        return $this->respond($request, [
+            'id' => $store->id,
+            'slug' => $store->slug,
+            'title' => (string) $store->title,
+            'logo' => $store->mobile_logo ?: $store->logo,
+            'offer_from' => $store->offer_percent_from !== null ? (float) $store->offer_percent_from : null,
+            'offer_to' => $store->offer_percent_to !== null ? (float) $store->offer_percent_to : null,
+            'categories' => $store->categories->map(fn ($c) => ['id' => $c->id, 'name' => (string) $c->name])->values()->all(),
+            'products_count' => (int) $store->products_count,
+            'branch' => $this->branchCard($b, $this->governorateNames(), $this->cityNames(), true),
+        ], 300);
     }
 
     public function show(Request $request, Store $store): JsonResponse

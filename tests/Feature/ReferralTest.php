@@ -60,21 +60,21 @@ class ReferralTest extends TestCase
     }
 
     /** @test */
-    public function a_link_or_a_claim_alone_pays_nothing_the_trial_start_pays_ten_once(): void
+    public function a_link_alone_pays_nothing_an_accepted_code_pays_ten_once(): void
     {
         [$referrer] = $this->member('111111', '01011111111');
         [$friend] = $this->member('222222', '01022222222', trial: false);
 
         Sanctum::actingAs($friend);
         $this->postJson('/api/v1/referral/claim', ['number' => '111111', 'source' => 'link'])->assertCreated();
-        $this->assertSame(0.0, WalletTransaction::balanceOf($referrer->id)); // account exists, trial not started
+        $this->assertSame(10.0, WalletTransaction::balanceOf($referrer->id)); // accepted code pays at once (phone verified)
 
         Membership::query()->where('user_id', $friend->id)->update(['trial_started_at' => now()]);
         Referrals::trialStarted($friend);
         Referrals::trialStarted($friend);
         Referrals::trialStarted($friend);
 
-        $this->assertSame(10.0, WalletTransaction::balanceOf($referrer->id));
+        $this->assertSame(10.0, WalletTransaction::balanceOf($referrer->id)); // still once
         $this->assertSame(1, ReferralReward::query()->where('kind', 'trial')->count());
         $this->assertSame(10.0, (float) Referral::query()->first()->trial_bonus);
     }
@@ -97,7 +97,7 @@ class ReferralTest extends TestCase
         $friend = User::factory()->create(['phone' => '01022222222', 'phone_verified_at' => now()]);
         Sanctum::actingAs($friend);
         $this->postJson('/api/v1/referral/claim', ['number' => '111111'])->assertCreated();
-        $this->assertSame(0.0, WalletTransaction::balanceOf($referrer->id));
+        $this->assertSame(10.0, WalletTransaction::balanceOf($referrer->id)); // paid at acceptance
 
         $this->postJson('/api/v1/membership/trial', ['name' => 'Friend Name', 'gender' => 'male'])->assertSuccessful();
 

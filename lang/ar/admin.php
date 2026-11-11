@@ -1610,6 +1610,8 @@ return [
             'column_partner' => 'الشريك',
             'column_creator' => 'المُنشئ',
             'column_sales' => 'المبيعات',
+            'column_wallet' => 'المحفظة (ج.م)',
+            'column_points' => 'نقاط الولاء',
             'column_source' => 'المصدر',
             'column_card' => 'البطاقة',
             'card_custom' => 'مخصصة',
