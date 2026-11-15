@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\V1\Member\OrderController as V1MemberOrderControlle
 use App\Http\Controllers\Api\V1\Mobile\CardController as V1MobileCardController;
 use App\Http\Controllers\Api\V1\Mobile\CardLoginController as V1MobileCardLoginController;
 use App\Http\Controllers\Api\V1\Mobile\PhysicalCardController as V1MobilePhysicalCardController;
+use App\Http\Controllers\Api\V1\Mobile\RelativeFeeController as V1MobileRelativeFeeController;
 use App\Http\Controllers\Api\V1\Mobile\FacilityController as V1MobileFacilityController;
 use App\Http\Controllers\Api\V1\Mobile\ProductController as V1MobileProductController;
 use App\Http\Controllers\Api\V1\Mobile\StoreController as V1MobileStoreController;
@@ -137,6 +138,14 @@ Route::prefix('v1')
             Route::post('/visits', [\App\Http\Controllers\Api\V1\VisitController::class, 'store'])
                 ->middleware('throttle:120,1,api.mobile.visits.store')
                 ->name('visits.store');
+
+            /* The app's push token (FCM), so an admin's notification reaches the phone open or closed. Public; the member is read from a bearer token only. */
+            Route::post('/push-token', [\App\Http\Controllers\Api\V1\Mobile\PushTokenController::class, 'store'])
+                ->middleware('throttle:30,1,api.mobile.push-token.store')
+                ->name('push-token.store');
+            Route::delete('/push-token', [\App\Http\Controllers\Api\V1\Mobile\PushTokenController::class, 'destroy'])
+                ->middleware('throttle:30,1,api.mobile.push-token.destroy')
+                ->name('push-token.destroy');
 
             /* The quiz's badges, public: what each one needs and pays (a member's own progress is `GET /loyalty`). */
             Route::get('/loyalty/badges', [V1MemberLoyaltyController::class, 'badgeCatalog'])
@@ -241,6 +250,12 @@ Route::prefix('v1')
                 ->middleware(['auth:sanctum', 'throttle:60,1,api.my-cards'])->name('my-cards');
             Route::post('/physical-cards/orders', [V1MobilePhysicalCardController::class, 'store'])
                 ->middleware(['auth:sanctum', 'primary.member', 'throttle:10,1,api.physical.store'])->name('physical-cards.store');
+
+            /* A relative's fee (5 EGP a month, the period paid at once): what it costs, and the order that pays and switches the relative on. */
+            Route::get('/relative-fees', [V1MobileRelativeFeeController::class, 'show'])
+                ->middleware(['auth:sanctum', 'throttle:60,1,api.relative-fees.show'])->name('relative-fees.show');
+            Route::post('/relative-fees/orders', [V1MobileRelativeFeeController::class, 'store'])
+                ->middleware(['auth:sanctum', 'primary.member', 'throttle:10,1,api.relative-fees.store'])->name('relative-fees.store');
 
             Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
                 ->middleware('throttle:20,1,api.card.show')

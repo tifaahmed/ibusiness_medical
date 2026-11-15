@@ -58,6 +58,8 @@ class OrderResource extends JsonResource
             'wallet_amount' => (float) $this->wallet_amount,
             'points_used' => (int) $this->points_used,
             'points_amount' => (float) $this->points_amount,
+            /* Points per 1 EGP at the moment of the sale (archived on the order). */
+            'points_rate' => $this->points_rate ?: ((float) $this->points_amount > 0 ? round((int) $this->points_used / (float) $this->points_amount, 2) : null),
             'amount_due' => $this->amountDue(),
             'wallet_refunded' => $this->wallet_refunded_at !== null,
             /* The cash-on-delivery fee already included in `total_amount`; 0 means none, and clients hide it. */

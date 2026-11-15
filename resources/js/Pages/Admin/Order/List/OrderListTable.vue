@@ -125,6 +125,12 @@
                         :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-bold mt-1', order.kind === 'cards' ? 'border-amber-400/60 bg-amber-400/15 text-amber-400' : 'border-sky-400/50 bg-sky-400/10 text-sky-400']"
                       >{{ order.kind === 'cards' ? (t.order?.kind_cards || 'Physical cards') : (t.order?.kind_products || 'Products') }}</span>
                       <span
+                        v-if="order.channel"
+                        data-slot="badge"
+                        data-testid="order-channel"
+                        :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-bold mt-1', order.channel === 'app' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500' : 'border-border bg-muted/50 text-muted-foreground']"
+                      >{{ order.channel === 'app' ? (t.order?.channel_app || 'Mobile app') : (t.order?.channel_website || 'Deilar website') }}</span>
+                      <span
                         data-slot="badge"
                         :class="['relative inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium mt-1', paymentTypeClass[order.payment_type?.value]]"
                         :title="order.payment_type?.label"
@@ -160,9 +166,12 @@
                 </td>
                 <!-- What the customer has actually handed over -->
                 <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell">
-                  <span v-if="order.total_paid" class="text-sm font-semibold text-foreground">
-                    {{ formatPrice(order.total_paid) }}
-                  </span>
+                  <div v-if="order.total_paid" class="inline-flex flex-col items-center gap-0.5">
+                    <span class="text-sm font-semibold text-foreground">{{ formatPrice(order.total_paid) }}</span>
+                    <span class="text-[11px] font-medium text-emerald-500 whitespace-nowrap" data-testid="order-real-paid">{{ t.order?.paid_real || 'Real money' }}: {{ formatPrice(order.real_paid) }}</span>
+                    <span v-if="order.wallet_amount > 0" class="text-[11px] font-medium text-violet-500 whitespace-nowrap">{{ t.order?.paid_wallet || 'Wallet' }}: {{ formatPrice(order.wallet_amount) }}</span>
+                    <span v-if="order.points_amount > 0" class="text-[11px] font-medium text-amber-500 whitespace-nowrap">{{ t.order?.paid_points || 'Points' }}: {{ formatPrice(order.points_amount) }} ({{ order.points_used }})</span>
+                  </div>
                   <span v-else class="text-muted-foreground text-xs">—</span>
                 </td>
                 <!--

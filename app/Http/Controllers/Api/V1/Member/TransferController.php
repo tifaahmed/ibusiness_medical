@@ -41,6 +41,7 @@ class TransferController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'enabled' => MemberTransfers::enabled(),
+            'kinds' => ['points' => MemberTransfers::kindEnabled('points'), 'wallet' => MemberTransfers::kindEnabled('wallet')],
             'transfers' => $rows->map(fn (WalletTransfer $t) => $this->present($t, $member))->all(),
         ]]);
     }

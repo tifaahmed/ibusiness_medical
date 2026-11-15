@@ -328,7 +328,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     ->get('/user/profile', [\Laravel\Jetstream\Http\Controllers\Inertia\UserProfileController::class, 'show'])
     ->name('profile.show');
 
-Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class, \App\Http\Middleware\RedirectBackWhenStaying::class])->group(function () {
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified', \App\Http\Middleware\EnsureAdminAreaAccess::class, \App\Http\Middleware\ShareUserPermissions::class, \App\Http\Middleware\RedirectBackWhenStaying::class, \App\Http\Middleware\ShrinkUploadedImages::class])->group(function () {
     /* Quick add (Members list button) + the customer-SMS panel (super admin only, checked in the controller). */
     Route::get('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'create'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add.page');
     Route::post('/admin/user/membership/quick-add', [\App\Http\Controllers\Admin\QuickAdd\QuickAddMemberController::class, 'store'])->middleware('permission:manage memberships|manage own memberships|manage partner memberships')->name('admin.user.membership.quick-add');
@@ -935,6 +935,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage store categories|manage own store categories|view store categories')->group(function () {
         Route::get('/admin/store-category', AdminStoreCategoryListController::class)->name('admin.store-category.list');
         Route::get('/admin/store-category/{storeCategory}', AdminStoreCategoryShowController::class)->name('admin.store-category.show');
+    });
+
+    // ---- Push notifications to the mobile apps (super admin by default) ----
+    Route::middleware('permission:send push notifications')->group(function () {
+        Route::get('/admin/push', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'index'])->name('admin.push.index');
+        Route::post('/admin/push', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'store'])
+            ->middleware('throttle:10,1,admin.push.store')->name('admin.push.store');
     });
 
     // ---- Visitors: who opened the website / apps, and which products they looked at ----

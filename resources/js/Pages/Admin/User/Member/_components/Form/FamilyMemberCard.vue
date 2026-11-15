@@ -478,7 +478,7 @@ const handleSubmit = () => {
   // the "sent to server" half of the advanced error track.
   debugLog.value = {
     request: {
-      method: isEditing ? 'PUT' : 'POST',
+      method: isEditing ? 'PUT (sent as POST + _method)' : 'POST',
       url,
       at: new Date().toISOString(),
       fields: formDataToLog(formData),
@@ -510,11 +510,12 @@ const handleSubmit = () => {
     }
   };
 
+  // A real multipart PUT is not parsed by PHP (name / relationship arrive empty), so an edit is a POST that
+  // says `_method=PUT` — Laravel treats it as the PUT the route expects.
   if (isEditing) {
-    router.put(url, formData, requestOptions);
-  } else {
-    router.post(url, formData, requestOptions);
+    formData.append('_method', 'PUT');
   }
+  router.post(url, formData, requestOptions);
 };
 
 const approvalUrl = (name, member) =>

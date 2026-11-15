@@ -29,6 +29,13 @@ class AdminOrderEditResource extends JsonResource
             'order_code' => $this->order_code,
 
             'total_paid' => $this->total_paid === null ? null : (float) $this->total_paid,
+            /* Read-only: how the order was paid. Never posted back. The rate is what THIS order was
+               sold at (points / pounds), not today's setting, which the admin may have changed since. */
+            'wallet_amount' => (float) $this->wallet_amount,
+            'points_used' => (int) $this->points_used,
+            'points_amount' => (float) $this->points_amount,
+            'points_rate' => $this->points_rate ?: ((float) $this->points_amount > 0 ? round((int) $this->points_used / (float) $this->points_amount, 2) : null),
+            'real_paid' => max(0, round((float) $this->total_paid - (float) $this->wallet_amount - (float) $this->points_amount, 2)),
             'total_amount' => $this->total_amount === null ? null : (float) $this->total_amount,
             'total_amount_before_discount' => $this->total_amount_before_discount === null
                 ? null

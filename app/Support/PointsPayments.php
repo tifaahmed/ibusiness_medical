@@ -77,7 +77,7 @@ final class PointsPayments
             'points' => -$quote['points'], 'note' => 'order '.$order->order_code, 'answered_at' => now(),
         ]);
 
-        $attributes = ['points_used' => $quote['points'], 'points_amount' => $quote['egp']];
+        $attributes = ['points_used' => $quote['points'], 'points_amount' => $quote['egp'], 'points_rate' => LoyaltyPoints::pointsPerEgp()];
         if (round((float) $order->total_amount - $quote['egp'], 2) <= 0) {
             $attributes += ['payment_status' => \App\Enums\Order\PaymentStatusEnum::ACCEPTED, 'total_paid' => $order->total_amount, 'paid_at' => now()];
         }

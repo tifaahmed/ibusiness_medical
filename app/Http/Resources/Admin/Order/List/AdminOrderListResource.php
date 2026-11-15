@@ -19,6 +19,16 @@ class AdminOrderListResource extends JsonResource
             'order_code' => $this->order_code,
             // What the order is for: 'cards' (physical cards) or 'products' (the shop).
             'kind' => $this->source === \App\Support\PhysicalCard::SOURCE ? 'cards' : 'products',
+            /* Where the order came from (the app, or the Deilar website) and how it was covered: real money / wallet / points. */
+            'channel' => match (true) {
+                $this->source === \App\Models\Order::SOURCE_MOBILE_APP, $this->source === \App\Support\PhysicalCard::SOURCE => 'app',
+                $this->source === \App\Models\Order::SOURCE_STOREFRONT => 'website',
+                default => null,
+            },
+            'wallet_amount' => (float) $this->wallet_amount,
+            'points_used' => (int) $this->points_used,
+            'points_amount' => (float) $this->points_amount,
+            'real_paid' => max(0, round((float) $this->total_paid - (float) $this->wallet_amount - (float) $this->points_amount, 2)),
             'total_paid' => $this->total_paid ? (float) $this->total_paid : null,
             'total_amount' => $this->total_amount !== null ? (float) $this->total_amount : null,
             'total_amount_before_discount' => $this->total_amount_before_discount !== null ? (float) $this->total_amount_before_discount : null,

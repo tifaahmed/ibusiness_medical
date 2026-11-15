@@ -59,6 +59,9 @@ class ProductResource extends JsonResource
              */
             'is_accessible' => (bool) $this->is_accessible,
             'is_purchasable' => (bool) $this->is_purchasable,
+            /* Whether loyalty points may pay part of this product, and the most points it may take in one order (its own cap or the system's; null = no limit). */
+            'points_payable' => (bool) $this->points_payable,
+            'points_max' => $this->pointsCap(),
             'banner_config' => self::resolvedBannerConfig($this->resource),
             'created_at' => $this->created_at?->toAtomString(),
         ];

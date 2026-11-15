@@ -105,6 +105,15 @@ return [
      * than failing mid-request: `OtpSettings` then falls back to the fixed
      * code, which is exactly the state a fresh install should be in.
      */
+    /*
+     * Firebase Cloud Messaging (HTTP v1) — pushes to the Android / iOS apps. Nothing is sent until BOTH are set:
+     * the Firebase project id and the path of a service-account JSON (Project settings → Service accounts → Generate new private key).
+     */
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID'),
+        'credentials' => env('FCM_CREDENTIALS', storage_path('app/private/fcm-service-account.json')),
+    ],
+
     'sms' => [
         'url' => env('SMS_API_URL', 'https://gwe2s.broadnet.me:8443/websmpp/websms'),
         'user' => env('SMS_API_USER'),

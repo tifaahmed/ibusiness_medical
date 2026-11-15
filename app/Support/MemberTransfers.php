@@ -31,9 +31,22 @@ final class MemberTransfers
     /** The most open requests one sender may have. */
     public const MAX_OPEN = 5;
 
+    public const POINTS_ENABLED = 'loyalty_transfers_points_enabled';
+    public const WALLET_ENABLED = 'loyalty_transfers_wallet_enabled';
+
     public static function enabled(): bool
     {
         return (bool) SiteSettings::get(self::ENABLED, false);
+    }
+
+    /** Is this kind (`points` | `wallet`) open for NEW requests? Needs the master switch AND its own (own default ON). */
+    public static function kindEnabled(string $kind): bool
+    {
+        if (! self::enabled()) {
+            return false;
+        }
+
+        return (bool) SiteSettings::get($kind === WalletTransfer::KIND_POINTS ? self::POINTS_ENABLED : self::WALLET_ENABLED, true);
     }
 
     /** The member behind a phone number or a card number, or null. A member never finds themself. */
@@ -73,6 +86,10 @@ final class MemberTransfers
     {
         if (! self::enabled()) {
             return ['ok' => false, 'reason' => 'disabled'];
+        }
+
+        if (! self::kindEnabled($kind)) {
+            return ['ok' => false, 'reason' => 'kind_disabled'];
         }
 
         $to = self::find($phone, $card, $from->id);
@@ -173,6 +190,8 @@ final class MemberTransfers
     {
         return [
             ['slug' => self::ENABLED, 'name' => ['en' => 'Let members send points / wallet money to each other (with the recipient accepting)', 'ar' => 'السماح للأعضاء بتحويل النقاط / رصيد المحفظة لبعضهم (بموافقة المستلم)'], 'value' => '0', 'value_type' => Setting::TYPE_BOOLEAN],
+            ['slug' => self::POINTS_ENABLED, 'name' => ['en' => 'Member transfers: allow sending POINTS (needs the main transfer switch)', 'ar' => 'تحويل النقاط بين الأعضاء (لازم مفتاح التحويل الرئيسي يكون شغال)'], 'value' => '1', 'value_type' => Setting::TYPE_BOOLEAN],
+            ['slug' => self::WALLET_ENABLED, 'name' => ['en' => 'Member transfers: allow sending WALLET money (needs the main transfer switch)', 'ar' => 'تحويل رصيد المحفظة بين الأعضاء (لازم مفتاح التحويل الرئيسي يكون شغال)'], 'value' => '1', 'value_type' => Setting::TYPE_BOOLEAN],
         ];
     }
 }

@@ -261,6 +261,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function a_section_allows_five_plays_a_day_and_the_sixth_earns_nothing(): void
     {
+        config(['loyalty.quiz.plays_per_day' => 5]); // the cap is configurable; these cases pin the mechanics at 5
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -286,8 +287,23 @@ class QuizLoyaltyTest extends TestCase
     }
 
     /** @test */
+    public function by_default_a_section_allows_one_play_a_day_so_five_sections_allow_five(): void
+    {
+        $this->assertSame(1, (int) config('loyalty.quiz.plays_per_day'));
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $answers = array_merge($this->play('a1', 1, 'mcq:football'), $this->play('a2', 1, 'mcq:football'), $this->play('b1', 1, 'mcq:fawazeer'));
+        $response = $this->postJson('/api/v1/loyalty/quiz-answers', ['answers' => $answers])->assertOk();
+
+        $this->assertSame(2, $response->json('data.accepted'));
+        $this->assertSame(1, $response->json('data.over_daily_limit'));
+    }
+
+    /** @test */
     public function each_section_has_its_own_five_so_two_sections_allow_ten(): void
     {
+        config(['loyalty.quiz.plays_per_day' => 5]); // the cap is configurable; these cases pin the mechanics at 5
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -305,6 +321,7 @@ class QuizLoyaltyTest extends TestCase
     /** @test */
     public function the_allowance_is_back_the_next_day(): void
     {
+        config(['loyalty.quiz.plays_per_day' => 5]); // the cap is configurable; these cases pin the mechanics at 5
         Sanctum::actingAs(User::factory()->create());
         $yesterday = now()->subDay()->toIso8601String();
 

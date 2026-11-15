@@ -49,6 +49,7 @@ class ProductController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'type' => ['nullable', 'integer'],
             'store_id' => ['nullable', 'integer'],
+            'points_payable' => ['nullable', 'boolean'],
             'sort' => ['nullable', 'in:newest,price_asc,price_desc,discount'],
             'slugs' => ['nullable', 'array', 'max:60'],
             'slugs.*' => ['string', 'max:255'],
@@ -78,7 +79,9 @@ class ProductController extends Controller
                 }
             })
             ->when(! empty($v['type']), fn (Builder $q) => $q->where('products.product_type_id', (int) $v['type']))
-            ->when(! empty($v['store_id']), fn (Builder $q) => $q->where('products.store_id', (int) $v['store_id']));
+            ->when(! empty($v['store_id']), fn (Builder $q) => $q->where('products.store_id', (int) $v['store_id']))
+            // Only the products that accept loyalty points (the app's «points» filter).
+            ->when($request->boolean('points_payable'), fn (Builder $q) => $q->where('products.points_payable', true));
 
         match ($v['sort'] ?? 'newest') {
             'price_asc' => $query->orderByRaw("{$price} is null, {$price} asc")->orderBy('products.id'),

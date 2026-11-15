@@ -23,7 +23,7 @@ return [
          * How many plays of one section a member gets per day (the app's day ends at midnight, app timezone here). Points
          * of a play beyond that are not booked. The app mirrors this number (`PLAYS_PER_DAY` in utils/quizLimit.ts).
          */
-        'plays_per_day' => (int) env('LOYALTY_QUIZ_PLAYS_PER_DAY', 5),
+        'plays_per_day' => (int) env('LOYALTY_QUIZ_PLAYS_PER_DAY', 1),
         /* The quiz sections (a `quiz` key sent with each answer). Each starts with the badges below. */
         'sections' => ['mcq:football', 'mcq:fawazeer', 'mcq:general', 'mcq:history', 'mcq:cinema'],
         /*

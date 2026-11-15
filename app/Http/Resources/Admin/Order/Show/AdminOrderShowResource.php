@@ -31,6 +31,13 @@ class AdminOrderShowResource extends JsonResource
             'points_used' => (int) $this->points_used,
             'points_amount' => (float) $this->points_amount,
             'amount_due' => $this->amountDue(),
+            'points_rate' => $this->points_rate ?: ((float) $this->points_amount > 0 ? round((int) $this->points_used / (float) $this->points_amount, 2) : null),
+            'real_paid' => max(0, round((float) $this->total_paid - (float) $this->wallet_amount - (float) $this->points_amount, 2)),
+            'channel' => match (true) {
+                $this->source === \App\Models\Order::SOURCE_MOBILE_APP, $this->source === \App\Support\PhysicalCard::SOURCE => 'app',
+                $this->source === \App\Models\Order::SOURCE_STOREFRONT => 'website',
+                default => null,
+            },
             'wallet_refunded_at' => $this->wallet_refunded_at?->format('Y-m-d H:i'),
             'total_amount' => $this->total_amount === null ? null : (float) $this->total_amount,
             'total_amount_before_discount' => $this->total_amount_before_discount === null

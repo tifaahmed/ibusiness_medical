@@ -66,7 +66,11 @@ final class PaymentMethods
     /** The context an order belongs to: a physical-card order is `cards`, any other is a shop order. */
     public static function contextOfOrder(\App\Models\Order $order): string
     {
-        return $order->source === PhysicalCard::SOURCE ? self::CONTEXT_CARDS : self::CONTEXT_PRODUCTS;
+        return match ($order->source) {
+            PhysicalCard::SOURCE => self::CONTEXT_CARDS,
+            RelativeFee::SOURCE => self::CONTEXT_MEMBERSHIP,
+            default => self::CONTEXT_PRODUCTS,
+        };
     }
 
     public static function contextSlug(string $context, string $mainSlug): string

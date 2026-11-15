@@ -33,7 +33,7 @@ final class PhysicalCard
 
     public static function shipping(): float
     {
-        return max(0.0, round((float) SiteSettings::get(self::SHIPPING, 50), 2));
+        return max(0.0, round((float) SiteSettings::get(self::SHIPPING, 25), 2));
     }
 
     /** @return array{ok: bool, reason: ?string} `reason`: no_card | relative | not_current */
@@ -59,7 +59,7 @@ final class PhysicalCard
     {
         return [
             ['slug' => self::PRICE, 'name' => ['en' => 'Physical card price (EGP, per card)', 'ar' => 'سعر الكارت الفيزيكال (ج.م للكارت)'], 'value' => '50', 'value_type' => Setting::TYPE_NUMBER],
-            ['slug' => self::SHIPPING, 'name' => ['en' => 'Physical card shipping price (EGP, per order)', 'ar' => 'سعر شحن الكارت الفيزيكال (ج.م للطلب)'], 'value' => '50', 'value_type' => Setting::TYPE_NUMBER],
+            ['slug' => self::SHIPPING, 'name' => ['en' => 'Physical card shipping price (EGP, per order)', 'ar' => 'سعر شحن الكارت الفيزيكال (ج.م للطلب)'], 'value' => '25', 'value_type' => Setting::TYPE_NUMBER],
         ];
     }
 }

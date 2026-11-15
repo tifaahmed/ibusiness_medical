@@ -128,4 +128,17 @@ class PointsCapsTest extends TestCase
         $this->assertSame(1000, $list['own']['points_max']);
         $this->assertSame(5000, $list['sys']['points_max']);
     }
+
+    /** @test */
+    public function the_mobile_products_can_be_filtered_to_the_ones_that_accept_points(): void
+    {
+        $this->product('yes', 100);
+        $this->product('no', 100, null, false);
+
+        $all = collect($this->getJson('/api/v1/mobile/products')->assertOk()->json('data'))->pluck('slug')->all();
+        $only = collect($this->getJson('/api/v1/mobile/products?points_payable=1')->assertOk()->json('data'))->pluck('slug')->all();
+
+        $this->assertEqualsCanonicalizing(['yes', 'no'], $all);
+        $this->assertSame(['yes'], $only);
+    }
 }

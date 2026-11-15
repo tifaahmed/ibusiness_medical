@@ -17,7 +17,7 @@
       class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center"
       @click.self="close"
     >
-      <div class="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
+      <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
         <div class="flex items-start gap-3 border-b border-border p-4">
           <div class="space-y-1">
             <p class="text-base font-semibold">
@@ -179,9 +179,11 @@
             :disabled="masterSaving"
             class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50 btn-golden cursor-pointer"
           >{{ masterSaving ? 'Saving…' : 'Save master code' }}</button>
+          <p v-if="masterSaved" class="text-[11px] text-emerald-600">Saved.</p>
         </div>
 
         <div class="flex items-center gap-2 border-t border-border p-4">
+          <span v-if="saved" class="text-xs text-emerald-600">Saved.</span>
           <button type="button" @click="close" class="h-9 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted cursor-pointer">
             Cancel
           </button>
@@ -226,6 +228,8 @@ const masterCode = ref('');
 const masterExpires = ref('');
 const masterSaving = ref(false);
 const masterError = ref('');
+const saved = ref(false);
+const masterSaved = ref(false);
 
 /* Re-seeded every time it opens, so a dialog closed without saving does not
    show yesterday's answer the next time it is opened. */
@@ -233,6 +237,8 @@ watch(() => props.open, (isOpen) => {
   if (!isOpen) return;
 
   error.value = '';
+  saved.value = false;
+  masterSaved.value = false;
   saving.value = false;
   masterEnabled.value = props.policy?.master?.enabled === true;
   masterCode.value = '';
@@ -263,6 +269,7 @@ const saveMaster = () => {
 
   masterSaving.value = true;
   masterError.value = '';
+  masterSaved.value = false;
 
   router.put(route('admin.user.membership.otp.master'), {
     enabled: masterEnabled.value,
@@ -270,7 +277,7 @@ const saveMaster = () => {
     expires_at: masterEnabled.value && masterExpires.value ? masterExpires.value : null,
   }, {
     preserveScroll: true,
-    onSuccess: () => close(),
+    onSuccess: () => { masterCode.value = ''; masterSaved.value = true; },
     onError: (errors) => { masterError.value = errors.code || errors.expires_at || errors.message || 'That could not be saved.'; },
     onFinish: () => { masterSaving.value = false; },
   });
@@ -288,6 +295,7 @@ const save = () => {
 
   saving.value = true;
   error.value = '';
+  saved.value = false;
 
   const url = props.member
     ? route('admin.user.membership.otp.member', props.member.id)
@@ -299,7 +307,7 @@ const save = () => {
 
   router.put(url, payload, {
     preserveScroll: true,
-    onSuccess: () => close(),
+    onSuccess: () => { saved.value = true; },
     onError: (errors) => { error.value = errors.fixed_code || errors.expires_at || (errors.message ? '' : 'That could not be saved.'); messageError.value = errors.message || ''; },
     onFinish: () => { saving.value = false; },
   });

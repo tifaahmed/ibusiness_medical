@@ -344,6 +344,19 @@
             :error="errorFor('total_amount')"
             required
           />
+          <!-- Read-only: which money paid this order. Points are shown as points AND pounds,
+               with the rate this order was sold at (the setting may have changed since). -->
+          <div v-if="order.wallet_amount > 0 || order.points_amount > 0 || order.real_paid > 0" class="col-span-full rounded-md border border-border p-3 space-y-1.5">
+            <p class="text-xs font-semibold text-foreground">{{ t.order?.paid_breakdown || 'How it was paid' }}</p>
+            <div class="flex flex-wrap gap-2">
+              <span v-if="order.real_paid > 0" class="chip chip-positive">{{ t.order?.paid_real || 'Real money' }}: {{ formatPrice(order.real_paid) }}</span>
+              <span v-if="order.wallet_amount > 0" class="chip chip-info">{{ t.order?.paid_wallet || 'Wallet' }}: {{ formatPrice(order.wallet_amount) }}</span>
+              <span v-if="order.points_amount > 0" class="chip chip-accent">{{ t.order?.paid_points || 'Points' }}: {{ order.points_used }} {{ t.order?.points_unit || 'points' }} = {{ formatPrice(order.points_amount) }}</span>
+            </div>
+            <p v-if="order.points_rate" class="text-xs text-muted-foreground">
+              {{ (t.order?.points_rate_line || 'Rate at the sale: :points points = 1 EGP').replace(':points', order.points_rate) }}
+            </p>
+          </div>
           <div class="space-y-1.5">
             <FormInput
               v-model="form.total_paid"

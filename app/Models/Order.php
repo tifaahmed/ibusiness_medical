@@ -68,6 +68,7 @@ class Order extends Model implements HasMedia
         'wallet_amount',
         'points_used',
         'points_amount',
+        'points_rate',
         'wallet_refunded_at',
         'total_amount',
         'total_amount_before_discount',
@@ -122,6 +123,7 @@ class Order extends Model implements HasMedia
             'wallet_amount' => 'decimal:2',
             'points_used' => 'integer',
             'points_amount' => 'decimal:2',
+            'points_rate' => 'float',
             'wallet_refunded_at' => 'datetime',
             'total_amount' => 'decimal:2',
             'total_amount_before_discount' => 'decimal:2',
@@ -225,6 +227,11 @@ class Order extends Model implements HasMedia
                 \App\Models\MemberExtraCard::query()->where('order_id', $order->id)
                     ->where('status', \App\Models\MemberExtraCard::STATUS_REQUESTED)->get()
                     ->each(fn ($card) => $card->update(['status' => \App\Models\MemberExtraCard::STATUS_CANCELLED]));
+            }
+
+            // A paid relative-fee order switches its relatives on, for the period, once.
+            if ($order->wasChanged('payment_status') && $order->payment_status === \App\Enums\Order\PaymentStatusEnum::ACCEPTED) {
+                \App\Support\RelativeFee::activateFor($order);
             }
 
             if ($cancelled || $failed) {

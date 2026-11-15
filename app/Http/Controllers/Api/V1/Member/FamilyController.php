@@ -74,6 +74,8 @@ class FamilyController extends Controller
             'success' => true,
             'data' => [
                 'can_add_children' => $this->isFather($member),
+                // What a relative costs (the client draws it; it never computes it) and whether this card is a company's.
+                'relative_fee' => \App\Support\RelativeFee::fee($membership),
                 'family_members' => $membership === null
                     ? []
                     : $membership->relatives()->with('user')->orderBy('id')->get()
@@ -148,7 +150,7 @@ class FamilyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Child added.',
-            'data' => ['family_member' => $this->present($familyMember->load('user'), true)],
+            'data' => ['family_member' => $this->present($familyMember->load('user'), true), 'relative_fee' => \App\Support\RelativeFee::fee($membership)],
         ], Response::HTTP_CREATED);
     }
 
@@ -230,7 +232,7 @@ class FamilyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Family member sent for approval.',
-            'data' => ['family_member' => $this->present($familyMember->fresh('user'), false)],
+            'data' => ['family_member' => $this->present($familyMember->fresh('user'), false), 'relative_fee' => \App\Support\RelativeFee::fee($membership)],
         ], Response::HTTP_CREATED);
     }
 
@@ -545,14 +547,21 @@ class FamilyController extends Controller
      */
     private function tellAdmins(User $member, Membership $membership, Membership $familyMember, Request $request): void
     {
+        // A COMPANY card pays nothing in the app: the team is told to call, with the fee and the data the member typed.
+        $company = $membership->kind() === Membership::KIND_COMPANY;
+
         try {
             $this->inbox->handle([
                 'phone' => (string) $member->phone,
                 'name' => $member->name,
                 'email' => $member->email,
-                'subject' => 'Relative awaiting approval — card '.$membership->membership_number,
-                'message' => 'Card '.$membership->membership_number.' added '.$familyMember->user?->name.' ('.($familyMember->relationship ?? '').') and is waiting for approval.',
-                'source' => ContactSourceEnum::PENDING_RELATIVE->value,
+                'subject' => $company
+                    ? 'IMPORTANT — call the member: relative fee on a company card '.$membership->membership_number
+                    : 'Relative awaiting approval — card '.$membership->membership_number,
+                'message' => $company
+                    ? 'Company card '.$membership->membership_number.' wants to add '.$familyMember->user?->name.' ('.($familyMember->relationship ?? '').', phone '.($familyMember->user?->phone ?: '—').', national ID '.($familyMember->national_id ?: '—').'). The fee is '.\App\Support\RelativeFee::monthly().' EGP a month ('.\App\Support\RelativeFee::perRelative().' EGP for '.\App\Support\RelativeFee::months().' months): ask whether it is deducted monthly from the salary / by instalments, or paid for the year at once. Call the member.'
+                    : 'Card '.$membership->membership_number.' added '.$familyMember->user?->name.' ('.($familyMember->relationship ?? '').') and is waiting for approval.',
+                'source' => ($company ? ContactSourceEnum::RELATIVE_REQUEST : ContactSourceEnum::PENDING_RELATIVE)->value,
                 'channel' => ContactChannelEnum::fromRequest($request)->value,
                 'ip_address' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 1000),

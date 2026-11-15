@@ -447,6 +447,23 @@ const getUserInitials = (name) => {
                     <template #label>{{ t.sidebar?.database_backup || 'Database Backups' }}</template>
                 </SidebarLink>
 
+                <!-- Send a notification to every phone that has the app. -->
+                <SidebarLink
+                    v-if="canAny('send push notifications')"
+                    :href="route('admin.push.index')"
+                    :active="route().current('admin.push.*')"
+                    :is-collapsed="sidebarCollapsed"
+                    icon-animation="animate-icon-breathe"
+                    @click="closeSidebar"
+                >
+                    <template #icon>
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 11-6 0" />
+                        </svg>
+                    </template>
+                    <template #label>{{ t.push?.title || 'Push notifications' }}</template>
+                </SidebarLink>
+
                 <!-- Who opened the website / apps, and which products they looked at. -->
                 <SidebarLink
                     v-if="canAny('view visitors')"

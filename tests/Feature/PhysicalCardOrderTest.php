@@ -37,16 +37,16 @@ class PhysicalCardOrderTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.eligible', true)
             ->assertJsonPath('data.price', 50)
-            ->assertJsonPath('data.shipping_price', 50)
+            ->assertJsonPath('data.shipping_price', 25)
             ->assertJsonCount(2, 'data.cards');
 
-        // 2 copies of the holder's own number + 1 for the wife = 3 × 50, plus 50 shipping once.
+        // 2 copies of the holder's own number + 1 for the wife = 3 × 50, plus 25 shipping once.
         $this->postJson('/api/v1/mobile/physical-cards/orders', $this->body([
             ['membership_number' => $card->membership_number, 'quantity' => 2],
             ['membership_number' => $wife->membership_number, 'quantity' => 1],
-        ]))->assertCreated()->assertJsonPath('order.total_amount', 200);
+        ]))->assertCreated()->assertJsonPath('order.total_amount', 175);
 
-        $this->assertDatabaseHas('orders', ['user_id' => $user->id, 'source' => 'physical_card', 'total_amount' => 200, 'delivery_price' => 50, 'payment_status' => 'pending']);
+        $this->assertDatabaseHas('orders', ['user_id' => $user->id, 'source' => 'physical_card', 'total_amount' => 175, 'delivery_price' => 25, 'payment_status' => 'pending']);
         $this->assertDatabaseCount('order_products', 2);
 
         // The member screen's card list follows the order: one REQUESTED physical card per copy, on the right member.

@@ -287,6 +287,9 @@ enum UserPermissionEnum
 
     public const VIEW_VISITORS = 'view visitors';
 
+    /** Send a push notification to every phone that has the app. Super admin only until the admin hands it out. */
+    public const SEND_PUSH_NOTIFICATIONS = 'send push notifications';
+
     public const VIEW_MEMBER_NOTES = 'view member notes';
 
     public const ADD_MEMBER_NOTES = 'add member notes';
@@ -325,6 +328,7 @@ enum UserPermissionEnum
             self::MANAGE_SETTINGS,
             self::MANAGE_PROFILE,
             self::VIEW_MEMBER_ACTIVE_HISTORIES,
+            self::SEND_PUSH_NOTIFICATIONS,
             self::ADD_LOYALTY_POINTS,
             self::TAKE_LOYALTY_POINTS,
             self::ADD_WALLET_MONEY,

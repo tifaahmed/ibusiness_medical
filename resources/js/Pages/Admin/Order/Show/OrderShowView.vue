@@ -390,6 +390,15 @@
                 <p class="text-sm font-medium mt-0.5" :class="paidInFull ? 'text-emerald-500' : 'text-amber-500'">
                   {{ formatPrice(order.total_paid) }}
                 </p>
+                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                  <span class="chip chip-positive">{{ t.order?.paid_real || 'Real money' }}: {{ formatPrice(order.real_paid) }}</span>
+                  <span v-if="order.wallet_amount > 0" class="chip chip-info">{{ t.order?.paid_wallet || 'Wallet' }}: {{ formatPrice(order.wallet_amount) }}</span>
+                  <span v-if="order.points_used > 0 || order.points_amount > 0" class="chip chip-accent">{{ t.order?.paid_points || 'Points' }}: {{ order.points_used }} {{ t.order?.points_unit || 'points' }} = {{ formatPrice(order.points_amount) }}</span>
+                </div>
+                <p v-if="order.points_rate" class="mt-1 text-xs text-muted-foreground">
+                  {{ (t.order?.points_rate_line || 'Rate at the sale: :points points = 1 EGP').replace(':points', order.points_rate) }}
+                </p>
+                <p v-if="order.channel" class="text-xs text-muted-foreground">{{ t.order?.channel || 'Channel' }}: {{ order.channel === 'app' ? (t.order?.channel_app || 'Mobile app') : (t.order?.channel_website || 'Deilar website') }}</p>
               </div>
               <!-- The gap the courier or the wallet still has to close. -->
               <div v-if="outstanding > 0" class="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">

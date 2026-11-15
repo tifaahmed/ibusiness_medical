@@ -48,6 +48,7 @@ class Membership extends Model implements HasMedia
     protected $fillable = [
         'user_id',
         'company_id',
+        'fee_order_id',
         'partner_id',
         'sales_id',
         'governorate_id',
@@ -378,7 +379,8 @@ class Membership extends Model implements HasMedia
     public function state(): string
     {
         if ($this->isRelative()) {
-            return $this->governingCard()->state();
+            // A relative paid for by itself carries its own expiry; one without a date follows the primary card.
+            return $this->isExpired() ? self::STATE_EXPIRED : $this->governingCard()->state();
         }
 
         if (\App\Services\Otp\MemberRegistration::isPending($this->membership_number)) {
@@ -417,7 +419,7 @@ class Membership extends Model implements HasMedia
     public function isCurrent(): bool
     {
         if ($this->isRelative()) {
-            return (bool) $this->is_active && $this->governingCard()->isCurrent();
+            return (bool) $this->is_active && ! $this->isExpired() && $this->governingCard()->isCurrent();
         }
 
         return (bool) $this->is_active && ! ($this->expiration_date?->isPast() ?? false);
@@ -581,9 +583,14 @@ class Membership extends Model implements HasMedia
             $membership->approved_at ??= now();
         }
 
-        // No subscription of its own.
+        // No subscription of its own. The one exception is a relative whose own fee was paid (`fee_order_id`): it keeps the
+        // expiry date `RelativeFee::activateFor` gave it (a period ahead).
         $membership->plan = self::PLAN_RELATIVE; // the column is NOT NULL; 'relative' is never trial or full
-        $membership->expiration_date = null;
+
+        if ($membership->fee_order_id === null) {
+            $membership->expiration_date = null;
+        }
+
         $membership->trial_started_at = null;
 
         // Rows copied from the old family table may have had none of the three: they must still arrive.

@@ -149,4 +149,19 @@ class MemberTransfersTest extends TestCase
         $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'points', 'amount' => 100, 'id' => 'same'])->assertOk()->assertJsonPath('data.duplicate', true);
         $this->assertSame(1, \App\Models\WalletTransfer::query()->count());
     }
+
+    /** @test */
+    public function points_and_wallet_transfers_have_their_own_switches(): void
+    {
+        $this->open();
+        SiteSettings::put(MemberTransfers::WALLET_ENABLED, '0', Setting::TYPE_BOOLEAN);
+        SiteSettings::forget();
+        [$a] = $this->member('01011111111', 500, 100);
+        $this->member('01022222222');
+
+        Sanctum::actingAs($a);
+        $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'wallet', 'amount' => 10, 'id' => 'w1'])->assertStatus(422)->assertJsonPath('reason', 'kind_disabled');
+        $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'points', 'amount' => 10, 'id' => 'p1'])->assertOk();
+        $this->getJson('/api/v1/transfers')->assertJsonPath('data.kinds.points', true)->assertJsonPath('data.kinds.wallet', false);
+    }
 }
