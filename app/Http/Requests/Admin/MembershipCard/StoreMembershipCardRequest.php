@@ -39,7 +39,12 @@ class StoreMembershipCardRequest extends FormRequest
             // reads: '3-3-3', '1-3-3-2'. Decoration only — see the migration.
             'display_groups' => ['nullable', 'string', 'max:32', 'regex:/^\d+([^0-9]+\d+)*$/'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
-            'start_number' => ['required', 'integer', 'min:1'],
+            // Sequential: start_number (+ skip_taken to step over held numbers). Random: the chosen `numbers`, no start.
+            'random' => ['nullable', 'boolean'],
+            'skip_taken' => ['nullable', 'boolean'],
+            'start_number' => [$this->boolean('random') ? 'nullable' : 'required', 'integer', 'min:1'],
+            'numbers' => [$this->boolean('random') ? 'required' : 'nullable', 'array', 'max:1000'],
+            'numbers.*' => ['string', 'max:44'],
             'partner_id' => [
                 $this->partnerLocked() ? 'required' : 'nullable',
                 'integer',
@@ -75,6 +80,35 @@ class StoreMembershipCardRequest extends FormRequest
             }
 
             $prefix = (string) ($this->input('prefix') ?? '');
+
+            if ($this->boolean('random')) {
+                $list = array_values(array_unique(array_map('strval', (array) $this->input('numbers', []))));
+                if (count($list) !== (int) $this->input('quantity')) {
+                    $v->errors()->add('numbers', 'The number list does not match the quantity. Generate the numbers again.');
+
+                    return;
+                }
+                foreach ($list as $n) {
+                    $rest = substr($n, strlen($prefix));
+                    if (($prefix !== '' && ! str_starts_with($n, $prefix)) || $rest === '' || ! ctype_digit($rest) || strlen($rest) > 12) {
+                        $v->errors()->add('numbers', "Bad number: $n.");
+
+                        return;
+                    }
+                }
+                $held = \App\Support\BatchNumbers::heldAmong($list);
+                if (! empty($held)) {
+                    $v->errors()->add('numbers', 'Some of these numbers were taken meanwhile: '.implode(', ', array_slice($held, 0, 5)).'. Generate the numbers again.');
+                }
+
+                return;
+            }
+
+            // Skipping steps over held numbers, so the run is rebuilt (and verified) by the action instead of refused here.
+            if ($this->boolean('skip_taken')) {
+                return;
+            }
+
             $start = (int) $this->input('start_number');
             $qty = (int) $this->input('quantity');
 

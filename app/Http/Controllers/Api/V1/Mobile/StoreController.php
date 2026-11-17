@@ -72,7 +72,7 @@ class StoreController extends Controller
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:radius_km,lat'],
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:40'],
-            'sort' => ['nullable', 'in:nearest,discount,visits,newest'],
+            'sort' => ['nullable', 'in:nearest,discount,visits,newest,none'],
         ]);
 
         $lat = isset($v['lat']) ? (float) $v['lat'] : null;
@@ -120,9 +120,14 @@ class StoreController extends Controller
                 $query->orderByDesc('stores.id');
             }
 
-            $query->orderByRaw('nearest_branch.distance_km is null')
-                ->orderBy('nearest_branch.distance_km')
-                ->orderBy('stores.id');
+            // `none` = no ordering chosen: the distance is still returned for display, but it does not rank the list.
+            if (($v['sort'] ?? null) === 'none') {
+                $query->orderByDesc('stores.id');
+            } else {
+                $query->orderByRaw('nearest_branch.distance_km is null')
+                    ->orderBy('nearest_branch.distance_km')
+                    ->orderBy('stores.id');
+            }
         } else {
             if ($byDiscount) {
                 $query->orderByRaw('stores.offer_percent_to is null')->orderByDesc('stores.offer_percent_to');

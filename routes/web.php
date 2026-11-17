@@ -119,6 +119,7 @@ use App\Http\Controllers\Admin\MemberPayment\List\AdminMemberPaymentListControll
 use App\Http\Controllers\Admin\MemberPayment\Show\AdminMemberPaymentShowController;
 use App\Http\Controllers\Admin\MemberPayment\Store\AdminMemberPaymentStoreController;
 use App\Http\Controllers\Admin\MemberPayment\Update\AdminMemberPaymentUpdateController;
+use App\Http\Controllers\Admin\MembershipCard\Check\AdminMembershipCardCheckController;
 use App\Http\Controllers\Admin\MembershipCard\Create\AdminMembershipCardCreateController;
 use App\Http\Controllers\Admin\MembershipCard\Delete\AdminMembershipCardDeleteController;
 use App\Http\Controllers\Admin\MembershipCard\List\AdminMembershipCardListController;
@@ -450,6 +451,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     // IMPORTANT: static /create route MUST come before the wildcard /{card} route.
     Route::middleware('permission:create membership card patches|create own membership card patches|create partner membership card patches')->group(function () {
         Route::get('/admin/membership-card-patches/create', AdminMembershipCardCreateController::class)->name('admin.membership-card-patches.create');
+        Route::get('/admin/membership-card-patches/check', AdminMembershipCardCheckController::class)->name('admin.membership-card-patches.check');
         Route::post('/admin/membership-card-patches', AdminMembershipCardStoreController::class)->name('admin.membership-card-patches.store');
     });
     Route::middleware('permission:view membership card patches|view own membership card patches|view partner membership card patches')->group(function () {

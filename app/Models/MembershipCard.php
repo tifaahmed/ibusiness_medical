@@ -26,6 +26,8 @@ class MembershipCard extends Model implements HasMedia
         'quantity',
         'start_number',
         'membership_ids',
+        'skipped_numbers',
+        'number_list',
         'created_by',
         'partner_id',
         'card_template_id',
@@ -37,6 +39,8 @@ class MembershipCard extends Model implements HasMedia
             'quantity' => 'integer',
             'start_number' => 'integer',
             'membership_ids' => 'array',
+            'skipped_numbers' => 'array',
+            'number_list' => 'array',
             'layout_overrides' => 'array',
         ];
     }

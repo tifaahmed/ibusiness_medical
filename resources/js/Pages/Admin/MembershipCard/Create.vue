@@ -85,14 +85,18 @@
             />
           </div>
           <div>
-            <label class="block text-xs font-medium mb-1">Start number *</label>
+            <label class="block text-xs font-medium mb-1">Start number <span v-if="!isRandom">*</span></label>
             <input
               v-model.number="form.start_number"
               type="number"
               min="1"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              :disabled="busy"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+              :disabled="busy || isRandom"
             />
+            <label class="mt-1.5 flex items-center gap-1.5 text-[11px] cursor-pointer">
+              <input type="checkbox" v-model="isRandom" :disabled="busy" />
+              Random numbers (no start number, not in order)
+            </label>
           </div>
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium mb-1">
@@ -129,6 +133,42 @@
             </p>
           </div>
 
+        </div>
+
+        <!-- Random: the numbers are drawn first so the preview and the PDF show exactly what gets reserved. -->
+        <div v-if="isRandom" class="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-md h-8 px-3 text-xs font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+              :disabled="busy || checking || !quantityOk"
+              @click="drawRandom"
+            >
+              {{ randomNumbers.length ? 'Draw different random numbers' : 'Draw random numbers' }}
+            </button>
+            <span v-if="randomNumbers.length" class="text-muted-foreground">{{ randomNumbers.length }} free numbers drawn, none held by another card.</span>
+            <span v-else class="text-muted-foreground">Draw the numbers before creating the batch.</span>
+          </div>
+        </div>
+
+        <!-- Sequential: say which numbers of the run are already held, and offer to step over them. -->
+        <div v-if="!isRandom && takenCount > 0 && !form.skip_taken" class="panel-note space-y-2" data-testid="taken-numbers-notice">
+          <div class="font-medium">{{ takenCount }} number{{ takenCount === 1 ? '' : 's' }} in this run {{ takenCount === 1 ? 'was' : 'were' }} already used before:</div>
+          <div class="font-mono text-xs break-all" dir="ltr">{{ plan.taken.join(', ') }}<span v-if="takenCount > plan.taken.length"> … (+{{ takenCount - plan.taken.length }} more)</span></div>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-md h-8 px-3 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+            :disabled="busy"
+            @click="form.skip_taken = true"
+          >
+            Skip the numbers already used
+          </button>
+        </div>
+        <div v-if="!isRandom && form.skip_taken" class="panel-note space-y-1" data-testid="skipped-numbers-notice">
+          <div class="font-medium">Skipping the numbers already used — still {{ form.quantity }} cards.</div>
+          <div v-if="plan.skipped.length" class="font-mono text-xs break-all" dir="ltr">Skipped: {{ plan.skipped.map((n) => `${form.prefix || ''}${n}`).join(', ') }}</div>
+          <div v-else class="text-xs">None of the numbers in this run is used, so nothing is skipped.</div>
+          <button type="button" class="text-xs underline hover:no-underline cursor-pointer" :disabled="busy" @click="form.skip_taken = false">Don't skip</button>
         </div>
 
         <div class="text-xs text-muted-foreground space-y-0.5">
@@ -387,7 +427,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import Select from '@/Components/ui/Select.vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -417,7 +457,68 @@ const form = ref({
   quantity: 10,
   start_number: props.suggested_start,
   partner_id: props.partnerLocked ? props.lockedPartnerId : null,
+  skip_taken: false,
 });
+
+// Random batch: no start number; the numbers are drawn on the server and shown before anything is reserved.
+const isRandom = ref(false);
+const randomNumbers = ref([]);
+// What the server says about the sequential run: held numbers inside it, and the run with those stepped over.
+const plan = ref({ numbers: [], taken: [], taken_count: 0, skipped: [] });
+const checking = ref(false);
+const takenCount = computed(() => Number(plan.value.taken_count) || 0);
+const quantityOk = computed(() => {
+  const q = Number(form.value.quantity);
+  return Number.isFinite(q) && q >= 1 && q <= 1000;
+});
+
+async function fetchPlan(extra = {}) {
+  const { data } = await axios.get(route('admin.membership-card-patches.check'), {
+    params: {
+      prefix: form.value.prefix || null,
+      start_number: form.value.start_number,
+      quantity: form.value.quantity,
+      skip_taken: form.value.skip_taken ? 1 : 0,
+      ...extra,
+    },
+  });
+  return data;
+}
+
+let checkTimer = null;
+function scheduleCheck() {
+  clearTimeout(checkTimer);
+  if (isRandom.value || !canPreview.value) {
+    plan.value = { numbers: [], taken: [], taken_count: 0, skipped: [] };
+    return;
+  }
+  checkTimer = setTimeout(async () => {
+    checking.value = true;
+    try {
+      plan.value = await fetchPlan();
+    } catch (e) {
+      // The batch is verified again on the server when it is created; a failed look-ahead only hides the notice.
+      plan.value = { numbers: [], taken: [], taken_count: 0, skipped: [] };
+    } finally {
+      checking.value = false;
+    }
+  }, 350);
+}
+onBeforeUnmount(() => clearTimeout(checkTimer));
+
+async function drawRandom() {
+  if (!quantityOk.value) return;
+  serverError.value = '';
+  checking.value = true;
+  try {
+    const data = await fetchPlan({ random: 1 });
+    randomNumbers.value = data.numbers || [];
+  } catch (e) {
+    serverError.value = e?.response?.data?.message || 'Could not draw random numbers.';
+  } finally {
+    checking.value = false;
+  }
+}
 
 const lockedPartnerLabel = computed(() => {
   if (!props.partnerLocked) return '';
@@ -466,12 +567,16 @@ function printedNumber(stored) {
   });
 }
 
-const firstStored = computed(() => `${form.value.prefix || ''}${form.value.start_number}`);
-const lastStored = computed(() => {
+// The numbers the batch will carry: the drawn random ones, the run with held numbers stepped over, or the plain run.
+const storedNumbers = computed(() => {
+  if (isRandom.value) return randomNumbers.value;
+  if (form.value.skip_taken && plan.value.numbers.length) return plan.value.numbers;
   const q = Number(form.value.quantity) || 0;
   const s = Number(form.value.start_number) || 0;
-  return `${form.value.prefix || ''}${s + Math.max(0, q - 1)}`;
+  return Array.from({ length: Math.max(0, q) }, (_, i) => `${form.value.prefix || ''}${s + i}`);
 });
+const firstStored = computed(() => storedNumbers.value[0] ?? '—');
+const lastStored = computed(() => storedNumbers.value[storedNumbers.value.length - 1] ?? '—');
 
 const firstCode = computed(() => printedNumber(firstStored.value));
 const lastCode = computed(() => printedNumber(lastStored.value));
@@ -483,16 +588,16 @@ const pageCount = computed(() => {
 
 const canPreview = computed(() => {
   const q = Number(form.value.quantity);
+  if (isRandom.value) return quantityOk.value && randomNumbers.value.length === q;
   const s = Number(form.value.start_number);
-  return Number.isFinite(q) && q >= 1 && q <= 1000 && Number.isFinite(s) && s >= 1;
+  return Number.isFinite(q) && q >= 1 && q <= 1000 && Number.isFinite(s) && s >= 1
+    && (!form.value.skip_taken || plan.value.numbers.length === q);
 });
 
 const previewItems = computed(() => {
   if (!canPreview.value) return [];
   const items = [];
-  const prefix = form.value.prefix || '';
-  for (let i = 0; i < form.value.quantity; i++) {
-    const stored = `${prefix}${form.value.start_number + i}`;
+  for (const stored of storedNumbers.value) {
     items.push({
       membership_number: stored,
       display_number: printedNumber(stored),
@@ -501,6 +606,13 @@ const previewItems = computed(() => {
   }
   return items;
 });
+
+// Anything that changes which numbers the batch would take starts the look-ahead over (and voids drawn numbers).
+watch(() => [form.value.prefix, form.value.start_number, form.value.quantity, form.value.skip_taken, isRandom.value], () => {
+  randomNumbers.value = [];
+  scheduleCheck();
+});
+scheduleCheck();
 
 function togglePreview() {
   previewOpen.value = !previewOpen.value;
@@ -604,7 +716,10 @@ async function submit() {
       display_prefix: form.value.display_prefix || null,
       display_groups: form.value.display_groups || null,
       quantity: form.value.quantity,
-      start_number: form.value.start_number,
+      start_number: isRandom.value ? null : form.value.start_number,
+      random: isRandom.value ? 1 : 0,
+      numbers: isRandom.value ? randomNumbers.value : null,
+      skip_taken: !isRandom.value && form.value.skip_taken ? 1 : 0,
       partner_id: form.value.partner_id,
       card_template_id: activeTemplate.value?.id ?? null,
       // Stored only when this batch actually departs from its design; a null

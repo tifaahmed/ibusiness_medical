@@ -84,7 +84,7 @@ class FacilityController extends Controller
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:40'],
             /* `discount`: the biggest discount first (facilities with none last); nearest still breaks ties. */
-            'sort' => ['nullable', 'in:nearest,discount,visits,newest'],
+            'sort' => ['nullable', 'in:nearest,discount,visits,newest,none'],
         ]);
 
         $lat = isset($v['lat']) ? (float) $v['lat'] : null;
@@ -136,9 +136,14 @@ class FacilityController extends Controller
                 $query->orderByDesc('facilities.id');
             }
 
-            $query->orderByRaw('nearest_branch.distance_km is null')
-                ->orderBy('nearest_branch.distance_km')
-                ->orderBy('facilities.id');
+            // `none` = no ordering chosen: the distance is still returned for display, but it does not rank the list.
+            if (($v['sort'] ?? null) === 'none') {
+                $query->orderByDesc('facilities.id');
+            } else {
+                $query->orderByRaw('nearest_branch.distance_km is null')
+                    ->orderBy('nearest_branch.distance_km')
+                    ->orderBy('facilities.id');
+            }
         } else {
             if (($v['sort'] ?? null) === 'discount') {
                 $query->orderByRaw('facilities.discount_percent is null')->orderByDesc('facilities.discount_percent');
