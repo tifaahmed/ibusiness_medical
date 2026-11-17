@@ -20,8 +20,8 @@ class PartnerOfferResource extends JsonResource
             'new_price' => $this->new_price,
             'phone_number' => $this->phone_number,
             'operator' => $this->operator?->value,
-            'header_image' => $this->mobile_header_image,
-            'small_image' => $this->mobile_small_image,
+            'header_image' => \App\Support\MobileImage::pick($this->mobile_header_image, $this->header_image, $this->mobile_small_image, $this->small_image),
+            'small_image' => \App\Support\MobileImage::pick($this->mobile_small_image, $this->small_image, $this->mobile_header_image, $this->header_image),
             'created_at' => $this->created_at,
         ];
     }

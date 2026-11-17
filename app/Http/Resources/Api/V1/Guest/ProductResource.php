@@ -38,7 +38,7 @@ class ProductResource extends JsonResource
              */
             'price' => self::sellingPrice($this->resource),
             'discount_percent' => self::discountPercent($this->resource),
-            'image' => $this->getFirstMediaUrl('small_image') ?: $this->getFirstMediaUrl('large_image'),
+            'image' => \App\Support\MobileImage::pick($this->getFirstMediaUrl('small_image'), $this->getFirstMediaUrl('large_image'), ($this->gallery[0]['url'] ?? null)),
             'product_type' => $this->whenLoaded('productType', fn () => [
                 'id' => $this->productType->id,
                 'slug' => $this->productType->slug,

@@ -71,11 +71,17 @@
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-32 text-center hidden md:table-cell">
                   {{ t.order?.membership_number || 'Membership No.' }}
                 </th>
-                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-28 text-center hidden md:table-cell">
-                  {{ t.order?.paid || 'Paid' }}
-                </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-48 text-center hidden md:table-cell">
                   {{ t.order?.order_cost || 'Order cost' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 text-center hidden md:table-cell">
+                  {{ t.order?.paid_points || 'Points' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 text-center hidden md:table-cell">
+                  {{ t.order?.paid_wallet || 'Wallet' }}
+                </th>
+                <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-24 text-center hidden md:table-cell">
+                  {{ t.order?.paid_real || 'Real money' }}
                 </th>
                 <th data-slot="table-head" class="text-foreground h-9 sm:h-10 px-2 sm:px-3 align-middle font-medium whitespace-nowrap w-28 text-center">
                   {{ t.order?.payment_status || 'Payment' }}
@@ -100,7 +106,8 @@
                 :key="order.id"
                 data-slot="table-row"
                 :data-state="isSelected(order.id) ? 'selected' : undefined"
-                class="data-[state=selected]:bg-muted border-b border-border transition-colors hover:bg-muted/50"
+                :class="['data-[state=selected]:bg-muted border-b border-border transition-colors', rowMarkClass(order)]"
+                :data-mark="order.admin_mark || undefined"
               >
                 <!-- Row selection, for the bulk status change above -->
                 <td v-if="canManage" data-slot="table-cell" class="p-2 align-middle text-center">
@@ -164,16 +171,6 @@
                   >{{ order.membership_number }}</span>
                   <span v-else class="text-muted-foreground text-xs">—</span>
                 </td>
-                <!-- What the customer has actually handed over -->
-                <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell">
-                  <div v-if="order.total_paid" class="inline-flex flex-col items-center gap-0.5">
-                    <span class="text-sm font-semibold text-foreground">{{ formatPrice(order.total_paid) }}</span>
-                    <span class="text-[11px] font-medium text-emerald-500 whitespace-nowrap" data-testid="order-real-paid">{{ t.order?.paid_real || 'Real money' }}: {{ formatPrice(order.real_paid) }}</span>
-                    <span v-if="order.wallet_amount > 0" class="text-[11px] font-medium text-violet-500 whitespace-nowrap">{{ t.order?.paid_wallet || 'Wallet' }}: {{ formatPrice(order.wallet_amount) }}</span>
-                    <span v-if="order.points_amount > 0" class="text-[11px] font-medium text-amber-500 whitespace-nowrap">{{ t.order?.paid_points || 'Points' }}: {{ formatPrice(order.points_amount) }} ({{ order.points_used }})</span>
-                  </div>
-                  <span v-else class="text-muted-foreground text-xs">—</span>
-                </td>
                 <!--
                   What the customer owes: the lines plus the delivery they were
                   charged. The breakdown sits under the total because the two
@@ -203,6 +200,25 @@
                     >
                       −{{ formatPrice(savedAmount(order)) }}
                     </span>
+                  </div>
+                </td>
+                <!-- How the order was covered: points / wallet / real money (real money shows what is still due while unpaid) -->
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell" data-testid="order-points">
+                  <div v-if="order.points_amount > 0" class="inline-flex flex-col items-center gap-0.5">
+                    <span class="text-sm font-semibold text-amber-500">{{ formatPrice(order.points_amount) }}</span>
+                    <span class="text-[11px] text-muted-foreground whitespace-nowrap">{{ order.points_used }} {{ t.order?.paid_points || 'Points' }}</span>
+                  </div>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell" data-testid="order-wallet">
+                  <span v-if="order.wallet_amount > 0" class="text-sm font-semibold text-violet-500">{{ formatPrice(order.wallet_amount) }}</span>
+                  <span v-else class="text-muted-foreground text-xs">—</span>
+                </td>
+                <td data-slot="table-cell" class="p-2 align-middle text-center hidden md:table-cell" data-testid="order-real-paid">
+                  <div class="inline-flex flex-col items-center gap-0.5">
+                    <span v-if="order.real_paid > 0" class="text-sm font-semibold text-emerald-500">{{ formatPrice(order.real_paid) }}</span>
+                    <span v-else class="text-muted-foreground text-xs">—</span>
+                    <span v-if="order.real_due > 0 && order.payment_status?.value === 'pending'" class="text-[11px] font-medium text-amber-500 whitespace-nowrap" data-testid="order-real-due">{{ t.order?.still_due || 'Still due' }}: {{ formatPrice(order.real_due) }}</span>
                   </div>
                 </td>
                 <!-- Payment status badge -->
@@ -277,6 +293,15 @@
                 <!-- Actions: the order page, and the form for changing it -->
                 <td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap text-center">
                   <div class="inline-flex items-center gap-1">
+                    <!-- Private mark: none -> done (finished, real money) -> test (blacked out) -> none -->
+                    <button
+                      v-if="canManage"
+                      type="button"
+                      data-testid="order-mark"
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-medium transition-colors hover:bg-muted"
+                      :title="t.order?.mark_hint || 'Mark: done / test / none'"
+                      @click="cycleMark(order)"
+                    >{{ markLabel(order.admin_mark) }}</button>
                     <Link
                       :href="route('admin.order.show', order.order_code)"
                       class="inline-flex items-center justify-center rounded-md border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
@@ -524,6 +549,22 @@ const deleteOrder = (order) => {
     },
     onFinish: () => { deletingCode.value = ''; },
   });
+};
+
+/* ---- Row mark: done (finished, real money) / test (blacked out) ------ */
+const rowMarkClass = (order) => order.admin_mark === 'test'
+  ? 'bg-black text-white/70 hover:bg-black [&_*]:!text-white/70 opacity-80'
+  : order.admin_mark === 'done'
+    ? 'bg-emerald-500/10 hover:bg-emerald-500/15 opacity-70'
+    : 'hover:bg-muted/50';
+const markLabel = (mark) => mark === 'done'
+  ? (t.value.order?.mark_done || 'Done')
+  : mark === 'test'
+    ? (t.value.order?.mark_test || 'Test')
+    : (t.value.order?.mark_none || 'Mark');
+const cycleMark = (order) => {
+  const next = { null: 'done', done: 'test', test: null }[order.admin_mark ?? 'null'];
+  router.post(route('admin.order.mark', order.order_code), { mark: next }, { preserveScroll: true, preserveState: true });
 };
 
 /* ---- Bulk order status ---------------------------------------------- */

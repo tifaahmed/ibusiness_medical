@@ -29,6 +29,9 @@ class AdminOrderListResource extends JsonResource
             'points_used' => (int) $this->points_used,
             'points_amount' => (float) $this->points_amount,
             'real_paid' => max(0, round((float) $this->total_paid - (float) $this->wallet_amount - (float) $this->points_amount, 2)),
+            /* Real money still to be paid: the total less what points and the wallet covered. */
+            'admin_mark' => $this->admin_mark,
+            'real_due' => $this->amountDue(),
             'total_paid' => $this->total_paid ? (float) $this->total_paid : null,
             'total_amount' => $this->total_amount !== null ? (float) $this->total_amount : null,
             'total_amount_before_discount' => $this->total_amount_before_discount !== null ? (float) $this->total_amount_before_discount : null,

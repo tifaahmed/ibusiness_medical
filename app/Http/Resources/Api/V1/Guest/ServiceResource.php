@@ -29,7 +29,7 @@ class ServiceResource extends JsonResource
                 'icon' => $this->serviceType->icon,
                 'color' => $this->serviceType->color,
             ]),
-            'image' => $this->mobile_image,
+            'image' => \App\Support\MobileImage::pick($this->mobile_image, $this->image, ($this->gallery[0]['url'] ?? null)),
             'gallery' => $this->gallery,
             'tags' => $this->whenLoaded('tags', fn() => $this->tags->map(fn($t) => [
                 'id' => $t->id,

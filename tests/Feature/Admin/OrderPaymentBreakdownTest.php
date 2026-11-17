@@ -37,6 +37,18 @@ class OrderPaymentBreakdownTest extends TestCase
         $this->assertSame('app', $row['channel']);
     }
 
+    public function test_a_pending_order_covered_by_points_still_shows_the_delivery_as_due(): void
+    {
+        $row = (new AdminOrderListResource($this->order('DL-BRK00009', Order::SOURCE_MOBILE_APP, [
+            'total_paid' => 0, 'total_amount' => 585, 'delivery_price' => 35, 'points_used' => 55000, 'points_amount' => 550,
+            'payment_status' => PaymentStatusEnum::PENDING,
+        ])))->toArray(Request::create('/'));
+
+        $this->assertSame(550.0, $row['points_amount']);
+        $this->assertSame(35.0, $row['real_due']);
+        $this->assertSame(0.0, (float) $row['real_paid']);
+    }
+
     public function test_the_channel_tells_the_app_from_the_deilar_website(): void
     {
         $this->assertSame('website', (new AdminOrderListResource($this->order('DL-BRK00002', Order::SOURCE_STOREFRONT)))->toArray(Request::create('/'))['channel']);

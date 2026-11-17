@@ -40,8 +40,8 @@ class ProductDetailResource extends JsonResource
             'new_price' => $this->new_price,
             'price' => ProductResource::sellingPrice($this->resource),
             'discount_percent' => ProductResource::discountPercent($this->resource),
-            'image' => $this->getFirstMediaUrl('large_image') ?: $this->getFirstMediaUrl('small_image'),
-            'thumbnail' => $this->getFirstMediaUrl('small_image') ?: $this->getFirstMediaUrl('large_image'),
+            'image' => \App\Support\MobileImage::pick($this->getFirstMediaUrl('large_image'), $this->getFirstMediaUrl('small_image'), ($this->gallery[0]['url'] ?? null)),
+            'thumbnail' => \App\Support\MobileImage::pick($this->getFirstMediaUrl('small_image'), $this->getFirstMediaUrl('large_image'), ($this->gallery[0]['url'] ?? null)),
             /*
              * The gallery leads with the main photograph, so a viewer opens on
              * the picture the card was showing rather than jumping to a
@@ -88,9 +88,6 @@ class ProductDetailResource extends JsonResource
             ...array_column($this->gallery, 'url'),
         ];
 
-        return array_values(array_unique(array_filter(
-            $urls,
-            fn ($url) => is_string($url) && $url !== '',
-        )));
+        return \App\Support\MobileImage::list($urls);
     }
 }

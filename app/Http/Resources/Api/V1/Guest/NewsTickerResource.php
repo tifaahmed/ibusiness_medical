@@ -14,7 +14,7 @@ class NewsTickerResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'category' => $this->category,
-            'image_url' => $this->mobile_image ?: ($this->image ?: $this->image_url),
+            'image_url' => \App\Support\MobileImage::pick($this->mobile_image, $this->image, $this->image_url),
         ];
     }
 }

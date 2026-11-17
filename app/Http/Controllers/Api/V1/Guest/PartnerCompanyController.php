@@ -48,7 +48,7 @@ class PartnerCompanyController extends Controller
                     'phone_number' => $offer->phone_number,
                     'operator' => $offer->operator?->value,
                     'header_image' => $offer->mobile_header_image,
-                    'small_image' => $offer->mobile_small_image,
+                    'small_image' => \App\Support\MobileImage::pick($offer->mobile_small_image, $offer->small_image, $offer->mobile_header_image, $offer->header_image),
                     'created_at' => $offer->created_at,
                 ]),
             ],
@@ -71,7 +71,7 @@ class PartnerCompanyController extends Controller
                 'phone_number' => $offer->phone_number,
                 'operator' => $offer->operator?->value,
                 'header_image' => $offer->mobile_header_image,
-                'small_image' => $offer->mobile_small_image,
+                'small_image' => \App\Support\MobileImage::pick($offer->mobile_small_image, $offer->small_image, $offer->mobile_header_image, $offer->header_image),
                 'created_at' => $offer->created_at,
             ]);
 

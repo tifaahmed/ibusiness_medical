@@ -145,11 +145,11 @@ class ProductController extends Controller
 
         $types = collect($this->productTypeNames());
 
-        $gallery = array_values(array_unique(array_filter([
+        $gallery = \App\Support\MobileImage::list([
             $product->getFirstMediaUrl('large_image'),
             $product->getFirstMediaUrl('small_image'),
             ...array_column($product->gallery, 'url'),
-        ])));
+        ]);
 
         $payload = $this->card($product, $types) + [
             'description' => $this->plainText($product->description),
@@ -178,7 +178,7 @@ class ProductController extends Controller
             'price' => $selling,
             'old_price' => $discount !== null ? $old : null,
             'discount' => $discount,
-            'image' => $p->getFirstMediaUrl('small_image') ?: $p->getFirstMediaUrl('large_image'),
+            'image' => \App\Support\MobileImage::pick($p->getFirstMediaUrl('small_image'), $p->getFirstMediaUrl('large_image')),
             'type' => $p->product_type_id && $types->has($p->product_type_id) ? ['id' => $p->product_type_id, 'name' => $types->get($p->product_type_id)] : null,
             'store' => $p->store ? ['id' => $p->store->id, 'slug' => $p->store->slug, 'title' => (string) $p->store->title] : null,
             'purchasable' => (bool) $p->is_purchasable,

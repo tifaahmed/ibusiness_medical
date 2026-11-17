@@ -163,7 +163,7 @@ class StoreController extends Controller
                 'id' => $s->id,
                 'slug' => $s->slug,
                 'title' => (string) $s->title,
-                'logo' => $s->mobile_logo ?: $s->logo,
+                'logo' => \App\Support\MobileImage::pick($s->mobile_logo, $s->logo),
                 'offer_from' => $s->offer_percent_from !== null ? (float) $s->offer_percent_from : null,
                 'offer_to' => $s->offer_percent_to !== null ? (float) $s->offer_percent_to : null,
                 'categories' => $s->categories->map(fn ($c) => ['id' => $c->id, 'name' => (string) $c->name])->values()->all(),
@@ -238,7 +238,7 @@ class StoreController extends Controller
             'id' => $store->id,
             'slug' => $store->slug,
             'title' => (string) $store->title,
-            'logo' => $store->mobile_logo ?: $store->logo,
+            'logo' => \App\Support\MobileImage::pick($store->mobile_logo, $store->logo),
             'offer_from' => $store->offer_percent_from !== null ? (float) $store->offer_percent_from : null,
             'offer_to' => $store->offer_percent_to !== null ? (float) $store->offer_percent_to : null,
             'categories' => $store->categories->map(fn ($c) => ['id' => $c->id, 'name' => (string) $c->name])->values()->all(),
@@ -275,7 +275,7 @@ class StoreController extends Controller
                         'id' => $s->id,
                         'slug' => $s->slug,
                         'title' => (string) $s->title,
-                        'logo' => $s->mobile_logo ?: $s->logo,
+                        'logo' => \App\Support\MobileImage::pick($s->mobile_logo, $s->logo),
                         'category' => $s->categories->first()?->name ? (string) $s->categories->first()->name : null,
                         // [weight, text]: the name counts fully; a city, governorate or kind of store a little less; the address and the free text less still.
                         'fields' => collect()
@@ -427,7 +427,7 @@ class StoreController extends Controller
             'visits' => (int) $store->visits_count + 1,
             'short_description' => $store->short_description ? (string) $store->short_description : null,
             'description' => $this->plainText($store->description),
-            'logo' => $store->mobile_logo ?: $store->logo,
+            'logo' => \App\Support\MobileImage::pick($store->mobile_logo, $store->logo),
             'cover' => $store->header ?: null,
             'gallery' => $gallery,
             /* Videos the admin added to the gallery; the app plays them inline. */

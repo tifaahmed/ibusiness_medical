@@ -23,8 +23,8 @@ class OfferResource extends JsonResource
             'old_price' => $this->old_price,
             'discount_percentage' => $this->discount_percentage,
             'has_discount' => $this->hasDiscount(),
-            'image' => $this->mobile_image,
-            'thumbnail' => $this->mobile_thumbnail,
+            'image' => \App\Support\MobileImage::pick($this->mobile_image, $this->image, $this->mobile_thumbnail, $this->thumbnail),
+            'thumbnail' => \App\Support\MobileImage::pick($this->mobile_thumbnail, $this->thumbnail, $this->mobile_image, $this->image),
             'offerable_type' => $this->offerable_type,
             'offerable_name' => $this->whenLoaded('offerable', fn () => $this->offerable->name),
             // The partner's mark, so an offer card can be attributed without a

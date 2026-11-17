@@ -1053,6 +1053,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.payment.refund');
         Route::post('/admin/order/{order}/payment/resend-receipt', [\App\Http\Controllers\Admin\Order\Payment\AdminOrderPaymentController::class, 'resendReceipt'])
             ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.payment.resend-receipt');
+        Route::post('/admin/order/{order}/mark', \App\Http\Controllers\Admin\Order\AdminOrderMarkController::class)
+            ->where('order', '[A-Za-z0-9\\-]+')->name('admin.order.mark');
         Route::put('/admin/order/{order}', AdminOrderUpdateController::class)->name('admin.order.update');
         /* Soft delete — bound by `order_code` like the edit and update above it,
            and constrained the same way so it cannot answer for `/export`. */

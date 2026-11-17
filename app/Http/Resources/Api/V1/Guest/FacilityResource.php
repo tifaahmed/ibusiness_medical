@@ -26,8 +26,8 @@ class FacilityResource extends JsonResource
             'city' => $this->whenLoaded('city', fn () => [
                 'name' => $this->city->name,
             ]),
-            'logo' => $this->mobile_logo,
-            'image' => $this->mobile_image,
+            'logo' => \App\Support\MobileImage::pick($this->mobile_logo, $this->logo),
+            'image' => \App\Support\MobileImage::pick($this->mobile_image, $this->image, ($this->gallery[0]['url'] ?? null), $this->mobile_logo, $this->logo),
             'gallery' => $this->gallery,
             'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($t) => [
                 'id' => $t->id,
