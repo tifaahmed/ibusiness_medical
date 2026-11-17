@@ -40,3 +40,6 @@ error_log
 # Host-specific wrappers pinning php 8.4 / node 22 on this shared account.
 /bin
 
+
+# Database dumps hold real member data — never commit them
+/storage/backups/
