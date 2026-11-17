@@ -17,8 +17,8 @@ class AdminMembershipCardUploadPdfController extends BaseController
         $this->assertCanManageCard($card);
 
         $request->validate([
-            'pdf' => ['required', 'file', 'mimetypes:application/pdf', 'max:51200'],
-            'partner_logo' => ['nullable', 'file', 'image', 'max:8192'],
+            'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
+            'partner_logo' => ['nullable', 'file', 'image'],
         ]);
 
         $card->clearMediaCollection('pdf');

@@ -21,8 +21,8 @@ class UpdateNewsTickerRequest extends FormRequest
             'description.ar' => 'required|string',
             'description.en' => 'nullable|string',
             'category' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'mobile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
+            'mobile_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
             'is_active' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
         ];

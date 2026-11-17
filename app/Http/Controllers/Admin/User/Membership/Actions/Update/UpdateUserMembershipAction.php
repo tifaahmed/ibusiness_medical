@@ -90,6 +90,10 @@ class UpdateUserMembershipAction
                 if (! $paymentType && ! empty($validated['partner_id'])) {
                     $paymentType = PaymentTypeEnum::MONTHLY->value;
                 }
+                // A company subscribes monthly only.
+                if (($validated['member_kind'] ?? $existingMembership->member_kind) === Membership::KIND_COMPANY) {
+                    $paymentType = PaymentTypeEnum::MONTHLY->value;
+                }
             }
 
             // Mirror the create logic: a membership is "completed" when the owner's
@@ -119,7 +123,13 @@ class UpdateUserMembershipAction
 
             if ($existingMembership) {
                 // Update existing membership (whether active or not)
-                $existingMembership->update([
+                // The trial's own end date (required with the trial box, never later than the expiry), saved in the SAME write
+                // as the expiry so one admin edit is one history row. Unticking leaves the date as history; a locked trial keeps it.
+                $trialDate = $isTrial === true && ! empty($validated['trial_ends_at']) && ! $existingMembership->trialLocked()
+                    ? ['trial_ends_at' => $validated['trial_ends_at']]
+                    : [];
+
+                $existingMembership->update($trialDate + [
                     'membership_number' => $validated['membership_number'],
                     'national_id' => $validated['national_id'] ?? null,
                     'registration_date' => $validated['registration_date'] ?? $existingMembership->registration_date,

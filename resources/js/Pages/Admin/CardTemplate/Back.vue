@@ -119,7 +119,7 @@
                         </label>
                         <button v-if="hasQr" type="button" class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md bg-destructive px-2 text-[11px] font-medium text-white hover:bg-destructive/90" @click="clearFile('back_qr')">Remove</button>
                       </div>
-                      <p class="text-[10px] text-muted-foreground">Your own QR picture, PNG/JPG/WebP up to 5MB.</p>
+                      <p class="text-[10px] text-muted-foreground">Your own QR picture, PNG/JPG/WebP any size.</p>
                       <p v-if="files.back_qr" class="text-[10px] text-amber-600">Uploads when you save.</p>
                     </div>
                   </div>
@@ -140,7 +140,7 @@
                       </label>
                       <button v-if="hasLogo" type="button" title="Remove the uploaded logo (the default is used)" class="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-md bg-destructive px-2 text-[11px] font-medium text-white shadow-xs transition hover:bg-destructive/90" @click="clearFile('back_logo')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg> Remove</button>
                     </div>
-                    <p class="text-[10px] text-muted-foreground">PNG or JPG, up to 5MB. Without an upload the default Deilar logo is used.</p>
+                    <p class="text-[10px] text-muted-foreground">PNG or JPG, any size. Without an upload the default Deilar logo is used.</p>
                     <p v-if="files.back_logo" class="text-[10px] text-amber-600">Uploads when you save.</p>
                   </div>
                 </div>

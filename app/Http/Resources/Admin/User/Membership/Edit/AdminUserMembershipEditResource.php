@@ -40,6 +40,8 @@ class AdminUserMembershipEditResource extends JsonResource
                     'is_visible' => (bool) $membership->is_visible,
                     'is_paid' => (bool) $membership->is_paid,
                     'is_trial' => $membership->isTrial(),
+                    'trial_ends_at' => $membership->trial_ends_at?->format('Y-m-d'),
+                    'trial_locked' => $membership->trialLocked(),
                     'payment_type' => $membership->payment_type,
                     'member_kind' => $membership->member_kind,
                     'completed_at' => $membership->completed_at?->format('Y-m-d H:i:s'),

@@ -26,7 +26,7 @@ class UpdateSalesRequest extends FormRequest
                     }
                 },
             ],
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
         ];
     }
 }

@@ -47,6 +47,11 @@ class StartSubscription
             throw ValidationException::withMessages(['method' => ['Unknown payment method.']]);
         }
 
+        // A relative on a PAID, current card pays the relative fee (5 a month / 60 a year); only one whose card has not paid buys a full plan.
+        if ($membership->isRelative() && $membership->governingCard()->state() === Membership::STATE_ACTIVE) {
+            throw ValidationException::withMessages(['plan' => ['Your card is paid: renew your relative subscription instead.']]);
+        }
+
         if ($method === MembershipSubscription::METHOD_WALLET) {
             return $this->withWallet($membership, $request);
         }
@@ -64,7 +69,7 @@ class StartSubscription
         }
 
         /* The plan chosen (`plan` = year|half|month). A plan that is not on sale is refused, never silently swapped for another price. */
-        $plan = MembershipPlan::find($request?->input('plan'), $membership->kind());
+        $plan = MembershipPlan::find($request?->input('plan'), $membership->isRelative() ? Membership::KIND_INDIVIDUAL : $membership->kind());
         if ($plan === null) {
             throw ValidationException::withMessages(['plan' => ['This subscription plan is not available right now.']]);
         }

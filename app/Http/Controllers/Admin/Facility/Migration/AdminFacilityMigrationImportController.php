@@ -518,7 +518,7 @@ class AdminFacilityMigrationImportController extends BaseController
             'collection' => ['required', 'string', 'max:64'],
             // Contracts travel in these packages beside the pictures, so a PDF
             // is as valid an upload as an image.
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif,svg,pdf', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif,svg,pdf'],
         ]);
 
         try {

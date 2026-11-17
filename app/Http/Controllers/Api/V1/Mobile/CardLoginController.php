@@ -215,6 +215,8 @@ class CardLoginController extends Controller
                 'phone_masked' => $this->otp->maskPhone($phone),
                 'delivery' => $issue['delivery'],
                 'code_length' => $issue['length'],
+                'member_fixed' => $issue['member_fixed'] ?? false,
+                'fixed_until' => $issue['fixed_until'] ?? null,
                 'expires_in' => $issue['expires_in'],
                 'resend_after' => $issue['resend_after'],
             ],

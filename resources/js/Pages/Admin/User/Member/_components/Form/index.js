@@ -11,3 +11,4 @@ export { default as MemberPaymentsCard } from './MemberPaymentsCard.vue';
 export { default as MemberLoyaltyCard } from './MemberLoyaltyCard.vue';
 export { default as MemberWalletCard } from './MemberWalletCard.vue';
 export { default as MemberReferralCard } from './MemberReferralCard.vue';
+export { default as TrialHistoryDialog } from './TrialHistoryDialog.vue';

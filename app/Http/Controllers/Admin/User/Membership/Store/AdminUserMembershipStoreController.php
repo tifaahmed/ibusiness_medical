@@ -68,7 +68,10 @@ class AdminUserMembershipStoreController extends BaseController
 
             // The member's primary address — governorate is the only required
             // field, the rest is optional courier detail.
-            $this->upsertAddressAction->execute($membership, $validated, $request);
+            // A trial card may have no address at all: write one only when something was given.
+            if (empty($validated['is_trial']) || ! empty($validated['governorate_id']) || ! empty($validated['address'])) {
+                $this->upsertAddressAction->execute($membership, $validated, $request);
+            }
 
             // Handle avatar upload synchronously (immediately) - same as update flow
             if ($request->hasFile('avatar')) {

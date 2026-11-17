@@ -164,6 +164,7 @@ Route::prefix('v1')
 
             Route::get('/facility-types', [V1MobileFacilityController::class, 'types'])->name('facility-types');
             Route::get('/governorates', [V1MobileFacilityController::class, 'governorates'])->name('governorates');
+            Route::get('/home-shelves', \App\Http\Controllers\Api\V1\Mobile\HomeShelvesController::class)->name('home-shelves');
             Route::get('/facilities', [V1MobileFacilityController::class, 'index'])->name('facilities.index');
             Route::get('/facilities/{facility:slug}', [V1MobileFacilityController::class, 'show'])->name('facilities.show');
             /*
@@ -255,7 +256,7 @@ Route::prefix('v1')
             Route::get('/relative-fees', [V1MobileRelativeFeeController::class, 'show'])
                 ->middleware(['auth:sanctum', 'throttle:60,1,api.relative-fees.show'])->name('relative-fees.show');
             Route::post('/relative-fees/orders', [V1MobileRelativeFeeController::class, 'store'])
-                ->middleware(['auth:sanctum', 'primary.member', 'throttle:10,1,api.relative-fees.store'])->name('relative-fees.store');
+                ->middleware(['auth:sanctum', 'throttle:10,1,api.relative-fees.store'])->name('relative-fees.store');
 
             Route::get('/card/{number}', [V1MobileCardController::class, 'show'])
                 ->middleware('throttle:20,1,api.card.show')
@@ -274,6 +275,8 @@ Route::prefix('v1')
             })->name('shop');
 
             Route::get('/store-categories', [V1MobileStoreController::class, 'categories'])->name('store-categories');
+            Route::get('/store-areas', [V1MobileStoreController::class, 'areas'])->name('store-areas');
+            Route::get('/store-suggest', [V1MobileStoreController::class, 'suggest'])->name('stores.suggest');
             Route::get('/store-map-pins', [V1MobileStoreController::class, 'pins'])->name('store-map-pins');
             Route::get('/store-map-pins/{branch}', [V1MobileStoreController::class, 'pin'])->whereNumber('branch')->name('store-map-pins.show');
             Route::get('/stores', [V1MobileStoreController::class, 'index'])->name('stores.index');

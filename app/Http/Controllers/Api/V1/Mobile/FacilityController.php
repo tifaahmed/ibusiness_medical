@@ -84,7 +84,7 @@ class FacilityController extends Controller
             'radius_km' => ['nullable', 'integer', 'in:'.implode(',', self::RADIUS_STEPS_KM)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:40'],
             /* `discount`: the biggest discount first (facilities with none last); nearest still breaks ties. */
-            'sort' => ['nullable', 'in:nearest,discount'],
+            'sort' => ['nullable', 'in:nearest,discount,visits,newest'],
         ]);
 
         $lat = isset($v['lat']) ? (float) $v['lat'] : null;
@@ -105,7 +105,7 @@ class FacilityController extends Controller
             ->when($cityId, fn ($q) => $q->whereHas('branches', fn ($b) => $b->where('city_id', $cityId)));
 
         // Own city first, then own governorate, then everything else; only when there is no GPS point (a point ranks by distance instead), and skipped for "biggest discount" and when an area is filtered.
-        if (! $hasPoint && ($homeGovernorateId || $homeCityId) && ! $governorateId && ! $cityId && ($v['sort'] ?? null) !== 'discount') {
+        if (! $hasPoint && ($homeGovernorateId || $homeCityId) && ! $governorateId && ! $cityId && ! in_array($v['sort'] ?? null, ['discount', 'visits', 'newest'], true)) {
             $query->orderByRaw(
                 'case when '.($homeCityId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.city_id = ?)' : '0 = 1').' then 0 '
                 .'when '.($homeGovernorateId ? 'exists (select 1 from facility_branches hb where hb.facility_id = facilities.id and hb.governorate_id = ?)' : '0 = 1').' then 1 else 2 end',
@@ -128,12 +128,30 @@ class FacilityController extends Controller
                 $query->orderByRaw('facilities.discount_percent is null')->orderByDesc('facilities.discount_percent');
             }
 
+            if (($v['sort'] ?? null) === 'visits') {
+                $query->orderByDesc('facilities.visits_count');
+            }
+
+            if (($v['sort'] ?? null) === 'newest') {
+                $query->orderByDesc('facilities.id');
+            }
+
             $query->orderByRaw('nearest_branch.distance_km is null')
                 ->orderBy('nearest_branch.distance_km')
                 ->orderBy('facilities.id');
         } else {
             if (($v['sort'] ?? null) === 'discount') {
                 $query->orderByRaw('facilities.discount_percent is null')->orderByDesc('facilities.discount_percent');
+            }
+
+            if (($v['sort'] ?? null) === 'visits') {
+                $query->orderByDesc('facilities.visits_count');
+                // Equal counts (all 0 at first): a shuffle that stays the same all day, so paging never repeats a row.
+                $query->orderByRaw('md5(concat(facilities.id, curdate()))');
+            }
+
+            if (($v['sort'] ?? null) === 'newest') {
+                $query->orderByDesc('facilities.id');
             }
 
             $query->orderByDesc('facilities.id');
@@ -251,12 +269,16 @@ class FacilityController extends Controller
             'tags:id,name,color',
         ]);
 
+        // Visit counter: +1 per opening of the page (a plain query, so `updated_at` is not touched).
+        Facility::query()->whereKey($facility->id)->increment('visits_count');
+
         $types = $this->facilityTypeMap();
 
         $payload = [
             'id' => $facility->id,
             'slug' => $facility->slug,
             'name' => (string) $facility->name,
+            'visits' => (int) $facility->visits_count + 1,
             'description' => $this->plainText($facility->description),
             'logo' => $facility->mobile_logo ?: $facility->logo,
             'image' => $facility->mobile_image ?: $facility->image,

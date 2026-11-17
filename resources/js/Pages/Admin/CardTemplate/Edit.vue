@@ -32,6 +32,15 @@
             </p>
           </div>
           <div>
+            <label class="block text-xs font-medium mb-1">Kind</label>
+            <Select v-model="form.kind" :options="KINDS" data-testid="template-kind" />
+            <p class="mt-1 text-[11px] text-muted-foreground">
+              {{ form.kind === 'soft'
+                ? 'Soft card: the one the member sees on screen. It also draws the full name and the membership expiry date — drag both where you want them.'
+                : 'Physical card: the printed one. It has no full name or expiry date.' }}
+            </p>
+          </div>
+          <div>
             <label class="block text-xs font-medium mb-1">Blank artwork (card_empty)</label>
             <input type="file" accept="image/*" class="w-full text-xs" :disabled="busy" @change="onArtwork($event, 'card_empty')" />
             <p class="mt-1 text-[11px] text-muted-foreground truncate">{{ artworkLabel }}</p>
@@ -272,7 +281,7 @@
                 Uploads when you save the template.
               </p>
               <p class="text-[10px] text-muted-foreground">
-                PNG or JPG, up to 5MB.
+                PNG or JPG, any size.
                 <template v-if="selected === 'partner_logo'">
                   A generated card uses the member's own partner logo; this image is the template's
                   placeholder, shown in previews and on cards whose partner has no logo of its own.
@@ -356,6 +365,13 @@ const directionOptions = [
   { value: 'rtl', label: 'rtl (right)' },
 ];
 
+// Soft = the card shown on screen (adds the full name + expiry date); physical = the printed card.
+const KINDS = [
+  { value: 'physical', label: 'Physical card' },
+  { value: 'soft', label: 'Soft card (on screen)' },
+];
+const SOFT_ONLY_FIELDS = ['full_name', 'expiry_date'];
+
 const props = defineProps({
   template: { type: Object, default: null },
   statuses: { type: Array, default: () => [] },
@@ -378,6 +394,8 @@ const LABELS = {
   facebook: 'Facebook',
   website: 'Website',
   phone: 'Phone',
+  full_name: 'Full name',
+  expiry_date: 'Expiry date',
   partner_logo: 'Partner logo',
   qrcode: 'QR code',
   barcode: 'Barcode',
@@ -398,6 +416,7 @@ function nameOf(value) {
 const form = reactive({
   name: nameOf(props.template?.name),
   status: props.template?.status ?? props.statuses[0]?.value ?? 'with_partner',
+  kind: props.template?.kind ?? 'physical',
   // Defaults first, saved values second: a template stored before a field was
   // added still picks the new field up, while everything it already positioned
   // keeps its saved values.
@@ -436,7 +455,11 @@ const sampleLabel = computed(() => {
   return serverTemplate.value?.sample_card || 'None yet.';
 });
 
-const hiddenFields = computed(() => props.statuses.find((s) => s.value === form.status)?.hidden_fields ?? []);
+const hiddenFields = computed(() => [
+  ...(props.statuses.find((s) => s.value === form.status)?.hidden_fields ?? []),
+  // The full name and expiry date exist on soft cards only.
+  ...(form.kind === 'soft' ? [] : SOFT_ONLY_FIELDS),
+]);
 const visibleFields = computed(() => Object.keys(form.layout).filter((k) => !hiddenFields.value.includes(k)));
 const field = computed(() => (selected.value ? form.layout[selected.value] : null));
 
@@ -714,6 +737,7 @@ async function save({ stay = false } = {}) {
     const fd = new FormData();
     fd.append('name', JSON.stringify(form.name));
     fd.append('status', form.status);
+    fd.append('kind', form.kind);
     fd.append('layout', JSON.stringify(form.layout));
     // A pending upload's value is a local blob: URL, which must never be
     // persisted — send the field blank and let the server fill it in from the
@@ -790,7 +814,7 @@ function saveErrorMessage(e) {
     return 'The save endpoint could not be reached. Reload the page and try again — if it persists, the app may have been restarted mid-request.';
   }
   if (status === 413) {
-    return 'The upload is too large. Images must be 5MB or smaller.';
+    return 'The upload is too large for the server — check the server upload limit (post_max_size / nginx client_max_body_size).';
   }
   return e?.response?.data?.message || e?.message || 'Could not save the template.';
 }

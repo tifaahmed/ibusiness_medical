@@ -91,7 +91,7 @@ trait HandlesStoreExtras
             'managers.*.id' => ['nullable', \Illuminate\Validation\Rule::exists('store_managers', 'id')->whereNull('deleted_at')],
             'managers.*.name' => ['required', 'string', 'max:255'],
             'managers.*.position' => ['nullable', 'string', 'max:255'],
-            'contract' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,avif,pdf', 'max:10240'],
+            'contract' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,avif,pdf'],
             'contract_delete' => ['nullable', 'boolean'],
             ...$this->phoneRules('managers.*.phones'),
         ];

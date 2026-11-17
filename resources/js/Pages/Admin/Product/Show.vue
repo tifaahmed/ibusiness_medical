@@ -173,6 +173,15 @@
               </svg>
               Back to List
             </Link>
+            <button
+              v-if="product.slug"
+              type="button"
+              @click="copyAppLink"
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-muted dark:bg-input/30 dark:border-input h-8 px-3 py-1.5"
+              title="Paste it in Push notifications → Link"
+            >
+              {{ copied ? 'Copied ✓' : 'Copy app link' }}
+            </button>
             <Link
               v-if="product.slug"
               :href="route('admin.product.edit', product.slug)"
@@ -290,5 +299,17 @@ const lightboxIndex = ref(null);
 const openLightbox = (url) => {
   const at = lightboxImages.value.findIndex(img => img.url === url);
   if (at !== -1) lightboxIndex.value = at;
+};
+const copied = ref(false);
+const copyAppLink = async () => {
+  // The app opens this path when it is typed in Push notifications → Link.
+  const link = `/products/${encodeURIComponent(props.product.slug)}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    copied.value = true;
+    setTimeout(() => { copied.value = false; }, 2000);
+  } catch {
+    window.prompt('Copy this app link:', link);
+  }
 };
 </script>

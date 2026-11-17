@@ -291,7 +291,7 @@
             <div data-slot="form-item" class="grid gap-1">
               <label class="block text-sm font-medium text-white mb-2">
                 {{ t.offer?.main_image || 'Main Image' }}
-                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ maxSizeLabel('5MB') }})</span>
+                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ 'any size' }})</span>
               </label>
               <ImageFileInput
                 :max-size="5"
@@ -308,7 +308,7 @@
             <div data-slot="form-item" class="grid gap-1">
               <label class="block text-sm font-medium text-white mb-2">
                 {{ t.offer?.mobile_image || 'Mobile Image' }}
-                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ maxSizeLabel('5MB') }})</span>
+                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ 'any size' }})</span>
               </label>
               <ImageFileInput
                 :max-size="5"
@@ -329,7 +329,7 @@
             <div data-slot="form-item" class="grid gap-1">
               <label class="block text-sm font-medium text-white mb-2">
                 {{ t.offer?.thumbnail || 'Thumbnail' }}
-                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ maxSizeLabel('2MB') }})</span>
+                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ 'any size' }})</span>
               </label>
               <ImageFileInput
                 :max-size="2"
@@ -346,7 +346,7 @@
             <div data-slot="form-item" class="grid gap-1">
               <label class="block text-sm font-medium text-white mb-2">
                 {{ t.offer?.mobile_thumbnail || 'Mobile Thumbnail' }}
-                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ maxSizeLabel('2MB') }})</span>
+                <span class="text-xs text-muted-foreground ml-2">({{ t.offer?.optional || 'Optional' }} - {{ 'any size' }})</span>
               </label>
               <ImageFileInput
                 :max-size="2"

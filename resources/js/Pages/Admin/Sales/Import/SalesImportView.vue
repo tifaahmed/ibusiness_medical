@@ -29,7 +29,7 @@
         <div>
           <h2 class="text-lg font-semibold mb-1">{{ t.sales?.choose_file || 'Choose a file to import' }}</h2>
           <p class="text-sm text-muted-foreground">
-            {{ t.sales?.file_hint || 'Accepted formats: .xlsx, .xls, .csv (max 5MB). Use the export button on the Sales page or the template above as a starting point.' }}
+            {{ t.sales?.file_hint || 'Accepted formats: .xlsx, .xls, .csv (any size). Use the export button on the Sales page or the template above as a starting point.' }}
           </p>
         </div>
 

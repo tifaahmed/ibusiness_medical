@@ -583,6 +583,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/user/membership/trash', AdminUserMembershipTrashController::class)->name('admin.user.membership.trash');
         Route::get('/admin/user/membership/{user}', AdminUserMembershipShowController::class)->name('admin.user.membership.show');
         Route::get('/admin/user/membership/{user}/logs', AdminUserMembershipLogsController::class)->name('admin.user.membership.logs');
+        Route::get('/admin/user/membership/{user}/trials', \App\Http\Controllers\Admin\User\Membership\Trials\AdminUserMembershipTrialsController::class)->name('admin.user.membership.trials');
         Route::get('/admin/user/membership/{user}/active-history', AdminUserMembershipActiveHistoryController::class)->name('admin.user.membership.active-history');
 
     });

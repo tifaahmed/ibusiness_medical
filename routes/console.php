@@ -19,3 +19,9 @@ Schedule::command('memberships:deactivate-expired')
 Schedule::call(function () {
     app(\App\Services\FacilityMigration\FacilityMigrationImporter::class)->pruneStaleSessions(24);
 })->dailyAt('03:30')->name('facility-migration-session-prune')->withoutOverlapping();
+
+// The app's home strips are saved in the cache and rebuilt once a day (the home page only reads the saved copy).
+Schedule::command('home:shelves-refresh')
+    ->dailyAt('03:00')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping();

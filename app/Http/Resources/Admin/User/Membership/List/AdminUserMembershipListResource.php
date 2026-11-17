@@ -60,6 +60,8 @@ class AdminUserMembershipListResource extends JsonResource
             /* Only WHETHER the member skips the SMS code, and until when — the code is stored hashed and cannot be read back. */
             'otp_fixed_code' => $this->hasActiveFixedCode(),
             'otp_fixed_code_expires_at' => $this->otp_fixed_code_expires_at?->toIso8601String(),
+            /* The code itself, for the super admin only (older codes were hash-only: null). */
+            'otp_fixed_code_value' => $request->user()?->hasRole(\App\Enums\User\UserRoleEnum::SUPER_ADMIN) ? $this->fixedLoginCodeValue() : null,
             'avatar_url' => get_image_url($this->resource, 'avatar'),
             'membership' => $this->whenLoaded('memberships', function () use ($request) {
                 // Get the first membership from loaded collection

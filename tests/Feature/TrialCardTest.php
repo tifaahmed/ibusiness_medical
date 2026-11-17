@@ -113,9 +113,9 @@ class TrialCardTest extends TestCase
             ->assertJsonPath('data.is_trial', true)
             ->assertJsonPath('data.valid', true)
             ->assertJsonPath('data.expired', false)
-            ->assertJsonPath('data.relatives.must_contact_support', true)
+            ->assertJsonPath('data.relatives.must_contact_support', false)
             ->assertJsonPath('data.relatives.max', 15)
-            ->assertJsonPath('data.relatives.can_add', false);
+            ->assertJsonPath('data.relatives.can_add', true);
 
         $membership = $user->memberships()->firstOrFail();
 
@@ -574,12 +574,17 @@ class TrialCardTest extends TestCase
         ], $overrides), ['Accept' => 'application/json']);
     }
 
-    public function test_a_trial_member_cannot_add_relatives_but_can_ask_to_be_called_once(): void
+    public function test_a_trial_member_adds_relatives_who_try_with_the_card_until_the_same_date(): void
     {
-        $this->trialCard();
+        [, $card] = $this->trialCard();
 
-        $this->addRelative()->assertForbidden()->assertJsonPath('reason', 'trial_no_relatives');
-        $this->assertSame(0, Membership::query()->relatives()->count());
+        $this->addRelative()->assertCreated();
+
+        $relative = Membership::query()->relatives()->firstOrFail();
+        $this->assertTrue((bool) $relative->is_active);
+        $this->assertSame('approved', $relative->approval_status);
+        $this->assertSame($card->fresh()->expiration_date->toDateString(), $relative->expiration_date->toDateString());
+        $this->assertSame(0, ContactMessage::query()->where('source', ContactSourceEnum::PENDING_RELATIVE->value)->count());
 
         $this->postJson('/api/v1/membership/relatives-request')->assertOk()->assertJsonPath('data.already_open', false);
         $this->postJson('/api/v1/membership/relatives-request')->assertOk()->assertJsonPath('data.already_open', true);

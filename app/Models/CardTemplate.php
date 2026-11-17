@@ -42,10 +42,49 @@ class CardTemplate extends Model
 
     public $translatable = ['name'];
 
+    /** The printed card (every template made before kinds existed). */
+    public const KIND_PHYSICAL = 'physical';
+
+    /** The card shown on screen to the member; it also carries the full name and the membership expiry date. */
+    public const KIND_SOFT = 'soft';
+
+    /** Layout fields only a soft card draws. */
+    public const SOFT_ONLY_FIELDS = ['full_name', 'expiry_date'];
+
+    public static function kinds(): array
+    {
+        return [self::KIND_PHYSICAL, self::KIND_SOFT];
+    }
+
+    public function isSoft(): bool
+    {
+        return $this->kind === self::KIND_SOFT;
+    }
+
+    public function scopePhysical(Builder $query): Builder
+    {
+        return $query->where(fn ($q) => $q->where('kind', self::KIND_PHYSICAL)->orWhereNull('kind'));
+    }
+
+    public function scopeSoft(Builder $query): Builder
+    {
+        return $query->where('kind', self::KIND_SOFT);
+    }
+
+    /** The soft design for a member (with / without partner), else any soft design, else null (the physical one is used). */
+    public static function softFor(Membership $membership): ?self
+    {
+        $status = $membership->partner_id ? CardTemplateStatusEnum::WITH_PARTNER : CardTemplateStatusEnum::NO_PARTNER;
+
+        return static::query()->soft()->where('status', $status)->orderBy('id')->first()
+            ?? static::query()->soft()->orderBy('id')->first();
+    }
+
     protected $fillable = [
         'name',
         'slug',
         'status',
+        'kind',
         'card_empty',
         'sample_card',
         'back_image',
@@ -97,7 +136,7 @@ class CardTemplate extends Model
     protected static function booted(): void
     {
         static::updated(function (self $template) {
-            if ($template->wasChanged(['layout', 'sample_data', 'card_empty', 'status'])) {
+            if ($template->wasChanged(['layout', 'sample_data', 'card_empty', 'status', 'kind'])) {
                 app(CardGenerationService::class)->invalidateCachesFor($template);
             }
         });
@@ -184,7 +223,10 @@ class CardTemplate extends Model
     protected function hiddenFields(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->status?->hiddenFields() ?? [],
+            get: fn () => array_values(array_unique(array_merge(
+                $this->status?->hiddenFields() ?? [],
+                $this->isSoft() ? [] : self::SOFT_ONLY_FIELDS,
+            ))),
         );
     }
 

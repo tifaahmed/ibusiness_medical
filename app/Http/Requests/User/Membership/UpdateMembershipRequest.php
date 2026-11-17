@@ -51,7 +51,7 @@ class UpdateMembershipRequest extends FormRequest
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'governorate_id' => ['nullable', 'integer', 'exists:governorates,id'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
         ];
     }
 

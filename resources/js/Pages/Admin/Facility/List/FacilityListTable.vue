@@ -225,6 +225,18 @@
                       </svg>
                     </Link>
                     <button
+                      type="button"
+                      :disabled="!facility.slug"
+                      @click="copyAppLink(facility.slug)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border bg-background shadow-xs dark:bg-input/30 dark:border-input h-8 rounded-md gap-1.5 px-3 hover:bg-muted"
+                      title="Copy the app link (paste it in Push notifications → Link)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
+                    </button>
+                    <button
                       :disabled="!facility.slug"
                       @click="facility.slug && $emit('delete', facility.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 flex items-center gap-2 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
@@ -383,6 +395,7 @@
 </template>
 
 <script setup>
+import { useNotification } from "@/composables/useNotification";
 import Pagination from "@/Pages/_components/Pagination.vue";
 import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
 import Modal from "@/Components/Modal.vue";
@@ -472,6 +485,17 @@ const branchLocation = (branch) => {
 const hasCoordinates = (branch) => {
   const valid = (v) => v !== null && v !== undefined && v !== '';
   return valid(branch.latitude) && valid(branch.longitude);
+};
+
+const copyAppLink = async (slug) => {
+  // The app opens this path when it is typed in Push notifications → Link (an app path starts with "/").
+  const link = `/facilities/${encodeURIComponent(slug)}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    useNotification().success(`Copied: ${link}`);
+  } catch {
+    window.prompt('Copy this app link:', link);
+  }
 };
 
 const getEditRoute = (slug) => {

@@ -61,17 +61,17 @@ class UpdateStoreRequest extends FormRequest
             'offer_percent_from' => ['nullable', 'numeric', 'between:0,100'],
             'offer_percent_to' => ['nullable', 'numeric', 'between:0,100'],
 
-            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
+            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif'],
             'logo_delete' => ['nullable', 'boolean'],
-            'seo_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
+            'seo_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif'],
             'seo_image_delete' => ['nullable', 'boolean'],
-            'header' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
+            'header' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif'],
             'header_delete' => ['nullable', 'boolean'],
 
             'gallery_images' => ['nullable', 'array'],
-            'gallery_images.*' => ['image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:5120'],
+            'gallery_images.*' => ['image', 'mimes:jpeg,jpg,png,gif,webp,avif'],
             'gallery_videos' => ['nullable', 'array'],
-            'gallery_videos.*' => ['mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo', 'mimes:mp4,mov,webm,avi', 'max:5120'],
+            'gallery_videos.*' => ['mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo', 'mimes:mp4,mov,webm,avi'],
             'gallery_delete' => ['nullable', 'array'],
             'gallery_delete.*' => ['integer'],
 

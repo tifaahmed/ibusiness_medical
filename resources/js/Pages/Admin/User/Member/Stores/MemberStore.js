@@ -13,7 +13,7 @@ import { afterSave } from '@/composables/useSaveAndStay';
 const FORM_FIELD_KEYS = [
     'id', 'slug', 'name', 'email', 'phone', 'password', 'password_confirmation',
     'avatar', 'avatar_url', 'membership_number', 'takeover_membership_id', 'national_id', 'registration_date',
-    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'payment_type', 'member_kind',
+    'expiration_date', 'is_active', 'is_visible', 'is_paid', 'is_trial', 'trial_ends_at', 'trial_locked', 'fixed_code', 'fixed_code_expires_at', 'payment_type', 'member_kind',
     'membership_completed_at', 'has_member_payments', 'initial_payment_amount',
     'initial_payment_type', 'initial_payment_months_paid', 'initial_payment_from_date',
     'initial_payment_to_date', 'initial_payment_notes', 'job_title', 'company_id',
@@ -82,7 +82,11 @@ export const useMemberStore = defineStore('member', {
             is_active: false,  // Default to false - will be set properly in setMember
             is_visible: true,  // Default to true
             is_paid: false,  // Default to false
-            is_trial: false, // plan = trial; sent on edit only
+            is_trial: false, // plan = trial
+            trial_ends_at: '', // required with is_trial; <= expiration_date
+            trial_locked: false, // the trial date has passed: the box is closed (server-decided)
+            fixed_code: '',  // create only: a fixed login code for this member (super admin)
+            fixed_code_expires_at: '',
             payment_type: '',
             member_kind: '',  // individual | company — chosen by the admin on create
             membership_completed_at: null,  // read-only, from server
@@ -163,6 +167,10 @@ export const useMemberStore = defineStore('member', {
             this.form.is_visible = true;  // Default to true for new members
             this.form.is_paid = false;  // Default to false for new members
             this.form.is_trial = false;
+            this.form.trial_ends_at = '';
+            this.form.trial_locked = false;
+            this.form.fixed_code = '';
+            this.form.fixed_code_expires_at = '';
             this.form.payment_type = '';
             this.form.member_kind = '';
             this.form.membership_completed_at = null;
@@ -219,6 +227,8 @@ export const useMemberStore = defineStore('member', {
             this.form.is_visible = Boolean(member.membership?.is_visible ?? true);
             this.form.is_paid = Boolean(member.membership?.is_paid);
             this.form.is_trial = Boolean(member.membership?.is_trial);
+            this.form.trial_ends_at = member.membership?.trial_ends_at || '';
+            this.form.trial_locked = Boolean(member.membership?.trial_locked);
             this.form.payment_type = member.membership?.payment_type || '';
             this.form.member_kind = member.membership?.member_kind || 'individual';
             this.form.membership_completed_at = member.membership?.completed_at || null;
@@ -288,6 +298,7 @@ export const useMemberStore = defineStore('member', {
                     is_visible: this.form.is_visible,
                     is_paid: this.form.is_paid,
                     is_trial: this.form.is_trial,
+                    trial_ends_at: this.form.is_trial ? this.form.trial_ends_at : '',
                     payment_type: this.form.payment_type,
                     member_kind: this.form.member_kind,
                     company_id: this.form.company_id,
@@ -346,6 +357,12 @@ export const useMemberStore = defineStore('member', {
                 formData.append('is_active', this.form.is_active ? '1' : '0');
                 formData.append('is_visible', this.form.is_visible ? '1' : '0');
                 formData.append('is_paid', this.form.is_paid ? '1' : '0');
+                formData.append('is_trial', this.form.is_trial ? '1' : '0');
+                if (this.form.is_trial && this.form.trial_ends_at) formData.append('trial_ends_at', this.form.trial_ends_at);
+                if (this.form.fixed_code) {
+                    formData.append('fixed_code', this.form.fixed_code);
+                    if (this.form.fixed_code_expires_at) formData.append('fixed_code_expires_at', this.form.fixed_code_expires_at);
+                }
                 if (this.form.payment_type) formData.append('payment_type', this.form.payment_type);
                 if (this.form.is_paid) {
                     formData.append('initial_payment_amount', this.form.initial_payment_amount ?? '');
@@ -503,6 +520,7 @@ export const useMemberStore = defineStore('member', {
                     is_visible: this.form.is_visible,
                     is_paid: this.form.is_paid,
                     is_trial: this.form.is_trial,
+                    trial_ends_at: this.form.is_trial ? this.form.trial_ends_at : '',
                     payment_type: this.form.payment_type,
                     company_id: this.form.company_id,
                     sales_id: this.form.sales_id,

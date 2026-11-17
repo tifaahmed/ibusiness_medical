@@ -124,6 +124,8 @@ class MemberOtp
      *     expires_in: int,
      *     resend_after: int,
      *     length: int,
+     *     member_fixed: bool,
+     *     fixed_until: ?string,
      *     error: ?string,
      * } `error` non-null means nothing was issued
      */
@@ -188,6 +190,9 @@ class MemberOtp
             'expires_in' => $ttl,
             'resend_after' => self::RESEND_AFTER_SECONDS,
             'length' => $fixedMember !== null ? ($fixedMember->otp_fixed_code_length ?: 4) : strlen($code),
+            /* This member's OWN fixed code (set by an admin): no SMS is sent to them, and the app says so. Never the code itself, only that it exists and until when (null = no end date). */
+            'member_fixed' => $fixedMember !== null,
+            'fixed_until' => $fixedMember?->otp_fixed_code_expires_at?->toIso8601String(),
             'error' => null,
         ];
     }
@@ -377,6 +382,8 @@ class MemberOtp
             'expires_in' => 0,
             'resend_after' => self::RESEND_AFTER_SECONDS,
             'length' => OtpSettings::length(),
+            'member_fixed' => false,
+            'fixed_until' => null,
             'error' => $error,
         ];
     }

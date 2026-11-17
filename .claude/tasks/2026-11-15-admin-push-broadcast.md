@@ -12,3 +12,11 @@
 - [x] migration 2026_11_15_110000_widen_push_audience_phone (text)
 - [x] tests/Unit/PushAudiencePhonesTest
 - [ ] لسه: migrate على السيرفر (mysqldump الأول)، npm run build، ملف service-account، تجربة فعلية
+- [x] زر "Copy app link" في قائمة المنتجات (ProductListTable.vue) ينسخ /products/<slug> للصقه في خانة Link بتاعة الإشعار
+- [x] نفس الزر في قائمة المنشآت (FacilityListTable.vue) → /facilities/<slug>
+- [ ] vite build لسه ماخلصش في الجلسة (timeout)؛ لازم npm run build على السيرفر/محلياً وتجربة الزرين
+- [x] /admin/push: قايمة صفحات التطبيق الثابتة (APP_PAGES في Index.vue، مجمّعة) تملأ خانة Link. لو اتضافت صفحة جديدة في التطبيق (src/router.tsx) تتضاف هنا يدوي.
+- [x] زر Copy app link في صفحة عرض المنتج (Product/Show.vue) كمان
+# (مهمة جديدة) 2026-11-15 — أخطاء الشبكة عند تغيير الصفحات في الأدمن
+المطلوب: "لما بغير الصفحات مش ظاهر اى تاثير لما بيكون فيه مشكله — هل فى طريقه لو ده حصل مشكله يتفتح الصفحه الجديد او نشوف اشعار ان فى مشكله" (Axios Network Error / ERR_FAILED على product و contact-messages)
+- [x] app.js: router 'exception' → إشعار + إعادة فتح الصفحة (GET بس، مرة واحدة)، وإشعار على أي Network Error في axios (كل 20 ث بحد أقصى)

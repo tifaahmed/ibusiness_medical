@@ -170,6 +170,17 @@
                       </svg>
                     </Link>
                     <button
+                      type="button"
+                      @click="copyAppLink(product.slug)"
+                      class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs dark:bg-input/30 dark:border-input h-8 rounded-md gap-1.5 px-3 hover:bg-muted"
+                      title="Copy the app link (paste it in Push notifications → Link)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
+                    </button>
+                    <button
                       @click="handleDelete(product.slug)"
                       class="inline-flex items-center cursor-pointer justify-center whitespace-nowrap text-sm font-medium transition-all border bg-background shadow-xs hover:bg-destructive hover:text-white dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 text-destructive hover:!bg-destructive/10 hover:!text-destructive"
                       title="Delete"
@@ -332,6 +343,17 @@ const getShowRoute = (slug) => {
 const getEditRoute = (slug) => {
   if (!slug) return route('admin.product.list');
   try { return route('admin.product.edit', slug); } catch { return route('admin.product.list'); }
+};
+
+const copyAppLink = async (slug) => {
+  // The app opens this path when it is typed in Push notifications → Link (app path, starts with "/").
+  const link = `/products/${encodeURIComponent(slug)}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    useNotification().success(`Copied: ${link}`);
+  } catch {
+    window.prompt('Copy this app link:', link);
+  }
 };
 
 const handleDelete = (slug) => {

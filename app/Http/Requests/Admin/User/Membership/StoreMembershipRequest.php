@@ -31,7 +31,8 @@ class StoreMembershipRequest extends FormRequest
             'email' => 'nullable|string|lowercase|email|max:255|unique:'.User::class.',email',
             'phone' => ['nullable', 'string', 'regex:/^01\d{9}$/', Rule::unique(User::class, 'phone')->whereNull('deleted_at')],
             'membership_number' => 'required|string|digits:6|unique:'.Membership::class.',membership_number',
-            'national_id' => ['required', 'string', 'digits:14', Rule::unique(Membership::class, 'national_id')->whereNull('deleted_at')],
+            // A trial card may be made without a National ID (it can be added later).
+            'national_id' => [$this->boolean('is_trial') ? 'nullable' : 'required', 'string', 'digits:14', Rule::unique(Membership::class, 'national_id')->whereNull('deleted_at')],
             'registration_date' => 'required|date',
             // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
             // 'expiration_date' => 'required|date|after:registration_date',
@@ -39,6 +40,13 @@ class StoreMembershipRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
+            // A free trial card (plan = trial). No expiry typed = today + the admin's trial days.
+            'is_trial' => ['nullable', 'boolean'],
+            // A trial must say the day it ends; it can be the membership's expiry or earlier (checked in withValidator).
+            'trial_ends_at' => [Rule::requiredIf(fn () => $this->boolean('is_trial')), 'nullable', 'date'],
+            // A fixed login code for THIS member (super admin only, stored hashed, optional expiry).
+            'fixed_code' => ['nullable', 'string', 'regex:/^\d{4,8}$/'],
+            'fixed_code_expires_at' => ['nullable', 'date', 'after:now'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
             // Individual or company: the admin must say which, a new member never defaults silently.
             'member_kind' => ['required', 'string', Rule::in(Membership::kinds())],
@@ -49,10 +57,10 @@ class StoreMembershipRequest extends FormRequest
             'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'governorate_id' => ['nullable', 'integer', 'exists:governorates,id'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
-            'contract_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,avif|max:5120',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
+            'contract_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,avif',
             'gallery_images' => 'nullable|array',
-            'gallery_images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,avif|max:5120',
+            'gallery_images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,avif',
             'family_members' => 'nullable|array',
             'family_members.*.name' => 'required|string|max:255',
             'family_members.*.relationship' => ['required', Rule::in(RelationshipEnum::values())],
@@ -61,7 +69,7 @@ class StoreMembershipRequest extends FormRequest
             'family_members.*.national_id' => 'nullable|digits:14.*.phone,family_members.*.date_of_birth',
             'family_members.*.email' => 'nullable|email|max:255',
             'family_members.*.is_active' => 'nullable|boolean',
-            'family_members.*.photo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
+            'family_members.*.photo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
         ];
     }
 
@@ -70,6 +78,25 @@ class StoreMembershipRequest extends FormRequest
      *
      * @return array<string, string>
      */
+    /** A member who skips the SMS code is a hole in the login: only the super admin may open it. */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($v) {
+            if ($this->filled('fixed_code') && ! $this->user()?->hasRole(\App\Enums\User\UserRoleEnum::SUPER_ADMIN)) {
+                $v->errors()->add('fixed_code', 'Only the super admin can set a member login code.');
+            }
+            if ($this->boolean('is_trial') && $this->filled('trial_ends_at') && $this->filled('expiration_date')
+                && \Illuminate\Support\Carbon::parse($this->input('trial_ends_at'))->gt(\Illuminate\Support\Carbon::parse($this->input('expiration_date')))) {
+                $v->errors()->add('trial_ends_at', __('admin.member.trial_ends_after_expiry'));
+            }
+            // A company subscribes monthly only; individuals may pick monthly, half-yearly or yearly.
+            if ($this->input('member_kind') === Membership::KIND_COMPANY && $this->boolean('is_paid')
+                && $this->filled('payment_type') && $this->input('payment_type') !== PaymentTypeEnum::MONTHLY->value) {
+                $v->errors()->add('payment_type', __('admin.member.payment_type_company_monthly'));
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [

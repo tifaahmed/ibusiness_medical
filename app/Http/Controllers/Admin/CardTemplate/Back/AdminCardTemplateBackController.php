@@ -26,9 +26,9 @@ class AdminCardTemplateBackController extends Controller
 
         $rules = [
             'enabled' => ['required', 'boolean'],
-            'back_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:8192'],
-            'back_logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
-            'back_qr' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'back_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
+            'back_logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
+            'back_qr' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
             'qrcode.value' => ['nullable', 'string', 'max:500'],
             'qrcode.mode' => ['nullable', 'in:url,image'],
         ];

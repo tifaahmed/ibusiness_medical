@@ -112,7 +112,7 @@
           <div data-slot="form-item" class="grid gap-1">
             <label class="block text-sm font-medium text-white mb-2">
               {{ t.news_ticker?.image || 'Image' }}
-              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - 5MB)</span>
+              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - any size)</span>
             </label>
             <ImageFileInput
               :max-size="5"
@@ -128,7 +128,7 @@
           <div data-slot="form-item" class="grid gap-1">
             <label class="block text-sm font-medium text-white mb-2">
               {{ t.news_ticker?.mobile_image || 'Mobile Image' }}
-              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - 5MB)</span>
+              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - any size)</span>
             </label>
             <ImageFileInput
               :max-size="5"

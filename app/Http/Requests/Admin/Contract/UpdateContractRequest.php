@@ -31,7 +31,7 @@ class UpdateContractRequest extends FormRequest
             'phones.*.type' => 'required|string|in:phone,whatsapp',
             'is_active' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
         ];
     }
 }

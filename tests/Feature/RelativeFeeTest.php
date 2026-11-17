@@ -83,7 +83,8 @@ class RelativeFeeTest extends TestCase
         $this->assertTrue($fresh->expiration_date->between(now()->addMonths(12)->subDay(), now()->addMonths(12)->addDay()));
 
         // Nothing left to pay for, and a second try changes nothing.
-        $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.waiting', []);
+        // The paid relative stays listed (it can be renewed) but is now active until its own date.
+        $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.waiting.0.state', Membership::STATE_ACTIVE);
         $this->assertSame(0, RelativeFee::activateFor($order->fresh()));
     }
 
@@ -115,5 +116,45 @@ class RelativeFeeTest extends TestCase
 
         $this->assertDatabaseHas('contact_messages', ['source' => 'relative_request']);
         $this->assertStringContainsString('IMPORTANT', (string) \App\Models\ContactMessage::query()->where('source', 'relative_request')->value('subject'));
+    }
+
+    /** @test */
+    public function a_month_is_five_and_a_renewal_stacks_on_the_time_left(): void
+    {
+        [$user, $card] = $this->member();
+        $relative = $this->pendingRelative($card);
+        Sanctum::actingAs($user);
+
+        $pay = function (string $plan) use ($relative) {
+            $code = $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod', 'plan' => $plan])
+                ->assertCreated()->json('order.order_code');
+            Order::query()->where('order_code', $code)->firstOrFail()->update(['payment_status' => PaymentStatusEnum::ACCEPTED]);
+        };
+
+        $pay('month');
+        $first = $relative->fresh()->expiration_date;
+        $this->assertTrue($first->between(now()->addMonth()->subDay(), now()->addMonth()->addDay()));
+
+        $pay('year');
+        $this->assertTrue($relative->fresh()->expiration_date->between($first->copy()->addMonths(12)->subDay(), $first->copy()->addMonths(12)->addDay()));
+    }
+
+    /** @test */
+    public function a_relative_renews_themself_when_the_card_is_paid_and_pays_a_normal_plan_when_it_is_not(): void
+    {
+        [, $card] = $this->member();
+        $relative = $this->pendingRelative($card);
+        $relative->forceFill(['is_active' => true, 'fee_order_id' => 1, 'expiration_date' => now()->subDay()])->save();
+        Sanctum::actingAs($relative->user);
+
+        // Paid card: the relative pays 5 / 60 for themself, and may not buy a full plan.
+        $this->getJson('/api/v1/mobile/relative-fees')->assertOk()->assertJsonPath('data.can_pay', true)->assertJsonPath('data.waiting.0.id', $relative->id);
+        $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod', 'plan' => 'month'])->assertCreated()->assertJsonPath('order.total_amount', 5);
+        $this->postJson('/api/v1/membership/subscribe', ['method' => 'cash_on_delivery', 'plan' => 'year'])->assertStatus(422);
+
+        // The card behind has lapsed: no relative fee, a normal plan instead (individual prices).
+        $card->forceFill(['expiration_date' => now()->subDay()])->save();
+        $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.can_pay', false)->assertJsonPath('data.reason', 'parent_not_paid');
+        $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod'])->assertForbidden();
     }
 }

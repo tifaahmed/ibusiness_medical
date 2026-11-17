@@ -40,6 +40,12 @@
 
           <label class="block space-y-1">
             <span class="text-xs font-medium">{{ t.push?.field_url || 'Opens when tapped (optional)' }}</span>
+            <select v-model="pagePick" class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm" @change="pickPage">
+              <option value="">{{ t.push?.pick_page || 'Pick an app page… (or type a link below)' }}</option>
+              <optgroup v-for="g in APP_PAGES" :key="g.group" :label="g.group">
+                <option v-for="p in g.pages" :key="p.path" :value="p.path">{{ p.label }}</option>
+              </optgroup>
+            </select>
             <input v-model="form.url" type="text" maxlength="500" class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm" dir="ltr" placeholder="https://… or /products" />
             <span class="text-xs text-muted-foreground">{{ t.push?.field_url_hint }}</span>
             <span v-if="errors.url" class="block text-xs value-negative">{{ errors.url }}</span>
@@ -108,6 +114,53 @@ const t = computed(() => page.props.translations?.admin || {});
 const errors = computed(() => page.props.errors || {});
 const busy = ref(false);
 const form = reactive({ title: '', body: '', url: '', audience: 'all', audience_phone: '' });
+
+/* The app's fixed pages (src/router.tsx in deilar-mobile-new). A static list on purpose: pages that depend on a record
+   (one product, one facility) are copied from their own list with the "copy app link" button instead. */
+const APP_PAGES = [
+  { group: 'Main tabs · التابات', pages: [
+    { path: '/', label: 'Home · الرئيسية' },
+    { path: '/store', label: 'Stores · المتاجر' },
+    { path: '/store/map', label: 'Stores map · خريطة المتاجر' },
+    { path: '/products', label: 'Products · منتجاتنا' },
+    { path: '/map', label: 'Map · الخريطة' },
+    { path: '/map?view=list', label: 'Facilities list · قائمة المنشآت' },
+    { path: '/map?view=list&sort=discount', label: 'Biggest discounts first · الأعلى خصم' },
+  ] },
+  { group: 'My card · كارتي', pages: [
+    { path: '/card', label: 'My card · كارتي' },
+    { path: '/card/members', label: 'Relatives · الأقارب' },
+    { path: '/card/pay', label: 'Pay / renew the card · الاشتراك والدفع' },
+    { path: '/card/physical', label: 'Order a physical card · كارت فعلي' },
+  ] },
+  { group: 'Account · حسابي', pages: [
+    { path: '/account', label: 'Account · حسابي' },
+    { path: '/account/personal', label: 'Personal data · البيانات الشخصية' },
+    { path: '/account/addresses', label: 'Addresses · العناوين' },
+    { path: '/account/wallet', label: 'Wallet · محفظتي' },
+    { path: '/account/invite', label: 'Invite friends · ادعُ أصحابك' },
+    { path: '/account/support', label: 'Support · الدعم' },
+    { path: '/account/theme', label: 'Theme · المظهر' },
+  ] },
+  { group: 'Shopping · الشراء', pages: [
+    { path: '/cart', label: 'Cart · السلة' },
+    { path: '/checkout', label: 'Checkout · إتمام الطلب' },
+    { path: '/orders', label: 'My orders · طلباتي' },
+  ] },
+  { group: 'Quiz · الكويز', pages: [
+    { path: '/quiz', label: 'Quiz home · الكويز' },
+    { path: '/quiz/mcq/football', label: 'Football · كرة القدم' },
+    { path: '/quiz/mcq/fawazeer', label: 'Puzzles · فوازير' },
+    { path: '/quiz/mcq/general', label: 'General knowledge · ثقافة عامة' },
+    { path: '/quiz/mcq/history', label: 'History · تاريخ' },
+    { path: '/quiz/mcq/cinema', label: 'Cinema & series · سينما ومسلسلات' },
+    { path: '/quiz/badges', label: 'Badges · الأوسمة' },
+    { path: '/quiz/history', label: 'Points log · سجل النقاط' },
+    { path: '/quiz/moods', label: 'Points screens · شاشة النقاط' },
+  ] },
+];
+const pagePick = ref('');
+const pickPage = () => { if (pagePick.value) form.url = pagePick.value; };
 
 const send = () => {
   const ask = form.audience === 'all'

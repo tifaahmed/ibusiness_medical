@@ -103,7 +103,7 @@ class StoreMembershipRequest extends FormRequest
                 // Rule::requiredIf($this->boolean('is_paid')),
             ],
             'initial_payment_notes' => ['nullable', 'string', 'max:1000'],
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
             'job_title' => ['nullable', 'array'],
             'job_title.ar' => ['nullable', 'string', 'max:255'],
             'job_title.en' => ['nullable', 'string', 'max:255'],
@@ -135,7 +135,7 @@ class StoreMembershipRequest extends FormRequest
             'family_members.*.phone' => ['nullable', 'string', 'max:20'],
             'family_members.*.email' => ['nullable', 'string', 'email', 'max:255'],
             'family_members.*.is_active' => ['nullable', 'boolean'],
-            'family_members.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,avif', 'max:2048'],
+            'family_members.*.photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,avif'],
         ];
     }
 

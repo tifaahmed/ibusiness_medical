@@ -51,10 +51,10 @@ class StoreOfferRequest extends FormRequest
             'phone' => 'nullable|string|max:50',
             'price' => 'nullable|numeric|min:0',
             'old_price' => 'nullable|numeric|min:0',
-            'image'            => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'mobile_image'     => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
-            'thumbnail'        => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:2048',
-            'mobile_thumbnail' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:2048',
+            'image'            => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
+            'mobile_image'     => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
+            'thumbnail'        => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
+            'mobile_thumbnail' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
         ];
     }
 

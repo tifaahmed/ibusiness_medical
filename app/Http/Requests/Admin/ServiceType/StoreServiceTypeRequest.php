@@ -21,7 +21,7 @@ class StoreServiceTypeRequest extends FormRequest
             'icon' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:50'],
             'is_active' => ['nullable', 'boolean'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif', 'max:2048'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp,avif'],
         ];
     }
 

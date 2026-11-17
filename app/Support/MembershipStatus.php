@@ -36,7 +36,9 @@ final class MembershipStatus
             /* individual | company: which price list `plans` is. */
             'member_kind' => $kind,
             'expires_on' => $membership?->expiration_date?->toDateString(),
-            'days_left' => $membership?->daysLeft() ?? 0,
+            /* While on a trial `days_left` counts to the TRIAL's end date; otherwise to the membership's expiry. */
+            'days_left' => $membership === null ? 0 : ($membership->isTrial() ? $membership->trialDaysLeft() : $membership->daysLeft()),
+            'trial_ends_on' => $membership?->isTrial() ? $membership->trialEndsOn()?->toDateString() : null,
             'price' => MembershipPlan::price(),
             'months' => MembershipPlan::months(),
             /* Length of a NEW free trial card in days (admin setting `membership_trial_days`); clients only print it. */
@@ -90,11 +92,10 @@ final class MembershipStatus
                 'max' => MembershipPlan::MAX_RELATIVES,
                 /* First-degree only: parents, spouse, children. Said once here so no client words it differently. */
                 'degree' => 'first',
-                /* A trial card holds the owner alone; relatives go through customer services until the card is paid. */
-                'must_contact_support' => $membership?->isTrial() ?? false,
+                /* Kept for old builds, always false: since 2026-11-17 a trial card takes relatives too (they try with it). */
+                'must_contact_support' => false,
                 'can_add' => $membership !== null
                     && ! $membership->isRelative()
-                    && ! $membership->isTrial()
                     && $base['valid']
                     && $counted < MembershipPlan::MAX_RELATIVES,
             ],

@@ -6,6 +6,8 @@ enum PaymentTypeEnum: string
 {
     case YEARLY = 'yearly';
     case MONTHLY = 'monthly';
+    /** Half-year plan: individuals only (a company is monthly only). */
+    case HALF_YEARLY = 'half_yearly';
 
     public static function values(): array
     {
@@ -18,6 +20,10 @@ enum PaymentTypeEnum: string
             self::YEARLY->value => [
                 'value' => self::YEARLY->value,
                 'label' => __('admin.member.payment_type_yearly'),
+            ],
+            self::HALF_YEARLY->value => [
+                'value' => self::HALF_YEARLY->value,
+                'label' => __('admin.member.payment_type_half_yearly'),
             ],
             self::MONTHLY->value => [
                 'value' => self::MONTHLY->value,

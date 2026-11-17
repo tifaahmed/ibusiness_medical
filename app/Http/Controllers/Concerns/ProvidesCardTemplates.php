@@ -21,7 +21,7 @@ trait ProvidesCardTemplates
      */
     protected function cardTemplatesByStatus(): array
     {
-        $templates = CardTemplate::orderBy('id')->get()->keyBy(
+        $templates = CardTemplate::physical()->orderBy('id')->get()->keyBy(
             fn (CardTemplate $t) => $t->status->value,
         );
 

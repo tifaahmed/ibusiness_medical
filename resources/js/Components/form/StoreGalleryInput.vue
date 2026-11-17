@@ -57,7 +57,7 @@
         <p class="mb-1 text-sm text-muted-foreground">
           <span class="font-semibold text-foreground">Click to upload</span> or drag and drop
         </p>
-        <p class="text-xs text-muted-foreground">Images or videos — max {{ maxSize }}MB each</p>
+        <p class="text-xs text-muted-foreground">Images or videos — any size (images shrink to ~100 KB)</p>
         <p v-if="error" class="mt-2 text-xs text-destructive font-medium">{{ error }}</p>
       </div>
     </div>
@@ -117,17 +117,12 @@ const kindOf = (file) => {
 
 const acceptFiles = async (files) => {
   error.value = '';
-  const maxBytes = props.maxSize * 1024 * 1024;
   const accepted = [];
 
   for (const file of files) {
     const kind = kindOf(file);
     if (!kind) {
       error.value = 'Only image or video files are accepted.';
-      continue;
-    }
-    if (file.size > maxBytes) {
-      error.value = `Each file must be ${props.maxSize}MB or smaller.`;
       continue;
     }
     accepted.push({ file, kind, preview: URL.createObjectURL(file) });

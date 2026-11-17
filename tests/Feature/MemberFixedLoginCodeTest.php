@@ -72,4 +72,26 @@ class MemberFixedLoginCodeTest extends TestCase
         $member->forceFill(['otp_fixed_code_expires_at' => now()->subMinute()])->save();
         $this->assertFalse($member->fresh()->hasActiveFixedCode());
     }
+
+    /** @test */
+    public function the_app_is_told_a_fixed_code_exists_and_until_when_but_never_the_code(): void
+    {
+        $member = $this->member();
+        $until = now()->addDays(3)->startOfSecond();
+        $member->forceFill([
+            'otp_fixed_code_hash' => \Illuminate\Support\Facades\Hash::make('4321'),
+            'otp_fixed_code_length' => 4,
+            'otp_fixed_code_expires_at' => $until,
+        ])->save();
+
+        $issue = app(MemberOtp::class)->issue('01044171461');
+        $this->assertTrue($issue['member_fixed']);
+        $this->assertSame($until->toIso8601String(), $issue['fixed_until']);
+        $this->assertStringNotContainsString('4321', json_encode($issue));
+
+        // Someone else's phone is a plain code: nothing about a fixed code.
+        $other = app(MemberOtp::class)->issue('01099999999');
+        $this->assertFalse($other['member_fixed']);
+        $this->assertNull($other['fixed_until']);
+    }
 }

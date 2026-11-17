@@ -179,7 +179,7 @@
       <div data-slot="card-content" class="px-3 sm:px-4 md:px-6">
         <label class="block text-sm font-medium mb-2">
           Share Image (Open Graph)
-          <span class="text-xs text-muted-foreground ml-2">(Optional — 1200×630 recommended, max 5MB)</span>
+          <span class="text-xs text-muted-foreground ml-2">(Optional — 1200×630 recommended, any size)</span>
         </label>
         <ImageFileInput
           :max-size="5"

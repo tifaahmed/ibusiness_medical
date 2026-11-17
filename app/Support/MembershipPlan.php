@@ -91,14 +91,14 @@ final class MembershipPlan
      * Every plan on sale (price above 0) to a member of this kind, the longer one first. Clients draw exactly these and send back `key`.
      *
      *  - individual: year, half-year, month  (`membership_price`, `membership_half_price`, `membership_individual_month_price`)
-     *  - company:    year, month             (`membership_company_year_price`, `membership_company_month_price`)
+     *  - company:    month ONLY              (`membership_company_month_price`; the old `membership_company_year_price` setting is kept, never sold — owner decision 2026-11-17)
      *
      * @return list<array{key: string, price: float, months: int}>
      */
     public static function plans(string $kind = Membership::KIND_INDIVIDUAL): array
     {
         $company = $kind === Membership::KIND_COMPANY;
-        $year = $company ? self::companyYearPrice() : self::price();
+        $year = $company ? 0.0 : self::price();
         $month = $company ? self::companyMonthPrice() : self::individualMonthPrice();
 
         return array_values(array_filter([

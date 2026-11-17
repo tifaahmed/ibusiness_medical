@@ -90,7 +90,9 @@ class CardGenerationService
 
         CardLayout::query()
             ->whereNotNull('generated_image_path')
-            ->when($customisedIds !== [], fn ($query) => $query->whereNotIn('membership_id', $customisedIds))
+            // A soft design only owns the soft renders; a physical one never touches them.
+            ->when($template->isSoft(), fn ($query) => $query->where('mode', self::MODE_SOFT), fn ($query) => $query->where('mode', '!=', self::MODE_SOFT))
+            ->when($customisedIds !== [] && ! $template->isSoft(), fn ($query) => $query->whereNotIn('membership_id', $customisedIds))
             ->where(function ($query) use ($template) {
                 $query->where('card_template_id', $template->id)
                     ->orWhere(function ($query) use ($template) {
@@ -108,12 +110,36 @@ class CardGenerationService
             });
     }
 
+    /** The card the member sees on screen (a soft design); kept in its own `membership_cards` row so the printed card is never touched. */
+    public const MODE_SOFT = 'soft';
+
+    /**
+     * The mode a customer-facing request really renders: the app, the website and the QR page all ask for `full`,
+     * and a member whose card has a SOFT design gets that one instead. No soft design = unchanged.
+     */
+    public static function customerMode(Membership $membership, string $requested): string
+    {
+        return $requested === 'full' && CardTemplate::softFor($membership) !== null ? self::MODE_SOFT : $requested;
+    }
+
+    /** Throw away a member's cached soft render (their expiry date or name changed); it is redrawn on the next view. */
+    public static function forgetSoftRender(int $membershipId): void
+    {
+        // Only the front is per member; the back is the template's own artwork, shared by everyone.
+        CardLayout::query()->where('membership_id', $membershipId)->where('mode', self::MODE_SOFT)->whereNotNull('generated_image_path')
+            ->get()->each(function (CardLayout $layout) {
+                Storage::disk('public')->delete($layout->generated_image_path);
+                $layout->update(['generated_image_path' => null]);
+            });
+    }
+
     public function generate(Membership $membership, string $mode = 'full'): ?string
     {
+        $soft = $mode === self::MODE_SOFT;
         $layout = $membership->cardLayouts()->where('mode', $mode)->first();
 
-        $cardTemplate = $layout && $layout->relationLoaded('cardTemplate') ? $layout->cardTemplate : null;
-        if (! $cardTemplate) {
+        $cardTemplate = $soft ? CardTemplate::softFor($membership) : ($layout && $layout->relationLoaded('cardTemplate') ? $layout->cardTemplate : null);
+        if (! $cardTemplate && ! $soft) {
             $cardTemplate = $layout?->cardTemplate;
         }
 
@@ -123,8 +149,8 @@ class CardGenerationService
             $status = $membership->partner_id
                 ? CardTemplateStatusEnum::WITH_PARTNER
                 : CardTemplateStatusEnum::NO_PARTNER;
-            $cardTemplate = CardTemplate::where('status', $status)->first()
-                ?? CardTemplate::first();
+            $cardTemplate = CardTemplate::physical()->where('status', $status)->first()
+                ?? CardTemplate::physical()->first() ?? CardTemplate::first();
         }
 
         $templatePath = null;
@@ -170,7 +196,8 @@ class CardGenerationService
         // Use the card_layout's own layout when one was saved, falling back
         // to the template's default — matching the JS buildCardTemplate().
         $tplLayout = $cardTemplate ? $cardTemplate->effectiveLayout() : CardTemplateLayoutDefaults::layout();
-        if ($layout && ! empty($layout->layout)) {
+        // A soft card always follows its design: per-card positions belong to the printed card.
+        if (! $soft && $layout && ! empty($layout->layout)) {
             $tplLayout = $layout->layout;
         }
 
@@ -185,12 +212,16 @@ class CardGenerationService
 
         // Use the card_layout's own field_values when saved (customised card),
         // matching the JS renderCardCanvas() valueOverrides logic.
-        $fieldValues = $layout && ! empty($layout->field_values) ? $layout->field_values : [];
+        $fieldValues = ! $soft && $layout && ! empty($layout->field_values) ? $layout->field_values : [];
 
         $values = $sampleData;
         $values['membership_number'] = (string) $membership->membership_number;
         $values['barcode'] = (string) ($membership->membership_number ?? '');
         $values['qrcode'] = PublicMembershipUrl::qrForSlug($membership->slug);
+
+        // The two soft-only lines: the member's full name and the day the membership ends. Blank = not drawn.
+        $values['full_name'] = $soft ? trim((string) $membership->user?->name) : '';
+        $values['expiry_date'] = $soft && $membership->expiration_date ? $membership->expiration_date->format('d/m/Y') : '';
 
         // Apply per-card field value overrides (non-empty only).
         foreach ($fieldValues as $fk => $fv) {
@@ -208,7 +239,7 @@ class CardGenerationService
         // Apply per-card position overrides only when no custom layout is
         // stored — once a card is saved through the generator the full layout
         // is in `$layout->layout` and individual overrides are redundant.
-        if (empty($layout->layout)) {
+        if (! $soft && empty($layout->layout)) {
             $overrides = $this->buildOverrides($layout);
             if ($overrides) {
                 $fields = $this->applyOverrides($fields, $overrides, $width, $height);
@@ -230,7 +261,7 @@ class CardGenerationService
         $this->drawBarcodeField($image, $fields, $values, $width);
 
         // 4. Draw text fields (slogan, membership_number, facebook, website, phone).
-        foreach (['slogan', 'membership_number', 'facebook', 'website', 'phone'] as $key) {
+        foreach (CardTemplateLayoutDefaults::TEXT_FIELDS as $key) {
             if (! isset($fields[$key]) || empty($values[$key])) {
                 continue;
             }
@@ -770,9 +801,10 @@ class CardGenerationService
 
         // A template with its own back wins: it is drawn from the template's
         // settings, and the layout just points at the current render.
-        $template = $layout?->cardTemplate ?? CardTemplate::where('status', $membership->partner_id
-            ? CardTemplateStatusEnum::WITH_PARTNER
-            : CardTemplateStatusEnum::NO_PARTNER)->first();
+        $template = ($mode === self::MODE_SOFT ? CardTemplate::softFor($membership) : $layout?->cardTemplate)
+            ?? CardTemplate::physical()->where('status', $membership->partner_id
+                ? CardTemplateStatusEnum::WITH_PARTNER
+                : CardTemplateStatusEnum::NO_PARTNER)->first();
         if ($template && $template->hasCustomBack()) {
             $renderer = app(CardBackRenderer::class);
             if ($renderer->ensure($template)) {

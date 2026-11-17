@@ -22,7 +22,7 @@ class AdminSalesImportPreviewController extends BaseController
     public function __invoke(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
         ]);
 
         $path = $request->file('file')->getRealPath();

@@ -162,14 +162,8 @@ class AdminMembershipOtpController extends BaseController
             ]);
         }
 
-        /* Stored HASHED: nobody, the admin who set it included, can read it back. */
-        $user->forceFill([
-            'otp_fixed_code' => null,
-            'otp_fixed_code_hash' => $code === null ? null : Hash::make($code),
-            'otp_fixed_code_length' => $code === null ? null : strlen($code),
-            'otp_fixed_code_expires_at' => $expiresAt,
-            'otp_fixed_code_set_by' => $code === null ? null : $request->user()->id,
-        ])->save();
+        /* Checked by HASH; an encrypted copy lets the super admin (only) read it back in the dialog. */
+        $user->setFixedLoginCode($code, $expiresAt, $request->user()->id);
 
         Log::warning('Member login code changed', [
             'by' => $request->user()?->id,

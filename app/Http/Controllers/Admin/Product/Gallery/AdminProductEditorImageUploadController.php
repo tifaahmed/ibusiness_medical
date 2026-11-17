@@ -22,7 +22,7 @@ class AdminProductEditorImageUploadController extends BaseController
     public function __invoke(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'image' => ['required', 'image', 'max:10240'],
+            'image' => ['required', 'image'],
             'scope' => ['nullable', 'in:'.implode(',', array_keys(EditorImages::DIRECTORIES))],
         ]);
 

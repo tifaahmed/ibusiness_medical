@@ -682,6 +682,16 @@
             {{ t.member?.subscription_payments || 'Subscription payments' }} — {{ membership.membership_number }}
           </h3>
           <span v-if="membership.plan === 'trial'" class="rounded-md bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 px-2 py-0.5 text-xs font-medium">{{ t.member?.on_trial || 'On free trial' }}</span>
+          <button
+            v-if="user.slug"
+            type="button"
+            class="inline-flex h-8 min-w-[8rem] items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-primary hover:text-primary-foreground"
+            data-testid="trial-history-open"
+            @click="trialHistoryOpen = true"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            {{ t.member?.trial_history || 'Trial history' }}
+          </button>
         </div>
         <div v-if="membership.subscriptions?.length" class="space-y-3">
           <div v-for="sub in membership.subscriptions" :key="sub.id" class="rounded-lg border border-border/60 p-3 space-y-2 text-xs sm:text-sm">
@@ -869,6 +879,7 @@
         </div>
       </div>
     </Modal>
+    <TrialHistoryDialog :open="trialHistoryOpen" :user-slug="user?.slug" @close="trialHistoryOpen = false" />
   </MemberLayout>
 </template>
 
@@ -886,8 +897,10 @@ import DeliveryItem from "@/Pages/Admin/CardDeliveries/DeliveryItem.vue";
 import CardCodes from "@/Pages/Admin/MembershipCard/_components/CardCodes.vue";
 import CardPreview from "@/Pages/Admin/MembershipCard/_components/CardPreview.vue";
 import ExtraPhones from "@/Pages/Admin/User/Member/QuickAdd/ExtraPhones.vue";
+import TrialHistoryDialog from "@/Pages/Admin/User/Member/_components/Form/TrialHistoryDialog.vue";
 import { publicMembershipUrl, membershipQrUrl } from "@/composables/usePublicMembershipUrl.js";
 
+const trialHistoryOpen = ref(false);
 const props = defineProps({
   user: {
     type: Object,

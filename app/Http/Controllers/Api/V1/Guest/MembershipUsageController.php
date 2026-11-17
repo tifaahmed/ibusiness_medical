@@ -76,7 +76,7 @@ class MembershipUsageController extends Controller
             'amount' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:1000',
             'gallery' => 'nullable|array',
-            'gallery.*' => 'image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'gallery.*' => 'image|mimes:jpeg,jpg,png,gif,webp,avif',
         ]);
 
         $validated['membership_id'] = $membershipModel->id;

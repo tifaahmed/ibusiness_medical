@@ -572,7 +572,7 @@
             />
           </label>
           <p class="text-xs text-muted-foreground">
-            {{ t.order?.receipt_accept_hint || 'Photos (JPEG, PNG, WebP, HEIC) or PDF, up to 5 MB each.' }}
+            {{ t.order?.receipt_accept_hint || 'Photos (JPEG, PNG, WebP, HEIC) or PDF, any size.' }}
             {{ t.order?.receipt_append_only || 'Receipts are added, never removed — an order keeps every piece of evidence it was sent.' }}
           </p>
         </div>

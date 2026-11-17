@@ -15,6 +15,7 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Services\MediaService;
 use App\Support\MembershipPlan;
+use App\Support\RelativeRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -73,7 +74,9 @@ class FamilyController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'can_add_children' => $this->isFather($member),
+                'can_add_children' => $this->isFather($member) && ($member->gender === 'male' || ($membership !== null && RelativeRules::husbandOf($membership) !== null)),
+                // The names the client should ask for (it draws them; the backend builds the final name).
+                'name_rules' => ['father' => 'grandfather_name_only', 'child' => 'first_name_only', 'other' => 'full_name'],
                 // What a relative costs (the client draws it; it never computes it) and whether this card is a company's.
                 'relative_fee' => \App\Support\RelativeFee::fee($membership),
                 'family_members' => $membership === null
@@ -90,11 +93,9 @@ class FamilyController extends Controller
         /** @var User $member */
         $member = $request->user();
 
+        // A name and a gender on file: the child's full name is built from the parent's.
         if (! $this->isFather($member)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Only a male member can add children.',
-            ], Response::HTTP_FORBIDDEN);
+            return response()->json(['success' => false, 'message' => 'Complete your name and gender before adding children.'], Response::HTTP_FORBIDDEN);
         }
 
         $validated = $this->validateChild($request);
@@ -107,19 +108,14 @@ class FamilyController extends Controller
             ]);
         }
 
-        if ($refusal = $this->refusal($membership)) {
+        if ($refusal = $this->refusal($membership, $validated['relationship'])) {
             return $refusal;
         }
 
-        $fullName = $this->fullNameFor($member, $validated['first_name']);
+        // A man's child carries his name; a woman's carries her HUSBAND's, so he must be on the card first. No ceiling on children.
+        RelativeRules::assertMayAdd($membership, $member, $validated['relationship']);
 
-        $children = $membership->relatives()->whereIn('relationship', self::CHILD_RELATIONSHIPS);
-
-        if ($children->count() >= self::MAX_CHILDREN) {
-            throw ValidationException::withMessages([
-                'first_name' => ['The limit for children added online has been reached. Please contact customer services.'],
-            ]);
-        }
+        $fullName = $this->fullNameFor($member, $validated['first_name'], RelativeRules::childSurname($membership, $member));
 
         if ($membership->relatives()->whereHas('user', fn ($q) => $q->where('name', $fullName))->exists()) {
             throw ValidationException::withMessages([
@@ -170,9 +166,9 @@ class FamilyController extends Controller
             'national_id' => ['required', 'digits:14'],
             'phone' => ['nullable', 'string', 'max:20'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'id_front' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
-            'id_back' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
-            'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192'],
+            'id_front' => ['required', 'image', 'mimes:jpeg,png,jpg,webp'],
+            'id_back' => ['required', 'image', 'mimes:jpeg,png,jpg,webp'],
+            'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp'],
         ]);
 
         $membership = $this->membershipOf($member);
@@ -183,13 +179,18 @@ class FamilyController extends Controller
             ]);
         }
 
-        if ($refusal = $this->refusal($membership)) {
+        if ($refusal = $this->refusal($membership, $validated['relationship'])) {
             return $refusal;
         }
 
+        RelativeRules::assertMayAdd($membership, $member, $validated['relationship']);
+
+        // A father is typed with the grandfather's name only: his own first name is the member's second name.
+        $typedName = $validated['relationship'] === 'father' ? RelativeRules::fatherName($member, $validated['name']) : $validated['name'];
+
         try {
             $familyMember = $this->createRelative->handle($membership, [
-                'name' => $validated['name'],
+                'name' => $typedName,
                 'relationship' => $validated['relationship'],
                 'national_id' => $validated['national_id'],
                 'phone' => $validated['phone'] ?? null,
@@ -378,7 +379,7 @@ class FamilyController extends Controller
     /** The card owner sets (or replaces) the profile photo of one of their relatives. A photo is not identity data, so an approved relative may get one too. */
     public function updateRelativeAvatar(Request $request, string $familyMember): JsonResponse
     {
-        $request->validate(['avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048']]);
+        $request->validate(['avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif']]);
 
         /** @var User $member */
         $member = $request->user();
@@ -452,11 +453,11 @@ class FamilyController extends Controller
         ]);
     }
 
-    private function fullNameFor(User $member, string $firstName): string
+    private function fullNameFor(User $member, string $firstName, ?string $surname = null): string
     {
         $firstName = preg_replace('/\s+/u', ' ', trim($firstName));
 
-        return $firstName.' '.preg_replace('/\s+/u', ' ', trim((string) $member->name));
+        return $firstName.' '.preg_replace('/\s+/u', ' ', trim($surname ?? (string) $member->name));
     }
 
     /**
@@ -492,33 +493,23 @@ class FamilyController extends Controller
     }
 
     /**
-     * Whether this member may add children: male, and named — the child's full
-     * name is theirs appended, so a father with no name on file has nothing to
-     * append.
+     * Whether this member may edit / remove children: a named man or woman. ADDING one is `RelativeRules`' call (a woman needs her
+     * husband on the card first) and the family list reports it as `can_add_children`.
      */
     private function isFather(User $member): bool
     {
-        return $member->gender === 'male' && trim((string) $member->name) !== '';
+        return in_array($member->gender, ['male', 'female'], true) && trim((string) $member->name) !== '';
     }
 
     /**
      * Why this card may not take another relative right now, or null if it may.
      *
      * Three separate reasons, each with its own `reason` for the client to word:
-     * a TRIAL card holds the owner alone (relatives go through customer
-     * services until it is paid), an expired card adds nothing, and fifteen is
+     * a TRIAL card takes relatives too (they try with it, same end date), an expired card adds nothing, and fifteen is
      * the ceiling for one card.
      */
-    private function refusal(Membership $membership): ?JsonResponse
+    private function refusal(Membership $membership, ?string $relationship = null): ?JsonResponse
     {
-        if ($membership->isTrial()) {
-            return response()->json([
-                'success' => false,
-                'reason' => 'trial_no_relatives',
-                'message' => 'Relatives cannot be added during the trial. Please contact customer service and they will add them for you.',
-            ], Response::HTTP_FORBIDDEN);
-        }
-
         if (! $membership->isCurrent()) {
             return response()->json([
                 'success' => false,
@@ -527,9 +518,11 @@ class FamilyController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $counted = $membership->relatives()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)->count();
+        // Children are not capped (2026-11-17); every other relation counts toward the card's ceiling.
+        $counted = $membership->relatives()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)
+            ->whereNotIn('relationship', RelativeRules::CHILD)->count();
 
-        if ($counted >= MembershipPlan::MAX_RELATIVES) {
+        if (! in_array($relationship, RelativeRules::CHILD, true) && $counted >= MembershipPlan::MAX_RELATIVES) {
             return response()->json([
                 'success' => false,
                 'reason' => 'limit_reached',
@@ -549,6 +542,11 @@ class FamilyController extends Controller
     {
         // A COMPANY card pays nothing in the app: the team is told to call, with the fee and the data the member typed.
         $company = $membership->kind() === Membership::KIND_COMPANY;
+
+        // A relative that tries with a trial card is already active: nothing waits for staff.
+        if (! $company && $familyMember->is_active) {
+            return;
+        }
 
         try {
             $this->inbox->handle([

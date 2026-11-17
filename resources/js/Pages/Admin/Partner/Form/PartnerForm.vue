@@ -75,7 +75,7 @@
             <label class="block text-sm font-medium text-white mb-2">
               {{ t.partner?.partner_image || 'Partner Image' }}
               <span v-if="!isEditMode" class="text-destructive">*</span>
-              <span class="text-xs text-muted-foreground ml-2">(Max 5MB)</span>
+              <span class="text-xs text-muted-foreground ml-2">(any size · images shrink to ~100 KB)</span>
             </label>
             <ImageFileInput
               :max-size="5"
@@ -109,7 +109,7 @@
           <div data-slot="form-item" class="grid gap-1">
             <label class="block text-sm font-medium text-white mb-2">
               {{ t.partner?.header_image || 'Header Image' }}
-              <span class="text-xs text-muted-foreground ml-2">(Max 5MB)</span>
+              <span class="text-xs text-muted-foreground ml-2">(any size · images shrink to ~100 KB)</span>
             </label>
             <ImageFileInput
               :max-size="5"
@@ -162,7 +162,7 @@
         <div data-slot="form-item" class="grid gap-1">
           <label class="block text-sm font-medium text-white mb-2">
             {{ t.partner?.add_gallery_images || 'Add Gallery Images' }}
-            <span class="text-xs text-muted-foreground ml-2">(Max 5MB each)</span>
+            <span class="text-xs text-muted-foreground ml-2">(any size · images shrink to ~100 KB)</span>
           </label>
           <ImageFileInput
             :max-size="5"

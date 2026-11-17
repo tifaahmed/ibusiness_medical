@@ -69,6 +69,10 @@ class StoreUserMembershipAction
                 if (! $paymentType && ! empty($validated['partner_id'])) {
                     $paymentType = PaymentTypeEnum::MONTHLY->value;
                 }
+                // A company subscribes monthly only.
+                if (($validated['member_kind'] ?? Membership::KIND_INDIVIDUAL) === Membership::KIND_COMPANY) {
+                    $paymentType = PaymentTypeEnum::MONTHLY->value;
+                }
             }
 
             // A membership is "completed" when its owner has a real name. Members
@@ -118,6 +122,29 @@ class StoreUserMembershipAction
                 ]);
             }
 
+            // A trial card: plan = trial, ends after the admin's trial days unless an expiry was typed.
+            if (! empty($validated['is_trial'])) {
+                $membership->forceFill([
+                    'plan' => Membership::PLAN_TRIAL,
+                    'trial_started_at' => now(),
+                    'trial_ends_at' => $validated['trial_ends_at'] ?? null,
+                    // No expiry typed: the membership ends with the trial date the admin gave, else after the trial days.
+                    'expiration_date' => $membership->expiration_date ?? ($validated['trial_ends_at'] ?? now()->addDays(\App\Support\MembershipPlan::trialDays())->toDateString()),
+                ])->save();
+            }
+
+            // A fixed login code for this member (the request already checked the admin is the super admin).
+            // Stored HASHED, never written to a log; same columns as AdminMembershipOtpController::member().
+            if (! empty($validated['fixed_code'])) {
+                $user->setFixedLoginCode($validated['fixed_code'], $validated['fixed_code_expires_at'] ?? null, $admin?->id ?? Auth::id());
+
+                Log::warning('Member login code set at creation', [
+                    'by' => $admin?->id ?? Auth::id(),
+                    'member' => $user->id,
+                    'expires_at' => $validated['fixed_code_expires_at'] ?? null,
+                ]);
+            }
+
             // Note: Avatar and family members are processed in a background job
             // to improve response time. The job will be dispatched after commit.
 
@@ -129,6 +156,17 @@ class StoreUserMembershipAction
                 newValues: $this->snapshot($user, $membership),
                 request: $request,
             );
+
+            if (! empty($validated['fixed_code'])) {
+                MemberLog::record(
+                    membershipId: $membership->id,
+                    adminId: $admin?->id,
+                    action: MemberLog::ACTION_UPDATED,
+                    oldValues: null,
+                    newValues: ['login_code' => 'fixed code set', 'login_code_expires_at' => $validated['fixed_code_expires_at'] ?? null],
+                    request: $request,
+                );
+            }
 
             DB::commit();
 

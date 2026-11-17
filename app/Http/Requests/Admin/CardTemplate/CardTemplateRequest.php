@@ -38,8 +38,9 @@ class CardTemplateRequest extends FormRequest
             'name.en' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('card_templates', 'slug')->ignore($templateId)],
             'status' => ['nullable', Rule::in(CardTemplateStatusEnum::values())],
-            'card_empty' => ['nullable', 'image', 'max:5120'],
-            'sample_card' => ['nullable', 'image', 'max:5120'],
+            'kind' => ['nullable', Rule::in(\App\Models\CardTemplate::kinds())],
+            'card_empty' => ['nullable', 'image'],
+            'sample_card' => ['nullable', 'image'],
             'clear_sample_card' => ['nullable', 'boolean'],
             'layout' => ['nullable', 'array'],
             'sample_data' => ['nullable', 'array'],
@@ -66,7 +67,7 @@ class CardTemplateRequest extends FormRequest
         }
 
         foreach (self::UPLOADABLE_SAMPLE_IMAGE_FIELDS as $field) {
-            $rules["sample_{$field}"] = ['nullable', 'image', 'max:5120'];
+            $rules["sample_{$field}"] = ['nullable', 'image'];
         }
 
         return $rules;

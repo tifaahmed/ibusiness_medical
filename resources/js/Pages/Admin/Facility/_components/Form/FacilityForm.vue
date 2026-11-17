@@ -477,7 +477,7 @@
             <div data-slot="form-item" class="grid gap-1">
 <label class="block text-sm font-medium text-white mb-2">
                 {{ t.facility?.logo || 'Logo' }}
-                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - Max 5MB)' }}</span>
+                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - any size)' }}</span>
               </label>
               <ImageFileInput
                 :max-size="5"
@@ -494,7 +494,7 @@
             <div data-slot="form-item" class="grid gap-1">
 <label class="block text-sm font-medium text-white mb-2">
                 {{ t.facility?.mobile_logo || 'Mobile Logo' }}
-                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - Max 5MB)' }}</span>
+                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - any size)' }}</span>
               </label>
               <ImageFileInput
                 :max-size="5"
@@ -515,7 +515,7 @@
             <div data-slot="form-item" class="grid gap-1">
 <label class="block text-sm font-medium text-white mb-2">
                 {{ t.facility?.cover_image || 'Cover Image' }}
-                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - Max 5MB)' }}</span>
+                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - any size)' }}</span>
               </label>
               <ImageFileInput
                 :max-size="5"
@@ -534,7 +534,7 @@
             <div data-slot="form-item" class="grid gap-1">
 <label class="block text-sm font-medium text-white mb-2">
                 {{ t.facility?.mobile_image || 'Mobile Cover Image' }}
-                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - Max 5MB)' }}</span>
+                <span class="text-xs text-muted-foreground ml-2">{{ t.facility?.optional_max_size || '(Optional - any size)' }}</span>
               </label>
               <ImageFileInput
                 :max-size="5"

@@ -17,6 +17,8 @@
       :value="modelValue"
       @input="$emit('update:modelValue', $event.target.value)"
       type="date"
+      :max="max"
+      :disabled="disabled"
       :required="required"
       :class="[
         'w-full py-2 px-3 border border-border text-foreground placeholder:text-white/70 focus:border-ring dark:bg-input/30 bg-transparent focus:outline-none rounded-md h-9 mt-1 focus:ring-[3px] focus:ring-ring/50',
@@ -38,6 +40,8 @@ const props = defineProps({
   label: String,
   required: Boolean,
   error: String,
+  max: String,
+  disabled: Boolean,
 });
 
 defineEmits(["update:modelValue"]);

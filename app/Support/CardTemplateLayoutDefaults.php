@@ -27,7 +27,7 @@ class CardTemplateLayoutDefaults
     public const EDITOR_WIDTH = 700;
 
     /** Text fields — carry font/colour/direction on top of the box. */
-    public const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone'];
+    public const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone', 'full_name', 'expiry_date'];
 
     /** Fields whose value is an image URL. */
     public const IMAGE_FIELDS = ['logo', 'partner_logo'];
@@ -78,6 +78,17 @@ class CardTemplateLayoutDefaults
                 'x' => 0.1393, 'y' => 0.6175, 'width' => 0.1875, 'height' => 0.2359,
             ],
 
+            // SOFT cards only (a physical template hides both): the member's full name and the day the
+            // membership ends. These are starting positions — the admin drags them where the design wants them.
+            'full_name' => [
+                'x' => 0.1096, 'y' => 0.9000, 'width' => 0.3500, 'height' => 0.0500,
+                'font_family' => 'Tajawal', 'direction' => 'center', 'color' => '#000000', 'font_size' => 18,
+            ],
+            'expiry_date' => [
+                'x' => 0.1096, 'y' => 0.8200, 'width' => 0.3500, 'height' => 0.0450,
+                'font_family' => 'Tajawal', 'direction' => 'center', 'color' => '#000000', 'font_size' => 16,
+            ],
+
             'qrcode' => [
                 'x' => 0.5516, 'y' => 0.0392, 'width' => 0.1710, 'height' => 0.2741,
             ],
@@ -103,6 +114,8 @@ class CardTemplateLayoutDefaults
             'facebook' => 'www.facebook.com/IEasybusiness',
             'website' => 'www.deilar.com',
             'phone' => '01020709993',
+            'full_name' => 'الاسم الكامل للعضو',
+            'expiry_date' => '31/12/2027',
             'barcode' => 'MEM-1000',
             'qrcode' => PublicMembershipUrl::qrForSlug('mem-1000'),
             'qrcode_color' => '#000000',

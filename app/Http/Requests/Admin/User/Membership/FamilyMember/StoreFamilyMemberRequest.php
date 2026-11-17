@@ -54,7 +54,7 @@ class StoreFamilyMemberRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'national_id' => 'nullable|digits:14',
             'email' => 'nullable|email|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
             'is_active' => ['nullable', 'boolean'],
         ];
     }

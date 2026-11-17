@@ -91,8 +91,8 @@ class MembershipController extends Controller
                 $service = new \App\Services\CardGenerationService;
                 $card->load(['user', 'partner', 'company', 'cardLayouts.cardTemplate']);
                 /* Same lock the card endpoint takes, so a request arriving mid-render waits instead of drawing it twice. */
-                \Illuminate\Support\Facades\Cache::lock('card-render:'.$card->id.':front:full', 30)->block(15, fn () => $service->generate($card, 'full'));
-                $service->generateBack($card, 'full');
+                \Illuminate\Support\Facades\Cache::lock('card-render:'.$card->id.':front:full', 30)->block(15, fn () => $service->generate($card, \App\Services\CardGenerationService::customerMode($card, 'full')));
+                $service->generateBack($card, \App\Services\CardGenerationService::customerMode($card, 'full'));
             } catch (Throwable $exception) {
                 Log::error('Trial card artwork could not be pre-rendered.', [
                     'membership_id' => $card->id,
@@ -133,8 +133,8 @@ class MembershipController extends Controller
             'plan' => ['nullable', Rule::in(['year', 'half', 'month'])],
             'reference' => ['nullable', 'string', 'max:190'],
             'receipts' => ['nullable', 'array', 'max:10'],
-            'receipts.*' => ['file', 'mimes:jpeg,png,jpg,webp,pdf', 'max:8192'],
-            'receipt' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp,pdf', 'max:8192'],
+            'receipts.*' => ['file', 'mimes:jpeg,png,jpg,webp,pdf'],
+            'receipt' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp,pdf'],
         ]);
 
         $membership = $user->memberships()->latest('id')->first();
@@ -253,8 +253,8 @@ class MembershipController extends Controller
 
         $validated = $request->validate([
             'national_id' => ['required', 'regex:/^[23]\d{13}$/'],
-            'front' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:6144'],
-            'back' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:6144'],
+            'front' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp'],
+            'back' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp'],
             'note' => ['nullable', 'string', 'max:500'],
         ], [
             'national_id.regex' => 'The national ID must be 14 digits starting with 2 or 3.',

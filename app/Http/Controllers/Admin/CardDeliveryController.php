@@ -122,7 +122,7 @@ class CardDeliveryController extends Controller
             'delivered_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'photos' => ['sometimes', 'array', 'max:20'],
-            'photos.*' => ['image', 'max:8192'],
+            'photos.*' => ['image'],
         ];
     }
 

@@ -73,6 +73,7 @@ class Membership extends Model implements HasMedia
         'plan',
         'source',
         'trial_started_at',
+        'trial_ends_at',
         'member_type',
         'parent_membership_id',
         'relationship',
@@ -100,6 +101,7 @@ class Membership extends Model implements HasMedia
             'completed_at' => 'datetime',
             'is_paid' => 'boolean',
             'trial_started_at' => 'datetime',
+            'trial_ends_at' => 'date',
             'quick_added_at' => 'datetime',
             'quick_wants_card' => 'boolean',
             'approved_at' => 'datetime',
@@ -361,9 +363,67 @@ class Membership extends Model implements HasMedia
 
     public const STATE_INACTIVE = 'inactive';
 
+    /**
+     * On a trial right now. A trial whose own end date has passed while the membership still runs means the member paid:
+     * they are a normal member then (owner decision 2026-11-17). Derived from the dates, so no job has to flip it.
+     */
     public function isTrial(): bool
     {
-        return $this->plan === self::PLAN_TRIAL;
+        if ($this->plan !== self::PLAN_TRIAL) {
+            return false;
+        }
+
+        return ! ($this->trialPeriodOver() && ! $this->isExpired());
+    }
+
+    /** The trial's own end date has passed (false when none was set). */
+    public function trialPeriodOver(): bool
+    {
+        return $this->trial_ends_at !== null && $this->trial_ends_at->copy()->endOfDay()->isPast();
+    }
+
+    /** When the trial ends: its own date, else the membership's expiry. */
+    public function trialEndsOn(): ?\Carbon\Carbon
+    {
+        return $this->trial_ends_at ?? $this->expiration_date;
+    }
+
+    /** The trial's own date has passed: its box is locked (no new trial, no date edits) — owner decision 2026-11-17. */
+    public function trialLocked(): bool
+    {
+        return $this->trialPeriodOver();
+    }
+
+    public function trials(): HasMany
+    {
+        return $this->hasMany(MembershipTrial::class)->orderBy('id');
+    }
+
+    /** Whole days of trial left (0 when over or undated). */
+    public function trialDaysLeft(): int
+    {
+        $end = $this->trialEndsOn();
+
+        return $end === null ? 0 : max(0, (int) ceil(now()->floatDiffInDays($end->copy()->endOfDay(), false)));
+    }
+
+    /** Matches isTrial(): plan = trial and the trial is not over-with-membership-running. */
+    public function scopeOnTrial($query)
+    {
+        return $query->where('plan', self::PLAN_TRIAL)->where(function ($q) {
+            $q->whereNull('trial_ends_at')
+                ->orWhere('trial_ends_at', '>=', now()->toDateString())
+                ->orWhere('expiration_date', '<=', now()->toDateString());
+        });
+    }
+
+    public function scopeNotOnTrial($query)
+    {
+        return $query->where(fn ($q) => $q->where('plan', '!=', self::PLAN_TRIAL)->orWhere(function ($t) {
+            $t->whereNotNull('trial_ends_at')
+                ->where('trial_ends_at', '<', now()->toDateString())
+                ->where(fn ($e) => $e->whereNull('expiration_date')->orWhere('expiration_date', '>', now()->toDateString()));
+        }));
     }
 
     public function isExpired(): bool
@@ -557,6 +617,13 @@ class Membership extends Model implements HasMedia
     /** Set by the admin paths (CreateRelative / UpdateRelative) only: staff may file a relative with the name alone. */
     public bool $skipIdentityCheck = false;
 
+    /**
+     * A relative added while the primary card is on TRIAL tries with it: it is active at once and keeps the primary's
+     * trial end date (owner decision 2026-11-17). Set only by `CreateRelative`; once the relative pays its own fee the
+     * date becomes its own (`fee_order_id`).
+     */
+    public bool $followsTrialExpiry = false;
+
     protected static function guardRelative(self $membership): void
     {
         if (! $membership->isRelative()) {
@@ -587,7 +654,7 @@ class Membership extends Model implements HasMedia
         // expiry date `RelativeFee::activateFor` gave it (a period ahead).
         $membership->plan = self::PLAN_RELATIVE; // the column is NOT NULL; 'relative' is never trial or full
 
-        if ($membership->fee_order_id === null) {
+        if ($membership->fee_order_id === null && ! $membership->followsTrialExpiry && (! $membership->exists || $membership->isDirty('expiration_date'))) {
             $membership->expiration_date = null;
         }
 
@@ -641,6 +708,16 @@ class Membership extends Model implements HasMedia
                 }
             }
         });
+
+        // A changed expiry date is printed on the soft card: redraw it on the next view.
+        static::saved(function (self $membership) {
+            if ($membership->wasChanged('expiration_date')) {
+                \App\Services\CardGenerationService::forgetSoftRender($membership->id);
+            }
+        });
+
+        // Every start / extension / end of a trial is written to the member's trial history.
+        static::saved(fn (self $membership) => \App\Support\TrialHistory::afterSave($membership));
 
         static::saved(function ($membership) {
             if ($membership->wasChanged('is_active')) {

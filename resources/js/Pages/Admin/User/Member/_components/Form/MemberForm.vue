@@ -394,14 +394,64 @@
                 {{ t.member?.paid_membership_help || 'Check if this membership has been paid for.' }}
               </p>
             </div>
-            <div v-if="memberStore.form.id">
+            <div>
               <FormCheckbox
                 v-model="memberStore.form.is_trial"
                 :label="t.member?.trial_membership || 'Trial Membership'"
                 :error="memberStore.validationErrors?.is_trial"
+                :disabled="trialLocked"
+                data-testid="trial-checkbox"
               />
+              <p v-if="trialLocked" class="panel-note mt-1 p-2 text-xs" data-testid="trial-locked-note">
+                {{ t.member?.trial_locked || 'The trial has ended, so the trial box is locked.' }}
+              </p>
+              <button
+                v-if="memberStore.form.slug"
+                type="button"
+                class="mt-2 inline-flex h-8 min-w-[8rem] items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-primary hover:text-primary-foreground"
+                data-testid="trial-history-open"
+                @click="trialHistoryOpen = true"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                {{ t.member?.trial_history || 'Trial history' }}
+              </button>
+              <TrialHistoryDialog :open="trialHistoryOpen" :user-slug="memberStore.form.slug" @close="trialHistoryOpen = false" />
               <p class="text-xs text-white/70 mt-1">
                 {{ t.member?.trial_membership_help || 'A free trial card: it ends on its expiry date, earns no member price once expired and cannot hold relatives. Untick to make it a regular card (the same as the ✕ on the members list).' }}
+              </p>
+              <div v-if="memberStore.form.is_trial" class="mt-2">
+                <FormDateInput
+                  v-model="memberStore.form.trial_ends_at"
+                  :label="t.member?.trial_ends_at || 'Trial ends on'"
+                  :error="memberStore.validationErrors?.trial_ends_at"
+                  :max="memberStore.form.expiration_date || undefined"
+                  :disabled="trialLocked"
+                  required
+                  data-testid="trial-ends-at"
+                />
+                <p class="text-xs text-white/70 mt-1">
+                  {{ t.member?.trial_ends_at_help || 'Required for a trial account. It must be on or before the membership expiry date. Once it passes while the membership is still running, the member counts as a paid member.' }}
+                </p>
+              </div>
+            </div>
+            <div v-if="!memberStore.form.id && isSuperAdmin" class="md:col-span-2 rounded-md border border-amber-400/40 p-3 space-y-2">
+              <FormInput
+                v-model="memberStore.form.fixed_code"
+                :label="t.member?.fixed_login_code || 'Fixed login code (optional)'"
+                :error="memberStore.validationErrors?.fixed_code"
+                inputmode="numeric"
+                maxlength="8"
+                placeholder="4–8 digits"
+              />
+              <FormInput
+                v-if="memberStore.form.fixed_code"
+                v-model="memberStore.form.fixed_code_expires_at"
+                type="datetime-local"
+                :label="t.member?.fixed_login_code_expires || 'Code expires at (optional)'"
+                :error="memberStore.validationErrors?.fixed_code_expires_at"
+              />
+              <p class="text-xs text-white/70">
+                {{ t.member?.fixed_login_code_help || 'This member signs in with this code instead of an SMS code. Stored hashed; every use is audited. Leave empty to follow the site login setting. Anyone who knows it can sign in as this member.' }}
               </p>
             </div>
             <div>
@@ -416,16 +466,20 @@
                 {{ t.member?.member_kind_help || 'Individual or company: decides which subscription prices the member is offered (set in Settings).' }}
               </p>
             </div>
-            <div v-if="false && memberStore.form.is_paid">
+            <div v-if="memberStore.form.is_paid">
               <FormSelect
                 v-model="memberStore.form.payment_type"
                 :label="t.member?.payment_type || 'Payment Type'"
                 :options="paymentTypeOptions"
                 :error="memberStore.validationErrors?.payment_type"
+                data-testid="member-payment-type"
               />
               <p class="text-xs text-white/70 mt-1">
-                {{ t.member?.payment_type_help || 'Payment type is set automatically based on partner association.' }}
+                {{ t.member?.company_monthly_only || 'A company subscribes monthly only. Individuals can choose monthly, half-yearly or yearly.' }}
               </p>
+            </div>
+            <div v-if="isCompany" class="panel-note md:col-span-2" data-testid="company-ibusiness-notice" role="note">
+              {{ t.member?.company_phone_ibusiness_notice || 'Company member: this phone number must be registered in ibusiness.' }}
             </div>
           </div>
         </div>
@@ -510,6 +564,7 @@ import Modal from "@/Components/Modal.vue";
 import { useMemberStore } from "../../Stores/MemberStore";
 import { usePage } from "@inertiajs/vue3";
 import PhoneConflict from './PhoneConflict.vue';
+import TrialHistoryDialog from './TrialHistoryDialog.vue';
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 
@@ -517,6 +572,7 @@ const memberStore = useMemberStore();
 const { form } = storeToRefs(memberStore);
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
+const isSuperAdmin = computed(() => (page.props.authUserRoles || page.props.auth?.user?.roles || []).includes('super_admin'));
 const companyOptions = computed(() => page.props.companyOptions || []);
 const partnerOptions = computed(() => page.props.partnerOptions || []);
 const salesOptions = computed(() => page.props.salesOptions || []);
@@ -540,7 +596,7 @@ watch(
   },
   { immediate: true }
 );
-const requiresPaidMonthlyFields = computed(() => Boolean(memberStore.form.is_paid) && memberStore.form.payment_type === 'monthly');
+const requiresPaidMonthlyFields = computed(() => Boolean(memberStore.form.is_paid) && memberStore.form.payment_type === 'monthly' && memberStore.form.member_kind === 'company');
 
 // Phone and National ID are digit-only fields with a fixed length, so both are
 // sanitised as they're typed and surfaced with a live counter. Phone must be an
@@ -574,10 +630,25 @@ const memberKindOptions = computed(() => [
   { value: 'individual', label: t.value.member?.kind_individual || 'Individual' },
   { value: 'company', label: t.value.member?.kind_company || 'Company' },
 ]);
-const paymentTypeOptions = computed(() => [
-  { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
-  { value: 'monthly', label: t.value.member?.payment_type_monthly || 'Monthly' },
-]);
+const trialHistoryOpen = ref(false);
+// The trial's own end date has passed: the box and its date are locked (the backend refuses a change too).
+const trialLocked = computed(() => Boolean(memberStore.form.trial_locked));
+const isCompany = computed(() => memberStore.form.member_kind === 'company');
+// A company subscribes monthly only; an individual picks monthly, half-yearly or yearly.
+const paymentTypeOptions = computed(() => {
+  const monthly = { value: 'monthly', label: t.value.member?.payment_type_monthly || 'Monthly' };
+  if (isCompany.value) return [monthly];
+  return [
+    monthly,
+    { value: 'half_yearly', label: t.value.member?.payment_type_half_yearly || 'Half-yearly' },
+    { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
+  ];
+});
+
+// Switching to a company locks the plan to monthly.
+watch([() => memberStore.form.member_kind, () => memberStore.form.is_paid], ([kind, paid]) => {
+  if (kind === 'company' && paid) memberStore.form.payment_type = 'monthly';
+});
 
 // Default payment_type to monthly when partner is selected
 watch(() => memberStore.form.partner_id, (partnerId) => {

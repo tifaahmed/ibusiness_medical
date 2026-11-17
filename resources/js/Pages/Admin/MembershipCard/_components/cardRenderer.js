@@ -32,7 +32,7 @@ const QR_FRAME_BORDER = 5 / CARD_W; // as a fraction, so it scales with the card
 const QR_QUIET_ZONE = 22 / 281; // fraction of the QR box left white around the modules
 const QR_CORNER_RADIUS = 18 / 281;
 
-const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone'];
+const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone', 'full_name', 'expiry_date'];
 const IMAGE_FIELDS = ['logo', 'partner_logo'];
 
 /** Mirrors CardTemplateLayoutDefaults::layout() — used when no template is given. */

@@ -55,6 +55,9 @@ class ActivateSubscription
                     'member_type' => Membership::TYPE_PRIMARY,
                     'former_parent_membership_id' => $membership->parent_membership_id,
                     'parent_membership_id' => null,
+                    'company_id' => null,
+                    'member_kind' => Membership::KIND_INDIVIDUAL,
+                    'fee_order_id' => null,
                 ]);
             }
 

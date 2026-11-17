@@ -40,6 +40,8 @@ class MembershipCardController extends Controller
             ->firstOrFail();
 
         $mode = in_array($request->input('mode'), ['full', 'minimal']) ? $request->input('mode') : 'full';
+        // A member whose card has a SOFT design is shown that one for the usual `full` request.
+        $mode = CardGenerationService::customerMode($membershipModel, $mode);
 
         $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();
 
@@ -105,6 +107,8 @@ class MembershipCardController extends Controller
             ->firstOrFail();
 
         $mode = in_array($request->input('mode'), ['full', 'minimal']) ? $request->input('mode') : 'full';
+        // A member whose card has a SOFT design is shown that one for the usual `full` request.
+        $mode = CardGenerationService::customerMode($membershipModel, $mode);
 
         $service = new CardGenerationService;
         $url = $service->generateBack($membershipModel, $mode);
@@ -146,6 +150,8 @@ class MembershipCardController extends Controller
             ->firstOrFail();
 
         $mode = in_array($request->input('mode'), ['full', 'minimal']) ? $request->input('mode') : 'full';
+        // A member whose card has a SOFT design is shown that one for the usual `full` request.
+        $mode = CardGenerationService::customerMode($membershipModel, $mode);
 
         // Return the existing URL when the card is already generated.
         $layout = $membershipModel->cardLayouts()->where('mode', $mode)->first();

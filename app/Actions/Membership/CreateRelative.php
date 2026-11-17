@@ -52,9 +52,12 @@ class CreateRelative
 
         $this->assertFree($phone, $email, $nationalId);
 
-        $isActive = $addedBy === Membership::ADDED_BY_ADMIN ? (bool) ($data['is_active'] ?? true) : false;
+        // On a TRIAL card the family tries too: active at once, same end date as the primary, no approval (2026-11-17).
+        $onTrial = $primary->isTrial() && $primary->isCurrent();
 
-        return DB::transaction(function () use ($byAdmin, $primary, $data, $phone, $email, $nationalId, $dateOfBirth, $addedBy, $adminId, $request, $isActive) {
+        $isActive = $addedBy === Membership::ADDED_BY_ADMIN ? (bool) ($data['is_active'] ?? true) : $onTrial;
+
+        return DB::transaction(function () use ($byAdmin, $primary, $data, $phone, $email, $nationalId, $dateOfBirth, $addedBy, $adminId, $request, $isActive, $onTrial) {
             $relationship = (string) $data['relationship'];
 
             $user = new User;
@@ -73,6 +76,7 @@ class CreateRelative
 
             $relative = new Membership;
             $relative->skipIdentityCheck = $byAdmin;
+            $relative->followsTrialExpiry = $onTrial;
             $relative->forceFill([
                 'user_id' => $user->id,
                 'membership_number' => $number,
@@ -93,6 +97,7 @@ class CreateRelative
                 'sales_id' => $primary->sales_id,
                 'created_by' => $adminId ?? $primary->created_by,
                 'is_active' => $isActive,
+                'expiration_date' => $onTrial ? $primary->expiration_date : null,
                 'is_visible' => true,
                 'is_paid' => false,
                 'registration_date' => $now,

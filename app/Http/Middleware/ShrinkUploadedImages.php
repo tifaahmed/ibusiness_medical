@@ -9,7 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Admin uploads may be ANY size: every image in the request is brought under 1 MB (no crop, see ImageShrinker) before the
+ * Uploads (admin, member app, website, guest) may be ANY size: every image in the request is brought under 100 KB (no crop, see ImageShrinker) before the
  * controller, the validation `max:` rules or the media library ever see it. Files that are not images are left alone.
  */
 class ShrinkUploadedImages

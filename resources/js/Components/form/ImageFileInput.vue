@@ -34,7 +34,7 @@
             <span class="font-semibold text-foreground">{{ t.image?.upload_click || 'Click to upload' }}</span> {{ t.image?.drag_drop || 'or drag and drop' }}
           </p>
           <p class="text-xs text-muted-foreground">
-            {{ t.image?.formats || 'PNG, JPG, JPEG, AVIF' }} ({{ t.common?.max || 'MAX' }}. {{ maxSize }}MB)
+            {{ t.image?.formats || 'PNG, JPG, JPEG, AVIF' }} (any size · images shrink to ~100 KB)
           </p>
           <p v-if="error" class="mt-2 text-xs text-destructive font-medium">{{ error }}</p>
         </div>
@@ -58,7 +58,7 @@
             <span class="font-semibold text-foreground">{{ t.image?.upload_click || 'Click to upload' }}</span> {{ t.image?.drag_drop || 'or drag and drop' }}
           </p>
           <p class="text-xs text-muted-foreground">
-            {{ t.image?.formats || 'PNG, JPG, JPEG, AVIF' }} ({{ t.common?.max || 'MAX' }}. {{ maxSize }}MB)
+            {{ t.image?.formats || 'PNG, JPG, JPEG, AVIF' }} (any size · images shrink to ~100 KB)
           </p>
           <p v-if="error" class="mt-2 text-xs text-destructive font-medium">{{ error }}</p>
         </div>
@@ -189,11 +189,6 @@ const validateFile = (file) => {
     return false;
   }
 
-  const maxBytes = props.maxSize * 1024 * 1024;
-  if (file.size > maxBytes) {
-    error.value = t.value.image?.size_limit || `Image size should not exceed ${props.maxSize}MB`;
-    return false;
-  }
 
   return true;
 };

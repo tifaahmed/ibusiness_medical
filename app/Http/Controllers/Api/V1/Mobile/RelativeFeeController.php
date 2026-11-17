@@ -35,18 +35,27 @@ class RelativeFeeController extends Controller
 {
     public function __construct(private readonly SendOrderReceipt $sendReceipt) {}
 
-    /** What the screen draws: the fee, the ways to pay and the relatives still waiting for their payment. */
+    /**
+     * What the screen draws: the fee plans, the ways to pay, who can be paid for. A PRIMARY card sees every relative (waiting, active,
+     * expired); a RELATIVE who signed in sees only themself. `can_pay` is false (with a `reason`) when the card behind is a trial or has
+     * lapsed — then a relative has to buy a normal plan of their own instead.
+     */
     public function show(Request $request): JsonResponse
     {
         $card = $this->cardOf($request->user());
+        $reason = $this->refusalFor($card);
 
         return response()->json(['data' => [
             'fee' => RelativeFee::fee($card),
+            'can_pay' => $reason === null,
+            'reason' => $reason,
             'payment_methods' => PaymentMethods::flags(PaymentMethods::CONTEXT_MEMBERSHIP),
-            'waiting' => $card === null || $card->isRelative() ? [] : $this->waiting($card)->map(fn (Membership $m) => [
+            'waiting' => $reason !== null || $card === null ? [] : $this->payable($card)->map(fn (Membership $m) => [
                 'id' => $m->id,
                 'name' => $m->user?->name,
                 'relationship' => $m->relationship,
+                'state' => $m->state(),
+                'expiration_date' => $m->expiration_date?->toDateString(),
             ])->values()->all(),
         ]]);
     }
@@ -56,20 +65,23 @@ class RelativeFeeController extends Controller
         $user = $request->user();
         $card = $this->cardOf($user);
 
-        if ($card === null || $card->isRelative() || ! $card->isCurrent() || $card->isTrial()) {
-            return response()->json(['reason' => 'not_current', 'message' => 'Relatives are paid for by a primary member with a paid, current card.'], Response::HTTP_FORBIDDEN);
+        if ($reason = $this->refusalFor($card)) {
+            return response()->json(['reason' => $reason, 'message' => $reason === 'parent_not_paid'
+                ? 'The card you belong to has not paid, so you buy a normal subscription of your own.'
+                : 'Relatives are paid for by a paid, current card.'], Response::HTTP_FORBIDDEN);
         }
 
-        $waiting = $this->waiting($card)->keyBy('id');
-        $perRelative = RelativeFee::perRelative();
+        $waiting = $this->payable($card)->keyBy('id');
 
-        if ($perRelative <= 0) {
+        if (RelativeFee::plans() === []) {
             return response()->json(['reason' => 'free', 'message' => 'Relatives carry no fee right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $data = $request->validate([
             'relative_ids' => ['required', 'array', 'min:1', 'max:15'],
             'relative_ids.*' => ['integer', Rule::in($waiting->keys()->all())],
+            'plan' => ['nullable', Rule::in([RelativeFee::PLAN_MONTH, RelativeFee::PLAN_YEAR])],
+            'use_points' => ['nullable', 'boolean'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
                 if (! in_array($value, PaymentMethods::orderTypes(PaymentMethods::CONTEXT_MEMBERSHIP), true)) {
                     $fail('This payment method is not available right now.');
@@ -78,12 +90,19 @@ class RelativeFeeController extends Controller
             'buyer_ip' => ['nullable', 'ip'],
         ]);
 
+        $plan = RelativeFee::plan($data['plan'] ?? null);
+        if ($plan === null) {
+            return response()->json(['reason' => 'plan_not_sold', 'message' => 'This plan is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $perRelative = $plan['price'];
+
         $ids = array_values(array_unique(array_map('intval', $data['relative_ids'])));
         $paymentType = PaymentTypeEnum::from($data['payment_type']);
         $total = round($perRelative * count($ids), 2);
 
         try {
-            $order = DB::transaction(function () use ($ids, $waiting, $perRelative, $total, $paymentType, $user, $card, $request, $data) {
+            $order = DB::transaction(function () use ($ids, $waiting, $perRelative, $total, $paymentType, $user, $card, $request, $data, $plan) {
                 $order = Order::query()->create([
                     'order_code' => Order::generateCode(),
                     'user_id' => $user->id,
@@ -107,13 +126,13 @@ class RelativeFeeController extends Controller
                     'source' => RelativeFee::SOURCE,
                 ]);
 
-                $order->products()->saveMany(array_map(function (int $id) use ($waiting, $perRelative) {
+                $order->products()->saveMany(array_map(function (int $id) use ($waiting, $perRelative, $plan) {
                     $relative = $waiting->get($id);
                     $who = (string) $relative?->user?->name;
 
                     return new OrderProduct([
                         'name' => ['ar' => "اشتراك قريب — {$who}", 'en' => "Relative subscription — {$who}"],
-                        'slug' => 'relative-fee-'.$id,
+                        'slug' => RelativeFee::lineSlug($id, $plan['key']),
                         'quantity' => 1,
                         'old_price' => null,
                         'new_price' => $perRelative,
@@ -123,7 +142,12 @@ class RelativeFeeController extends Controller
 
                 Membership::query()->whereIn('id', $ids)->update(['fee_order_id' => $order->id]);
 
-                return $order;
+                // Points are spent only when the member presses «pay with points» (never automatically); the backend counts the pounds.
+                if ($request->boolean('use_points')) {
+                    \App\Support\PointsPayments::applyToOrder($order, $user, \App\Support\PointsPayments::eligible([['amount' => $total, 'cap' => null]]));
+                }
+
+                return $order->refresh();
             });
         } catch (Throwable $exception) {
             Log::error('Relative fee order could not be placed.', ['user_id' => $user->id, 'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString()]);
@@ -136,7 +160,8 @@ class RelativeFeeController extends Controller
             'source' => RelativeFee::SOURCE,
             'relatives' => $ids,
             'unit_price' => $perRelative,
-            'months' => RelativeFee::months(),
+            'plan' => $plan['key'],
+            'months' => $plan['months'],
             'total_amount' => (float) $order->total_amount,
             'payment_type' => $order->payment_type->value,
             'membership_number' => $order->membership_number,
@@ -149,17 +174,38 @@ class RelativeFeeController extends Controller
         return response()->json(['order' => new OrderResource($order->fresh()->load('products'))], Response::HTTP_CREATED);
     }
 
-    /** The primary's relatives that were added by the member and still wait for their fee (no paid order covers them). */
-    private function waiting(Membership $card): \Illuminate\Support\Collection
+    /**
+     * Who the signed-in card may pay for: a primary pays for any of its relatives that are not refused (waiting, active or lapsed — so the
+     * same screen renews); a relative pays only for themself. A fee already sitting in a PENDING order is not offered twice.
+     */
+    private function payable(Membership $card): \Illuminate\Support\Collection
     {
-        return $card->relatives()->with('user')
-            ->where('is_active', false)
-            ->where('approval_status', ApprovalStatusEnum::PENDING->value)
-            ->where('added_by', Membership::ADDED_BY_MEMBER)
-            ->orderBy('id')->get()
-            ->filter(fn (Membership $m) => $m->fee_order_id === null
-                || ! Order::query()->whereKey($m->fee_order_id)->whereIn('payment_status', [PaymentStatusEnum::PENDING, PaymentStatusEnum::ACCEPTED])->exists())
-            ->values();
+        $query = $card->isRelative()
+            ? Membership::query()->with('user')->whereKey($card->id)
+            : $card->relatives()->with('user')->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value);
+
+        return $query->orderBy('id')->get()->filter(fn (Membership $m) => $m->fee_order_id === null
+            || ! Order::query()->whereKey($m->fee_order_id)->where('payment_status', PaymentStatusEnum::PENDING)->exists())->values();
+    }
+
+    /** Why this card may not pay relative fees, or null. A relative on an unpaid card pays a normal plan instead. */
+    private function refusalFor(?Membership $card): ?string
+    {
+        if ($card === null) {
+            return 'no_card';
+        }
+
+        $governing = $card->governingCard();
+
+        if ($governing->isTrial()) {
+            return 'trial';
+        }
+
+        if (! $governing->isCurrent()) {
+            return $card->isRelative() ? 'parent_not_paid' : 'not_current';
+        }
+
+        return null;
     }
 
     private function cardOf(User $user): ?Membership

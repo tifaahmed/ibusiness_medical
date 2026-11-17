@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
 
         $middleware->web(append: [
+            \App\Http\Middleware\ShrinkUploadedImages::class,
             \App\Http\Middleware\AttachErrorDebug::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\ShareUserPermissions::class,
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\CacheControl::class,
         ]);
+
+        $middleware->api(append: [\App\Http\Middleware\ShrinkUploadedImages::class]);
 
         // Global (not in the api group) so it also sees 401s from auth, 429s from throttles and 404s for unknown URLs.
         $middleware->append(\App\Http\Middleware\LogApiFailures::class);

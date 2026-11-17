@@ -15,11 +15,11 @@ use Throwable;
  */
 class ImageShrinker
 {
-    /** A little under 1 MiB, so "1 MB" holds whichever way it is counted. */
-    public const LIMIT_BYTES = 1_000_000;
+    /** About 100 KB (a little under, so it holds however KB is counted). */
+    public const LIMIT_BYTES = 100_000;
 
     /** Quality steps tried at full size, best first. */
-    private const QUALITIES = [92, 88, 84, 80, 76, 72, 68];
+    private const QUALITIES = [90, 82, 74, 66, 58, 50, 42];
 
     private const MIME = ['image/jpeg' => 'jpg', 'image/png' => 'webp', 'image/webp' => 'webp'];
 
@@ -52,7 +52,7 @@ class ImageShrinker
             // Last resort: the same picture with fewer pixels (never enlarged, never cropped).
             for ($step = 0; $step < 20; $step++) {
                 $source = $source->scale(width: max(64, (int) round($source->width() * 0.9)));
-                $bytes = self::encode($source, $extension, 72);
+                $bytes = self::encode($source, $extension, 60);
 
                 if (strlen($bytes) <= $limit || $source->width() <= 64) {
                     break;

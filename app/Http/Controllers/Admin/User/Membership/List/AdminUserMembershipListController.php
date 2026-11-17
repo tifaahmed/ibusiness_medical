@@ -220,13 +220,13 @@ class AdminUserMembershipListController extends BaseController
                 $listingFilter($mq);
             }))
             ->when($filters['is_trial'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
-                $mq->where('plan', Membership::PLAN_TRIAL);
+                $mq->onTrial();
                 $listingFilter($mq);
             }))
             ->when($filters['has_static_otp'] === true, fn ($q) => $q->withActiveFixedCode())
             ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereNotIn('users.id', User::query()->withActiveFixedCode()->select('id')))
             ->when($filters['is_trial'] === false, fn ($q) => $q->whereHas('memberships', function ($mq) use ($listingFilter) {
-                $mq->where('plan', '!=', Membership::PLAN_TRIAL);
+                $mq->notOnTrial();
                 $listingFilter($mq);
             }))
             ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('memberships', function ($mq) use ($filters, $listingFilter) {
@@ -489,8 +489,8 @@ class AdminUserMembershipListController extends BaseController
             ->when($filters['has_custom_card'] === false, fn ($q) => $q->whereNotIn('id', $customCardMembershipIds))
             ->when($filters['pending_relatives'] === true, fn ($q) => $q->whereHas('relatives', fn ($f) => $f->where('approval_status', 'pending')))
             ->when($filters['member_type'] !== null, fn ($q) => $q->where('member_type', $filters['member_type']))
-            ->when($filters['is_trial'] === true, fn ($q) => $q->where('plan', Membership::PLAN_TRIAL))
-            ->when($filters['is_trial'] === false, fn ($q) => $q->where('plan', '!=', Membership::PLAN_TRIAL))
+            ->when($filters['is_trial'] === true, fn ($q) => $q->onTrial())
+            ->when($filters['is_trial'] === false, fn ($q) => $q->notOnTrial())
             ->when($filters['has_static_otp'] === true, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->withActiveFixedCode()))
             ->when($filters['has_static_otp'] === false, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->whereNotIn('users.id', User::query()->withActiveFixedCode()->select('id'))))
             ->when($this->hasPaidFilter($filters), fn ($q) => $q->whereHas('subscriptions', fn ($sq) => $this->paidSubscriptions($sq, $filters)))

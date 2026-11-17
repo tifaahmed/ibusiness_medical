@@ -148,7 +148,7 @@
                 </svg>
                 {{ t.add_images || 'Add Receipt / Bill Images' }}
               </button>
-              <p class="text-xs text-muted-foreground">{{ t.gallery_formats || 'Accepted: JPEG, JPG, PNG, GIF, WEBP, AVIF · Max 5 MB per image' }}</p>
+              <p class="text-xs text-muted-foreground">{{ t.gallery_formats || 'Accepted: JPEG, JPG, PNG, GIF, WEBP, AVIF · any size per image' }}</p>
             </div>
 
             <input
@@ -245,7 +245,7 @@ const galleryError = (index) => {
     return t.value.gallery_error_invalid || 'Invalid file type. Only JPEG, JPG, PNG, GIF, WEBP, and AVIF images are allowed.';
   }
   if (raw.includes('validation.max')) {
-    return t.value.gallery_error_size || 'File exceeds 5 MB.';
+    return t.value.gallery_error_size || 'File is too large.';
   }
   return raw;
 };

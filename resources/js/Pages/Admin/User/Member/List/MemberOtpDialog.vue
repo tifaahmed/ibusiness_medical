@@ -130,7 +130,7 @@
                 class="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-[11px] text-amber-600 dark:text-amber-400"
               >
                 A fixed code is active for this member{{ member.otp_fixed_code_expires_at ? ` until ${new Date(member.otp_fixed_code_expires_at).toLocaleString()}` : ' with no expiry' }}.
-                It is stored hashed and cannot be read back; typing a new one replaces it.
+                The code and date are shown in the fields above{{ member.otp_fixed_code_value ? '' : ' (this code was set before it could be shown, so only the date is filled — type a new one to see it here)' }}; typing a new one replaces it.
               </p>
             </template>
             <p v-if="error" class="text-[11px] text-destructive">{{ error }}</p>
@@ -233,6 +233,15 @@ const masterSaved = ref(false);
 
 /* Re-seeded every time it opens, so a dialog closed without saving does not
    show yesterday's answer the next time it is opened. */
+// ISO time -> the value a datetime-local input takes, in the browser's own time zone.
+const toLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 watch(() => props.open, (isOpen) => {
   if (!isOpen) return;
 
@@ -246,9 +255,9 @@ watch(() => props.open, (isOpen) => {
   masterError.value = '';
 
   if (props.member) {
-    // The stored code is hashed: there is nothing to show, only a new one to type.
-    code.value = '';
-    expiresAt.value = '';
+    // The code (super admin only; null for codes set before it could be read back) and its expiry are shown as typed.
+    code.value = props.member.otp_fixed_code_value || '';
+    expiresAt.value = toLocalInput(props.member.otp_fixed_code_expires_at);
   } else {
     smsEnabled.value = props.policy?.sms_enabled !== false;
     message.value = props.policy?.message || '';

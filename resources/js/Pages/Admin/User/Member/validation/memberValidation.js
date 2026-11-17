@@ -36,9 +36,9 @@ export const memberSchema = z.object({
         .optional()
         .or(z.literal(''))
         .transform(val => val ? String(val).trim() : ''),
+    // Required for a normal card; a trial card may leave it empty (checked in the superRefine below).
     national_id: z.string()
-        .min(1, 'National ID number is required')
-        .regex(/^\d{14}$/, 'National ID number must be exactly 14 digits'),
+        .regex(/^(\d{14})?$/, 'National ID number must be exactly 14 digits'),
     registration_date: z.string()
         .min(1, 'Registration date is required')
         .refine((date) => {
@@ -67,6 +67,7 @@ export const memberSchema = z.object({
     is_trial: z.boolean()
         .optional()
         .default(false),
+    trial_ends_at: z.string().optional().or(z.literal('')).nullable(),
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
@@ -112,16 +113,34 @@ export const memberSchema = z.object({
 }).superRefine((data, ctx) => {
     // Governorate and city are always required — they anchor the primary
     // address written on save.
-    if (!data.governorate_id) {
+    // A TRIAL card may leave the National ID, governorate and city empty.
+    if (!data.is_trial && !data.national_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'National ID number is required', path: ['national_id'] });
+    }
+    if (!data.is_trial && !data.governorate_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
     }
-    if (!data.city_id) {
+    if (!data.is_trial && !data.city_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
+    }
+}).superRefine((data, ctx) => {
+    // A trial account needs the day its trial ends, on or before the membership expiry.
+    if (!data.is_trial) return;
+    if (!data.trial_ends_at) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Trial end date is required for a trial account', path: ['trial_ends_at'] });
+        return;
+    }
+    if (data.expiration_date && new Date(data.trial_ends_at) > new Date(data.expiration_date)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The trial end date must be on or before the membership expiry date', path: ['trial_ends_at'] });
     }
 }).superRefine((data, ctx) => {
     // Company and Sales are required when the
     // membership is paid with a monthly payment type.
-    if (!(data.is_paid && data.payment_type === 'monthly')) return;
+    if (data.is_paid && data.member_kind === 'company' && data.payment_type && data.payment_type !== 'monthly') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A company can only have a monthly subscription', path: ['payment_type'] });
+    }
+    // Only a company is tied to a company + salesperson; an individual may simply choose monthly.
+    if (!(data.is_paid && data.payment_type === 'monthly' && data.member_kind === 'company')) return;
     if (!data.company_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Company is required for a paid monthly membership', path: ['company_id'] });
     }
@@ -184,9 +203,9 @@ export const memberUpdateSchema = z.object({
         .optional()
         .or(z.literal(''))
         .transform(val => val ? String(val).trim() : ''),
+    // Required for a normal card; a trial card may leave it empty (checked in the superRefine below).
     national_id: z.string()
-        .min(1, 'National ID number is required')
-        .regex(/^\d{14}$/, 'National ID number must be exactly 14 digits'),
+        .regex(/^(\d{14})?$/, 'National ID number must be exactly 14 digits'),
     registration_date: z.string()
         .optional()
         .or(z.literal(''))
@@ -215,6 +234,7 @@ export const memberUpdateSchema = z.object({
     is_trial: z.boolean()
         .optional()
         .default(false),
+    trial_ends_at: z.string().optional().or(z.literal('')).nullable(),
     payment_type: z.string()
         .optional()
         .or(z.literal('')),
@@ -262,16 +282,34 @@ export const memberUpdateSchema = z.object({
 }).superRefine((data, ctx) => {
     // Governorate and city are always required — they anchor the primary
     // address written on save.
-    if (!data.governorate_id) {
+    // A TRIAL card may leave the National ID, governorate and city empty.
+    if (!data.is_trial && !data.national_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'National ID number is required', path: ['national_id'] });
+    }
+    if (!data.is_trial && !data.governorate_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Governorate is required', path: ['governorate_id'] });
     }
-    if (!data.city_id) {
+    if (!data.is_trial && !data.city_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
+    }
+}).superRefine((data, ctx) => {
+    // A trial account needs the day its trial ends, on or before the membership expiry.
+    if (!data.is_trial) return;
+    if (!data.trial_ends_at) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Trial end date is required for a trial account', path: ['trial_ends_at'] });
+        return;
+    }
+    if (data.expiration_date && new Date(data.trial_ends_at) > new Date(data.expiration_date)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The trial end date must be on or before the membership expiry date', path: ['trial_ends_at'] });
     }
 }).superRefine((data, ctx) => {
     // Company and Sales are required when the
     // membership is paid with a monthly payment type.
-    if (!(data.is_paid && data.payment_type === 'monthly')) return;
+    if (data.is_paid && data.member_kind === 'company' && data.payment_type && data.payment_type !== 'monthly') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A company can only have a monthly subscription', path: ['payment_type'] });
+    }
+    // Only a company is tied to a company + salesperson; an individual may simply choose monthly.
+    if (!(data.is_paid && data.payment_type === 'monthly' && data.member_kind === 'company')) return;
     if (!data.company_id) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Company is required for a paid monthly membership', path: ['company_id'] });
     }
@@ -325,6 +363,7 @@ export const validateMemberForm = (memberData, isUpdate = false) => {
             is_visible: typeof memberData.is_visible === 'boolean' ? memberData.is_visible : (memberData.is_visible === 'true' || memberData.is_visible === true || memberData.is_visible === 1),
             is_paid: typeof memberData.is_paid === 'boolean' ? memberData.is_paid : (memberData.is_paid === 'true' || memberData.is_paid === true || memberData.is_paid === 1),
             is_trial: typeof memberData.is_trial === 'boolean' ? memberData.is_trial : (memberData.is_trial === 'true' || memberData.is_trial === true || memberData.is_trial === 1),
+            trial_ends_at: memberData.trial_ends_at?.toString() || '',
             payment_type: memberData.payment_type?.toString() || '',
             member_kind: memberData.member_kind?.toString() || undefined,
             company_id: memberData.company_id ?? null,

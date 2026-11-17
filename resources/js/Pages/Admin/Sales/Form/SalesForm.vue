@@ -69,7 +69,7 @@
           <div data-slot="form-item" class="grid gap-1">
             <label class="block text-sm font-medium text-white mb-2">
               {{ t.sales?.sales_image || 'Sales Image' }}
-              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - 2MB)</span>
+              <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - any size)</span>
             </label>
             <ImageFileInput
               :max-size="2"

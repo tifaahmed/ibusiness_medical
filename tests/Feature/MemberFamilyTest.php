@@ -106,8 +106,9 @@ class MemberFamilyTest extends TestCase
         [$mother, $membership] = $this->member('Mona Adel', 'female');
         Sanctum::actingAs($mother);
 
+        // 2026-11-17: a mother adds children too, but only once her husband is on the card.
         $this->postJson('/api/v1/family/children', ['first_name' => 'Omar', 'relationship' => 'son', 'date_of_birth' => '2015-05-05'])
-            ->assertForbidden();
+            ->assertStatus(422);
 
         $this->assertDatabaseMissing('memberships', ['parent_membership_id' => $membership->id]);
     }
@@ -237,8 +238,9 @@ class MemberFamilyTest extends TestCase
         $child = $this->relative($membership, 'Omar Mona Adel', 'son');
         Sanctum::actingAs($mother);
 
-        $this->putJson("/api/v1/family/children/{$child->id}", ['first_name' => 'Omar', 'relationship' => 'son'])->assertForbidden();
-        $this->deleteJson("/api/v1/family/children/{$child->id}")->assertForbidden();
+        // 2026-11-17: a mother manages her own children as a father does.
+        $this->putJson("/api/v1/family/children/{$child->id}", ['first_name' => 'Omar', 'relationship' => 'son'])->assertOk();
+        $this->deleteJson("/api/v1/family/children/{$child->id}")->assertOk();
     }
 
     /** @test */

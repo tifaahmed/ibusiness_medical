@@ -60,15 +60,15 @@ class UpdateProductRequest extends FormRequest
             'tag_ids' => 'nullable|array',
             'tag_ids.*' => 'integer|exists:tags,id',
             'sync_tags' => 'nullable|boolean',
-            'large_image' => 'nullable|image|max:10240',
-            'small_image' => 'nullable|image|max:10240',
-            'og_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif|max:5120',
+            'large_image' => 'nullable|image',
+            'small_image' => 'nullable|image',
+            'og_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp,avif',
             'og_image_delete' => 'nullable|boolean',
             'remove_large_image' => 'nullable|boolean',
             'remove_small_image' => 'nullable|boolean',
             // New gallery files are appended; existing ones are dropped by id.
             'gallery' => 'nullable|array',
-            'gallery.*' => 'image|max:10240',
+            'gallery.*' => 'image',
             // Paths returned by the description-editor upload endpoint; they
             // become gallery rows on save.
             'editor_gallery_paths' => 'nullable|array',

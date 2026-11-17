@@ -73,6 +73,11 @@
                 {{ statusLabel(tpl.status) }}
               </span>
             </div>
+            <div>
+              <span class="chip" :class="tpl.kind === 'soft' ? 'chip-info' : 'chip-neutral'" data-testid="template-kind-chip">
+                {{ tpl.kind === 'soft' ? 'Soft card (on screen)' : 'Physical card' }}
+              </span>
+            </div>
 
             <div class="text-[11px] text-muted-foreground">
               {{ Object.keys(tpl.layout || {}).length }} fields

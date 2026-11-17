@@ -28,7 +28,7 @@
           <span class="font-semibold text-foreground">{{ t.member?.gallery_click_upload || 'Click to upload' }}</span>
           {{ t.member?.gallery_or_drag || 'or drag and drop multiple images' }}
         </p>
-        <p class="text-xs text-muted-foreground mt-1">PNG, JPG, JPEG, WEBP, AVIF (MAX. 5MB each)</p>
+        <p class="text-xs text-muted-foreground mt-1">PNG, JPG, JPEG, WEBP, AVIF (any size each)</p>
         <input
           ref="fileInput"
           type="file"
@@ -144,9 +144,8 @@ watch(
 
 const acceptFiles = (files) => {
   const accepted = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/gif", "image/avif"];
-  const max = 5 * 1024 * 1024;
   return Array.from(files).filter(
-    (f) => accepted.includes(f.type) && f.size <= max
+    (f) => accepted.includes(f.type)
   );
 };
 

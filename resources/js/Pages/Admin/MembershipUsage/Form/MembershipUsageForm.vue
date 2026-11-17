@@ -184,7 +184,7 @@
 
         <!-- Accepted formats hint -->
         <p class="text-xs text-muted-foreground">
-          {{ t.gallery_formats || 'Accepted: JPEG, JPG, PNG, GIF, WEBP, AVIF · Max 5 MB per image' }}
+          {{ t.gallery_formats || 'Accepted: JPEG, JPG, PNG, GIF, WEBP, AVIF · any size per image' }}
         </p>
       </div>
     </div>
@@ -253,7 +253,7 @@ const galleryError = (index) => {
     return t.value.gallery_error_invalid || 'Invalid file. Only JPEG, JPG, PNG, GIF, WEBP, and AVIF images are allowed.';
   }
   if (raw.includes('validation.max')) {
-    return t.value.gallery_error_size || 'File exceeds the 5 MB size limit.';
+    return t.value.gallery_error_size || 'File is too large.';
   }
   return raw;
 };

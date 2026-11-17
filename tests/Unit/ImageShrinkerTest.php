@@ -25,7 +25,7 @@ class ImageShrinkerTest extends TestCase
         return new UploadedFile($path, 'photo.'.$type, $type === 'png' ? 'image/png' : 'image/jpeg', null, true);
     }
 
-    public function test_big_jpeg_goes_under_one_megabyte_with_the_same_frame(): void
+    public function test_big_jpeg_goes_under_the_limit_with_the_same_frame(): void
     {
         $file = $this->noisy('jpg', 2600, 1800);
         $this->assertGreaterThan(ImageShrinker::LIMIT_BYTES, $file->getSize());
@@ -47,7 +47,7 @@ class ImageShrinkerTest extends TestCase
 
     public function test_a_small_image_is_returned_untouched(): void
     {
-        $file = $this->noisy('jpg', 200, 200);
+        $file = $this->noisy('jpg', 40, 40);
 
         $this->assertSame($file, ImageShrinker::shrink($file));
     }

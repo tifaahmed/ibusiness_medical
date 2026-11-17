@@ -71,13 +71,7 @@ class ProductController extends Controller
             // Named products are a basket being re-priced, so they bypass the
             // shop-window switch (same rule as the web catalogue).
             ->when(empty($v['slugs']), fn (Builder $q) => $q->visibleInShop(), fn (Builder $q) => $q->whereIn('products.slug', $v['slugs']))
-            ->when(! empty($v['q']), function (Builder $q) use ($v) {
-                $name = DirectorySearch::translated('name', app()->getLocale());
-
-                foreach (DirectorySearch::words($v['q']) as $word) {
-                    $q->where(fn ($w) => $w->whereRaw("{$name} like ?", ['%'.$word.'%'])->orWhere('products.slug', 'like', '%'.$word.'%'));
-                }
-            })
+            ->when(! empty($v['q']), fn (Builder $q) => $this->matchingTyped($q, (string) $v['q']))
             ->when(! empty($v['type']), fn (Builder $q) => $q->where('products.product_type_id', (int) $v['type']))
             ->when(! empty($v['store_id']), fn (Builder $q) => $q->where('products.store_id', (int) $v['store_id']))
             // Only the products that accept loyalty points (the app's «points» filter).
@@ -96,6 +90,46 @@ class ProductController extends Controller
         $data = $page->getCollection()->map(fn (Product $p) => $this->card($p, $types))->values()->all();
 
         return $this->respond($request, ['data' => $data, 'has_more' => $page->hasMorePages()], 120);
+    }
+
+    /**
+     * Free-text search over products: every typed word must be found somewhere — the product's name, slug, short subject,
+     * description or keywords, its type, its tags, its store's title, or the address / city / governorate of the store's
+     * branches (Arabic and English both). So one box finds a product by its name, its topic, or where it is sold.
+     */
+    private function matchingTyped(Builder $query, string $term): Builder
+    {
+        $anyLocale = function ($builder, string $column, string $word): void {
+            foreach (['ar', 'en'] as $locale) {
+                $builder->orWhereRaw(DirectorySearch::translated($column, $locale).' like ?', ['%'.$word.'%']);
+            }
+        };
+
+        foreach (DirectorySearch::words($term) as $word) {
+            $query->where(function ($w) use ($word, $anyLocale): void {
+                foreach (['name', 'short_subject', 'description', 'meta_keywords'] as $column) {
+                    $anyLocale($w, $column, $word);
+                }
+
+                $w->orWhere('products.slug', 'like', '%'.$word.'%')
+                    ->orWhereHas('productType', fn ($t) => $t->where(fn ($y) => $anyLocale($y, 'name', $word)))
+                    ->orWhereHas('tags', fn ($t) => $t->where(fn ($y) => $anyLocale($y, 'name', $word)))
+                    ->orWhereHas('store', function ($st) use ($word, $anyLocale): void {
+                        $st->where(function ($x) use ($word, $anyLocale): void {
+                            $anyLocale($x, 'title', $word);
+                            $x->orWhereHas('branches', function ($b) use ($word, $anyLocale): void {
+                                $b->where(function ($y) use ($word, $anyLocale): void {
+                                    $anyLocale($y, 'address', $word);
+                                    $y->orWhereHas('city', fn ($c) => $c->where(fn ($z) => $anyLocale($z, 'name', $word)))
+                                        ->orWhereHas('governorate', fn ($g) => $g->where(fn ($z) => $anyLocale($z, 'name', $word)));
+                                });
+                            });
+                        });
+                    });
+            });
+        }
+
+        return $query;
     }
 
     public function show(Request $request, Product $product): JsonResponse

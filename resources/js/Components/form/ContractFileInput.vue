@@ -107,7 +107,7 @@
         <span class="font-semibold text-foreground">{{ t.image?.upload_click || 'Click to upload' }}</span> {{ t.image?.drag_drop || 'or drag and drop' }}
       </p>
       <p class="text-xs text-muted-foreground">
-        {{ t.facility?.contract_formats || 'PDF, JPEG, JPG, PNG, GIF, WEBP' }} ({{ t.common?.max || 'MAX' }}. {{ maxSize }}MB)
+        {{ t.facility?.contract_formats || 'PDF, JPEG, JPG, PNG, GIF, WEBP' }} (any size · images shrink to ~100 KB)
       </p>
       <p v-if="error" class="mt-2 text-xs text-destructive font-medium">{{ error }}</p>
     </div>
@@ -268,13 +268,6 @@ const validateFile = (file) => {
     error.value =
       t.value.facility?.contract_invalid ||
       'Invalid file. Allowed: JPEG, JPG, PNG, GIF, WEBP, AVIF, PDF.';
-    return false;
-  }
-  const maxBytes = props.maxSize * 1024 * 1024;
-  if (file.size > maxBytes) {
-    error.value =
-      t.value.facility?.contract_size ||
-      `File size should not exceed ${props.maxSize}MB`;
     return false;
   }
   return true;

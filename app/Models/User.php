@@ -56,6 +56,14 @@ class User extends Authenticatable implements HasMedia
     protected static function booted(): void
     {
         static::saving(fn (self $user) => static::guardUnique($user, 'phone', 'This phone number already belongs to another member.'));
+
+        // The member's full name is printed on the soft card: redraw it on the next view.
+        static::updated(function (self $user) {
+            if ($user->wasChanged('name')) {
+                \App\Models\Membership::query()->where('user_id', $user->id)->pluck('id')
+                    ->each(fn ($id) => \App\Services\CardGenerationService::forgetSoftRender((int) $id));
+            }
+        });
     }
 
     /**
@@ -107,6 +115,7 @@ class User extends Authenticatable implements HasMedia
      * @var array<int, string>
      */
     protected $hidden = [
+        'otp_fixed_code_encrypted',
         'password',
         'remember_token',
         'two_factor_recovery_codes',
@@ -157,6 +166,36 @@ class User extends Authenticatable implements HasMedia
      * Get the memberships for the user.
      */
     /** Whether this member signs in with a fixed code right now (set, and not past its expiry). */
+    /**
+     * Store (or clear, with null) this member's fixed login code. Verification uses the HASH; the encrypted
+     * copy exists only so the super admin can read back what they typed.
+     */
+    public function setFixedLoginCode(?string $code, $expiresAt, ?int $adminId): void
+    {
+        $this->forceFill([
+            'otp_fixed_code' => null,
+            'otp_fixed_code_hash' => $code === null ? null : \Illuminate\Support\Facades\Hash::make($code),
+            'otp_fixed_code_encrypted' => $code === null ? null : \Illuminate\Support\Facades\Crypt::encryptString($code),
+            'otp_fixed_code_length' => $code === null ? null : strlen($code),
+            'otp_fixed_code_expires_at' => $code === null ? null : $expiresAt,
+            'otp_fixed_code_set_by' => $code === null ? null : $adminId,
+        ])->save();
+    }
+
+    /** The code as typed, only for codes set after the encrypted copy existed; null otherwise. */
+    public function fixedLoginCodeValue(): ?string
+    {
+        if (! $this->hasActiveFixedCode() || empty($this->otp_fixed_code_encrypted)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Crypt::decryptString($this->otp_fixed_code_encrypted);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     public function hasActiveFixedCode(): bool
     {
         return $this->otp_fixed_code_hash !== null

@@ -285,7 +285,7 @@
         <div data-slot="form-item" class="grid gap-1">
           <label class="block text-sm font-medium text-white mb-2">
             {{ t.service?.main_image || 'Main Image' }}
-            <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - 2MB)</span>
+            <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - any size)</span>
           </label>
           <ImageFileInput
             :max-size="2"
@@ -302,7 +302,7 @@
         <div data-slot="form-item" class="grid gap-1">
           <label class="block text-sm font-medium text-white mb-2">
             {{ t.service?.gallery || 'Gallery' }}
-            <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - 2MB each)</span>
+            <span class="text-xs text-muted-foreground ml-2">({{ t.common?.optional || 'Optional' }} - any size)</span>
           </label>
 
           <!-- Existing gallery images -->

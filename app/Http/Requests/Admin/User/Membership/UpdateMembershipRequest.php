@@ -181,7 +181,7 @@ class UpdateMembershipRequest extends FormRequest
             'phone' => ['required', 'string', 'regex:/^01\d{9}$/', $this->uniqueUnlessUnchanged('users', 'phone', $user->id, $user->phone, 'This phone number already belongs to another member.')],
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'membership_number' => $membershipNumberRule,
-            'national_id' => ['required', 'string', 'digits:14', $this->uniqueUnlessUnchanged('memberships', 'national_id', $membershipId, $editingMembership?->national_id, 'This National ID already belongs to another card.')],
+            'national_id' => [$this->boolean('is_trial') ? 'nullable' : 'required', 'string', 'digits:14', $this->uniqueUnlessUnchanged('memberships', 'national_id', $membershipId, $editingMembership?->national_id, 'This National ID already belongs to another card.')],
             'registration_date' => 'nullable|date',
             // Expiration Date field hidden from the create/edit UI — no longer required from the admin.
             'expiration_date' => [
@@ -199,6 +199,8 @@ class UpdateMembershipRequest extends FormRequest
             'is_visible' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
             'is_trial' => ['nullable', 'boolean'],
+            // A trial must say the day it ends; it can be the membership's expiry or earlier (checked in withValidator).
+            'trial_ends_at' => [Rule::requiredIf(fn () => $this->boolean('is_trial')), 'nullable', 'date'],
             'payment_type' => ['nullable', 'string', Rule::in(PaymentTypeEnum::values())],
             'member_kind' => ['sometimes', 'string', Rule::in(Membership::kinds())],
             'job_title' => ['nullable', 'array'],
@@ -214,8 +216,8 @@ class UpdateMembershipRequest extends FormRequest
                     : []),
             ],
             'sales_id' => ['nullable', 'integer', 'exists:sales,id', Rule::requiredIf($this->requiresPaidMonthlyFields())],
-            'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
-            'city_id' => ['required', 'integer', 'exists:cities,id'],
+            'governorate_id' => [$this->boolean('is_trial') ? 'nullable' : 'required', 'integer', 'exists:governorates,id'],
+            'city_id' => [$this->boolean('is_trial') ? 'nullable' : 'required', 'integer', 'exists:cities,id'],
             // The member's primary address. Governorate and city are required;
             // everything else is optional detail for the courier.
             'address_type' => ['nullable', 'string', Rule::in(AddressTypeEnum::values())],
@@ -246,11 +248,11 @@ class UpdateMembershipRequest extends FormRequest
                 // Rule::requiredIf($this->requiresInitialPayment($editingMembership)),
             ],
             'initial_payment_notes' => ['nullable', 'string', 'max:1000'],
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:2048',
-            'contract_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,avif|max:5120',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,avif',
+            'contract_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,avif',
             'contract_image_remove' => 'nullable|boolean',
             'gallery_images' => 'nullable|array',
-            'gallery_images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,avif|max:5120',
+            'gallery_images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,avif',
             'gallery_remove_ids' => 'nullable|array',
             'gallery_remove_ids.*' => 'integer',
         ];
@@ -336,7 +338,47 @@ class UpdateMembershipRequest extends FormRequest
      */
     private function requiresPaidMonthlyFields(): bool
     {
-        return $this->boolean('is_paid') && $this->input('payment_type') === PaymentTypeEnum::MONTHLY->value;
+        // Only a company is tied to a company + salesperson; an individual may simply choose "monthly".
+        return $this->boolean('is_paid')
+            && $this->input('payment_type') === PaymentTypeEnum::MONTHLY->value
+            && $this->effectiveKind() === Membership::KIND_COMPANY;
+    }
+
+    /** The kind being saved: the one typed on the form, else the one the membership already has. */
+    private function effectiveKind(): string
+    {
+        if ($this->filled('member_kind')) {
+            return (string) $this->input('member_kind');
+        }
+        $user = $this->getRouteUser();
+        $existing = $user
+            ? ($user->memberships()->where('is_active', true)->first() ?? $user->memberships()->orderBy('created_at', 'desc')->first())
+            : null;
+
+        return $existing?->member_kind ?? Membership::KIND_INDIVIDUAL;
+    }
+
+    /** A company subscribes monthly only; individuals may pick monthly, half-yearly or yearly. */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($v) {
+            // Once a trial's own end date has passed its box is locked: no new trial, no switching it off, no new date.
+            $user = $this->getRouteUser();
+            $existing = $user
+                ? ($user->memberships()->where('is_active', true)->first() ?? $user->memberships()->orderBy('created_at', 'desc')->first())
+                : null;
+            if ($existing && $existing->trialLocked() && $this->has('is_trial') && $this->boolean('is_trial') !== $existing->isTrial()) {
+                $v->errors()->add('is_trial', __('admin.member.trial_locked'));
+            }
+            if ($this->boolean('is_trial') && $this->filled('trial_ends_at') && $this->filled('expiration_date')
+                && \Illuminate\Support\Carbon::parse($this->input('trial_ends_at'))->gt(\Illuminate\Support\Carbon::parse($this->input('expiration_date')))) {
+                $v->errors()->add('trial_ends_at', __('admin.member.trial_ends_after_expiry'));
+            }
+            if ($this->effectiveKind() === Membership::KIND_COMPANY && $this->boolean('is_paid')
+                && $this->filled('payment_type') && $this->input('payment_type') !== PaymentTypeEnum::MONTHLY->value) {
+                $v->errors()->add('payment_type', __('admin.member.payment_type_company_monthly'));
+            }
+        });
     }
 
     /**
