@@ -56,8 +56,8 @@ return new class extends Migration
         }
 
         $grants = [
-            'view card deliveries' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::ADMIN, UserRoleEnum::EDITOR, UserRoleEnum::VIEWER],
-            'manage card deliveries' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::ADMIN, UserRoleEnum::EDITOR],
+            'view card deliveries' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::EDITOR, UserRoleEnum::VIEWER],
+            'manage card deliveries' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::EDITOR],
         ];
         foreach ($grants as $name => $roles) {
             $id = DB::table('permissions')->where('name', $name)->where('guard_name', 'web')->value('id')

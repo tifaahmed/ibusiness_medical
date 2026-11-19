@@ -61,6 +61,9 @@ class StoreProductAction
                     ->toMediaCollection('small_image');
             }
 
+            // No small image sent: the large one is compressed into it (≤ 100 KB).
+            $product->load('media')->ensureSmallImage();
+
             if (isset($validated['og_image'])) {
                 $product->addMedia($validated['og_image'])
                     ->toMediaCollection('og_image');

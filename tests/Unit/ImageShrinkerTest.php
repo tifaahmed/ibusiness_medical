@@ -66,4 +66,70 @@ class ImageShrinkerTest extends TestCase
         $this->assertLessThanOrEqual(ImageShrinker::LIMIT_BYTES, $request->file('gallery')[0]->getSize());
         $this->assertGreaterThan(ImageShrinker::LIMIT_BYTES, $request->file('contract')->getSize());
     }
+
+    public function test_a_small_jfif_keeps_its_bytes_but_becomes_a_jpg(): void
+    {
+        $small = $this->noisy('jpg', 40, 40);
+        $file = new UploadedFile($small->getRealPath(), 'logo.jfif', 'image/jpeg', null, true);
+
+        $out = ImageShrinker::shrink($file);
+
+        $this->assertSame('logo.jpg', $out->getClientOriginalName());
+        $this->assertSame('image/jpeg', $out->getMimeType());
+        $this->assertSame(md5_file($small->getRealPath()), md5_file($out->getRealPath()));
+    }
+
+    public function test_a_png_named_jpg_gets_the_png_extension(): void
+    {
+        $im = imagecreatetruecolor(20, 20);
+        $path = tempnam(sys_get_temp_dir(), 'img_');
+        imagepng($im, $path);
+
+        $out = ImageShrinker::normalize(new UploadedFile($path, 'shot.jpg', 'image/jpeg', null, true));
+
+        $this->assertSame('shot.png', $out->getClientOriginalName());
+    }
+
+    public function test_a_bmp_is_converted_to_webp(): void
+    {
+        $im = imagecreatetruecolor(30, 20);
+        $path = tempnam(sys_get_temp_dir(), 'img_');
+        imagebmp($im, $path);
+
+        $out = ImageShrinker::normalize(new UploadedFile($path, 'scan.bmp', 'image/bmp', null, true));
+
+        $this->assertSame('scan.webp', $out->getClientOriginalName());
+        $this->assertSame('image/webp', $out->getMimeType());
+        $this->assertSame([30, 20], array_slice(getimagesize($out->getRealPath()), 0, 2));
+    }
+
+    public function test_a_heic_photo_is_converted_to_jpeg(): void
+    {
+        if (! class_exists(\Imagick::class) || ! \Imagick::queryFormats('HEIC')) {
+            $this->markTestSkipped('Imagick without HEIC');
+        }
+        $im = new \Imagick;
+        $im->newImage(24, 16, 'red');
+        $im->setImageFormat('heic');
+        $path = tempnam(sys_get_temp_dir(), 'img_');
+        try {
+            file_put_contents($path, $im->getImagesBlob());
+        } catch (\Throwable) {
+            $this->markTestSkipped('Imagick cannot write HEIC here');
+        }
+
+        $out = ImageShrinker::normalize(new UploadedFile($path, 'IMG_1.HEIC', 'image/heic', null, true));
+
+        $this->assertSame('IMG_1.jpg', $out->getClientOriginalName());
+        $this->assertSame('image/jpeg', $out->getMimeType());
+    }
+
+    public function test_a_text_file_is_left_alone(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'txt_');
+        file_put_contents($path, 'hello');
+        $file = new UploadedFile($path, 'notes.jfif', 'image/jpeg', null, true);
+
+        $this->assertSame($file, ImageShrinker::normalize($file));
+    }
 }

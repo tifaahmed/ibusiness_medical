@@ -248,6 +248,49 @@ class Product extends Model implements HasMedia
             ->singleFile();
     }
 
+    /**
+     * A product with a large image and no small one (saved with only the large, or the small one deleted in edit) gets the
+     * large one COMPRESSED into the small slot: at most 600 px wide, under ~100 KB ({@see \App\Services\Images\ImageShrinker}).
+     */
+    public function ensureSmallImage(): void
+    {
+        $large = $this->getFirstMedia('large_image');
+
+        if (! $large || $this->getFirstMedia('small_image') || ! is_file($large->getPath())) {
+            return;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'small_');
+
+        try {
+            try {
+                $image = \Intervention\Image\Laravel\Facades\Image::decodePath($large->getPath())->scaleDown(width: 600);
+                $ext = $large->mime_type === 'image/jpeg' ? 'jpg' : 'webp';
+                file_put_contents($tmp, (string) $image->encodeUsingFormat($ext === 'jpg' ? \Intervention\Image\Format::JPEG : \Intervention\Image\Format::WEBP, quality: 85));
+                $mime = $ext === 'jpg' ? 'image/jpeg' : 'image/webp';
+            } catch (\Throwable $e) {
+                // A type the server cannot decode (GIF animation, SVG…): use the large file as it is.
+                \Illuminate\Support\Facades\Log::warning('Product small image: resize failed, copying the large one', ['product_id' => $this->id, 'error' => $e->getMessage()]);
+                copy($large->getPath(), $tmp);
+                $ext = pathinfo($large->file_name, PATHINFO_EXTENSION);
+                $mime = $large->mime_type;
+            }
+
+            $name = pathinfo($large->file_name, PATHINFO_FILENAME).'-small.'.$ext;
+            $file = \App\Services\Images\ImageShrinker::shrink(new \Illuminate\Http\UploadedFile($tmp, $name, $mime, null, true));
+
+            $this->addMedia($file->getRealPath())
+                ->usingFileName(pathinfo($name, PATHINFO_FILENAME).'.'.$file->getClientOriginalExtension())
+                ->usingName(pathinfo($name, PATHINFO_FILENAME))
+                ->preservingOriginal()
+                ->toMediaCollection('small_image');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Product small image could not be made from the large one', ['product_id' => $this->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
     /** Most loyalty points this product may take in one order: its own `points_max` if set, else the system's; null = no limit. */
     public function pointsCap(): ?int
     {

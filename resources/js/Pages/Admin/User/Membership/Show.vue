@@ -607,6 +607,104 @@
         </div>
       </div>
 
+      <!-- Referral: the code this member entered (the discount it gave, what the referrer earned) and the referrer's details. Read only. -->
+      <div v-if="referral" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="member-referral">
+        <h3 class="text-base font-semibold text-white flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+          {{ t.member?.referral || 'Referral' }}
+        </h3>
+
+        <div v-if="referral.brought_by" class="space-y-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div class="rounded-lg border border-border p-3">
+              <div class="text-xs text-muted-foreground">{{ t.member?.referral_code_entered || 'Code entered' }}</div>
+              <div class="mt-1"><span class="chip chip-accent tabular-nums" dir="ltr">{{ referral.brought_by.code }}</span></div>
+            </div>
+            <div class="rounded-lg border border-border p-3">
+              <div class="text-xs text-muted-foreground">{{ t.member?.referral_discount || 'Discount given' }}</div>
+              <div class="text-lg font-bold tabular-nums value-positive" dir="ltr">{{ referral.brought_by.discount }} EGP</div>
+            </div>
+            <div class="rounded-lg border border-border p-3">
+              <div class="text-xs text-muted-foreground">{{ t.member?.referral_entered_at || 'Entered' }}</div>
+              <div class="text-sm font-medium tabular-nums" dir="ltr">{{ referral.brought_by.entered_at }}</div>
+              <span class="chip chip-neutral mt-1">{{ referral.brought_by.source }}</span>
+            </div>
+            <div class="rounded-lg border border-border p-3">
+              <div class="text-xs text-muted-foreground">{{ t.member?.referral_referrer_earned || 'Referrer earned from this member' }}</div>
+              <div class="text-lg font-bold tabular-nums value-info" dir="ltr">{{ referral.brought_by.referrer_earned }} EGP</div>
+            </div>
+          </div>
+
+          <div v-if="referral.brought_by.subscription" class="rounded-lg border border-border p-3 text-sm flex flex-wrap items-center gap-2">
+            <span class="text-muted-foreground">{{ t.member?.referral_used_on || 'Discount used on subscription' }}</span>
+            <span class="chip chip-neutral" dir="ltr">#{{ referral.brought_by.subscription.id }}</span>
+            <span class="chip chip-info" dir="ltr">{{ referral.brought_by.subscription.method }} · {{ referral.brought_by.subscription.channel }}</span>
+            <span class="chip" :class="referral.brought_by.subscription.status === 'accepted' ? 'chip-positive' : 'chip-warning'">{{ referral.brought_by.subscription.status }}</span>
+            <span class="tabular-nums font-semibold" dir="ltr">{{ referral.brought_by.subscription.amount }} EGP / {{ referral.brought_by.subscription.months }} {{ t.member?.months || 'months' }}</span>
+            <span class="value-muted tabular-nums" dir="ltr">{{ referral.brought_by.subscription.paid_at }}</span>
+          </div>
+          <p v-else class="text-sm value-warning">{{ t.member?.referral_not_used || 'Not subscribed yet — the discount waits for the first subscription.' }}</p>
+
+          <div v-if="referral.brought_by.rewards.length" class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-xs sm:text-sm">
+              <thead><tr class="border-b border-border">
+                <th class="text-left text-muted-foreground font-medium px-2 py-1.5">{{ t.member?.referral_reward || 'Reward to the referrer' }}</th>
+                <th class="text-right text-muted-foreground font-medium px-2 py-1.5">{{ t.member?.amount || 'Amount' }}</th>
+                <th class="text-center text-muted-foreground font-medium px-2 py-1.5">{{ t.member?.status || 'Status' }}</th>
+                <th class="text-left text-muted-foreground font-medium px-2 py-1.5 hidden md:table-cell">{{ t.member?.payment_notes || 'Notes' }}</th>
+                <th class="text-left text-muted-foreground font-medium px-2 py-1.5 hidden sm:table-cell">{{ t.member?.payment_date || 'Date' }}</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="w in referral.brought_by.rewards" :key="w.id" class="border-b border-border last:border-0">
+                  <td class="px-2 py-1.5"><span class="chip chip-accent">{{ w.kind }}</span> <span v-if="w.plan" class="chip chip-neutral">{{ w.plan }}</span></td>
+                  <td class="px-2 py-1.5 text-right tabular-nums font-semibold" :class="w.status === 'reversed' ? 'value-negative' : 'value-positive'" dir="ltr">{{ w.amount }} EGP</td>
+                  <td class="px-2 py-1.5 text-center"><span class="chip" :class="w.status === 'paid' ? 'chip-positive' : (w.status === 'reversed' ? 'chip-negative' : 'chip-warning')">{{ w.status }}</span></td>
+                  <td class="px-2 py-1.5 value-muted hidden md:table-cell">{{ w.note || '—' }}</td>
+                  <td class="px-2 py-1.5 value-muted tabular-nums whitespace-nowrap hidden sm:table-cell" dir="ltr">{{ w.at }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- The code's owner -->
+          <div v-if="referral.referrer" class="rounded-lg border border-border p-3 space-y-2" data-testid="member-referrer">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-xs text-muted-foreground">{{ t.member?.referral_owner || 'Code owner (referrer)' }}</div>
+              <a v-if="!referral.referrer.missing && !referral.referrer.deleted" :href="route('admin.user.membership.show', referral.referrer.slug)" target="_blank" rel="noopener" class="text-xs value-info hover:underline">{{ t.member?.open_new_tab || 'Open in a new tab' }} ↗</a>
+              <a v-else-if="referral.referrer.deleted" :href="route('admin.user.membership.trash', { search: referral.referrer.phone || referral.referrer.number })" target="_blank" rel="noopener" class="text-xs value-info hover:underline">{{ t.member?.open_trash || 'Account deleted — open it in Trash (restore there)' }} ↗</a>
+            </div>
+            <p v-if="referral.referrer.missing" class="text-sm value-negative">{{ t.member?.referral_owner_missing || 'The card that owned this code no longer exists.' }} <span dir="ltr">{{ referral.referrer.number }}</span></p>
+            <template v-else>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-white">{{ referral.referrer.name }}</span>
+                <span v-if="referral.referrer.deleted" class="chip chip-negative">{{ t.member?.deleted || 'Deleted' }} <span dir="ltr">{{ referral.referrer.deleted_at }}</span></span>
+                <span class="chip chip-neutral tabular-nums" dir="ltr">{{ referral.referrer.number }}</span>
+                <span v-if="referral.referrer.card_state" class="chip" :class="['active','trial'].includes(referral.referrer.card_state) ? (referral.referrer.card_state === 'trial' ? 'chip-warning' : 'chip-positive') : 'chip-negative'">{{ referral.referrer.card_state }}</span>
+                <span v-if="referral.referrer.member_type" class="chip chip-accent">{{ referral.referrer.member_type }}</span>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.phone || 'Phone' }}</span><a v-if="referral.referrer.phone" :href="`tel:${referral.referrer.phone}`" class="tabular-nums value-info" dir="ltr">{{ referral.referrer.phone }}</a><span v-else>—</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.email || 'Email' }}</span><span class="break-all">{{ referral.referrer.email || '—' }}</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.expiration_date || 'Expires' }}</span><span class="tabular-nums" dir="ltr">{{ referral.referrer.expiration_date || '—' }}</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.joined || 'Joined' }}</span><span class="tabular-nums" dir="ltr">{{ referral.referrer.joined_at || '—' }}</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.referral_brought || 'Members brought' }}</span><span class="tabular-nums font-semibold" dir="ltr">{{ referral.referrer.referred_count }}</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.referral_total_earned || 'Total referral earnings' }}</span><span class="tabular-nums font-semibold value-positive" dir="ltr">{{ referral.referrer.total_earned }} EGP</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.wallet_balance || 'Wallet' }}</span><span class="tabular-nums font-semibold value-info" dir="ltr">{{ referral.referrer.wallet_balance }} EGP</span></div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <p v-else class="text-sm value-muted">{{ t.member?.referral_none || 'This member did not enter a referral code.' }}</p>
+
+        <div v-if="referral.my_referrals.count" class="text-sm flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <span class="text-muted-foreground">{{ t.member?.referral_this_member_brought || 'This member brought' }}</span>
+          <span class="chip chip-info tabular-nums" dir="ltr">{{ referral.my_referrals.count }}</span>
+          <span class="text-muted-foreground">{{ t.member?.referral_earned || 'earned' }}</span>
+          <span class="chip chip-positive tabular-nums" dir="ltr">{{ referral.my_referrals.earned }} EGP</span>
+          <a :href="route('admin.referrals.index', { search: user.phone || user.name })" target="_blank" rel="noopener" class="text-xs value-info hover:underline">{{ t.member?.open_new_tab || 'Open in a new tab' }} ↗</a>
+        </div>
+      </div>
+
       <div v-if="loyalty" class="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4" data-testid="member-loyalty">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-base font-semibold text-white">{{ t.member?.loyalty_wallet || 'Loyalty & wallet' }}</h3>
@@ -915,6 +1013,7 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  referral: { type: Object, default: null },
   notes: {
     type: Array,
     default: null,

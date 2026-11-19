@@ -44,8 +44,8 @@
                 <td class="p-2 align-middle whitespace-nowrap">
                   <div class="flex items-center gap-3">
                     <img
-                      v-if="product.small_image"
-                      :src="product.small_image"
+                      v-if="product.small_image || product.large_image"
+                      :src="product.small_image || product.large_image"
                       :alt="getTranslatedName(product.name)"
                       class="w-10 h-10 rounded-md object-cover border border-border"
                     />

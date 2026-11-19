@@ -5,6 +5,15 @@
 # line is harmless to keep either way.
 AddHandler application/x-httpd-alt-php84___lsphp .php
 
+# Image types the server does not know. Without these, older uploads such as
+# *.jfif (JPEG saved by Facebook/Windows) are served as text/plain and, with
+# X-Content-Type-Options: nosniff below, browsers refuse to draw them.
+# New uploads are already renamed/converted by App\Services\Images\ImageShrinker::normalize().
+AddType image/jpeg .jfif .jfi .jpe .pjpeg .pjp
+AddType image/webp .webp
+AddType image/avif .avif
+AddType image/heic .heic
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

@@ -41,7 +41,12 @@ class AdminUserMembershipTrashController extends BaseController
 
         $users = User::onlyTrashed()
             ->whereHas('memberships', $trashScope)
-            ->when(! empty($filters['search']), fn ($q) => $q->search($filters['search']))
+            // Name / email, and also phone and card number (links from other pages search by those).
+            ->when(! empty($filters['search']), fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', '%'.$filters['search'].'%')
+                ->orWhere('email', 'like', '%'.$filters['search'].'%')
+                ->orWhere('phone', 'like', '%'.$filters['search'].'%')
+                ->orWhereHas('memberships', fn ($m) => $m->withTrashed()->where('membership_number', 'like', '%'.$filters['search'].'%'))))
             ->when($filters['is_active'] === true, fn ($q) => $q->whereHas('memberships', function ($mq) use ($trashScope) {
                 $trashScope($mq);
                 $mq->where('is_active', true);

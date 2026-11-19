@@ -29,8 +29,8 @@ return new class extends Migration
         }
 
         $grants = [
-            'view member notes' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::ADMIN, UserRoleEnum::EDITOR, UserRoleEnum::VIEWER],
-            'add member notes' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::ADMIN, UserRoleEnum::EDITOR],
+            'view member notes' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::EDITOR, UserRoleEnum::VIEWER],
+            'add member notes' => [UserRoleEnum::SUPER_ADMIN, UserRoleEnum::EDITOR],
         ];
 
         foreach ($grants as $name => $roles) {

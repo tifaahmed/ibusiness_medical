@@ -66,6 +66,9 @@ class UpdateProductAction
                 $product->clearMediaCollection('small_image');
             }
 
+            // No small image (never had one, or just deleted): the large one is compressed into it (≤ 100 KB).
+            $product->load('media')->ensureSmallImage();
+
             if (isset($validated['og_image'])) {
                 $product->clearMediaCollection('og_image');
                 $product->addMedia($validated['og_image'])

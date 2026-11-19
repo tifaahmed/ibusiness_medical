@@ -66,6 +66,8 @@ class AdminUserMembershipShowController extends BaseController
             'cardTemplates' => $this->cardTemplatesByStatus(),
             // Read-only loyalty and wallet picture (points, plays, conversions, transfers, relatives).
             'loyalty' => AdminMemberLoyalty::summary($user),
+            // Read-only referral picture: the code this member entered (discount, rewards) and its owner's details.
+            'referral' => \App\Support\AdminMemberReferral::summary($user),
             // Extra physical / soft cards per member id (primary and relatives).
             'extraCards' => $this->extraCards($user),
             // Other numbers kept as notes (not used to sign in or for SMS).
