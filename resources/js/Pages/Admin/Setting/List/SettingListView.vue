@@ -32,6 +32,20 @@
             <p class="text-xs text-muted-foreground">
               {{ t.setting?.intro || 'The details the site shows about itself — name, phone, address, logo and links. Each row is read by its key, so adding a new detail is adding a row.' }}
             </p>
+            <!-- The logo at the top of the sidebar. -->
+            <div v-if="canWrite" class="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3">
+              <img :src="$page.props.appLogo" alt="" class="h-12 w-auto max-w-[160px] object-contain rounded bg-white/5 p-1" />
+              <div class="min-w-0 flex-1 basis-48">
+                <div class="text-sm font-medium">{{ t.setting?.logo_title || 'Navbar logo' }}</div>
+                <div class="text-xs text-muted-foreground">PNG / JPG / WEBP — {{ Math.floor(logoMaxKb / 1024) }} MB</div>
+                <div v-if="$page.props.errors?.logo" class="text-xs value-negative">{{ $page.props.errors.logo }}</div>
+              </div>
+              <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="uploadLogo" />
+              <button type="button" :disabled="uploading" class="inline-flex items-center justify-center gap-2 rounded-md border bg-background px-3 h-9 text-sm font-medium hover:bg-primary hover:text-primary-foreground disabled:opacity-50" @click="logoInput.click()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                {{ t.setting?.logo_upload || 'Upload logo' }}
+              </button>
+            </div>
             <FilterAccordion>
 <SettingListFilterContent
               :initial-filters="filters"
@@ -56,7 +70,7 @@ import SettingLayout from "../SettingLayout.vue";
 import SettingListFilterContent from "./SettingListFilterContent.vue";
 import SettingListTable from "./SettingListTable.vue";
 import { useSettingStore } from "../Stores/SettingStore";
-import { Link, usePage } from "@inertiajs/vue3";
+import { Link, usePage, router } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
 
@@ -79,6 +93,7 @@ const props = defineProps({
       sort: 'key'
     })
   },
+  logoMaxKb: { type: Number, default: 5120 },
   valueTypes: {
     type: Array,
     default: () => []
@@ -91,6 +106,19 @@ settingStore.setSettings(props.settings);
 const settings = computed(() => props.settings);
 
 const filters = ref(props.filters || { search: '', value_type: '', sort: 'key' });
+
+const logoInput = ref(null);
+const uploading = ref(false);
+const uploadLogo = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  uploading.value = true;
+  router.post(route('admin.setting.logo'), { logo: file }, {
+    forceFormData: true,
+    preserveScroll: true,
+    onFinish: () => { uploading.value = false; if (logoInput.value) logoInput.value.value = ''; },
+  });
+};
 
 const handleDelete = (id) => {
   settingStore.confirmDelete(id);

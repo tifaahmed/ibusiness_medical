@@ -127,6 +127,7 @@
                     </svg>
                     <div class="min-w-0">
                       <span class="font-mono font-semibold text-sm text-foreground block break-all">{{ order.order_code }}</span>
+                      <span v-if="order.hidden_by_customer_at" class="chip chip-warning mt-1" :title="order.hidden_by_customer_at">🙈 {{ t.order?.hidden_by_customer || 'Hidden by the customer' }}</span>
                       <span
                         data-slot="badge"
                         :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-bold mt-1', order.kind === 'cards' ? 'border-amber-400/60 bg-amber-400/15 text-amber-400' : 'border-sky-400/50 bg-sky-400/10 text-sky-400']"
@@ -138,10 +139,15 @@
                         :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-bold mt-1', order.channel === 'app' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500' : 'border-border bg-muted/50 text-muted-foreground']"
                       >{{ order.channel === 'app' ? (t.order?.channel_app || 'Mobile app') : (t.order?.channel_website || 'Deilar website') }}</span>
                       <span
+                        v-for="tag in paymentMethodTags(order)"
+                        :key="tag.kind"
                         data-slot="badge"
-                        :class="['relative inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium mt-1', paymentTypeClass[order.payment_type?.value]]"
-                        :title="order.payment_type?.label"
+                        :data-testid="`order-pay-${tag.kind}`"
+                        :class="['relative inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-[1.5] w-fit whitespace-nowrap font-medium mt-1', tag.kind === 'type' ? paymentTypeClass[order.payment_type?.value] : paymentTagClass[tag.kind]]"
+                        :title="tag.kind === 'type' ? order.payment_type?.label : undefined"
                       >
+                        <template v-if="tag.kind !== 'type'">{{ tag.kind === 'wallet' ? (t.order?.paid_wallet || 'Wallet') : (t.order?.paid_points || 'Points') }}</template>
+                        <template v-else>
                         <svg v-if="order.payment_type?.value === 'cod'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <rect width="20" height="12" x="2" y="6" rx="2"></rect>
                           <circle cx="12" cy="12" r="2"></circle>
@@ -152,6 +158,7 @@
                           <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
                         </svg>
                         {{ paymentTypeLabel(order.payment_type) }}
+                        </template>
                       </span>
                     </div>
                   </div>
@@ -401,7 +408,7 @@
 import Pagination from "@/Pages/_components/Pagination.vue";
 import Select from '@/Components/ui/Select.vue';
 import PerPageSelect from '@/Components/ui/PerPageSelect.vue';
-import { orderStatusLabel } from "../orderDisplay";
+import { orderStatusLabel, paymentMethodTags, paymentTagClass } from "../orderDisplay";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref, watch } from 'vue';
 import { useNotification } from '@/composables/useNotification';

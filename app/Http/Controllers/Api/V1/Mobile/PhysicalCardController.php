@@ -239,7 +239,7 @@ class PhysicalCardController extends Controller
             $this->sendReceipt->handle($order, null, $request);
         }
 
-        return response()->json(['order' => new OrderResource($order->fresh()->load('products'))], Response::HTTP_CREATED);
+        return response()->json(['order' => new OrderResource($order->fresh()->load('products', 'shipments'))], Response::HTTP_CREATED);
     }
 
     private function cardOf(User $user): ?Membership

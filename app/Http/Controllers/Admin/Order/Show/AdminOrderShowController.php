@@ -47,6 +47,19 @@ class AdminOrderShowController extends BaseController
              * fail — the same way the AI helpers hide without a Gemini key.
              */
             'absConfigured' => AbsClient::isConfigured(),
+            /* The order split by parcel (store / shared warehouse / one), each with a printable invoice; empty on older orders. */
+            'shipments' => $orderModel->shipments()->get()->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->storeLabel('ar') ?: $s->storeLabel('en'),
+                'subtotal' => (float) $s->subtotal,
+                'delivery_price' => (float) $s->delivery_price,
+                'delivery_cost' => (float) $s->delivery_cost,
+                'delivery_profit' => (float) $s->delivery_profit,
+                'price_source' => $s->price_source,
+                'delivery_free_reason' => $s->delivery_free_reason,
+                'invoice_url' => route('invoice.show', ['orderCode' => $orderModel->order_code, 'shipment' => $s->id]),
+            ])->values()->all(),
+            'invoiceAllUrl' => route('invoice.show', ['orderCode' => $orderModel->order_code]),
         ]);
     }
 

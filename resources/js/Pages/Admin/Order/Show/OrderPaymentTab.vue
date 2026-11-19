@@ -51,7 +51,7 @@
       <div class="p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div>
           <label class="text-xs font-medium text-muted-foreground">{{ t.order?.payment_gateway || 'Gateway' }}</label>
-          <p class="mt-0.5">{{ paymob.is_online ? 'Paymob' : paymentTypeLabel(t, order.payment_type) }}</p>
+          <p class="mt-0.5" data-testid="payment-gateway">{{ gatewayText }}</p>
         </div>
         <div>
           <label class="text-xs font-medium text-muted-foreground">{{ t.order?.payment_status || 'Payment status' }}</label>
@@ -185,7 +185,7 @@
 import { router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import { useNotification } from "@/composables/useNotification";
-import { formatDateTime, formatPrice, paymentStatusLabel, timeAgo, paymentTypeLabel, statusClass } from "../orderDisplay.js";
+import { formatDateTime, formatPrice, paymentStatusLabel, timeAgo, paymentTypeLabel, paymentMethodTags, statusClass } from "../orderDisplay.js";
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -196,6 +196,12 @@ const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 const paymob = computed(() => props.order.paymob || {});
 const logs = computed(() => props.order.payment_logs || []);
+// Every way the order was covered, joined: "Wallet + Points", or "Wallet + Paymob", or just "Paymob" when nothing else paid.
+const gatewayText = computed(() => paymentMethodTags(props.order).map((tag) => {
+  if (tag.kind === 'wallet') return t.value.order?.paid_wallet || 'Wallet';
+  if (tag.kind === 'points') return t.value.order?.paid_points || 'Points';
+  return paymob.value.is_online ? 'Paymob' : paymentTypeLabel(t.value, props.order.payment_type);
+}).join(' + '));
 
 const btn = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all border bg-background shadow-xs hover:bg-primary hover:text-primary-foreground dark:bg-input/30 dark:border-input h-8 px-3 py-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
 

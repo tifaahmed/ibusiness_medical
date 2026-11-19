@@ -243,6 +243,9 @@ final class Referrals
         self::trialStarted($member);
         self::settleOnClaim($referral, $source === Referral::SOURCE_ADMIN);
 
+        /* Registering under the code also gives the referrer today's quiz plays back on every section — payment not needed. */
+        \App\Support\QuizShareRefills::forReferral($referral);
+
         return ['ok' => true, 'reason' => null, 'referral' => $referral->fresh()];
     }
 

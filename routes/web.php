@@ -234,6 +234,7 @@ use App\Http\Controllers\Admin\Setting\Edit\AdminSettingEditController;
 use App\Http\Controllers\Admin\Setting\List\AdminSettingListController;
 use App\Http\Controllers\Admin\Setting\Show\AdminSettingShowController;
 use App\Http\Controllers\Admin\Setting\Store\AdminSettingStoreController;
+use App\Http\Controllers\Admin\Setting\Logo\AdminSettingLogoController;
 use App\Http\Controllers\Admin\Setting\Update\AdminSettingUpdateController;
 use App\Http\Controllers\Admin\Store\Create\AdminStoreCreateController;
 use App\Http\Controllers\Admin\Store\Delete\AdminStoreDeleteController;
@@ -297,6 +298,10 @@ use Illuminate\Support\Facades\Route;
 // authenticated users to their own area. See HomeRedirectController for why the
 // `home` route name has to stay in place.
 Route::get('/', \App\Http\Controllers\HomeRedirectController::class)->name('home');
+
+// Printable invoice, one parcel or the whole order. The order code is the credential.
+Route::get('/invoice/{orderCode}/{shipment?}', \App\Http\Controllers\Invoice\OrderInvoiceController::class)
+    ->where('shipment', '[0-9]+')->middleware('throttle:30,1,invoice.show')->name('invoice.show');
 
 // Language switching
 Route::get('/lang/{locale}', [\App\Http\Controllers\LanguageController::class, 'switch'])->name('lang.switch');
@@ -1072,6 +1077,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             ->name('admin.order.force-delete');
     });
     Route::middleware('permission:manage orders|manage own orders|view orders')->group(function () {
+        Route::get('/admin/notifications', [\App\Http\Controllers\Admin\Notification\AdminNotificationController::class, 'index'])->name('admin.notifications.index');
+        Route::post('/admin/notifications/read', [\App\Http\Controllers\Admin\Notification\AdminNotificationController::class, 'read'])->name('admin.notifications.read');
         Route::get('/admin/order', AdminOrderListController::class)->name('admin.order.list');
         /* Ahead of `/admin/order/{order}`: `trash` matches that route's binding
            character for character, so the wildcard would otherwise look for an
@@ -1210,6 +1217,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
     Route::middleware('permission:manage settings')->group(function () {
         Route::get('/admin/setting/create', AdminSettingCreateController::class)->name('admin.setting.create');
         Route::post('/admin/setting', AdminSettingStoreController::class)->name('admin.setting.store');
+        Route::post('/admin/setting-logo', AdminSettingLogoController::class)->name('admin.setting.logo');
         Route::delete('/admin/setting/{setting}', AdminSettingDeleteController::class)->name('admin.setting.destroy');
     });
     // Edit/update: `manage settings`, OR the quick-add message templates permission (then only the quick_msg_* rows — see SettingAccess).

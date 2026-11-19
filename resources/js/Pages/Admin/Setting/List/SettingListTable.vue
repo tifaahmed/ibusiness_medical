@@ -21,9 +21,15 @@
               </tr>
             </thead>
             <tbody data-slot="table-body" class="[&_tr:last-child]:border-0">
+              <template v-for="(setting, index) in settings.data" :key="setting.id">
+              <!-- One heading per section when the list is grouped by topic. -->
+              <tr v-if="settings.meta?.grouped && (index === 0 || settings.data[index - 1].group?.key !== setting.group?.key)" class="bg-muted/40 border-b border-border">
+                <th colspan="4" class="px-3 py-2 text-start text-sm font-semibold text-golden-yellow">
+                  {{ setting.group?.label?.[locale] || setting.group?.label?.en }}
+                  <span class="ms-2 chip chip-neutral">{{ settings.data.filter(r => r.group?.key === setting.group?.key).length }}</span>
+                </th>
+              </tr>
               <tr
-                v-for="setting in settings.data"
-                :key="setting.id"
                 data-slot="table-row"
                 class="border-b border-border transition-colors hover:bg-muted/50"
               >
@@ -103,6 +109,7 @@
                   </div>
                 </td>
               </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -114,7 +121,7 @@
               <span class="hidden sm:inline">{{ (t.common?.showing_results || 'Showing :from to :to of :total results').replace(':from', settings.meta?.from || 0).replace(':to', settings.meta?.to || 0).replace(':total', settings.meta?.total || 0) }}</span>
               <span class="sm:hidden">{{ settings.meta?.from || 0 }}-{{ settings.meta?.to || 0 }}/{{ settings.meta?.total || 0 }}</span>
             </div>
-            <div class="flex items-center gap-2 order-2 flex-shrink-0">
+            <div v-if="!settings.meta?.grouped" class="flex items-center gap-2 order-2 flex-shrink-0">
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap hidden sm:inline">{{ t.common?.rows_per_page || 'Rows per page' }}</p>
               <p class="text-xs sm:text-sm font-medium whitespace-nowrap sm:hidden">{{ t.common?.per_page || 'Per page' }}</p>
               <PerPageSelect
@@ -124,7 +131,7 @@
             </div>
             <div class="order-3 flex-shrink-0 min-w-0">
               <Pagination
-                v-if="settings?.meta?.links?.length > 0"
+                v-if="!settings.meta?.grouped && settings?.meta?.links?.length > 0"
                 :links="settings?.meta?.links"
               />
             </div>

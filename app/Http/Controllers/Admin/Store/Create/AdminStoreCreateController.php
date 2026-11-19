@@ -19,6 +19,7 @@ class AdminStoreCreateController extends BaseController
             'tagIconOptions' => \App\Enums\Tag\TagEnum::getIconOptions(),
             'tagColorOptions' => \App\Enums\Tag\TagEnum::getColorOptions(),
             'categories' => \App\Models\StoreCategory::query()->withCount('stores')->orderBy('id')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->getTranslations('name'), 'stores_count' => $c->stores_count]),
+            'shippingGroups' => \App\Models\ShippingGroup::query()->orderBy('name')->get(['id', 'name', 'price', 'free_threshold'])->all(),
             'governorates' => Governorate::query()->orderBy('id')->get()->map(fn (Governorate $g) => [
                 'id' => $g->id,
                 'name' => $g->getTranslations('name'),

@@ -195,6 +195,58 @@
         </div>
       </div>
       <p v-if="form.errors.shipping_governorate_ids" class="text-xs text-destructive">{{ form.errors.shipping_governorate_ids }}</p>
+
+      <!-- What shipping costs: one price for every governorate, optionally a
+           different price / free-shipping amount for specific governorates. -->
+      <div v-if="form.supports_shipping" class="space-y-3 border-t border-border pt-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="space-y-1 text-sm">
+            <span class="block text-xs text-muted-foreground">Shipping price — all governorates (EGP, 0 = free, empty = not set)</span>
+            <input type="number" min="0" step="0.01" v-model="form.shipping_price" class="w-full rounded-md border border-border bg-background px-3 py-2" />
+            <span v-if="form.errors.shipping_price" class="text-xs text-destructive">{{ form.errors.shipping_price }}</span>
+          </label>
+          <label class="space-y-1 text-sm">
+            <span class="block text-xs text-muted-foreground">Free shipping when the order is at least (EGP, empty = never)</span>
+            <input type="number" min="0" step="0.01" v-model="form.free_shipping_threshold" class="w-full rounded-md border border-border bg-background px-3 py-2" />
+            <span v-if="form.errors.free_shipping_threshold" class="text-xs text-destructive">{{ form.errors.free_shipping_threshold }}</span>
+          </label>
+        </div>
+
+        <!-- Stores that share a warehouse ship as ONE parcel at the group's price. -->
+        <div class="space-y-2 rounded-lg border border-border p-3">
+          <span class="text-sm font-medium">Shared warehouse (shipping group)</span>
+          <p class="text-xs text-muted-foreground">Stores in the same group ship together: one parcel, one shipping charge, at the group's price (it replaces the prices above for these stores).</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select v-model="form.shipping_group_id" @change="pickShippingGroup" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+              <option value="">No group — ships on its own</option>
+              <option v-for="g in shippingGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            </select>
+            <input v-model="form.new_shipping_group_name" type="text" placeholder="…or type a new group name" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          <div v-if="form.shipping_group_id || form.new_shipping_group_name" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input v-model="form.group_price" type="number" min="0" step="0.01" placeholder="Group shipping price (EGP)" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <input v-model="form.group_free_threshold" type="number" min="0" step="0.01" placeholder="Free from (EGP, optional)" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium">Different price for specific governorates</span>
+            <button type="button" class="text-xs underline" @click="addShippingRate">+ Add governorate</button>
+          </div>
+          <p class="text-xs text-muted-foreground">Leave a field empty to use the figure above for that governorate.</p>
+          <div v-for="(rate, i) in form.shipping_rates" :key="i" class="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr_auto] gap-2 items-end">
+            <select v-model="rate.governorate_id" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+              <option value="" disabled>Governorate</option>
+              <option v-for="g in governorates" :key="g.id" :value="g.id" :disabled="form.shipping_rates.some((r, j) => j !== i && r.governorate_id === g.id)">{{ getName(g.name) }}</option>
+            </select>
+            <input type="number" min="0" step="0.01" v-model="rate.price" placeholder="Price" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <input type="number" min="0" step="0.01" v-model="rate.free_threshold" placeholder="Free from" class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <button type="button" class="chip chip-negative px-3 py-2" @click="form.shipping_rates.splice(i, 1)">✕</button>
+          </div>
+          <p v-if="form.errors.shipping_rates" class="text-xs text-destructive">{{ form.errors.shipping_rates }}</p>
+        </div>
+      </div>
     </div>
 
     <div data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 space-y-5">
@@ -762,6 +814,7 @@ const props = defineProps({
   tagIconOptions: { type: Array, default: () => [] },
   tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
+  shippingGroups: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
   existingLogo: { type: String, default: '' },
   existingHeader: { type: String, default: '' },
@@ -885,6 +938,15 @@ const tagStyle = (tag, selected) => {
     ? { backgroundColor: `${color}26`, color, borderColor: color }
     : { borderColor: `${color}55`, color: 'inherit' };
 };
+
+const pickShippingGroup = () => {
+  const g = props.shippingGroups.find(x => String(x.id) === String(props.form.shipping_group_id));
+  props.form.group_price = g?.price ?? '';
+  props.form.group_free_threshold = g?.free_threshold ?? '';
+  if (g) props.form.new_shipping_group_name = '';
+};
+
+const addShippingRate = () => { props.form.shipping_rates.push({ governorate_id: '', price: '', free_threshold: '' }); };
 
 const getName = (name) => {
   if (typeof name === 'string') return name;

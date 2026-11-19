@@ -445,6 +445,17 @@ class StoreController extends Controller
             'coupons' => $coupons,
             'ships' => (bool) $store->supports_shipping,
             'ships_everywhere' => (bool) $store->ships_everywhere,
+            /* What shipping costs (null price/threshold = not set, 0 = free); `rates` are the governorates that differ. */
+            'shipping' => $store->supports_shipping ? [
+                'price' => $store->shipping_price !== null ? (float) $store->shipping_price : null,
+                'free_threshold' => $store->free_shipping_threshold !== null ? (float) $store->free_shipping_threshold : null,
+                'rates' => $store->shippingRates()->with('governorate')->get()->map(fn ($r) => [
+                    'governorate_id' => $r->governorate_id,
+                    'name' => (string) $r->governorate?->name,
+                    'price' => $r->price !== null ? (float) $r->price : null,
+                    'free_threshold' => $r->free_threshold !== null ? (float) $r->free_threshold : null,
+                ])->values()->all(),
+            ] : null,
             'youtube_link' => $store->youtube_link ?: null,
             /* Columns added by a later migration; `getAttribute` reads null instead of failing where it has not run yet. */
             'app_store_url' => $store->getAttribute('app_store_url') ?: null,

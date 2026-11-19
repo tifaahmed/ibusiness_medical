@@ -155,7 +155,13 @@ class OrderController extends Controller
                  * says why, so a zero in `delivery_price` is never ambiguous
                  * again.
                  */
-                $delivery = $request->deliveryFor(round($total, 2));
+                /* Per store: each store's own price for the buyer's governorate, and its free-delivery amount against its own part. */
+                $shipments = \App\Support\OrderShipping::plan(
+                    collect($lines),
+                    $request->input('customer_governorate'),
+                    ['cost' => (float) $request->input('delivery_cost', 0), 'price' => (float) $request->input('delivery_price', 0), 'threshold' => $request->freeDeliveryThreshold()],
+                );
+                $delivery = \App\Support\OrderShipping::totals($shipments);
 
                 /*
                  * The cash-on-delivery fee, from the admin's settings — never
@@ -212,6 +218,7 @@ class OrderController extends Controller
                 ]);
 
                 $order->products()->saveMany($lines);
+                $order->shipments()->createMany($shipments);
 
                 /* The caps (the product's own or the system's, then the whole order's) shrink what points may discount. */
                 $pointsEligible = PointsPayments::eligible($pointsLines);
@@ -320,7 +327,7 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'order' => new OrderResource($order->fresh()->load('products')),
+            'order' => new OrderResource($order->fresh()->load('products', 'shipments')),
             'payment' => $payment,
         ], Response::HTTP_CREATED);
     }
@@ -376,6 +383,42 @@ class OrderController extends Controller
     }
 
     /**
+     * The buyer drops an order that was never paid (left the payment page, changed their mind): it is CANCELLED, never deleted, so
+     * the order, its log and the admin's list keep it. Only while nothing was paid in real money and nothing has shipped; whatever the
+     * wallet or loyalty points covered goes back through the order's own cancel hook (once). An order that belongs to a member can
+     * only be dropped by that member (token); a guest order, like `pay`, is keyed by its code.
+     */
+    public function cancel(Request $request, string $orderCode): JsonResponse
+    {
+        $order = Order::findByCode($orderCode);
+
+        if ($order === null) {
+            return response()->json(['message' => 'No order with that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($order->user_id !== null && (int) $request->user('sanctum')?->id !== (int) $order->user_id) {
+            return response()->json(['message' => 'No order of yours has that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $unpaid = in_array($order->payment_status, [PaymentStatusEnum::PENDING, PaymentStatusEnum::REJECTED], true)
+            && (float) $order->total_paid <= (float) $order->wallet_amount + (float) $order->points_amount
+            && $order->delivery_status === DeliveryStatusEnum::PENDING;
+
+        if (! $unpaid) {
+            return response()->json(['message' => 'Only an order that was not paid can be cancelled here.', 'reason' => 'not_cancellable'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $order->forceFill([
+            'payment_status' => PaymentStatusEnum::CANCELED,
+            'cancel_reason' => 'Cancelled by the buyer before paying.',
+        ])->save();
+
+        OrderLog::record($order->id, null, OrderLog::ACTION_CANCELED, null, ['cancel_reason' => $order->cancel_reason, 'by' => 'buyer'], $request);
+
+        return response()->json(['order' => new OrderResource($order->fresh()->load('products', 'shipments'))]);
+    }
+
+    /**
      * What a client needs to take the payment: the embeddable form's secret (Paymob Pixel mounts with
      * the public key + this one-order, one-hour secret), and the hosted page as a fallback.
      *
@@ -428,7 +471,7 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'order' => new OrderResource($order->load('products', 'statusLogs')),
+            'order' => new OrderResource($order->load('products', 'shipments', 'statusLogs')),
         ]);
     }
 
@@ -444,6 +487,51 @@ class OrderController extends Controller
      * cash-on-delivery order is a buyer who has misread the page, and filing it
      * silently would leave an admin looking for a transfer that never happened.
      */
+    /**
+     * The buyer hides an order they no longer want, after confirming. Allowed only while the order is untouched
+     * (`Order::canBeHiddenByBuyer()`); nothing is deleted — the order gets a stamp, drops out of the buyer's lists,
+     * and the admin still sees it, flagged, with a log line and a bell notification.
+     */
+    public function hide(Request $request, string $orderCode): JsonResponse
+    {
+        $request->validate(['confirm' => ['required', 'accepted']]);
+        $order = Order::findByCode($orderCode);
+
+        if ($order === null) {
+            return response()->json(['message' => 'No order with that code.'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $done = DB::transaction(function () use ($order) {
+                $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
+
+                if (! $locked->canBeHiddenByBuyer()) {
+                    return false;
+                }
+
+                $locked->forceFill(['hidden_by_customer_at' => now()])->save();
+
+                return true;
+            });
+        } catch (Throwable $exception) {
+            Log::error('Order could not be hidden by its buyer.', ['route' => $request->path(), 'order_code' => $order->order_code, 'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString()]);
+
+            return response()->json(['message' => 'The order could not be hidden.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if (! $done) {
+            return response()->json([
+                'message' => 'This order can no longer be hidden.',
+                'errors' => ['order' => ['This order has already moved on, so it cannot be hidden.']],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        OrderLog::record($order->id, null, OrderLog::ACTION_HIDDEN_BY_CUSTOMER, null, ['hidden_by_customer_at' => now()->toDateTimeString()], $request);
+        \App\Models\AdminNotification::forOrderHidden($order->refresh());
+
+        return response()->json(['order' => new OrderResource($order->load('products', 'shipments'))]);
+    }
+
     public function receipt(StoreOrderReceiptRequest $request, string $orderCode): JsonResponse
     {
         $order = Order::findByCode($orderCode);
@@ -507,7 +595,7 @@ class OrderController extends Controller
         );
 
         return response()->json([
-            'order' => new OrderResource($order->fresh()->load('products')),
+            'order' => new OrderResource($order->fresh()->load('products', 'shipments')),
         ], Response::HTTP_CREATED);
     }
 }

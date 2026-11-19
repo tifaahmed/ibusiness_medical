@@ -233,16 +233,26 @@ Route::prefix('v1')
             Route::post('/orders', [V1PartnerOrderController::class, 'store'])
                 ->middleware([\App\Http\Middleware\StampMobileOrder::class, 'throttle:10,1,api.orders.store'])
                 ->name('orders.store');
+            Route::post('/orders/quote', \App\Http\Controllers\Api\V1\Partner\OrderQuoteController::class)
+                ->middleware('throttle:60,1,api.orders.quote')
+                ->name('orders.quote');
             Route::get('/orders/{orderCode}', [V1PartnerOrderController::class, 'show'])
                 ->middleware('throttle:60,1,api.orders.show')
                 ->name('orders.show');
             Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
                 ->middleware('throttle:20,1,api.orders.receipt')
                 ->name('orders.receipt');
+            Route::post('/orders/{orderCode}/hide', [V1PartnerOrderController::class, 'hide'])
+                ->middleware('throttle:20,1,api.orders.hide')
+                ->name('orders.hide');
             /* Open the online payment again for an order not yet paid (declined card, closed page). */
             Route::post('/orders/{orderCode}/pay', [V1PartnerOrderController::class, 'pay'])
                 ->middleware('throttle:10,1,api.orders.pay')
                 ->name('orders.pay');
+            /* The buyer drops an unpaid order (cancelled, never deleted). */
+            Route::post('/orders/{orderCode}/cancel', [V1PartnerOrderController::class, 'cancel'])
+                ->middleware('throttle:10,1,api.orders.cancel')
+                ->name('orders.cancel');
 
             /* Physical (plastic) cards for the primary member and their relatives: eligibility + prices, and the order (an ordinary `orders` row). */
             Route::get('/physical-cards', [V1MobilePhysicalCardController::class, 'show'])
@@ -468,6 +478,11 @@ Route::prefix('v1')
                     ->middleware(['throttle:30,1,api.partner.orders.store', \App\Http\Middleware\ApplyShopDelivery::class])
                     ->name('orders.store');
 
+                /* The basket's delivery split by parcel, written nowhere — what the cart and checkout draw. */
+                Route::post('/orders/quote', \App\Http\Controllers\Api\V1\Partner\OrderQuoteController::class)
+                    ->middleware('throttle:60,1,api.partner.orders.quote')
+                    ->name('orders.quote');
+
                 /*
                  * The shop's money settings for a storefront to QUOTE: what
                  * delivery costs the buyer, where it becomes free, and the
@@ -506,6 +521,9 @@ Route::prefix('v1')
                 Route::post('/orders/{orderCode}/receipt', [V1PartnerOrderController::class, 'receipt'])
                     ->middleware('throttle:20,1,api.partner.orders.receipt')
                     ->name('orders.receipt');
+                Route::post('/orders/{orderCode}/hide', [V1PartnerOrderController::class, 'hide'])
+                    ->middleware('throttle:20,1,api.partner.orders.hide')
+                    ->name('orders.hide');
 
                 Route::get('/memberships/{membership}/card/back', [V1MembershipCardController::class, 'showBack'])
                     ->name('memberships.card.back');
@@ -580,6 +598,8 @@ Route::prefix('v1')
                 ->middleware('throttle:20,1,api.me.loyalty.convert')->name('me.loyalty.convert');
             /* Member-gets-member: my code / who I brought, and "this card number brought me" — `ReferralController`. */
             Route::get('/referral', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'show'])->name('me.referral.show');
+            Route::post('/referral/shared', [\App\Http\Controllers\Api\V1\Member\LoyaltyController::class, 'shared'])
+                ->middleware('throttle:20,1,api.me.referral.shared')->name('me.referral.shared');
             Route::post('/referral/preview', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'preview'])
                 ->middleware('throttle:30,1,api.me.referral.preview')->name('me.referral.preview');
             Route::post('/referral/claim', [\App\Http\Controllers\Api\V1\Member\ReferralController::class, 'claim'])

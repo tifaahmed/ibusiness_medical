@@ -63,6 +63,9 @@ class Store extends Model implements HasMedia
         'coupons',
         'supports_shipping',
         'ships_everywhere',
+        'shipping_price',
+        'free_shipping_threshold',
+        'shipping_group_id',
         'offer_percent_from',
         'offer_percent_to',
         'online_only',
@@ -77,6 +80,8 @@ class Store extends Model implements HasMedia
         'coupons' => 'array',
         'supports_shipping' => 'boolean',
         'ships_everywhere' => 'boolean',
+        'shipping_price' => 'decimal:2',
+        'free_shipping_threshold' => 'decimal:2',
         'offer_percent_from' => 'decimal:2',
         'offer_percent_to' => 'decimal:2',
     ];
@@ -174,6 +179,34 @@ class Store extends Model implements HasMedia
     public function shippingGovernorates(): BelongsToMany
     {
         return $this->belongsToMany(Governorate::class, 'store_governorate');
+    }
+
+    public function shippingGroup(): BelongsTo
+    {
+        return $this->belongsTo(ShippingGroup::class);
+    }
+
+    /** Per-governorate overrides of the store's shipping price / free threshold. */
+    public function shippingRates(): HasMany
+    {
+        return $this->hasMany(StoreShippingRate::class);
+    }
+
+    /**
+     * What shipping to one governorate costs: its own figure when set, else the
+     * store's, else null ("not set"). 0 is a real price (free).
+     *
+     * @return array{price: ?float, free_threshold: ?float}
+     */
+    public function shippingFor(?int $governorateId): array
+    {
+        $rate = $governorateId ? $this->shippingRates->firstWhere('governorate_id', $governorateId) : null;
+        $pick = fn ($own, $default) => $own !== null ? (float) $own : ($default !== null ? (float) $default : null);
+
+        return [
+            'price' => $pick($rate?->price, $this->shipping_price),
+            'free_threshold' => $pick($rate?->free_threshold, $this->free_shipping_threshold),
+        ];
     }
 
     /**

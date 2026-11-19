@@ -189,6 +189,7 @@ const props = defineProps({
       order_status: '',
       payment_type: '',
       kind: '',
+      hidden: '',
       created_from: '',
       created_to: ''
     })
@@ -215,6 +216,7 @@ const filters = ref(props.filters || {
   order_status: '',
   payment_type: '',
   kind: '',
+  hidden: '',
   created_from: '',
   created_to: ''
 });

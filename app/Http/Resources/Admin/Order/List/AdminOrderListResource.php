@@ -17,6 +17,8 @@ class AdminOrderListResource extends JsonResource
         return [
             'id' => $this->id,
             'order_code' => $this->order_code,
+            // When the buyer hid this order from their own list (null = not hidden). The admin still sees it.
+            'hidden_by_customer_at' => $this->hidden_by_customer_at?->toAtomString(),
             // What the order is for: 'cards' (physical cards) or 'products' (the shop).
             'kind' => $this->source === \App\Support\PhysicalCard::SOURCE ? 'cards' : 'products',
             /* Where the order came from (the app, or the Deilar website) and how it was covered: real money / wallet / points. */

@@ -17,6 +17,7 @@
             :tag-icon-options="tagIconOptions"
             :tag-color-options="tagColorOptions"
             :governorates="governorates"
+            :shipping-groups="shippingGroups"
             :cities="cities"
             :sales-options="salesOptions"
             :existing-contract="store.contract"
@@ -80,6 +81,7 @@ const props = defineProps({
   tagIconOptions: { type: Array, default: () => [] },
   tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
+  shippingGroups: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
   salesOptions: { type: Array, default: () => [] },
   aiEnabled: { type: Boolean, default: false },
@@ -105,6 +107,13 @@ const form = useForm({
   supports_shipping: props.store.supports_shipping ?? false,
   ships_everywhere: props.store.ships_everywhere ?? true,
   shipping_governorate_ids: [...(props.store.shipping_governorate_ids || [])],
+  shipping_group_id: props.store.shipping_group_id ?? '',
+  new_shipping_group_name: '',
+  group_price: props.store.group_price ?? '',
+  group_free_threshold: props.store.group_free_threshold ?? '',
+  shipping_price: props.store.shipping_price ?? '',
+  free_shipping_threshold: props.store.free_shipping_threshold ?? '',
+  shipping_rates: (props.store.shipping_rates || []).map(r => ({ governorate_id: r.governorate_id, price: r.price ?? '', free_threshold: r.free_threshold ?? '' })),
   offer_percent_from: props.store.offer_percent_from ?? '',
   offer_percent_to: props.store.offer_percent_to ?? '',
   sales_id: props.store.sales_id ?? '',

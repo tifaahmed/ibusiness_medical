@@ -101,6 +101,10 @@ class OrderResource extends JsonResource
                 ? null
                 : (float) $this->free_delivery_threshold,
 
+            /* The buyer may hide an order that is still untouched (after confirming); hidden ones are left out of their lists. */
+            'can_hide' => $this->canBeHiddenByBuyer(),
+            'hidden_by_buyer' => $this->hidden_by_customer_at !== null,
+
             'payment_type' => [
                 'value' => $this->payment_type->value,
                 'label' => $this->payment_type->label(),
@@ -145,9 +149,25 @@ class OrderResource extends JsonResource
             'accepts_receipts' => $this->acceptsReceipts(),
             'receipts' => $this->receiptFiles(),
 
+            /* The order split by parcel (one per store, or per shared warehouse, or ONE when the shop ships everything together).
+               Empty on orders placed before the split — clients then draw the order as before. `invoice_url` opens a printable
+               invoice for that parcel; `invoice_all_url` the whole order. The order code in the link is the credential. */
+            'shipments' => $this->relationLoaded('shipments') ? $this->shipments->map(fn ($s) => [
+                'id' => $s->id,
+                'store_ids' => $s->store_ids ?? [],
+                'store_name' => $s->storeLabel(),
+                'subtotal' => (float) $s->subtotal,
+                'delivery_price' => (float) $s->delivery_price,
+                'free_delivery_threshold' => $s->free_delivery_threshold === null ? null : (float) $s->free_delivery_threshold,
+                'delivery_free_reason' => $s->delivery_free_reason,
+                'invoice_url' => route('invoice.show', ['orderCode' => $this->order_code, 'shipment' => $s->id]),
+            ])->values()->all() : [],
+            'invoice_all_url' => route('invoice.show', ['orderCode' => $this->order_code]),
+
             'items' => $this->products->map(fn (OrderProduct $line) => [
                 'id' => $line->id,
                 'slug' => $line->slug,
+                'store_id' => $line->store_id,
                 'name' => $line->name,
                 'image' => $line->image,
                 'quantity' => $line->quantity,

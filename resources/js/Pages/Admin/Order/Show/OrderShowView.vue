@@ -50,9 +50,14 @@
                 <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', statusClass.order[order.order_status?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'order'">
                   {{ orderStatusLabel(t, order.order_status) }}
                 </button>
-                <button type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', paymentTypeClass[order.payment_type?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'type'">
+                <template v-for="tag in paymentMethodTags(order)" :key="tag.kind">
+                  <span v-if="tag.kind !== 'type'" :data-testid="`order-pay-${tag.kind}`" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium', paymentTagClass[tag.kind]]">
+                    {{ tag.kind === 'wallet' ? (t.order?.paid_wallet || 'Wallet') : (t.order?.paid_points || 'Points') }}
+                  </span>
+                  <button v-else type="button" :class="['inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40', paymentTypeClass[order.payment_type?.value]]" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'type'">
                   {{ paymentTypeLabel(t, order.payment_type) }}
                 </button>
+                </template>
                 <button v-if="order.source" type="button" class="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs font-medium text-muted-foreground cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-primary/40" :title="t.order?.status_click_hint || 'Click for details and history'" @click="statusDialog = 'source'">
                   {{ order.source }}
                 </button>
@@ -410,6 +415,38 @@
           </div>
         </div>
 
+        <!-- The buyer hid this order from their own list because they no longer want it. -->
+        <div v-if="order.hidden_by_customer_at" class="panel-note flex flex-wrap items-center gap-2 rounded-xl border border-border px-4 py-3 text-sm">
+          <span class="chip chip-warning">🙈 {{ t.order?.hidden_by_customer || 'Hidden by the customer' }}</span>
+          <span>{{ t.order?.hidden_by_customer_note || 'The customer does not want this order any more and removed it from their own list. Nothing was deleted.' }}</span>
+          <span class="chip chip-neutral">{{ new Date(order.hidden_by_customer_at).toLocaleString() }}</span>
+        </div>
+
+        <!-- Parcels: the order split by store (or shared warehouse), each with its own shipping and invoice. -->
+        <div v-if="shipments.length" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
+          <div class="p-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-golden-yellow"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path><path d="M15 18H9"></path><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path><circle cx="17" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle></svg>
+              <h2 class="text-lg font-semibold">Shipments</h2>
+              <span class="chip chip-info">{{ shipments.length }}</span>
+            </div>
+            <a :href="invoiceAllUrl" target="_blank" rel="noopener" class="chip chip-accent px-3 py-1.5">Invoice — whole order</a>
+          </div>
+          <div class="divide-y divide-border">
+            <div v-for="s in shipments" :key="s.id" class="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+              <div class="min-w-0">
+                <div class="font-medium">{{ s.name || '—' }}</div>
+                <div class="text-xs text-muted-foreground">
+                  Goods {{ formatPrice(s.subtotal) }} · Shipping {{ formatPrice(s.delivery_price) }}
+                  <span v-if="s.delivery_free_reason" class="chip chip-positive ms-1">free</span>
+                  <span class="chip chip-neutral ms-1">{{ s.price_source }}</span>
+                </div>
+              </div>
+              <a :href="s.invoice_url" target="_blank" rel="noopener" class="chip chip-info px-3 py-1.5">Invoice</a>
+            </div>
+          </div>
+        </div>
+
         <!-- Lines -->
         <div class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 border-b border-border flex items-center justify-between gap-2">
@@ -612,6 +649,8 @@ import {
   orderStatusLabel,
   paymentStatusLabel,
   paymentTypeClass,
+  paymentTagClass,
+  paymentMethodTags,
   paymentTypeLabel,
   savedAmount,
   statusClass,
@@ -623,6 +662,8 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  shipments: { type: Array, default: () => [] },
+  invoiceAllUrl: { type: String, default: '' },
   absConfigured: {
     type: Boolean,
     default: false,

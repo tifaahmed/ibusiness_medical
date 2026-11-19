@@ -6,7 +6,7 @@
         <!-- Header Card with Actions and Filters -->
         <div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-2 sm:gap-3 md:gap-4 rounded-xl border border-border py-2 sm:py-3 md:py-4 shadow-sm overflow-visible w-full max-w-full">
           <div data-slot="card-header" class="flex flex-row flex-wrap items-center justify-between py-2 px-3 sm:px-4 md:px-6 w-full gap-2 sm:gap-4">
-            <div data-slot="card-title" class="leading-none font-semibold min-w-0 flex-1">
+            <div data-slot="card-title" class="leading-none font-semibold min-w-[10rem] flex-1">
               <div class="title-golden min-w-0 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users title-icon sm:w-6 sm:h-6 flex-shrink-0">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -17,7 +17,7 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">{{ t.header?.title || 'User Management' }}</span>
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:max-w-full sm:min-w-0 sm:justify-end">
               <!-- Shown for as long as ANY member signs in without the real SMS code. -->
               <span
                 v-if="fixedCodeMembers > 0"

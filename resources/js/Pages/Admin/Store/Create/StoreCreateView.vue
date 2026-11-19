@@ -17,6 +17,7 @@
             :tag-icon-options="tagIconOptions"
             :tag-color-options="tagColorOptions"
             :governorates="governorates"
+            :shipping-groups="shippingGroups"
             :cities="cities"
             :sales-options="salesOptions"
             :ai-enabled="aiEnabled"
@@ -72,6 +73,7 @@ defineProps({
   tagIconOptions: { type: Array, default: () => [] },
   tagColorOptions: { type: Array, default: () => [] },
   governorates: { type: Array, default: () => [] },
+  shippingGroups: { type: Array, default: () => [] },
   cities: { type: Array, default: () => [] },
   salesOptions: { type: Array, default: () => [] },
   aiEnabled: { type: Boolean, default: false },
@@ -97,6 +99,13 @@ const form = useForm({
   supports_shipping: false,
   ships_everywhere: true,
   shipping_governorate_ids: [],
+  shipping_group_id: '',
+  new_shipping_group_name: '',
+  group_price: '',
+  group_free_threshold: '',
+  shipping_price: '',
+  free_shipping_threshold: '',
+  shipping_rates: [],
   offer_percent_from: '',
   offer_percent_to: '',
   sales_id: '',

@@ -33,6 +33,18 @@ class StoreResource extends JsonResource
             'supports_shipping' => (bool) $this->supports_shipping,
             'ships_everywhere' => (bool) $this->ships_everywhere,
             'shipping_governorates' => (! $this->supports_shipping || $this->ships_everywhere) ? [] : $this->resource->loadMissing('shippingGovernorates')->shippingGovernorates->map(fn ($g) => ['id' => $g->id, 'name' => $g->name])->values(),
+            // What shipping costs: `price` / `free_threshold` for every governorate (null = not set,
+            // 0 = free), `rates` the governorates that differ. Clients draw these, never compute.
+            'shipping' => $this->supports_shipping ? [
+                'price' => $this->shipping_price !== null ? (float) $this->shipping_price : null,
+                'free_threshold' => $this->free_shipping_threshold !== null ? (float) $this->free_shipping_threshold : null,
+                'rates' => $this->resource->loadMissing('shippingRates.governorate')->shippingRates->map(fn ($r) => [
+                    'governorate_id' => $r->governorate_id,
+                    'name' => (string) $r->governorate?->name,
+                    'price' => $r->price !== null ? (float) $r->price : null,
+                    'free_threshold' => $r->free_threshold !== null ? (float) $r->free_threshold : null,
+                ])->values(),
+            ] : null,
             'seo' => [
                 'meta_title' => $this->meta_title,
                 'meta_description' => $this->meta_description,

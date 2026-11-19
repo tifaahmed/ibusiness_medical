@@ -143,6 +143,8 @@ class LoyaltyController extends Controller
         $tz = (string) config('app.timezone');
         /** @var array<string, array<string, true>> `quiz|day` => the plays already booked that day */
         $playsByDay = [];
+        /** @var array<string, int> `day` => extra plays on every section earned by sharing the referral code */
+        $bonusByDay = [];
         $touched = [];
         $newBadges = [];
 
@@ -158,7 +160,10 @@ class LoyaltyController extends Controller
                     $playsByDay[$slot] ??= $this->playsBooked($member->id, $answer['quiz'], $answeredAt);
 
                     if (! isset($playsByDay[$slot][$answer['play_id']])) {
-                        if (count($playsByDay[$slot]) >= $cap) {
+                        $day = $answeredAt->toDateString();
+                        $bonusByDay[$day] ??= \App\Support\QuizShareRefills::bonusFor($member->id, $answeredAt);
+
+                        if (count($playsByDay[$slot]) >= $cap + $bonusByDay[$day]) {
                             $overLimit++;
 
                             continue;
@@ -206,6 +211,27 @@ class LoyaltyController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => ['accepted' => $accepted, 'duplicates' => $duplicates, 'over_daily_limit' => $overLimit, 'new_badges' => $newBadges] + $this->summary($member)]);
+    }
+
+    /** The member shared their referral code: today's plays come back on every section (capped per day by the admin). */
+    public function shared(Request $request): JsonResponse
+    {
+        /** @var User $member */
+        $member = $request->user();
+
+        if (! \App\Support\Referrals::enabled()) {
+            return response()->json(['success' => false, 'reason' => 'disabled', 'message' => 'Referrals are off.'], 409);
+        }
+
+        try {
+            $state = \App\Support\QuizShareRefills::share($member->id);
+        } catch (\Throwable $e) {
+            Log::error('Quiz share refill failed', ['user_id' => $member->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['success' => false, 'message' => 'Could not save.'], 500);
+        }
+
+        return response()->json(['success' => true, 'data' => $state + ['plays_per_day' => (int) config('loyalty.quiz.plays_per_day')]]);
     }
 
     /** @return array<string, mixed> What the points are worth in pounds, the wallet and whether converting is open. */
@@ -311,6 +337,10 @@ class LoyaltyController extends Controller
             'points_wrong' => LoyaltyPoints::pointsWrong(),
             'speed_tiers' => $this->speedTiers(),
             'points_per_egp' => LoyaltyPoints::pointsPerEgp(),
+            /* Plays a day per section, and what sharing the referral code adds today (on every section). */
+            'plays_per_day' => (int) config('loyalty.quiz.plays_per_day'),
+            'share_bonus_plays_today' => \App\Support\QuizShareRefills::bonusFor($member->id),
+            'share_refills_left_today' => \App\Support\QuizShareRefills::sharesLeftToday($member->id),
         ] + $this->walletSummary($member->id) + $this->badges->catalog($member->id);
     }
 

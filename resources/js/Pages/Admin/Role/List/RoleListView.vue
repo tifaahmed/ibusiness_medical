@@ -12,7 +12,7 @@
                 <span class="text-sm sm:text-base truncate block min-w-0">Roles & Permissions</span>
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:max-w-full sm:min-w-0 sm:justify-end">
               <Link
                 v-if="canWrite"
                 :href="route('admin.roles.create')"

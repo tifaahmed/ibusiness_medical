@@ -55,6 +55,9 @@ class AdminOrderListController extends BaseController
             // Physical-card orders (`source = physical_card`) vs. shop orders (everything else).
             ->when($filters['kind'] === 'cards', fn ($q) => $q->where('source', PhysicalCard::SOURCE))
             ->when($filters['kind'] === 'products', fn ($q) => $q->where(fn ($w) => $w->whereNull('source')->orWhere('source', '!=', PhysicalCard::SOURCE)))
+            // Orders the BUYER hid from their own list (the admin always sees them; this narrows to or away from them).
+            ->when($filters['hidden'] === 'yes', fn ($q) => $q->whereNotNull('hidden_by_customer_at'))
+            ->when($filters['hidden'] === 'no', fn ($q) => $q->whereNull('hidden_by_customer_at'))
             ->when(! empty($filters['created_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['created_from']))
             ->when(! empty($filters['created_to']), fn ($q) => $q->whereDate('created_at', '<=', $filters['created_to']))
             ->latest()
@@ -88,6 +91,7 @@ class AdminOrderListController extends BaseController
             'order_status' => in_array($orderStatus, OrderStatusEnum::values(), true) ? $orderStatus : '',
             'payment_type' => in_array($paymentType, PaymentTypeEnum::values(), true) ? $paymentType : '',
             'kind' => in_array($kind, ['products', 'cards'], true) ? $kind : '',
+            'hidden' => in_array($request->input('hidden'), ['yes', 'no'], true) ? $request->input('hidden') : '',
             'created_from' => $this->normalizeDate($request->input('created_from')),
             'created_to' => $this->normalizeDate($request->input('created_to')),
         ];

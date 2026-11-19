@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
+import NotificationBell from '@/Components/NotificationBell.vue';
 
 const props = defineProps({
     sidebarCollapsed: {
@@ -81,6 +82,9 @@ const getUserInitials = (name) => {
 
             <!-- Right Section: Actions -->
             <div class="flex items-center gap-2 md:gap-3">
+                <!-- New orders and other things to look at: bell, count, chime. -->
+                <NotificationBell />
+
                 <!-- Language Toggle -->
                 <button
                     @click="switchLanguage"

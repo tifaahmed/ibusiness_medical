@@ -43,17 +43,34 @@ class AdminSettingListController extends BaseController
             })
             ->when($type !== '', fn ($q) => $q->where('value_type', $type))
             ->when($sort === 'newest', fn ($q) => $q->latest())
-            ->when($sort === 'oldest', fn ($q) => $q->oldest())
-            // Alphabetical by key is the default: settings are looked up by
-            // name far more often than they are browsed by age.
-            ->when($sort !== 'newest' && $sort !== 'oldest', fn ($q) => $q->orderBy('slug'))
-            ->paginate($request->input('per_page', 15))
-            ->withQueryString();
+            ->when($sort === 'oldest', fn ($q) => $q->oldest());
+
+        // Alphabetical by key is the default and is shown GROUPED by what the
+        // keys are about (see SettingGroups). A group spans many pages of a
+        // paginated list, so the grouped view lists every matching row on one
+        // page; newest / oldest keep the plain paginated list.
+        $grouped = $sort !== 'newest' && $sort !== 'oldest';
+
+        if ($grouped) {
+            $rows = $settings->orderBy('slug')->get()
+                ->sortBy([
+                    fn ($a, $b) => \App\Support\SettingGroups::position(\App\Support\SettingGroups::keyFor($a->slug))
+                        <=> \App\Support\SettingGroups::position(\App\Support\SettingGroups::keyFor($b->slug)),
+                    fn ($a, $b) => strcmp($a->slug, $b->slug),
+                ])->values();
+            $settings = new \Illuminate\Pagination\LengthAwarePaginator(
+                $rows, $rows->count(), max($rows->count(), 1), 1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $settings = $settings->paginate($request->input('per_page', 15))->withQueryString();
+        }
 
         return Inertia::render('Admin/Setting/List', [
-            'settings' => (new AdminSettingListCollection($settings))->toArray($request),
+            'settings' => (new AdminSettingListCollection($settings, $grouped))->toArray($request),
             'filters' => ['search' => $search, 'value_type' => $type, 'sort' => $sort],
             'valueTypes' => Setting::VALUE_TYPES,
+            'logoMaxKb' => Setting::maxUploadKilobytes(),
         ]);
     }
 }

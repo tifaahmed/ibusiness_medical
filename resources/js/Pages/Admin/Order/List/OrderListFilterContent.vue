@@ -130,6 +130,20 @@
         />
       </div>
 
+      <!-- Hidden by the customer -->
+      <div class="min-w-0">
+        <label class="flex items-center gap-1.5 sm:gap-2 text-xs leading-none font-medium select-none w-full mb-1" for="order_hidden">
+          {{ t.order?.hidden_filter || 'Hidden by customer' }}
+        </label>
+        <Select
+          v-model="filters.hidden"
+          :options="hiddenOptions"
+          :placeholder="t.order?.hidden_all || 'All'"
+          id="order_hidden"
+          @change="applyFilters()"
+        />
+      </div>
+
       <!-- Created from -->
       <div class="min-w-0">
         <label
@@ -258,6 +272,11 @@ const kindOptions = computed(() => [
   { value: 'cards', label: t.value.order?.kind_cards || 'Physical cards' },
 ]);
 
+const hiddenOptions = computed(() => [
+  { value: 'yes', label: t.value.order?.hidden_yes || 'Hidden by customer' },
+  { value: 'no', label: t.value.order?.hidden_no || 'Not hidden' },
+]);
+
 const getInitialFilters = () => {
   const defaults = {
     search: '',
@@ -266,6 +285,7 @@ const getInitialFilters = () => {
     order_status: '',
     payment_type: '',
     kind: '',
+    hidden: '',
     created_from: '',
     created_to: ''
   };
@@ -283,6 +303,7 @@ const getInitialFilters = () => {
       order_status: urlParams.get('order_status') || '',
       payment_type: urlParams.get('payment_type') || '',
       kind: urlParams.get('kind') || '',
+      hidden: urlParams.get('hidden') || '',
       created_from: urlParams.get('created_from') || '',
       created_to: urlParams.get('created_to') || ''
     };
@@ -299,6 +320,7 @@ const hasActiveFilters = computed(() => {
     || filters.value.order_status
     || filters.value.payment_type
     || filters.value.kind
+    || filters.value.hidden
     || filters.value.created_from
     || filters.value.created_to);
 });
@@ -317,7 +339,7 @@ const handleSearch = (event) => {
 };
 
 const handleReset = () => {
-  filters.value = { search: '', payment_status: '', delivery_status: '', order_status: '', payment_type: '', kind: '', created_from: '', created_to: '' };
+  filters.value = { search: '', payment_status: '', delivery_status: '', order_status: '', payment_type: '', kind: '', hidden: '', created_from: '', created_to: '' };
   applyFilters();
 };
 
@@ -330,6 +352,7 @@ const applyFilters = (filterValues = null) => {
   if (currentFilters.order_status) params.order_status = currentFilters.order_status;
   if (currentFilters.payment_type) params.payment_type = currentFilters.payment_type;
   if (currentFilters.kind) params.kind = currentFilters.kind;
+  if (currentFilters.hidden) params.hidden = currentFilters.hidden;
   if (currentFilters.created_from) params.created_from = currentFilters.created_from;
   if (currentFilters.created_to) params.created_to = currentFilters.created_to;
 

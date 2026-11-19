@@ -31,6 +31,28 @@ export const statusClass = {
     },
 };
 
+/**
+ * How an order was really covered, one tag per way: wallet and/or loyalty points when they paid part (or all) of it, and the
+ * order's own payment type (Paymob / transfer / cash on delivery) ONLY when real money is still part of it. So wallet + points
+ * only shows those two; Paymob for the rest shows a third; nothing used shows just the payment type, as before.
+ */
+export const paymentMethodTags = (order) => {
+    const wallet = Number(order?.wallet_amount) || 0;
+    const points = Number(order?.points_amount) || 0;
+    const due = order?.real_due ?? order?.amount_due;
+    const tags = [];
+    if (points > 0) tags.push({ kind: 'points' });
+    if (wallet > 0) tags.push({ kind: 'wallet' });
+    const realMoney = due === undefined || due === null ? true : Number(due) > 0;
+    if ((wallet <= 0 && points <= 0) || realMoney) tags.push({ kind: 'type' });
+    return tags;
+};
+
+export const paymentTagClass = {
+    wallet: 'border-violet-500/30 bg-violet-500/10 text-violet-500',
+    points: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+};
+
 export const paymentTypeClass = {
     cod: 'border-sky-500/30 bg-sky-500/10 text-sky-500',
     'transfer-wallet': 'border-violet-500/30 bg-violet-500/10 text-violet-500',

@@ -8,7 +8,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class AdminSettingListCollection
 {
-    public function __construct(private LengthAwarePaginator $settings) {}
+    public function __construct(private LengthAwarePaginator $settings, private bool $grouped = false) {}
 
     public function toArray(Request $request): array
     {
@@ -17,6 +17,7 @@ class AdminSettingListCollection
                 return [
                     'id' => $setting->id,
                     'slug' => $setting->slug,
+                    'group' => \App\Support\SettingGroups::describe($setting->slug),
                     // Both names, so the table can list them side by side.
                     'name' => $setting->getTranslations('name'),
                     'value' => $setting->value,
@@ -28,6 +29,7 @@ class AdminSettingListCollection
                 ];
             })->toArray(),
             'meta' => [
+                'grouped' => $this->grouped,
                 'current_page' => $this->settings->currentPage(),
                 'first_page_url' => $this->settings->url(1),
                 'from' => $this->settings->firstItem(),

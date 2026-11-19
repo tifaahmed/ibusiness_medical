@@ -98,7 +98,8 @@ class OrderController extends Controller
 
         $orders = Order::query()
             ->where('user_id', $member->id)
-            ->with('products')
+            ->whereNull('hidden_by_customer_at')
+            ->with('products', 'shipments')
             ->latest('id')
             ->paginate((int) $request->integer('per_page', 20));
 
@@ -190,7 +191,7 @@ class OrderController extends Controller
         $order = Order::query()
             ->where('user_id', $member->id)
             ->where('order_code', $orderCode)
-            ->with('products', 'statusLogs')
+            ->with('products', 'shipments', 'statusLogs')
             ->first();
 
         if (! $order instanceof Order) {

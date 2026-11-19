@@ -107,6 +107,7 @@ class Order extends Model implements HasMedia
         'payment_status',
         'delivery_status',
         'order_status',
+        'hidden_by_customer_at',
         'payment_type',
         'cancel_reason',
         'ip_address',
@@ -145,6 +146,7 @@ class Order extends Model implements HasMedia
             'payment_status' => PaymentStatusEnum::class,
             'delivery_status' => DeliveryStatusEnum::class,
             'order_status' => OrderStatusEnum::class,
+            'hidden_by_customer_at' => 'datetime',
             'payment_type' => PaymentTypeEnum::class,
             'customer_address_type' => AddressTypeEnum::class,
             'abs_shipped_at' => 'datetime',
@@ -169,6 +171,12 @@ class Order extends Model implements HasMedia
     /**
      * The lines of this order — each a snapshot of a product as it was sold.
      */
+    /** One row per store that ships part of this order (empty on orders placed before the split). */
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(OrderShipment::class)->orderBy('id');
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(OrderProduct::class)->orderBy('id');
@@ -218,6 +226,9 @@ class Order extends Model implements HasMedia
     /** Cancelled, or failed after it was sold: whatever was paid goes back to the buyer's WALLET (once). */
     protected static function booted(): void
     {
+        // The dashboard's bell: every new order, from the website, the app, a physical-card or a relative-fee purchase.
+        static::created(fn (Order $order) => AdminNotification::forOrder($order));
+
         static::updated(function (Order $order): void {
             $cancelled = $order->wasChanged('payment_status') && $order->payment_status === \App\Enums\Order\PaymentStatusEnum::CANCELED;
             $failed = $order->wasChanged('order_status') && $order->order_status === \App\Enums\Order\OrderStatusEnum::FAILED;
@@ -238,6 +249,25 @@ class Order extends Model implements HasMedia
                 \App\Support\WalletPayments::refundOrder($order, $cancelled ? 'cancelled' : 'rejected');
             }
         });
+    }
+
+    /**
+     * Whether the BUYER may hide this order from their own lists: it is still exactly as it was placed —
+     * payment pending with nothing paid (money, wallet or points), delivery pending, no receipt filed, not shipped,
+     * not failed — and not hidden already. Hiding only stamps `hidden_by_customer_at`; the order stays whole
+     * and the admin keeps seeing it, flagged.
+     */
+    public function canBeHiddenByBuyer(): bool
+    {
+        return $this->hidden_by_customer_at === null
+            && $this->payment_status === PaymentStatusEnum::PENDING
+            && $this->delivery_status === DeliveryStatusEnum::PENDING
+            && $this->order_status !== OrderStatusEnum::FAILED
+            && (float) $this->total_paid <= 0
+            && (float) $this->wallet_amount <= 0
+            && (int) $this->points_used <= 0
+            && ! $this->isShipped()
+            && $this->getMedia(self::RECEIPT_COLLECTION)->isEmpty();
     }
 
     public function isOnlinePayment(): bool

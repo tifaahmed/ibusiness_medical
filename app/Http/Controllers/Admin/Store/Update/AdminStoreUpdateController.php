@@ -42,6 +42,8 @@ class AdminStoreUpdateController extends BaseController
                 'meta_keywords' => array_filter($validated['meta_keywords'] ?? []) ?: null,
                 'supports_shipping' => $validated['supports_shipping'] ?? false,
                 'ships_everywhere' => $validated['ships_everywhere'] ?? true,
+                'shipping_price' => $validated['shipping_price'] ?? null,
+                'free_shipping_threshold' => $validated['free_shipping_threshold'] ?? null,
                 'offer_percent_from' => $validated['offer_percent_from'] ?? null,
                 'offer_percent_to' => $validated['offer_percent_to'] ?? null,
             ]);
@@ -49,6 +51,8 @@ class AdminStoreUpdateController extends BaseController
             $store->categories()->sync($validated['category_ids'] ?? []);
             $store->tags()->sync($validated['tag_ids'] ?? []);
             $store->shippingGovernorates()->sync($validated['shipping_governorate_ids'] ?? []);
+            \App\Actions\Store\SaveStoreShippingGroup::run($store, $validated);
+            \App\Actions\Store\SaveStoreShippingRates::run($store, $validated['shipping_rates'] ?? []);
 
             if (! empty($validated['logo'])) {
                 $store->addMedia($validated['logo'])->toMediaCollection('logo');

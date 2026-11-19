@@ -30,6 +30,8 @@ class OrderProduct extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'store_id',
+        'store_name',
         'name',
         'slug',
         'image',
@@ -47,6 +49,7 @@ class OrderProduct extends Model
     protected function casts(): array
     {
         return [
+            'store_name' => 'array',
             'quantity' => 'integer',
             'old_price' => 'decimal:2',
             'new_price' => 'decimal:2',
@@ -101,6 +104,9 @@ class OrderProduct extends Model
 
         return new self([
             'product_id' => $product->id,
+            /* The seller, archived so a placed order keeps its store split whatever happens to the store. */
+            'store_id' => $product->store_id,
+            'store_name' => $product->store?->getTranslations('title'),
             /* The raw attribute, not the accessor: `getTranslations()` is the
                whole map, while `$product->name` is only the request's locale. */
             'name' => $product->getTranslations('name'),

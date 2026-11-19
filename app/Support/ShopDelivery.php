@@ -108,6 +108,23 @@ class ShopDelivery
     }
 
     /**
+     * "One shipping price for the whole order": when on, every order ships as one parcel at this price, whatever the
+     * stores or the governorate (admin switch in /admin/setting; off by default).
+     *
+     * @return array{enabled: bool, price: float, free_from: ?float}
+     */
+    public static function single(): array
+    {
+        $free = SiteSettings::get('shop_single_shipping_free_from');
+
+        return [
+            'enabled' => filter_var(SiteSettings::get('shop_single_shipping_enabled', false), FILTER_VALIDATE_BOOLEAN),
+            'price' => round((float) SiteSettings::get('shop_single_shipping_price', 0), 2),
+            'free_from' => is_numeric($free) ? round((float) $free, 2) : null,
+        ];
+    }
+
+    /**
      * The rows the admin edits, with this install's defaults.
      *
      * @return array<int, array{slug: string, name: array<string, string>, value: string, value_type: string}>

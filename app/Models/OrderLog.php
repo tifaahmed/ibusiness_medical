@@ -69,6 +69,9 @@ class OrderLog extends Model
     /** The purchase receipt was mailed (or could not be) to the buyer. */
     public const ACTION_RECEIPT_EMAILED = 'receipt_emailed';
 
+    /** The buyer hid an untouched order from their own lists (the order itself is untouched). */
+    public const ACTION_HIDDEN_BY_CUSTOMER = 'hidden_by_customer';
+
     /** The buyer swapped cash on delivery / a wallet transfer for paying online. */
     public const ACTION_PAYMENT_TYPE_CHANGED = 'payment_type_changed';
 
