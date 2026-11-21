@@ -140,6 +140,33 @@ class RelativeFeeTest extends TestCase
     }
 
     /** @test */
+    public function points_and_the_wallet_cut_the_fee_only_when_asked_and_a_fully_covered_fee_activates_the_relative(): void
+    {
+        [$user, $card] = $this->member();
+        $relative = $this->pendingRelative($card);
+        \App\Support\SiteSettings::put('loyalty_points_per_egp', 100, Setting::TYPE_NUMBER);
+        \App\Support\SiteSettings::forget();
+        \App\Models\LoyaltyTransaction::query()->create(['user_id' => $user->id, 'source' => 'admin', 'client_id' => 'seed', 'points' => 2000, 'answered_at' => now()]);
+        \App\Models\WalletTransaction::query()->create(['user_id' => $user->id, 'source' => 'admin', 'client_id' => 'seed', 'amount' => 100]);
+        Sanctum::actingAs($user);
+
+        // Nothing is spent without the press.
+        $plain = $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod'])->assertCreated();
+        $this->assertEquals(0, $plain->json('order.points_amount') ?? 0);
+        Order::query()->where('order_code', $plain->json('order.order_code'))->firstOrFail()->update(['payment_status' => PaymentStatusEnum::CANCELED]);
+        $this->assertEquals(100, \App\Models\WalletTransaction::balanceOf($user->id));
+
+        // Points (20 EGP) then the wallet (the other 40): the 60 EGP fee is covered at once and the relative switches on.
+        $pay = $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod', 'use_points' => true, 'use_wallet' => true])->assertCreated();
+        $order = Order::query()->where('order_code', $pay->json('order.order_code'))->firstOrFail();
+        $this->assertEquals(20, (float) $order->points_amount);
+        $this->assertEquals(40, (float) $order->wallet_amount);
+        $this->assertSame(PaymentStatusEnum::ACCEPTED, $order->payment_status);
+        $this->assertNotNull($relative->fresh()->expiration_date);
+        $this->assertEquals(60, \App\Models\WalletTransaction::balanceOf($user->id));
+    }
+
+    /** @test */
     public function a_relative_renews_themself_when_the_card_is_paid_and_pays_a_normal_plan_when_it_is_not(): void
     {
         [, $card] = $this->member();

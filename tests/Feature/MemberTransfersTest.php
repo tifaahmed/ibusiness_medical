@@ -20,6 +20,8 @@ class MemberTransfersTest extends TestCase
     private function open(): void
     {
         SiteSettings::put(MemberTransfers::ENABLED, '1', Setting::TYPE_BOOLEAN);
+        // These tests are about WHO and WHEN; the fee has its own test below.
+        SiteSettings::put(MemberTransfers::FEE_PERCENT, '0', Setting::TYPE_NUMBER);
         SiteSettings::forget();
     }
 
@@ -163,5 +165,39 @@ class MemberTransfersTest extends TestCase
         $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'wallet', 'amount' => 10, 'id' => 'w1'])->assertStatus(422)->assertJsonPath('reason', 'kind_disabled');
         $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'points', 'amount' => 10, 'id' => 'p1'])->assertOk();
         $this->getJson('/api/v1/transfers')->assertJsonPath('data.kinds.points', true)->assertJsonPath('data.kinds.wallet', false);
+    }
+
+    /** @test */
+    public function half_is_kept_as_a_transfer_fee_by_default_and_the_sender_is_told_before_and_after(): void
+    {
+        $this->open();
+        SiteSettings::forget(); // the migration's default (50%)
+        SiteSettings::put(MemberTransfers::FEE_PERCENT, '50', Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+        [$a] = $this->member('01011111111', 500, 100);
+        [$b] = $this->member('01022222222');
+        Sanctum::actingAs($a);
+
+        // Before sending: the lookup previews the fee and what arrives.
+        $this->postJson('/api/v1/transfers/lookup', ['phone' => '01022222222', 'kind' => 'points', 'amount' => 201])->assertOk()
+            ->assertJsonPath('data.fee_percent', 50)->assertJsonPath('data.preview.fee', 101)->assertJsonPath('data.preview.net', 100);
+
+        $points = $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'points', 'amount' => 200, 'id' => 'p1'])->assertOk();
+        $points->assertJsonPath('data.transfer.fee', 100)->assertJsonPath('data.transfer.net', 100);
+        $wallet = $this->postJson('/api/v1/transfers', ['phone' => '01022222222', 'kind' => 'wallet', 'amount' => 40, 'id' => 'w1'])->assertOk();
+        $wallet->assertJsonPath('data.transfer.fee', 20)->assertJsonPath('data.transfer.net', 20);
+
+        // Even if the admin changes the percent later, a waiting request keeps its own fee.
+        SiteSettings::put(MemberTransfers::FEE_PERCENT, '10', Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+
+        Sanctum::actingAs($b);
+        $this->postJson('/api/v1/transfers/'.$points->json('data.transfer.id').'/accept')->assertOk();
+        $this->postJson('/api/v1/transfers/'.$wallet->json('data.transfer.id').'/accept')->assertOk();
+
+        $this->assertSame(300, LoyaltyTransaction::balanceOf($a->id));
+        $this->assertSame(100, LoyaltyTransaction::balanceOf($b->id));
+        $this->assertEquals(60, WalletTransaction::balanceOf($a->id));
+        $this->assertEquals(20, WalletTransaction::balanceOf($b->id));
     }
 }

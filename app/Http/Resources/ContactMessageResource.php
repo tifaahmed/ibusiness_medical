@@ -32,6 +32,7 @@ class ContactMessageResource extends JsonResource
             'is_member' => isset($this->resource->getAttributes()['is_member']) ? (bool) $this->resource->getAttributes()['is_member'] : null,
             /* The member behind this phone: card type (primary | relative), state (trial …) and the page to open. */
             'member' => $this->resource->getAttributes()['member_info'] ?? $this->resource->getRelationValue('member_info') ?? null,
+            'same_phone_count' => $this->resource->getAttributes()['same_phone_count'] ?? null,
             'channel' => $this->channel,
             'channel_label' => $this->channel ? ContactChannelEnum::tryFrom($this->channel)?->label() : null,
             'source' => $this->source->value,

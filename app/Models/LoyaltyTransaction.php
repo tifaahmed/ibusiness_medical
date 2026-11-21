@@ -23,6 +23,9 @@ class LoyaltyTransaction extends Model
     /** Points sent to / received from another member (a debit and a credit that share a transfer). */
     public const SOURCE_TRANSFER = 'transfer';
 
+    /** Points that reached the expiry age (negative); see App\Support\LoyaltyExpiry. */
+    public const SOURCE_EXPIRED = 'expired';
+
     protected $fillable = ['user_id', 'source', 'client_id', 'play_id', 'quiz_key', 'question_id', 'correct', 'timed_out', 'answer_seconds', 'stage', 'points', 'note', 'created_by', 'badge_definition_id', 'answered_at', 'platform'];
 
     protected function casts(): array

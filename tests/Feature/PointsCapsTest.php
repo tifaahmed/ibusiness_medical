@@ -141,4 +141,22 @@ class PointsCapsTest extends TestCase
         $this->assertEqualsCanonicalizing(['yes', 'no'], $all);
         $this->assertSame(['yes'], $only);
     }
+
+    /** @test */
+    public function an_expired_card_cannot_spend_points_on_products(): void
+    {
+        $this->product('a', 300);
+        $user = $this->rich();
+        \App\Models\Membership::factory()->create(['user_id' => $user->id, 'is_active' => true, 'is_visible' => true, 'plan' => \App\Models\Membership::PLAN_FULL, 'expiration_date' => now()->subDay()]);
+
+        $res = $this->buy([['slug' => 'a', 'quantity' => 1]], $user, ['use_points' => true]);
+        $res->assertStatus(422)->assertJsonPath('reason', 'points_card_expired');
+        $this->assertSame(1000000, \App\Models\LoyaltyTransaction::balanceOf($user->id));
+
+        // Without the press the order goes through at full price; and a current card still spends points.
+        $this->assertEquals(0, $this->buy([['slug' => 'a', 'quantity' => 1]], $user)->assertCreated()->json('order.points_amount') ?? 0);
+        $ok = $this->rich();
+        \App\Models\Membership::factory()->create(['user_id' => $ok->id, 'is_active' => true, 'is_visible' => true, 'plan' => \App\Models\Membership::PLAN_FULL, 'expiration_date' => now()->addMonths(3)]);
+        $this->assertEquals(300, $this->buy([['slug' => 'a', 'quantity' => 1]], $ok, ['use_points' => true])->assertCreated()->json('order.points_amount'));
+    }
 }

@@ -268,6 +268,7 @@
                     </td>
                     <td class="p-2 sm:p-3 align-middle">
                       <span class="text-foreground text-xs" dir="ltr">{{ msg.phone }}</span>
+                      <span v-if="msg.same_phone_count > 1" class="chip chip-accent ms-1" :title="t.same_phone_count_hint || 'Messages from this number — open one to see them all'">×{{ msg.same_phone_count }}</span>
                       <div class="mt-1"><MemberBadge :member="msg.member" :is-member="msg.is_member" /></div>
                     </td>
                     <td class="p-2 sm:p-3 align-middle max-w-xs">

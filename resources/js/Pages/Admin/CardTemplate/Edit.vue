@@ -457,8 +457,8 @@ const sampleLabel = computed(() => {
 
 const hiddenFields = computed(() => [
   ...(props.statuses.find((s) => s.value === form.status)?.hidden_fields ?? []),
-  // The full name and expiry date exist on soft cards only.
-  ...(form.kind === 'soft' ? [] : SOFT_ONLY_FIELDS),
+  // The full name and expiry date exist on soft cards only; a soft card has no barcode (the expiry date takes its place).
+  ...(form.kind === 'soft' ? ['barcode'] : SOFT_ONLY_FIELDS),
 ]);
 const visibleFields = computed(() => Object.keys(form.layout).filter((k) => !hiddenFields.value.includes(k)));
 const field = computed(() => (selected.value ? form.layout[selected.value] : null));

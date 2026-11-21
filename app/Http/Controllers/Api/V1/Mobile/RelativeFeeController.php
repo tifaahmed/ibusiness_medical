@@ -82,6 +82,7 @@ class RelativeFeeController extends Controller
             'relative_ids.*' => ['integer', Rule::in($waiting->keys()->all())],
             'plan' => ['nullable', Rule::in([RelativeFee::PLAN_MONTH, RelativeFee::PLAN_YEAR])],
             'use_points' => ['nullable', 'boolean'],
+            'use_wallet' => ['nullable', 'boolean'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
                 if (! in_array($value, PaymentMethods::orderTypes(PaymentMethods::CONTEXT_MEMBERSHIP), true)) {
                     $fail('This payment method is not available right now.');
@@ -143,8 +144,14 @@ class RelativeFeeController extends Controller
                 Membership::query()->whereIn('id', $ids)->update(['fee_order_id' => $order->id]);
 
                 // Points are spent only when the member presses «pay with points» (never automatically); the backend counts the pounds.
+                $pointsAmount = 0.0;
                 if ($request->boolean('use_points')) {
-                    \App\Support\PointsPayments::applyToOrder($order, $user, \App\Support\PointsPayments::eligible([['amount' => $total, 'cap' => null]]));
+                    $pointsAmount = \App\Support\PointsPayments::applyToOrder($order, $user, \App\Support\PointsPayments::eligible([['amount' => $total, 'cap' => null]]));
+                }
+
+                // The wallet likewise only on a press (`use_wallet`), on what the points left to pay.
+                if ($request->boolean('use_wallet')) {
+                    \App\Support\WalletPayments::applyToOrder($order, $user, max(0.0, round($total - $pointsAmount, 2)));
                 }
 
                 return $order->refresh();

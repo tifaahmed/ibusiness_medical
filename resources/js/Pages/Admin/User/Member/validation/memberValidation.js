@@ -33,6 +33,7 @@ export const memberSchema = z.object({
         .or(z.literal('')),
     membership_number: z.string()
         .max(255, 'Membership number must be less than 255 characters')
+        .regex(/^\d*$/, 'Membership number must contain digits only')
         .optional()
         .or(z.literal(''))
         .transform(val => val ? String(val).trim() : ''),
@@ -200,6 +201,7 @@ export const memberUpdateSchema = z.object({
         .or(z.literal('')),
     membership_number: z.string()
         .max(255, 'Membership number must be less than 255 characters')
+        .regex(/^\d*$/, 'Membership number must contain digits only')
         .optional()
         .or(z.literal(''))
         .transform(val => val ? String(val).trim() : ''),

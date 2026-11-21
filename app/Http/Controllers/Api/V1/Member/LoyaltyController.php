@@ -337,6 +337,10 @@ class LoyaltyController extends Controller
             'points_wrong' => LoyaltyPoints::pointsWrong(),
             'speed_tiers' => $this->speedTiers(),
             'points_per_egp' => LoyaltyPoints::pointsPerEgp(),
+            /* Points that expire within a month (null = none close, or expiry is off): the app warns the member. */
+            'expiring' => \App\Support\LoyaltyExpiry::expiringSoon($member->id),
+            /* Why points cannot be spent at checkout (`card_expired`), or null: the app hides the «use points» switch and says why. */
+            'points_blocked' => \App\Support\PointsPayments::blockedReason($member),
             /* Plays a day per section, and what sharing the referral code adds today (on every section). */
             'plays_per_day' => (int) config('loyalty.quiz.plays_per_day'),
             'share_bonus_plays_today' => \App\Support\QuizShareRefills::bonusFor($member->id),

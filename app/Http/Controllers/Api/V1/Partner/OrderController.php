@@ -79,6 +79,11 @@ class OrderController extends Controller
          */
         $buyer = $request->user('sanctum');
 
+        // An expired card (trial ended or lapsed) cannot pay with loyalty points: refuse clearly instead of charging the full price unasked.
+        if ($request->boolean('use_points', false) && PointsPayments::blockedReason($buyer) !== null) {
+            return response()->json(['reason' => 'points_card_expired', 'message' => 'Your card has expired, so loyalty points cannot be used. Renew the card first.'], \Illuminate\Http\Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         /** @var \Illuminate\Support\Collection<int, Product> $products */
         /*
          * `is_purchasable` is enforced here rather than only on the storefront:

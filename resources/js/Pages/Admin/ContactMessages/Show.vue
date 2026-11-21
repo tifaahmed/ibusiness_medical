@@ -168,6 +168,43 @@
               </div>
             </div>
 
+            <!-- Every other enquiry from the same phone, read together and moved as one. -->
+            <div v-if="samePhone.length" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm" data-testid="same-phone-card">
+              <div class="p-3 border-b border-border flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-foreground">{{ t.same_phone || 'Same phone' }}</h2>
+                <span class="chip chip-accent">{{ samePhone.length + 1 }}</span>
+              </div>
+              <div class="p-3 space-y-3">
+                <ul class="space-y-2">
+                  <li v-for="m in samePhone" :key="m.id" class="rounded-md border border-border p-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <Link :href="m.url" class="text-xs font-semibold text-foreground hover:underline">#{{ m.id }}</Link>
+                      <span class="flex flex-wrap items-center gap-1">
+                        <span class="chip chip-neutral">{{ m.source_label }}</span>
+                        <span :class="['chip', statusChip(m.status)]">{{ m.status_label }}</span>
+                        <span class="text-[11px] text-muted-foreground">{{ formatDate(m.created_at) }}</span>
+                      </span>
+                    </div>
+                    <p v-if="m.subject" class="text-xs font-medium text-foreground mt-1">{{ m.subject }}</p>
+                    <p v-if="m.message" class="text-xs text-muted-foreground whitespace-pre-wrap break-words mt-0.5">{{ m.message }}</p>
+                  </li>
+                </ul>
+                <div v-if="canManage" class="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+                  <div class="min-w-[12rem] flex-1">
+                    <label class="text-xs font-medium text-muted-foreground mb-1 block">{{ t.change_all_status || 'Change the status of all these messages' }}</label>
+                    <Select :modelValue="groupStatus" :options="statusOptions" @update:modelValue="val => groupStatus = val" />
+                  </div>
+                  <button
+                    type="button"
+                    :disabled="groupBusy || !groupStatus"
+                    @click="applyGroupStatus"
+                    class="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 h-8 px-3 min-w-[8rem]"
+                  >{{ (t.apply_to_all || 'Apply to all (:n)').replace(':n', samePhone.length + 1) }}</button>
+                </div>
+                <p v-if="groupError" class="text-xs value-negative">{{ groupError }}</p>
+              </div>
+            </div>
+
             <!-- Working the enquiry -->
             <div v-if="canManage" data-slot="card" class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
               <div class="p-3 border-b border-border">
@@ -287,6 +324,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import axios from 'axios';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Select from '@/Components/ui/Select.vue';
@@ -305,7 +343,36 @@ const props = defineProps({
   canManage: { type: Boolean, default: false },
   // Set when this enquiry is a member's national-ID change request.
   idChange: { type: Object, default: null },
+  // The same person's other enquiries (same phone).
+  samePhone: { type: Array, default: () => [] },
 });
+
+const statusChip = (status) => ({
+  new: 'chip-info', in_progress: 'chip-warning', resolved: 'chip-positive', closed: 'chip-neutral', rejected: 'chip-negative',
+}[status] || 'chip-neutral');
+
+/* One status for this message and every other one from the same phone, through the
+   bulk endpoint so each message keeps its own log line. */
+const groupStatus = ref('');
+const groupBusy = ref(false);
+const groupError = ref('');
+const applyGroupStatus = async () => {
+  groupBusy.value = true;
+  groupError.value = '';
+  try {
+    await axios.post(route('admin.contact-messages.bulk-update'), {
+      ids: [props.message.id, ...props.samePhone.map(m => m.id)],
+      action: groupStatus.value,
+    });
+    groupStatus.value = '';
+    router.reload({ preserveScroll: true });
+  } catch (e) {
+    groupError.value = e?.response?.data?.message || e?.message || 'Update failed';
+    axios.post('/api/v1/client-errors', { message: String(e?.message || e), stack: e?.stack, route: 'admin.contact-messages.show.group-status', extra: { id: props.message.id } }).catch(() => {});
+  } finally {
+    groupBusy.value = false;
+  }
+};
 
 const reviewNote = ref('');
 const deciding = ref(false);

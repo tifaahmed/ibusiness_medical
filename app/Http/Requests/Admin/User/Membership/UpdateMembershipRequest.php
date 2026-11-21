@@ -162,6 +162,11 @@ class UpdateMembershipRequest extends FormRequest
 
         $membershipNumberRule = ['required', 'string'];
 
+        // Digits only — but an untouched legacy number (e.g. one with letters) stays savable.
+        if ($editingMembership?->membership_number !== $this->input('membership_number')) {
+            $membershipNumberRule[] = 'regex:/^\d+$/';
+        }
+
         if ($membershipId) {
             $membershipNumberRule[] = Rule::unique(Membership::class)->ignore($membershipId);
         } else {
@@ -284,6 +289,7 @@ class UpdateMembershipRequest extends FormRequest
             'password.confirmed' => 'The password confirmation does not match.',
             'membership_number.required' => 'The membership number field is required.',
             'membership_number.unique' => 'This membership number is already in use.',
+            'membership_number.regex' => 'The membership number must contain digits only.',
             'national_id.required' => 'The National ID number is required.',
             'national_id.digits' => 'The National ID number must be exactly 14 digits.',
             'expiration_date.required' => 'The expiration date field is required.',

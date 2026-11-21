@@ -85,7 +85,7 @@ class CardTemplateLayoutDefaults
                 'font_family' => 'Tajawal', 'direction' => 'center', 'color' => '#000000', 'font_size' => 18,
             ],
             'expiry_date' => [
-                'x' => 0.1096, 'y' => 0.8200, 'width' => 0.3500, 'height' => 0.0450,
+                'x' => 0.5212, 'y' => 0.3394, 'width' => 0.2464, 'height' => 0.1054,
                 'font_family' => 'Tajawal', 'direction' => 'center', 'color' => '#000000', 'font_size' => 16,
             ],
 

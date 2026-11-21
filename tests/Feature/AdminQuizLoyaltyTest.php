@@ -63,6 +63,19 @@ class AdminQuizLoyaltyTest extends TestCase
     }
 
     /** @test */
+    public function the_page_shows_the_transfer_fee_percent_and_what_each_transfer_kept(): void
+    {
+        $from = User::factory()->create(['name' => 'Sender One']);
+        $to = User::factory()->create(['name' => 'Receiver Two']);
+        \App\Models\WalletTransfer::query()->create(['from_user_id' => $from->id, 'to_user_id' => $to->id, 'kind' => 'points', 'amount' => 200, 'fee' => 100, 'status' => 'accepted', 'client_id' => 'x', 'expires_at' => now()->addDay()]);
+
+        $this->actingAs($this->admin())->get(route('admin.loyalty.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('transferFee.percent', 50)->where('transferFee.points_collected', 100)
+                ->has('transfers', 1)->where('transfers.0.fee', 100)->where('transfers.0.net', 100));
+    }
+
+    /** @test */
     public function the_admin_adds_edits_and_switches_off_a_badge(): void
     {
         $admin = $this->admin();

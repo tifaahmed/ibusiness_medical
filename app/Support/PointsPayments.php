@@ -40,6 +40,18 @@ final class PointsPayments
         return $orderCap !== null && $perEgp > 0 ? min($sum, $orderCap / $perEgp) : $sum;
     }
 
+    /** Why this buyer may not spend points at checkout, or null: a card that has EXPIRED (a trial that ended or a paid card that lapsed) earns no points spending. */
+    public static function blockedReason(?User $buyer): ?string
+    {
+        if ($buyer === null) {
+            return null;
+        }
+
+        $card = $buyer->memberships()->latest('id')->first();
+
+        return $card !== null && in_array($card->state(), [\App\Models\Membership::STATE_EXPIRED, \App\Models\Membership::STATE_TRIAL_EXPIRED], true) ? 'card_expired' : null;
+    }
+
     /** Whole pounds the buyer's points could take off `$eligible` pounds, and the points that costs. */
     public static function quote(int $balance, float $eligible): array
     {
@@ -60,7 +72,7 @@ final class PointsPayments
      */
     public static function applyToOrder(Order $order, ?User $buyer, float $eligible): float
     {
-        if ($buyer === null || $eligible <= 0) {
+        if ($buyer === null || $eligible <= 0 || self::blockedReason($buyer) !== null) {
             return 0.0;
         }
 

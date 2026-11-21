@@ -285,6 +285,7 @@
             <div>
               <FormInput
                 v-model="memberStore.form.membership_number"
+                inputmode="numeric"
                 :label="t.member?.membership_number || 'Membership Number'"
                 :error="memberStore.validationErrors?.membership_number || (duplicateMember ? (t.member?.number_in_use || 'This membership number is already in use.') : '')"
                 :placeholder="t.member?.membership_number_placeholder || 'Leave empty to auto-generate'"
@@ -829,6 +830,15 @@ let checkSeq = 0;
 
 const editingUserId = computed(() => page.props.member?.id ?? null);
 const editingMembershipId = computed(() => page.props.member?.membership?.id ?? null);
+
+// Membership number is digits only: drop anything else as it is typed or pasted.
+watch(() => form.value.membership_number, (raw) => {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (String(raw ?? '') !== digits) {
+    form.value.membership_number = digits;
+    return;
+  }
+}, { flush: 'sync' });
 
 watch(() => form.value.membership_number, (raw) => {
   const value = String(raw ?? '').trim();

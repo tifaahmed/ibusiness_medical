@@ -22,6 +22,31 @@
           </ul>
         </section>
 
+        <!-- ===== Transfers between members and their fee ===== -->
+        <section class="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-3 space-y-2" data-testid="transfer-fee-section">
+          <h2 class="text-base font-semibold">{{ t.loyalty?.transfers_title || 'Transfers between members' }}</h2>
+          <p class="text-sm">
+            {{ t.loyalty?.transfer_fee || 'Transfer fee' }}: <b>{{ transferFee.percent }}%</b>
+            <span class="text-muted-foreground"> — {{ t.loyalty?.transfer_fee_help || 'the sender gives the whole amount, the recipient gets the rest (points and wallet)' }}</span>
+            <a href="/admin/setting" class="text-primary underline ms-2">{{ t.loyalty?.edit_rate || 'Change it in Settings' }} (loyalty_transfers_fee_percent)</a>
+          </p>
+          <p v-if="!transferFee.enabled" class="text-xs text-amber-600">{{ t.loyalty?.transfers_off || 'Member transfers are switched off (loyalty_transfers_enabled).' }}</p>
+          <p class="text-sm">
+            {{ t.loyalty?.fees_collected || 'Fees collected' }}:
+            <b dir="ltr">{{ transferFee.points_collected }}</b> {{ t.loyalty?.points_word || 'points' }} ·
+            <b dir="ltr">{{ transferFee.wallet_collected }}</b> EGP
+          </p>
+          <div v-if="transfers.length" class="divide-y divide-border rounded-lg border border-border">
+            <div v-for="tr in transfers" :key="tr.id" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-2.5 py-1.5 text-sm">
+              <span class="font-semibold tabular-nums" dir="ltr">{{ tr.amount }} {{ tr.kind === 'points' ? (t.loyalty?.points_word || 'points') : 'EGP' }}</span>
+              <span>{{ tr.from || '—' }} → {{ tr.to || '—' }}</span>
+              <span class="text-xs text-muted-foreground" dir="ltr">{{ tr.from_phone }} → {{ tr.to_phone }}</span>
+              <span class="text-xs text-amber-600" dir="ltr">{{ t.loyalty?.fee_word || 'fee' }} {{ tr.fee }} · {{ t.loyalty?.net_word || 'received' }} {{ tr.net }}</span>
+              <span class="ms-auto text-xs text-muted-foreground" dir="ltr">{{ tr.status }} · {{ tr.at }}</span>
+            </div>
+          </div>
+        </section>
+
         <!-- ===== Give points by hand ===== -->
         <section class="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
           <div class="p-3 border-b border-border flex items-center gap-2">
@@ -208,6 +233,8 @@ const props = defineProps({
   members: { type: Array, default: () => [] },
   grants: { type: Array, default: () => [] },
   wallet_adjustments: { type: Array, default: () => [] },
+  transferFee: { type: Object, default: () => ({ percent: 0, enabled: false, points_collected: 0, wallet_collected: 0 }) },
+  transfers: { type: Array, default: () => [] },
 });
 
 const page = usePage();

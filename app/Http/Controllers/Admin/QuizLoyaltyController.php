@@ -53,7 +53,28 @@ class QuizLoyaltyController extends Controller
 
         $walletAdjustments = WalletTransaction::query()->where('source', WalletTransaction::SOURCE_ADMIN)->with(['user:id,name,phone', 'creator:id,name'])->latest('id')->limit(30)->get();
 
+        // Transfers between members and the fee kept on each: the percent is /admin/setting `loyalty_transfers_fee_percent`.
+        $accepted = WalletTransfer::query()->where('status', WalletTransfer::ACCEPTED);
+        $transfers = WalletTransfer::query()->with(['from:id,name,phone', 'to:id,name,phone'])->latest('id')->limit(30)->get();
+
         return Inertia::render('Admin/Loyalty/Index', [
+            'transferFee' => [
+                'percent' => MemberTransfers::feePercent(),
+                'enabled' => MemberTransfers::enabled(),
+                'points_collected' => (int) (clone $accepted)->where('kind', WalletTransfer::KIND_POINTS)->sum('fee'),
+                'wallet_collected' => round((float) (clone $accepted)->where('kind', WalletTransfer::KIND_WALLET)->sum('fee'), 2),
+            ],
+            'transfers' => $transfers->map(fn (WalletTransfer $t) => [
+                'id' => $t->id,
+                'kind' => $t->kind,
+                'from' => $t->from?->name, 'from_phone' => $t->from?->phone,
+                'to' => $t->to?->name, 'to_phone' => $t->to?->phone,
+                'amount' => (float) $t->amount,
+                'fee' => (float) $t->fee,
+                'net' => round((float) $t->amount - (float) $t->fee, 2),
+                'status' => $t->status,
+                'at' => $t->created_at?->format('Y-m-d H:i'),
+            ])->all(),
             'badges' => $definitions->map(fn (QuizBadgeDefinition $d) => [
                 'id' => $d->id,
                 'quiz_key' => $d->quiz_key,

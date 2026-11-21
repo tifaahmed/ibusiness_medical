@@ -21,13 +21,18 @@ class TransferController extends Controller
     {
         /** @var User $member */
         $member = $request->user();
-        $data = $request->validate(['phone' => ['nullable', 'string', 'max:32'], 'card' => ['nullable', 'string', 'max:32']]);
+        $data = $request->validate(['phone' => ['nullable', 'string', 'max:32'], 'card' => ['nullable', 'string', 'max:32'], 'kind' => ['nullable', 'in:points,wallet'], 'amount' => ['nullable', 'numeric', 'min:0', 'max:1000000']]);
 
         $found = MemberTransfers::find($data['phone'] ?? null, $data['card'] ?? null, $member->id);
 
         return $found === null
             ? response()->json(['success' => false, 'reason' => 'not_found', 'message' => 'No member found.'], 404)
-            : response()->json(['success' => true, 'data' => ['name' => MemberTransfers::masked($found)]]);
+            : response()->json(['success' => true, 'data' => [
+                'name' => MemberTransfers::masked($found),
+                'fee_percent' => MemberTransfers::feePercent(),
+                // With a kind and an amount: what the transfer would cost and what the recipient would get (the backend decides, the app only draws).
+                'preview' => isset($data['kind'], $data['amount']) && (float) $data['amount'] > 0 ? MemberTransfers::split($data['kind'], (float) $data['amount']) + ['amount' => (float) $data['amount']] : null,
+            ]]);
     }
 
     public function index(Request $request): JsonResponse
@@ -41,6 +46,7 @@ class TransferController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'enabled' => MemberTransfers::enabled(),
+            'fee_percent' => MemberTransfers::feePercent(),
             'kinds' => ['points' => MemberTransfers::kindEnabled('points'), 'wallet' => MemberTransfers::kindEnabled('wallet')],
             'transfers' => $rows->map(fn (WalletTransfer $t) => $this->present($t, $member))->all(),
         ]]);
@@ -117,6 +123,8 @@ class TransferController extends Controller
             'direction' => $mine ? 'out' : 'in',
             'kind' => $t->kind,
             'amount' => $t->kind === WalletTransfer::KIND_POINTS ? (int) $t->amount : (float) $t->amount,
+            'fee' => $t->kind === WalletTransfer::KIND_POINTS ? (int) $t->fee : (float) $t->fee,
+            'net' => $t->kind === WalletTransfer::KIND_POINTS ? (int) ((float) $t->amount - (float) $t->fee) : round((float) $t->amount - (float) $t->fee, 2),
             'status' => $t->status === WalletTransfer::PENDING && ! $open ? WalletTransfer::EXPIRED : $t->status,
             'other' => $other ? MemberTransfers::masked($other) : null,
             'note' => $t->note,

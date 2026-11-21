@@ -25,3 +25,9 @@ Schedule::command('home:shelves-refresh')
     ->dailyAt('03:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping();
+
+// Loyalty points older than the admin-set months (default 6) expire on the 1st of each month — only while the admin switch is on.
+Schedule::command('loyalty:expire-points')
+    ->monthlyOn(1, '04:00')
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping();

@@ -34,6 +34,30 @@ final class MemberTransfers
     public const POINTS_ENABLED = 'loyalty_transfers_points_enabled';
     public const WALLET_ENABLED = 'loyalty_transfers_wallet_enabled';
 
+    /** The admin setting: the share (0-100, default 50) of a transfer kept as a transfer fee, for points and wallet money alike. */
+    public const FEE_PERCENT = 'loyalty_transfers_fee_percent';
+
+    public const DEFAULT_FEE_PERCENT = 50;
+
+    public static function feePercent(): float
+    {
+        return min(100.0, max(0.0, (float) SiteSettings::get(self::FEE_PERCENT, self::DEFAULT_FEE_PERCENT)));
+    }
+
+    /**
+     * What a transfer of `$amount` costs and what arrives. The sender is debited the whole `amount`; the recipient is credited `net`;
+     * the difference is the fee. Points are whole (the recipient's share is rounded DOWN, so the fee never rounds away); wallet pounds have pennies.
+     *
+     * @return array{fee: float, net: float, percent: float}
+     */
+    public static function split(string $kind, float $amount): array
+    {
+        $percent = self::feePercent();
+        $net = $kind === WalletTransfer::KIND_POINTS ? floor($amount * (100 - $percent) / 100) : round($amount * (100 - $percent) / 100, 2);
+
+        return ['fee' => round($amount - $net, 2), 'net' => (float) $net, 'percent' => $percent];
+    }
+
     public static function enabled(): bool
     {
         return (bool) SiteSettings::get(self::ENABLED, false);
@@ -98,7 +122,7 @@ final class MemberTransfers
         }
 
         $amount = $kind === WalletTransfer::KIND_POINTS ? floor($amount) : round($amount, 2);
-        if ($amount < ($kind === WalletTransfer::KIND_POINTS ? 1 : 1)) {
+        if ($amount < 1 || self::split($kind, $amount)['net'] <= 0) {
             return ['ok' => false, 'reason' => 'bad_amount'];
         }
 
@@ -117,7 +141,7 @@ final class MemberTransfers
         }
 
         $transfer = WalletTransfer::query()->create([
-            'from_user_id' => $from->id, 'to_user_id' => $to->id, 'kind' => $kind, 'amount' => $amount, 'status' => WalletTransfer::PENDING,
+            'from_user_id' => $from->id, 'to_user_id' => $to->id, 'kind' => $kind, 'amount' => $amount, 'fee' => self::split($kind, $amount)['fee'], 'status' => WalletTransfer::PENDING,
             'client_id' => $clientId, 'note' => $note, 'expires_at' => now()->addHours(self::EXPIRES_HOURS),
         ]);
 
@@ -155,13 +179,17 @@ final class MemberTransfers
                 return ['ok' => false, 'reason' => 'not_enough', 'transfer' => $transfer];
             }
 
+            // The sender gives the whole amount; the recipient gets it minus the fee fixed when the request was made.
+            $fee = (float) $transfer->fee;
+            $net = round($amount - $fee, 2);
+            $feeNote = $fee > 0 ? " (fee {$fee})" : '';
+
             if ($transfer->kind === WalletTransfer::KIND_POINTS) {
-                $points = (int) $amount;
-                LoyaltyTransaction::query()->create(['user_id' => $transfer->from_user_id, 'source' => LoyaltyTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-out:'.$transfer->id, 'points' => -$points, 'note' => 'transfer to #'.$transfer->to_user_id]);
-                LoyaltyTransaction::query()->create(['user_id' => $transfer->to_user_id, 'source' => LoyaltyTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-in:'.$transfer->id, 'points' => $points, 'note' => 'transfer from #'.$transfer->from_user_id]);
+                LoyaltyTransaction::query()->create(['user_id' => $transfer->from_user_id, 'source' => LoyaltyTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-out:'.$transfer->id, 'points' => -(int) $amount, 'note' => 'transfer to #'.$transfer->to_user_id.$feeNote]);
+                LoyaltyTransaction::query()->create(['user_id' => $transfer->to_user_id, 'source' => LoyaltyTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-in:'.$transfer->id, 'points' => (int) $net, 'note' => 'transfer from #'.$transfer->from_user_id.$feeNote]);
             } else {
-                WalletTransaction::query()->create(['user_id' => $transfer->from_user_id, 'source' => WalletTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-out:'.$transfer->id, 'amount' => -$amount, 'note' => 'transfer to #'.$transfer->to_user_id]);
-                WalletTransaction::query()->create(['user_id' => $transfer->to_user_id, 'source' => WalletTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-in:'.$transfer->id, 'amount' => $amount, 'note' => 'transfer from #'.$transfer->from_user_id]);
+                WalletTransaction::query()->create(['user_id' => $transfer->from_user_id, 'source' => WalletTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-out:'.$transfer->id, 'amount' => -$amount, 'note' => 'transfer to #'.$transfer->to_user_id.$feeNote]);
+                WalletTransaction::query()->create(['user_id' => $transfer->to_user_id, 'source' => WalletTransaction::SOURCE_TRANSFER, 'client_id' => 'transfer-in:'.$transfer->id, 'amount' => $net, 'note' => 'transfer from #'.$transfer->from_user_id.$feeNote]);
             }
 
             $transfer->forceFill(['status' => WalletTransfer::ACCEPTED, 'responded_at' => now()])->save();
@@ -190,6 +218,7 @@ final class MemberTransfers
     {
         return [
             ['slug' => self::ENABLED, 'name' => ['en' => 'Let members send points / wallet money to each other (with the recipient accepting)', 'ar' => 'السماح للأعضاء بتحويل النقاط / رصيد المحفظة لبعضهم (بموافقة المستلم)'], 'value' => '0', 'value_type' => Setting::TYPE_BOOLEAN],
+            ['slug' => self::FEE_PERCENT, 'name' => ['en' => 'Member transfers: transfer fee, % of the amount kept (sender gives all, recipient gets the rest; points and wallet)', 'ar' => 'ضريبة التحويل بين الأعضاء: نسبة % من المبلغ تتخصم (المرسل بيدفع المبلغ كله والمستلم بياخد الباقي، للنقاط والمحفظة)'], 'value' => (string) self::DEFAULT_FEE_PERCENT, 'value_type' => Setting::TYPE_NUMBER],
             ['slug' => self::POINTS_ENABLED, 'name' => ['en' => 'Member transfers: allow sending POINTS (needs the main transfer switch)', 'ar' => 'تحويل النقاط بين الأعضاء (لازم مفتاح التحويل الرئيسي يكون شغال)'], 'value' => '1', 'value_type' => Setting::TYPE_BOOLEAN],
             ['slug' => self::WALLET_ENABLED, 'name' => ['en' => 'Member transfers: allow sending WALLET money (needs the main transfer switch)', 'ar' => 'تحويل رصيد المحفظة بين الأعضاء (لازم مفتاح التحويل الرئيسي يكون شغال)'], 'value' => '1', 'value_type' => Setting::TYPE_BOOLEAN],
         ];

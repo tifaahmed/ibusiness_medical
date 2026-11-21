@@ -51,6 +51,9 @@ class CardTemplate extends Model
     /** Layout fields only a soft card draws. */
     public const SOFT_ONLY_FIELDS = ['full_name', 'expiry_date'];
 
+    /** Layout fields a soft card never draws: the barcode is for scanners at print, the expiry date takes its place on screen. */
+    public const SOFT_HIDDEN_FIELDS = ['barcode'];
+
     public static function kinds(): array
     {
         return [self::KIND_PHYSICAL, self::KIND_SOFT];
@@ -225,7 +228,7 @@ class CardTemplate extends Model
         return Attribute::make(
             get: fn () => array_values(array_unique(array_merge(
                 $this->status?->hiddenFields() ?? [],
-                $this->isSoft() ? [] : self::SOFT_ONLY_FIELDS,
+                $this->isSoft() ? self::SOFT_HIDDEN_FIELDS : self::SOFT_ONLY_FIELDS,
             ))),
         );
     }

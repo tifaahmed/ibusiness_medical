@@ -199,6 +199,16 @@ class ContactMessageController extends Controller
         $messages = $query->orderBy($sortField, $sortDirection)->paginate(15)->withQueryString();
         $this->attachMemberInfo($messages->items());
 
+        /* With "one row per phone" on, say how many enquiries each row stands for. */
+        if ($request->boolean('unique_phone')) {
+            $phones = collect($messages->items())->pluck('phone')->filter()->unique()->values();
+            $perPhone = $phones->isEmpty() ? collect() : ContactMessage::query()
+                ->whereIn('phone', $phones)->selectRaw('phone, count(*) as total')->groupBy('phone')->pluck('total', 'phone');
+            foreach ($messages->items() as $m) {
+                $m->setAttribute('same_phone_count', (int) ($perPhone[$m->phone] ?? 1));
+            }
+        }
+
         $counts = ContactMessage::query()
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
@@ -570,7 +580,41 @@ class ContactMessageController extends Controller
             'canManage' => $this->canManage($request),
             /* The national-ID change this message carries (photos, numbers, status), when it is one. */
             'idChange' => $this->idChangeFor($contactMessage),
+            /* The same person's other enquiries, for the "same phone" card. */
+            'samePhone' => $this->samePhoneMessages($contactMessage),
         ]);
+    }
+
+    /**
+     * Every OTHER enquiry from the same phone (matched on the last 10 digits, like the member
+     * badge), newest first — so the admin can read them together and move them as one.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function samePhoneMessages(ContactMessage $message): array
+    {
+        $tail = $this->phoneTail($message->phone);
+
+        if ($tail === null) {
+            return [];
+        }
+
+        return ContactMessage::query()
+            ->where('id', '!=', $message->id)
+            ->whereRaw('right(phone, 10) = ?', [$tail])
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get()
+            ->map(fn (ContactMessage $m) => [
+                'id' => $m->id,
+                'subject' => $m->subject,
+                'message' => $m->message,
+                'status' => $m->status->value,
+                'status_label' => $m->status->label(),
+                'source_label' => $m->source->label(),
+                'created_at' => $m->created_at?->format('Y-m-d H:i:s'),
+                'url' => route('admin.contact-messages.show', $m),
+            ])->all();
     }
 
     /** @return array<string, mixed>|null */

@@ -22,11 +22,11 @@ class WalletTransfer extends Model
 
     public const EXPIRED = 'expired';
 
-    protected $fillable = ['from_user_id', 'to_user_id', 'kind', 'amount', 'status', 'client_id', 'note', 'expires_at', 'responded_at'];
+    protected $fillable = ['from_user_id', 'to_user_id', 'kind', 'amount', 'fee', 'status', 'client_id', 'note', 'expires_at', 'responded_at'];
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2', 'expires_at' => 'datetime', 'responded_at' => 'datetime'];
+        return ['amount' => 'decimal:2', 'fee' => 'decimal:2', 'expires_at' => 'datetime', 'responded_at' => 'datetime'];
     }
 
     public function from(): BelongsTo
