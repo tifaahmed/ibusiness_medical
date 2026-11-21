@@ -392,7 +392,9 @@ class QuizLoyaltyController extends Controller
             ],
             'balance' => LoyaltyTransaction::balanceOf($user->id),
             'wallet_balance' => WalletTransaction::balanceOf($user->id),
-            'data' => $points->concat($wallet)->sortByDesc(fn (array $row) => [$row['ts'], $row['id']])->values()->take(200)->all(),
+            // No second cap on the mix: each ledger is already its own latest 200. Cutting the MIX to 200 let a member's many
+            // quiz lines push older wallet lines out, so the wallet tab showed a balance its lines did not add up to.
+            'data' => $points->concat($wallet)->sortByDesc(fn (array $row) => [$row['ts'], $row['id']])->values()->all(),
         ]);
     }
 
