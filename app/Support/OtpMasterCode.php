@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * The master login code: a code the top admin chooses that is accepted IN ADDITION to the real SMS code.
  *
- * Off by default. Stored hashed (nobody can read it back), optional expiry, every change and every use
+ * Off by default. Checked against a hash; an encrypted copy lets the super admin see it, optional expiry, every change and every use
  * is audited in `otp_master_code_logs`. It proves nothing about the phone, so it never marks one verified.
  */
 final class OtpMasterCode
@@ -18,6 +19,9 @@ final class OtpMasterCode
     public const ENABLED = 'otp_master_enabled';
 
     public const HASH = 'otp_master_code_hash';
+
+    /** Encrypted copy (Crypt), so the top admin can SEE the code he set. Login still checks the HASH only. */
+    public const ENCRYPTED = 'otp_master_code_enc';
 
     public const LENGTH = 'otp_master_code_length';
 
@@ -52,6 +56,20 @@ final class OtpMasterCode
         ];
     }
 
+    /** The code in clear, for the super admin's screen only (the list controller sends it to nobody else). Null for a code set before it could be shown. */
+    public static function value(): ?string
+    {
+        $enc = (string) SiteSettings::get(self::ENCRYPTED, '');
+        if ($enc === '') {
+            return null;
+        }
+        try {
+            return Crypt::decryptString($enc);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     /** Turn it on with a new code (or keep the stored one when `$code` is null), or turn it off. */
     public static function configure(bool $enabled, ?string $code, ?string $expiresAt, ?int $adminId, ?string $ip): void
     {
@@ -59,6 +77,7 @@ final class OtpMasterCode
 
         if ($code !== null) {
             SiteSettings::put(self::HASH, Hash::make($code), Setting::TYPE_STRING, $name);
+            SiteSettings::put(self::ENCRYPTED, Crypt::encryptString($code), Setting::TYPE_STRING, $name);
             SiteSettings::put(self::LENGTH, (string) strlen($code), Setting::TYPE_NUMBER, $name);
         }
 

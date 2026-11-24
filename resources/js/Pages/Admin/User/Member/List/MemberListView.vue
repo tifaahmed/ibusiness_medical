@@ -302,7 +302,7 @@ import MembersChart from "./MembersChart.vue";
 import { useMemberStore } from "../Stores/MemberStore";
 import { Link, usePage } from "@inertiajs/vue3";
 import { storeToRefs } from "pinia";
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { usePermissions } from '@/composables/usePermissions';
 
 const { canManage, can } = usePermissions();
@@ -317,6 +317,19 @@ const canWrite = computed(() => canManage('manage memberships', 'manage own memb
    shown a button that only ever 403s. */
 const canManageOtp = computed(() => canWrite.value && can('manage settings'));
 const otpDialogOpen = ref(false);
+
+/* The dialog is mirrored in the URL (#login-codes) so it can be linked, reloaded and closed with Back. */
+const OTP_HASH = '#login-codes';
+const syncOtpFromHash = () => { otpDialogOpen.value = canManageOtp.value && window.location.hash === OTP_HASH; };
+watch(otpDialogOpen, (open) => {
+  if (open && window.location.hash !== OTP_HASH) {
+    history.pushState(history.state, '', window.location.pathname + window.location.search + OTP_HASH);
+  } else if (!open && window.location.hash === OTP_HASH) {
+    history.replaceState(history.state, '', window.location.pathname + window.location.search);
+  }
+});
+onMounted(() => { syncOtpFromHash(); window.addEventListener('hashchange', syncOtpFromHash); window.addEventListener('popstate', syncOtpFromHash); });
+onUnmounted(() => { window.removeEventListener('hashchange', syncOtpFromHash); window.removeEventListener('popstate', syncOtpFromHash); });
 
 
 // `page.props.translations.admin.member_list.*` — shared via HandleInertiaRequests

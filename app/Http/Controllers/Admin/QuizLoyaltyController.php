@@ -61,6 +61,8 @@ class QuizLoyaltyController extends Controller
             'transferFee' => [
                 'percent' => MemberTransfers::feePercent(),
                 'enabled' => MemberTransfers::enabled(),
+                'points_enabled' => MemberTransfers::kindEnabled('points'),
+                'wallet_enabled' => MemberTransfers::kindEnabled('wallet'),
                 'points_collected' => (int) (clone $accepted)->where('kind', WalletTransfer::KIND_POINTS)->sum('fee'),
                 'wallet_collected' => round((float) (clone $accepted)->where('kind', WalletTransfer::KIND_WALLET)->sum('fee'), 2),
             ],

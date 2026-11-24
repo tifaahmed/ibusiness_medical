@@ -15,12 +15,12 @@ class PushNotification extends Model
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
-        'title', 'body', 'url', 'audience', 'audience_phone', 'status', 'total', 'delivered', 'failed', 'removed', 'error', 'created_by', 'finished_at',
+        'title', 'body', 'url', 'audience', 'audience_phone', 'audience_filters', 'status', 'total', 'delivered', 'failed', 'removed', 'error', 'created_by', 'finished_at',
     ];
 
     protected function casts(): array
     {
-        return ['finished_at' => 'datetime'];
+        return ['finished_at' => 'datetime', 'audience_filters' => 'array'];
     }
 
     /** The phones typed for a "specific members" send: split on commas, spaces or lines, digits only, no repeats. @return array<int, string> */

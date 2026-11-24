@@ -32,6 +32,8 @@ class OrderResource extends JsonResource
     {
         return [
             'order_code' => $this->order_code,
+            /* Where the order came from (storefront, mobile_app, physical_card, relative_fee…): clients keep each kind in its own list. */
+            'source' => $this->source,
             'placed_at' => $this->created_at?->toAtomString(),
             'updated_at' => $this->updated_at?->toAtomString(),
 

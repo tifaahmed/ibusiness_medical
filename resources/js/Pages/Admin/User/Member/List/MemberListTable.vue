@@ -763,8 +763,22 @@ const { canManage } = usePermissions();
 /* The per-member code dialog. One instance for the whole table rather than one
    per row — it teleports to <body> and only ever shows a single member. */
 const otpMember = ref(null);
-const openOtpDialog = (member) => { otpMember.value = member; };
-const closeOtpDialog = () => { otpMember.value = null; };
+const otpHash = (member) => `#login-code-${member.id}`;
+const openOtpDialog = (member) => {
+  otpMember.value = member;
+  history.pushState(history.state, '', window.location.pathname + window.location.search + otpHash(member));
+};
+const closeOtpDialog = () => {
+  if (window.location.hash.startsWith('#login-code-')) history.replaceState(history.state, '', window.location.pathname + window.location.search);
+  otpMember.value = null;
+};
+/* Mirrored in the URL (#login-code-<id>): reload, link and Back all work; a member not on this page is ignored. */
+const syncMemberOtpFromHash = () => {
+  const m = window.location.hash.match(/^#login-code-(\d+)$/);
+  otpMember.value = m ? (props.members?.data || []).find(x => String(x.id) === m[1]) ?? null : null;
+};
+onMounted(() => { syncMemberOtpFromHash(); window.addEventListener('popstate', syncMemberOtpFromHash); window.addEventListener('hashchange', syncMemberOtpFromHash); });
+onUnmounted(() => { window.removeEventListener('popstate', syncMemberOtpFromHash); window.removeEventListener('hashchange', syncMemberOtpFromHash); });
 
 // Two resources meet in this row: the membership itself and the
 // payment shortcut, each gated by its own permission.

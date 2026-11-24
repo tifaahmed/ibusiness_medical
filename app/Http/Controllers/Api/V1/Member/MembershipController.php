@@ -120,6 +120,35 @@ class MembershipController extends Controller
     }
 
     /** Start paying: Paymob returns a checkout URL; the others reach customer services. */
+    /**
+     * What pressing «use my points» / «pay from my wallet» would take off a plan, with nothing written: the clients draw
+     * these figures on the pay page and on its buttons instead of counting anything themselves.
+     */
+    public function quote(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $validated = $request->validate([
+            'plan' => ['nullable', Rule::in(['year', 'half', 'month'])],
+            'use_points' => ['nullable', 'boolean'],
+            'use_wallet' => ['nullable', 'boolean'],
+        ]);
+
+        $membership = $user->memberships()->latest('id')->first();
+        if ($membership === null || $membership->state() === Membership::STATE_PENDING) {
+            return response()->json(['message' => 'Create your card first.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $plan = \App\Support\MembershipDiscounts::plan($membership, $validated['plan'] ?? null);
+        if ($plan === null) {
+            return response()->json(['message' => 'This subscription plan is not available right now.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json(['data' => ['plan' => $plan['key'], 'months' => $plan['months']] + \App\Support\MembershipDiscounts::quote(
+            $user, (float) $plan['price'], (bool) ($validated['use_points'] ?? false), (bool) ($validated['use_wallet'] ?? false),
+        )]);
+    }
+
     public function subscribe(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -131,6 +160,9 @@ class MembershipController extends Controller
             'return_url' => ['nullable', 'string', 'max:500'],
             'paymob_channel' => ['nullable', Rule::in(\App\Services\Paymob\PaymobClient::CHANNELS)],
             'plan' => ['nullable', Rule::in(['year', 'half', 'month'])],
+            /* Spent only on a press: points first (whole pounds), then the wallet, off the plan's price. */
+            'use_points' => ['nullable', 'boolean'],
+            'use_wallet' => ['nullable', 'boolean'],
             'reference' => ['nullable', 'string', 'max:190'],
             'receipts' => ['nullable', 'array', 'max:10'],
             'receipts.*' => ['file', 'mimes:jpeg,png,jpg,webp,pdf'],

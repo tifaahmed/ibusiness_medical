@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\DevicePushToken;
 use App\Models\PushNotification;
 use App\Services\Push\FcmClient;
+use App\Support\PushAudience;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -30,7 +31,7 @@ class SendPushNotificationJob
         @set_time_limit(0);
 
         try {
-            $tokens = DevicePushToken::query()
+            $tokens = ($note->audience === 'group' ? PushAudience::query($note->audience_filters ?? []) : DevicePushToken::query())
                 ->when($note->audience === 'member', fn ($q) => $q->whereHas('user', fn ($u) => $u->whereIn('phone', PushNotification::parsePhones($note->audience_phone))))
                 ->pluck('token', 'id');
 

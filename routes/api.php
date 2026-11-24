@@ -580,6 +580,8 @@ Route::prefix('v1')
                 ->middleware('throttle:5,1,api.me.membership.trial')->name('me.membership.trial');
             Route::post('/membership/trial/check-national-id', [V1MemberMembershipController::class, 'checkNationalId'])
                 ->middleware('throttle:30,1,api.me.membership.trial-check')->name('me.membership.trial-check');
+            Route::post('/membership/quote', [V1MemberMembershipController::class, 'quote'])
+                ->middleware('throttle:60,1,api.me.membership.quote')->name('me.membership.quote');
             Route::post('/membership/subscribe', [V1MemberMembershipController::class, 'subscribe'])
                 ->middleware('throttle:10,1,api.me.membership.subscribe')->name('me.membership.subscribe');
             Route::post('/membership/relatives-request', [V1MemberMembershipController::class, 'requestRelatives'])

@@ -94,8 +94,8 @@ class UpdateStoreRequest extends FormRequest
             'branches.*.address.*' => ['nullable', 'string', 'max:500'],
             'branches.*.area' => ['nullable', 'array'],
             'branches.*.area.*' => ['nullable', 'string', 'max:255'],
-            'branches.*.latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'branches.*.longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'branches.*.latitude' => ['required', 'numeric', 'between:-90,90'],
+            'branches.*.longitude' => ['required', 'numeric', 'between:-180,180'],
             'branches.*.google_location_url' => ['nullable', 'url', 'max:2048'],
         ], $this->phoneRules('branches.*.phone'));
     }
@@ -105,6 +105,8 @@ class UpdateStoreRequest extends FormRequest
         return array_merge($this->storeExtrasMessages(), $this->storeContactMessages(), [
             'title.required' => 'The title field is required.',
             'title.*.required' => 'Each language title is required.',
+            'branches.*.latitude.required' => 'Set the branch location on the map (latitude is required).',
+            'branches.*.longitude.required' => 'Set the branch location on the map (longitude is required).',
         ], $this->phoneMessages('branches.*.phone'));
     }
 

@@ -136,6 +136,33 @@ class PhysicalCardOrderTest extends TestCase
         $this->assertSame('cancelled', \App\Models\MemberExtraCard::where('status', '!=', 'active')->where('kind', 'physical')->value('status'));
     }
 
+    /** @test */
+    public function points_and_wallet_pay_the_cards_only_on_a_press_never_the_shipping_and_the_order_keeps_its_own_list(): void
+    {
+        [$user, $card] = $this->member(12);
+        SiteSettings::put('loyalty_points_per_egp', 100, Setting::TYPE_NUMBER);
+        SiteSettings::forget();
+        \App\Models\LoyaltyTransaction::query()->create(['user_id' => $user->id, 'source' => 'admin', 'client_id' => 'seed', 'points' => 2000, 'answered_at' => now()]);
+        \App\Models\WalletTransaction::query()->create(['user_id' => $user->id, 'source' => 'admin', 'client_id' => 'seed-w', 'amount' => 20]);
+        Sanctum::actingAs($user);
+
+        $body = $this->body([['membership_number' => $card->membership_number, 'quantity' => 1]]);
+
+        // No press = nothing spent.
+        $this->postJson('/api/v1/mobile/physical-cards/orders', $body)->assertCreated()->assertJsonPath('order.points_used', 0)->assertJsonPath('order.wallet_amount', 0);
+
+        // 20 pounds of points (2000) + 20 of wallet on a 50 card; shipping 25 stays real money.
+        $this->postJson('/api/v1/mobile/physical-cards/orders', $body + ['use_points' => true, 'use_wallet' => true])
+            ->assertCreated()
+            ->assertJsonPath('order.source', 'physical_card')
+            ->assertJsonPath('order.points_amount', 20)
+            ->assertJsonPath('order.wallet_amount', 20)
+            ->assertJsonPath('order.amount_due', 35);
+
+        $this->getJson('/api/v1/orders?kind=products')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/v1/orders?source=physical_card')->assertOk()->assertJsonCount(2, 'data');
+    }
+
     private function member(int $months, string $phone = '01062587475'): array
     {
         $user = User::factory()->create(['name' => 'Ahmed Ali Hassan', 'gender' => 'male', 'phone' => $phone]);

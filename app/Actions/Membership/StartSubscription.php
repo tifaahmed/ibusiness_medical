@@ -11,6 +11,7 @@ use App\Models\Membership;
 use App\Models\MembershipSubscription;
 use App\Services\Paymob\PaymobClient;
 use App\Services\Paymob\PaymobException;
+use App\Support\MembershipDiscounts;
 use App\Support\MembershipPlan;
 use App\Support\PaymentMethods;
 use App\Support\Referrals;
@@ -64,10 +65,6 @@ class StartSubscription
             throw ValidationException::withMessages(['method' => ['This way of paying online is not available right now.']]);
         }
 
-        if (in_array($method, MembershipSubscription::RECEIPT_METHODS, true) && $receipts === []) {
-            throw ValidationException::withMessages(['receipt' => ['Please attach the transfer receipt.']]);
-        }
-
         /* The plan chosen (`plan` = year|half|month). A plan that is not on sale is refused, never silently swapped for another price. */
         $plan = MembershipPlan::find($request?->input('plan'), $membership->isRelative() ? Membership::KIND_INDIVIDUAL : $membership->kind());
         if ($plan === null) {
@@ -77,9 +74,70 @@ class StartSubscription
         /* A member brought by another gets the referral discount off the FIRST subscription (never below 1 pound). */
         $plan['price'] = Referrals::apply($plan['price'], $membership, $plan['key']);
 
+        /*
+         * Points and the wallet only on a press (`use_points`, `use_wallet`). An older payment still holding such a discount is
+         * cancelled first (the points / wallet money go back), so a new attempt always starts from the real price.
+         */
+        $membership->subscriptions()->where('status', MembershipSubscription::STATUS_PENDING)
+            ->where(fn ($q) => $q->where('points_used', '>', 0)->orWhere('wallet_amount', '>', 0))
+            ->get()->each(fn (MembershipSubscription $old) => $old->update(['status' => MembershipSubscription::STATUS_CANCELED]));
+
+        $user = $request?->user();
+        $press = $user !== null && (int) $membership->user_id === (int) $user->id && ($request->boolean('use_points') || $request->boolean('use_wallet'));
+        $quote = $press ? MembershipDiscounts::quote($user, (float) $plan['price'], $request->boolean('use_points'), $request->boolean('use_wallet')) : null;
+
+        if ($quote !== null && ($quote['points_used'] > 0 || $quote['wallet_amount'] > 0)) {
+            return $this->discounted($membership, $user, $method, $email, $returnUrl, $receipts, $reference, $request, $plan, $quote['due']);
+        }
+
+        if (in_array($method, MembershipSubscription::RECEIPT_METHODS, true) && $receipts === []) {
+            throw ValidationException::withMessages(['receipt' => ['Please attach the transfer receipt.']]);
+        }
+
         return $method === MembershipSubscription::METHOD_PAYMOB
             ? $this->online($membership, $email, $returnUrl, $request, $plan)
             : $this->throughCustomerServices($membership, $method, $email, $receipts, $reference, $request, $plan);
+    }
+
+    /**
+     * A payment with points and / or wallet money taken off. `amount` is what is left in real money; when nothing is left the card
+     * is activated at once (no gateway, no receipt). A gateway that cannot be reached gives the discount back straight away.
+     *
+     * @param  list<UploadedFile>  $receipts
+     * @param  array{key: string, price: float, months: int}  $plan
+     */
+    private function discounted(Membership $membership, \App\Models\User $user, string $method, ?string $email, ?string $returnUrl, array $receipts, ?string $reference, ?Request $request, array $plan, float $due): array
+    {
+        if ($due > 0 && in_array($method, MembershipSubscription::RECEIPT_METHODS, true) && $receipts === []) {
+            throw ValidationException::withMessages(['receipt' => ['Please attach the transfer receipt.']]);
+        }
+
+        $subscription = MembershipDiscounts::open($membership, $user, $plan, $method, $request->boolean('use_points'), $request->boolean('use_wallet'), [
+            'email' => $email,
+            'reference' => $reference,
+            'channel' => $request ? ContactChannelEnum::fromRequest($request)->value : null,
+            'ip_address' => $request?->ip(),
+        ]);
+
+        if ((float) $subscription->amount <= 0) {
+            app(ActivateSubscription::class)->handle($subscription);
+
+            return ['subscription' => $subscription->fresh(), 'checkout_url' => null, 'client_secret' => null, 'public_key' => null, 'form' => null];
+        }
+
+        $plan['price'] = (float) $subscription->amount;
+
+        if ($method === MembershipSubscription::METHOD_PAYMOB) {
+            try {
+                return $this->online($membership, $email, $returnUrl, $request, $plan, $subscription);
+            } catch (PaymobException $exception) {
+                $subscription->update(['status' => MembershipSubscription::STATUS_CANCELED]);
+
+                throw $exception;
+            }
+        }
+
+        return $this->throughCustomerServices($membership, $method, $email, $receipts, $reference, $request, $plan, $subscription);
     }
 
     /** The yearly plan bought from the member's own wallet; needs the whole price there. Only the signed-in owner of the card can do it. */
@@ -108,10 +166,10 @@ class StartSubscription
     }
 
     /** @param array{key: string, price: float, months: int} $plan */
-    private function online(Membership $membership, ?string $email, ?string $returnUrl, ?Request $request, array $plan): array
+    private function online(Membership $membership, ?string $email, ?string $returnUrl, ?Request $request, array $plan, ?MembershipSubscription $prepared = null): array
     {
         /* A new attempt on the same open payment, rather than a pile of abandoned ones. */
-        $subscription = $membership->subscriptions()
+        $subscription = $prepared ?? $membership->subscriptions()
             ->where('method', MembershipSubscription::METHOD_PAYMOB)
             ->where('status', MembershipSubscription::STATUS_PENDING)
             ->latest('id')->first()
@@ -192,9 +250,9 @@ class StartSubscription
 
     /** @param list<UploadedFile> $receipts */
     /** @param array{key: string, price: float, months: int} $plan */
-    private function throughCustomerServices(Membership $membership, string $method, ?string $email, array $receipts, ?string $reference, ?Request $request, array $plan): array
+    private function throughCustomerServices(Membership $membership, string $method, ?string $email, array $receipts, ?string $reference, ?Request $request, array $plan, ?MembershipSubscription $prepared = null): array
     {
-        $subscription = $membership->subscriptions()
+        $subscription = $prepared ?? $membership->subscriptions()
             ->where('method', $method)
             ->where('status', MembershipSubscription::STATUS_PENDING)
             ->latest('id')->first()

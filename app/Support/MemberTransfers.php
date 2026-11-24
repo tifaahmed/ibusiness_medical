@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * database transaction with both members locked in a fixed order, the sender must still have enough, and two rows are written
  * (a debit and a credit that share `transfer-out:<id>` / `transfer-in:<id>`), so a repeated tap books once.
  *
- *   loyalty_transfers_enabled   the admin switch (default OFF)
+ *   loyalty_transfers_points_enabled / loyalty_transfers_wallet_enabled   one INDEPENDENT admin switch per kind (default OFF).
+ *   The old `loyalty_transfers_enabled` is kept as a row but no longer read.
  *
  * The recipient is found by phone or by card number; a client never picks a user id.
  */
@@ -58,19 +59,16 @@ final class MemberTransfers
         return ['fee' => round($amount - $net, 2), 'net' => (float) $net, 'percent' => $percent];
     }
 
+    /** Is ANY kind open? (Old clients read this as "transfers exist"; each kind is judged by kindEnabled.) */
     public static function enabled(): bool
     {
-        return (bool) SiteSettings::get(self::ENABLED, false);
+        return self::kindEnabled(WalletTransfer::KIND_POINTS) || self::kindEnabled(WalletTransfer::KIND_WALLET);
     }
 
-    /** Is this kind (`points` | `wallet`) open for NEW requests? Needs the master switch AND its own (own default ON). */
+    /** Is this kind (`points` | `wallet`) open for NEW requests? Only its own switch decides (default OFF). */
     public static function kindEnabled(string $kind): bool
     {
-        if (! self::enabled()) {
-            return false;
-        }
-
-        return (bool) SiteSettings::get($kind === WalletTransfer::KIND_POINTS ? self::POINTS_ENABLED : self::WALLET_ENABLED, true);
+        return (bool) SiteSettings::get($kind === WalletTransfer::KIND_POINTS ? self::POINTS_ENABLED : self::WALLET_ENABLED, false);
     }
 
     /** The member behind a phone number or a card number, or null. A member never finds themself. */
@@ -145,7 +143,16 @@ final class MemberTransfers
             'client_id' => $clientId, 'note' => $note, 'expires_at' => now()->addHours(self::EXPIRES_HOURS),
         ]);
 
-        return ['ok' => true, 'reason' => null, 'transfer' => $transfer, 'duplicate' => false];
+        // Owner decision 2026-11-23: no waiting for the recipient — the transfer is settled in the same call (the money moves now).
+        // The request row is still written first so the client id keeps a repeat from booking twice.
+        $done = self::accept($to, $transfer->id);
+        if (! $done['ok']) {
+            $transfer->forceFill(['status' => WalletTransfer::CANCELLED, 'responded_at' => now()])->save();
+
+            return ['ok' => false, 'reason' => $done['reason'] ?? 'not_enough'];
+        }
+
+        return ['ok' => true, 'reason' => null, 'transfer' => $done['transfer']->refresh(), 'duplicate' => false];
     }
 
     /**
@@ -155,7 +162,7 @@ final class MemberTransfers
      */
     public static function accept(User $recipient, int $transferId): array
     {
-        return DB::transaction(function () use ($recipient, $transferId) {
+        $result = DB::transaction(function () use ($recipient, $transferId) {
             $transfer = WalletTransfer::query()->where('id', $transferId)->where('to_user_id', $recipient->id)->lockForUpdate()->first();
             if ($transfer === null) {
                 return ['ok' => false, 'reason' => 'not_found'];
@@ -196,6 +203,49 @@ final class MemberTransfers
 
             return ['ok' => true, 'reason' => null, 'transfer' => $transfer];
         });
+
+        if ($result['ok']) {
+            $moved = $result['transfer'];
+            defer(fn () => self::notifyRecipient($moved));
+        }
+
+        return $result;
+    }
+
+    /**
+     * Tells the recipient on their phone (a push to every device linked to them) that points / wallet money arrived. Best effort: it runs
+     * after the money has moved and can never fail or undo the transfer. The app also shows a pop-up the moment it sees the transfer.
+     */
+    private static function notifyRecipient(WalletTransfer $transfer): void
+    {
+        try {
+            $fcm = app(\App\Services\Push\FcmClient::class);
+            if (! $fcm->isConfigured()) {
+                return;
+            }
+
+            $devices = \App\Models\DevicePushToken::query()->where('user_id', $transfer->to_user_id)->get(['token', 'locale']);
+            if ($devices->isEmpty()) {
+                return;
+            }
+
+            $net = round((float) $transfer->amount - (float) $transfer->fee, 2);
+            $from = explode(' ', trim((string) User::query()->whereKey($transfer->from_user_id)->value('name')))[0] ?: '';
+            $points = $transfer->kind === WalletTransfer::KIND_POINTS;
+            $number = $points ? (string) (int) $net : rtrim(rtrim(number_format($net, 2, '.', ''), '0'), '.');
+
+            foreach ($devices->groupBy(fn ($d) => str_starts_with((string) $d->locale, 'en') ? 'en' : 'ar') as $lang => $group) {
+                $title = $lang === 'en' ? ($points ? '🎁 Points just arrived' : '🎁 Money just arrived in your wallet') : ($points ? '🎁 وصلتك نقاط' : '🎁 وصلك رصيد في محفظتك');
+                $unit = $lang === 'en' ? ($points ? 'points' : 'EGP') : ($points ? 'نقطة' : 'جنيه');
+                $body = $lang === 'en'
+                    ? trim("{$from} sent you {$number} {$unit}. Tap to see your balance.")
+                    : trim("{$from} بعتلك {$number} {$unit}. دوس تشوف رصيدك.");
+
+                $fcm->sendMany($group->pluck('token')->all(), $title, $body, ['url' => '/account/share']);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Transfer notification could not be sent.', ['transfer_id' => $transfer->id, 'message' => $e->getMessage()]);
+        }
     }
 
     /** Closes a waiting request without moving anything: the recipient declines, or the sender cancels. */

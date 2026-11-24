@@ -129,6 +129,9 @@ class PhysicalCardController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             // The website relays from its own server and sends the buyer's address; the app's own request IP is used otherwise.
             'buyer_ip' => ['nullable', 'ip'],
+            // Points and the wallet are spent only on a press (never automatically), on the cards (never shipping or the COD fee).
+            'use_points' => ['nullable', 'boolean'],
+            'use_wallet' => ['nullable', 'boolean'],
             'payment_type' => ['required', Rule::in(PaymentTypeEnum::values()), function (string $attribute, mixed $value, \Closure $fail) {
                 if (! in_array($value, PaymentMethods::orderTypes(PaymentMethods::CONTEXT_CARDS), true)) {
                     $fail('This payment method is not available right now.');
@@ -215,7 +218,16 @@ class PhysicalCardController extends Controller
                     }
                 }
 
-                return $order;
+                $pointsAmount = 0.0;
+                if ($request->boolean('use_points')) {
+                    $pointsAmount = \App\Support\PointsPayments::applyToOrder($order, $user, \App\Support\PointsPayments::eligible([['amount' => $subtotal, 'cap' => null]]));
+                }
+
+                if ($request->boolean('use_wallet')) {
+                    \App\Support\WalletPayments::applyToOrder($order, $user, max(0.0, round($subtotal - $pointsAmount, 2)));
+                }
+
+                return $order->refresh();
             });
         } catch (Throwable $exception) {
             Log::error('Physical card order could not be placed.', ['user_id' => $user->id, 'message' => $exception->getMessage(), 'trace' => $exception->getTraceAsString()]);

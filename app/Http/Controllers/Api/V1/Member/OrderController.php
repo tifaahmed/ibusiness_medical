@@ -99,6 +99,9 @@ class OrderController extends Controller
         $orders = Order::query()
             ->where('user_id', $member->id)
             ->whereNull('hidden_by_customer_at')
+            /* `source=physical_card` lists only plastic-card orders; `kind=products` leaves them (and relative fees) out of the shop list. */
+            ->when($request->query('source'), fn ($q, $source) => $q->where('source', (string) $source))
+            ->when($request->query('kind') === 'products', fn ($q) => $q->where(fn ($w) => $w->whereNull('source')->orWhereNotIn('source', [\App\Support\PhysicalCard::SOURCE, \App\Support\RelativeFee::SOURCE])))
             ->with('products', 'shipments')
             ->latest('id')
             ->paginate((int) $request->integer('per_page', 20));

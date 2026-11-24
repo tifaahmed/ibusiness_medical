@@ -556,7 +556,9 @@ class AdminUserMembershipListController extends BaseController
                 'sms_active' => OtpSettings::deliversBySms(),
                 'fixed_code' => OtpSettings::fixedCode(),
                 'message' => trim((string) SiteSettings::get(OtpSettings::MESSAGE, OtpSettings::DEFAULT_MESSAGE)),
-                'master' => \App\Support\OtpMasterCode::summary(),
+                'master' => array_merge(\App\Support\OtpMasterCode::summary(), [
+                    'value' => request()->user()?->hasRole(\App\Enums\User\UserRoleEnum::SUPER_ADMIN) ? \App\Support\OtpMasterCode::value() : null,
+                ]),
             ],
         ]);
     }

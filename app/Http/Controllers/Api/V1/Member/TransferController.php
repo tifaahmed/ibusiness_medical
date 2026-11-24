@@ -65,7 +65,13 @@ class TransferController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $result = MemberTransfers::request($member, $data['phone'] ?? null, $data['card'] ?? null, $data['kind'], (float) $data['amount'], $data['id'], $data['note'] ?? null);
+        try {
+            $result = MemberTransfers::request($member, $data['phone'] ?? null, $data['card'] ?? null, $data['kind'], (float) $data['amount'], $data['id'], $data['note'] ?? null);
+        } catch (\Throwable $e) {
+            Log::error('Member transfer failed', ['user_id' => $member->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['success' => false, 'message' => 'Could not complete the transfer.'], 500);
+        }
 
         if (! $result['ok']) {
             return response()->json(['success' => false, 'reason' => $result['reason'], 'message' => 'The transfer request could not be made.'], 422);

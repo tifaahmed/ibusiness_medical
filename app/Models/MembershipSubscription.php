@@ -50,17 +50,30 @@ class MembershipSubscription extends Model implements HasMedia
     protected $fillable = [
         'membership_id', 'method', 'channel', 'status', 'amount', 'months', 'reference', 'notes', 'email',
         'paymob_attempts', 'paymob_reference', 'paymob_order_id', 'paymob_transaction_id', 'paymob_response_code',
-        'paid_at', 'confirmed_by', 'confirmed_at', 'rejection_reason', 'receipt_emailed_at', 'ip_address',
+        'points_used', 'points_amount', 'wallet_amount', 'discounts_returned_at', 'paid_at', 'confirmed_by', 'confirmed_at', 'rejection_reason', 'receipt_emailed_at', 'ip_address',
     ];
 
     protected function casts(): array
     {
         return [
             'amount' => 'decimal:2',
+            'points_amount' => 'decimal:2',
+            'wallet_amount' => 'decimal:2',
+            'discounts_returned_at' => 'datetime',
             'paid_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'receipt_emailed_at' => 'datetime',
         ];
+    }
+
+    /** A payment that did not go through gives back the points and wallet money it had taken, once. */
+    protected static function booted(): void
+    {
+        static::updated(function (self $subscription) {
+            if ($subscription->wasChanged('status') && in_array($subscription->status, [self::STATUS_REJECTED, self::STATUS_CANCELED, self::STATUS_REFUNDED], true)) {
+                \App\Support\MembershipDiscounts::giveBack($subscription);
+            }
+        });
     }
 
     public static function methods(): array

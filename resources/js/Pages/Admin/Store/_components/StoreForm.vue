@@ -508,18 +508,18 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="space-y-1">
-            <label class="text-xs font-medium">Latitude</label>
+            <label class="text-xs font-medium">Latitude <span class="value-negative">*</span></label>
             <input
               v-model="draft.latitude"
-              type="number" step="0.0000001" dir="ltr"
+              type="number" step="0.0000001" dir="ltr" required
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
           <div class="space-y-1">
-            <label class="text-xs font-medium">Longitude</label>
+            <label class="text-xs font-medium">Longitude <span class="value-negative">*</span></label>
             <input
               v-model="draft.longitude"
-              type="number" step="0.0000001" dir="ltr"
+              type="number" step="0.0000001" dir="ltr" required
               class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
@@ -1132,6 +1132,10 @@ const requestClose = () => {
 };
 
 const saveDraft = () => {
+  if (!hasCoords(draft.value)) {
+    useNotification().error('The branch location is required: set the pin on the map or fill in latitude and longitude.');
+    return;
+  }
   if (editingIndex.value === -1) props.form.branches.push(clone(draft.value));
   else props.form.branches.splice(editingIndex.value, 1, clone(draft.value));
   editingIndex.value = null;

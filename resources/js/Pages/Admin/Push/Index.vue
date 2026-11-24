@@ -54,9 +54,24 @@
           <fieldset class="space-y-2">
             <legend class="text-xs font-medium">{{ t.push?.audience || 'Send to' }}</legend>
             <div class="flex flex-wrap gap-2">
-              <button v-for="a in ['all', 'member']" :key="a" type="button" class="h-9 min-w-[10rem] rounded-md border px-3 text-sm" :class="form.audience === a ? 'chip-positive border-transparent' : 'border-border'" @click="form.audience = a">
-                {{ a === 'all' ? (t.push?.audience_all || 'Everyone who has the app') : (t.push?.audience_member || 'Specific members') }}
+              <button v-for="a in ['all', 'group', 'member']" :key="a" type="button" class="h-9 min-w-[10rem] rounded-md border px-3 text-sm" :class="form.audience === a ? 'chip-positive border-transparent' : 'border-border'" @click="form.audience = a">
+                {{ a === 'all' ? (t.push?.audience_all || 'Everyone who has the app') : a === 'group' ? (t.push?.audience_group || 'A group (filters)') : (t.push?.audience_member || 'Specific members') }}
               </button>
+            </div>
+            <div v-if="form.audience === 'group'" class="space-y-2" data-testid="push-group">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <label v-for="f in groupFields" :key="f.key" class="block space-y-1">
+                  <span class="text-xs font-medium">{{ t.push?.['f_' + f.label] }}</span>
+                  <select v-model="form.filters[f.key]" class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    <option value="any">{{ t.push?.any || 'Any' }}</option>
+                    <option v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </label>
+              </div>
+              <p class="text-xs" :class="count && count.devices === 0 ? 'value-warning' : 'text-muted-foreground'" data-testid="push-group-count">
+                {{ count ? (t.push?.group_count || '').replace(':devices', count.devices).replace(':members', count.members) : '…' }}
+              </p>
+              <span v-if="errors.filters" class="block text-xs value-negative">{{ errors.filters }}</span>
             </div>
             <div v-if="form.audience === 'member'" class="space-y-1">
               <textarea v-model="form.audience_phone" rows="4" class="w-full sm:w-96 rounded-md border border-border bg-background px-3 py-2 text-sm" dir="ltr" :placeholder="t.push?.member_phone || 'Member phones — one per line or separated by commas (up to 500)'" />
@@ -79,7 +94,7 @@
             <div v-for="r in rows" :key="r.id" class="px-4 py-3 text-sm space-y-1" data-testid="push-row">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="chip" :class="{ 'chip-warning': r.status === 'sending', 'chip-positive': r.status === 'sent', 'chip-negative': r.status === 'failed' }">{{ t.push?.['status_' + r.status] || r.status }}</span>
-                <span class="chip chip-neutral">{{ r.audience === 'all' ? (t.push?.to_all || 'Everyone') : `${t.push?.to_member || 'To'} ${(r.audience_phone || '').split(',').length} ${t.push?.members_word || 'member(s)'}` }}</span>
+                <span class="chip chip-neutral">{{ r.audience === 'all' ? (t.push?.to_all || 'Everyone') : r.audience === 'group' ? (t.push?.to_group || 'Group') : `${t.push?.to_member || 'To'} ${(r.audience_phone || '').split(',').length} ${t.push?.members_word || 'member(s)'}` }}</span>
                 <span class="chip chip-positive tabular-nums">{{ r.delivered }} {{ t.push?.delivered || 'delivered' }}</span>
                 <span v-if="r.failed" class="chip chip-negative tabular-nums">{{ r.failed }} {{ t.push?.failed || 'failed' }}</span>
                 <span v-if="r.removed" class="chip chip-neutral tabular-nums">{{ r.removed }} {{ t.push?.removed || 'removed' }}</span>
@@ -99,11 +114,13 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
+import axios from 'axios';
 import { router, usePage } from '@inertiajs/vue3';
 import { AppLayout, Breadcrumb } from '@/Pages/Admin/Layout/Layout.js';
 
-defineProps({
+const props = defineProps({
+  governorates: { type: Array, default: () => [] },
   configured: { type: Boolean, default: false },
   devices: { type: Object, default: () => ({ total: 0, android: 0, ios: 0, members: 0 }) },
   rows: { type: Array, default: () => [] },
@@ -113,7 +130,28 @@ const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 const errors = computed(() => page.props.errors || {});
 const busy = ref(false);
-const form = reactive({ title: '', body: '', url: '', audience: 'all', audience_phone: '' });
+const form = reactive({ title: '', body: '', url: '', audience: 'all', audience_phone: '', filters: { platform: 'any', who: 'any', card: 'any', kind: 'any', governorate_id: 'any', gender: 'any', locale: 'any' } });
+const pt = (k, d) => t.value.push?.[k] || d;
+const groupFields = computed(() => [
+  { key: 'platform', label: 'platform', options: [{ value: 'android', label: pt('p_android', 'Android') }, { value: 'ios', label: pt('p_ios', 'iPhone') }] },
+  { key: 'who', label: 'who', options: [{ value: 'members', label: pt('w_members', 'Signed-in members') }, { value: 'guests', label: pt('w_guests', 'Visitors') }] },
+  { key: 'card', label: 'card', options: ['trial', 'paid', 'expired', 'no_card'].map(v => ({ value: v, label: pt('c_' + v, v) })) },
+  { key: 'kind', label: 'kind', options: [{ value: 'individual', label: pt('k_individual', 'Individual') }, { value: 'company', label: pt('k_company', 'Company') }] },
+  { key: 'governorate_id', label: 'gov', options: props.governorates.map(g => ({ value: g.id, label: g.name })) },
+  { key: 'gender', label: 'gender', options: [{ value: 'male', label: pt('g_male', 'Male') }, { value: 'female', label: pt('g_female', 'Female') }] },
+  { key: 'locale', label: 'locale', options: [{ value: 'ar', label: pt('l_ar', 'Arabic') }, { value: 'en', label: pt('l_en', 'English') }] },
+]);
+const count = ref(null);
+let timer = null;
+const refreshCount = () => {
+  if (form.audience !== 'group') return;
+  count.value = null;
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    try { count.value = (await axios.get(route('admin.push.count'), { params: { filters: form.filters } })).data; } catch (e) { count.value = null; }
+  }, 300);
+};
+watch(() => [form.audience, { ...form.filters }], refreshCount, { deep: true });
 
 /* The app's fixed pages (src/router.tsx in deilar-mobile-new). A static list on purpose: pages that depend on a record
    (one product, one facility) are copied from their own list with the "copy app link" button instead. */
@@ -163,8 +201,8 @@ const pagePick = ref('');
 const pickPage = () => { if (pagePick.value) form.url = pagePick.value; };
 
 const send = () => {
-  const ask = form.audience === 'all'
-    ? (t.value.push?.confirm_all || 'Send to EVERY phone that has the app?')
+  const ask = form.audience === 'all' || form.audience === 'group'
+    ? (form.audience === 'group' ? (t.value.push?.group_count || '').replace(':devices', count.value?.devices ?? '?').replace(':members', count.value?.members ?? '?') + ' — OK?' : (t.value.push?.confirm_all || 'Send to EVERY phone that has the app?'))
     : (t.value.push?.confirm_member || 'Send this to those members only?');
   if (!window.confirm(ask)) return;
   busy.value = true;

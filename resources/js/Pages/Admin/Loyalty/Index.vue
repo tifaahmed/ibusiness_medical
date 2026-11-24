@@ -30,7 +30,14 @@
             <span class="text-muted-foreground"> — {{ t.loyalty?.transfer_fee_help || 'the sender gives the whole amount, the recipient gets the rest (points and wallet)' }}</span>
             <a href="/admin/setting" class="text-primary underline ms-2">{{ t.loyalty?.edit_rate || 'Change it in Settings' }} (loyalty_transfers_fee_percent)</a>
           </p>
-          <p v-if="!transferFee.enabled" class="text-xs text-amber-600">{{ t.loyalty?.transfers_off || 'Member transfers are switched off (loyalty_transfers_enabled).' }}</p>
+          <div class="flex flex-wrap gap-2 text-xs" data-testid="transfer-switches">
+            <a href="/admin/setting?search=loyalty_transfers_points_enabled" class="chip" :class="transferFee.points_enabled ? 'chip-positive' : 'chip-warning'">
+              {{ t.loyalty?.share_points || 'Sharing points' }}: {{ transferFee.points_enabled ? (t.loyalty?.on || 'ON') : (t.loyalty?.off || 'OFF') }} (loyalty_transfers_points_enabled)
+            </a>
+            <a href="/admin/setting?search=loyalty_transfers_wallet_enabled" class="chip" :class="transferFee.wallet_enabled ? 'chip-positive' : 'chip-warning'">
+              {{ t.loyalty?.share_wallet || 'Sending wallet money' }}: {{ transferFee.wallet_enabled ? (t.loyalty?.on || 'ON') : (t.loyalty?.off || 'OFF') }} (loyalty_transfers_wallet_enabled)
+            </a>
+          </div>
           <p class="text-sm">
             {{ t.loyalty?.fees_collected || 'Fees collected' }}:
             <b dir="ltr">{{ transferFee.points_collected }}</b> {{ t.loyalty?.points_word || 'points' }} ·

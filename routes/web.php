@@ -950,6 +950,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
         Route::get('/admin/push', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'index'])->name('admin.push.index');
         Route::post('/admin/push', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'store'])
             ->middleware('throttle:10,1,admin.push.store')->name('admin.push.store');
+        Route::get('/admin/push/count', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'count'])
+            ->middleware('throttle:60,1,admin.push.count')->name('admin.push.count');
     });
 
     // ---- Visitors: who opened the website / apps, and which products they looked at ----

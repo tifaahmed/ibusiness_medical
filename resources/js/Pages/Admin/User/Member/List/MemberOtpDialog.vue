@@ -145,7 +145,7 @@
         <div v-if="!member" class="space-y-2 border-t border-border p-4">
           <p class="text-sm font-semibold">Master login code</p>
           <p class="text-[11px] text-muted-foreground">
-            Accepted in addition to the real SMS code, for any phone. Stored hashed, cannot be read back. Every use is logged.
+            Accepted in addition to the real SMS code, for any phone. Shown here to the super admin only. Every use is logged.
           </p>
           <p
             v-if="policy?.master?.active"
@@ -162,7 +162,7 @@
               type="text"
               inputmode="numeric"
               autocomplete="off"
-              :placeholder="policy?.master?.length ? `${policy.master.length} digits (leave empty to keep)` : 'digits'"
+              :placeholder="policy?.master?.length && !policy?.master?.value ? `${policy.master.length} digits (set before it could be shown — type a new one to see it)` : 'digits'"
               class="h-9 w-48 rounded-md border border-input bg-background px-3 font-mono text-sm tracking-widest focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <input
@@ -250,8 +250,8 @@ watch(() => props.open, (isOpen) => {
   masterSaved.value = false;
   saving.value = false;
   masterEnabled.value = props.policy?.master?.enabled === true;
-  masterCode.value = '';
-  masterExpires.value = '';
+  masterCode.value = props.policy?.master?.value || '';
+  masterExpires.value = toLocalInput(props.policy?.master?.expires_at);
   masterError.value = '';
 
   if (props.member) {
@@ -286,7 +286,7 @@ const saveMaster = () => {
     expires_at: masterEnabled.value && masterExpires.value ? masterExpires.value : null,
   }, {
     preserveScroll: true,
-    onSuccess: () => { masterCode.value = ''; masterSaved.value = true; },
+    onSuccess: () => { masterSaved.value = true; },
     onError: (errors) => { masterError.value = errors.code || errors.expires_at || errors.message || 'That could not be saved.'; },
     onFinish: () => { masterSaving.value = false; },
   });
