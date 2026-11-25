@@ -196,7 +196,7 @@ class StoreController extends Controller
         $title = DirectorySearch::translated('title', app()->getLocale());
 
         $rows = StoreBranch::query()
-            ->select(['id', 'store_id', 'latitude', 'longitude'])
+            ->select(['id', 'store_id', 'governorate_id', 'city_id', 'latitude', 'longitude'])
             ->selectRaw(self::distanceSql().' as distance_km', [(float) $v['lat'], (float) $v['lng'], (float) $v['lat']])
             ->with('store:id,title')
             ->whereNotNull('latitude')
@@ -210,11 +210,17 @@ class StoreController extends Controller
             ->limit($limit + 1)
             ->get();
 
+        $governorates = $this->governorateNames();
+        $cities = $this->cityNames();
+
         return $this->respond($request, [
             'data' => $rows->take($limit)->map(fn (StoreBranch $b) => [
                 'id' => $b->id,
                 'lat' => round((float) $b->latitude, 5),
                 'lng' => round((float) $b->longitude, 5),
+                'distance_km' => $b->distance_km !== null ? round((float) $b->distance_km, 1) : null,
+                'governorate' => $governorates[$b->governorate_id] ?? null,
+                'city' => $cities[$b->city_id] ?? null,
                 'name' => (string) ($b->store?->title ?? ''),
             ])->values()->all(),
             'has_more' => $rows->count() > $limit,

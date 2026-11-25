@@ -221,7 +221,8 @@ class CardGenerationService
 
         // The two soft-only lines: the member's full name and the day the membership ends. Blank = not drawn.
         $values['full_name'] = $soft ? trim((string) $membership->user?->name) : '';
-        $values['expiry_date'] = $soft && $membership->expiration_date ? $membership->expiration_date->format('d/m/Y') : '';
+        // «صالح إلى» sits beside the date (2026-11-24, owner), so the date on the card reads as the end of the membership.
+        $values['expiry_date'] = $soft && $membership->expiration_date ? 'صالح إلى '.$membership->expiration_date->format('d/m/Y') : '';
 
         // Apply per-card field value overrides (non-empty only).
         foreach ($fieldValues as $fk => $fv) {

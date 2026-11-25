@@ -184,4 +184,24 @@ class RelativeFeeTest extends TestCase
         $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.can_pay', false)->assertJsonPath('data.reason', 'parent_not_paid');
         $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod'])->assertForbidden();
     }
+
+    /** @test */
+    public function a_relative_on_a_trial_card_pays_five_a_month_or_sixty_a_year_for_themself_and_stands_on_their_own_dates(): void
+    {
+        [$user, $card] = $this->member();
+        $card->forceFill(['plan' => Membership::PLAN_TRIAL, 'expiration_date' => now()->addDays(10), 'trial_ends_at' => now()->addDays(10)])->save();
+        $relative = $this->pendingRelative($card);
+        $relative->forceFill(['is_active' => true, 'approval_status' => 'approved', 'expiration_date' => $card->expiration_date])->save();
+
+        // The primary on its free trial pays nothing for relatives; the relative may pay for themself.
+        Sanctum::actingAs($user);
+        $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.can_pay', false)->assertJsonPath('data.reason', 'trial');
+
+        Sanctum::actingAs($relative->user);
+        $this->getJson('/api/v1/mobile/relative-fees')->assertOk()->assertJsonPath('data.can_pay', true)->assertJsonPath('data.waiting.0.id', $relative->id)->assertJsonPath('data.fee.per_relative', 60);
+        $this->postJson('/api/v1/mobile/relative-fees/orders', ['relative_ids' => [$relative->id], 'payment_type' => 'cod', 'plan' => 'month'])
+            ->assertCreated()->assertJsonPath('order.total_amount', 5);
+        // The year is on sale at 60 for the same relative (a second order waits until the first is settled).
+        $this->getJson('/api/v1/mobile/relative-fees')->assertJsonPath('data.fee.per_relative', 60);
+    }
 }

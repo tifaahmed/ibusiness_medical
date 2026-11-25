@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  *  - FEMALE primary: her `father` the same way (her second name + the typed grandfather name); one woman only, her `mother`, full name;
  *    children only after her `husband` is on the card (typed with his full name) — a child then carries the HUSBAND's name.
  *
- * A card holds at most {@see MembershipPlan::MAX_RELATIVES} relatives that are NOT children; children are not capped.
+ * There is no limit on the number of relatives of any kind (2026-11-24); each one is paid for separately.
  */
 final class RelativeRules
 {

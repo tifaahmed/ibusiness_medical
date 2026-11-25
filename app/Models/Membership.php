@@ -440,6 +440,11 @@ class Membership extends Model implements HasMedia
     {
         if ($this->isRelative()) {
             // A relative paid for by itself carries its own expiry; one without a date follows the primary card.
+            // A relative that paid its OWN fee stands on its own dates while they last (2026-11-24): the primary's trial ending does not cut it.
+            if ($this->paidItself()) {
+                return self::STATE_ACTIVE;
+            }
+
             return $this->isExpired() ? self::STATE_EXPIRED : $this->governingCard()->state();
         }
 
@@ -456,6 +461,12 @@ class Membership extends Model implements HasMedia
         }
 
         return $this->isExpired() ? self::STATE_EXPIRED : self::STATE_ACTIVE;
+    }
+
+    /** A relative whose own fee was paid (`fee_order_id`) and whose own period has not ended: it does not depend on the primary's card. */
+    public function paidItself(): bool
+    {
+        return $this->isRelative() && $this->fee_order_id !== null && (bool) $this->is_active && $this->expiration_date?->isFuture() === true;
     }
 
     /** Whole days left (0 when expired or undated). */
@@ -479,7 +490,7 @@ class Membership extends Model implements HasMedia
     public function isCurrent(): bool
     {
         if ($this->isRelative()) {
-            return (bool) $this->is_active && ! $this->isExpired() && $this->governingCard()->isCurrent();
+            return (bool) $this->is_active && ! $this->isExpired() && ($this->paidItself() || $this->governingCard()->isCurrent());
         }
 
         return (bool) $this->is_active && ! ($this->expiration_date?->isPast() ?? false);

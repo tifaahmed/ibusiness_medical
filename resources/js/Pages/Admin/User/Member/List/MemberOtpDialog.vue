@@ -84,11 +84,11 @@
               type="text"
               maxlength="160"
               autocomplete="off"
-              placeholder="Your code is :code"
+              placeholder="Your code from iBusiness is :code"
               class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <p class="text-[11px] text-muted-foreground">
-              <code>:code</code> is replaced with the digits (e.g. “Your code is 1223”). Optional: <code>:app</code> = the site name. Keep it short — long or branded texts are often blocked by SMS providers. Empty = “Your code is :code”.
+              <code>:code</code> is replaced with the digits (e.g. “Your code from iBusiness is 1223”). Optional: <code>:app</code> = the site name. Keep it short — long or branded texts are often blocked by SMS providers. Empty = “Your code from iBusiness is :code”.
             </p>
             <p v-if="messageError" class="text-[11px] text-destructive">{{ messageError }}</p>
           </div>

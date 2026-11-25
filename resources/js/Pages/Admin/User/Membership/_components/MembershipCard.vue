@@ -96,7 +96,7 @@ const getUserInitials = (name) => {
 };
 
 const formatDate = (dateString) => {
-  if (!dateString) return "N/A";
+  if (!dateString) return ""; // no date or unlimited: the field stays empty
   try {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {

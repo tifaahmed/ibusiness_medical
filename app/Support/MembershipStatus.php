@@ -90,14 +90,15 @@ final class MembershipStatus
                 'count' => $counted,
                 'pending' => $relatives->filter(fn ($r) => $r->approval_status === ApprovalStatusEnum::PENDING->value)->count(),
                 'max' => MembershipPlan::MAX_RELATIVES,
+                /* No ceiling any more: clients say «any number» and never count down. */
+                'unlimited' => true,
                 /* First-degree only: parents, spouse, children. Said once here so no client words it differently. */
                 'degree' => 'first',
                 /* Kept for old builds, always false: since 2026-11-17 a trial card takes relatives too (they try with it). */
                 'must_contact_support' => false,
                 'can_add' => $membership !== null
                     && ! $membership->isRelative()
-                    && $base['valid']
-                    && $counted < MembershipPlan::MAX_RELATIVES,
+                    && $base['valid'],
             ],
             'open_subscription' => $open === null ? null : [
                 'id' => $open->id,

@@ -316,7 +316,7 @@ class FacilityController extends Controller
         $bindings = [(float) $v['lat'], (float) $v['lng'], (float) $v['lat']];
 
         $query = FacilityBranch::query()
-            ->select(['id', 'facility_id', 'latitude', 'longitude'])
+            ->select(['id', 'facility_id', 'governorate_id', 'city_id', 'latitude', 'longitude'])
             ->selectRaw(self::distanceSql().' as distance_km', $bindings)
             ->with('facility:id,name')
             ->whereNotNull('latitude')
@@ -329,11 +329,17 @@ class FacilityController extends Controller
 
         $rows = $query->get();
 
+        $governorates = $this->governorateNames();
+        $cities = $this->cityNames();
+
         return $this->respond($request, [
             'data' => $rows->take($limit)->map(fn (FacilityBranch $b) => [
                 'id' => $b->id,
                 'lat' => round((float) $b->latitude, 5),
                 'lng' => round((float) $b->longitude, 5),
+                'distance_km' => $b->distance_km !== null ? round((float) $b->distance_km, 1) : null,
+                'governorate' => $governorates[$b->governorate_id] ?? null,
+                'city' => $cities[$b->city_id] ?? null,
                 'name' => (string) ($b->facility?->name ?? ''),
             ])->values()->all(),
             'has_more' => $rows->count() > $limit,

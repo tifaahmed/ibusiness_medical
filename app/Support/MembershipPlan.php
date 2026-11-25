@@ -39,8 +39,11 @@ final class MembershipPlan
 
     public const PLAN_HALF = 'half';
 
-    /** The most first-degree relatives one card can carry (the family-member rule). */
-    public const MAX_RELATIVES = 15;
+    /**
+     * NO LIMIT since 2026-11-24 (owner): a card, individual or company, takes any number of relatives, each paid for
+     * ({@see RelativeFee}). Kept as a number only so old app builds that read `relatives.max` still draw something sensible.
+     */
+    public const MAX_RELATIVES = 9999;
 
     public static function price(): float
     {

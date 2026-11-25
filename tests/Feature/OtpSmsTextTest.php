@@ -10,7 +10,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-/** The login SMS wording: short by default, editable from the dashboard, must carry :code. */
+/** The login SMS wording: short by default (names iBusiness), editable from the dashboard, must carry :code. */
 class OtpSmsTextTest extends TestCase
 {
     use RefreshDatabase;
@@ -26,9 +26,9 @@ class OtpSmsTextTest extends TestCase
         return $admin;
     }
 
-    public function test_default_text_is_short_with_no_brand_or_verification(): void
+    public function test_default_text_is_short_and_names_ibusiness(): void
     {
-        $this->assertSame('Your code is 1223', OtpSettings::message('1223'));
+        $this->assertSame('Your code from iBusiness is 1223', OtpSettings::message('1223'));
     }
 
     public function test_admin_changes_the_text_and_it_is_used(): void
@@ -49,6 +49,6 @@ class OtpSmsTextTest extends TestCase
 
         $this->flushSession();
         $this->put(route('admin.user.membership.otp.site'), ['sms_enabled' => true, 'message' => null])->assertSessionHasNoErrors();
-        $this->assertSame('Your code is 1223', OtpSettings::message('1223'));
+        $this->assertSame('Your code from iBusiness is 1223', OtpSettings::message('1223'));
     }
 }

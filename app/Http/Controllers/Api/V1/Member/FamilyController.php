@@ -505,8 +505,8 @@ class FamilyController extends Controller
      * Why this card may not take another relative right now, or null if it may.
      *
      * Three separate reasons, each with its own `reason` for the client to word:
-     * a TRIAL card takes relatives too (they try with it, same end date), an expired card adds nothing, and fifteen is
-     * the ceiling for one card.
+     * a TRIAL card takes relatives too (they try with it, same end date) and an expired card adds nothing. There is no
+     * ceiling on the number of relatives any more (2026-11-24).
      */
     private function refusal(Membership $membership, ?string $relationship = null): ?JsonResponse
     {
@@ -516,18 +516,6 @@ class FamilyController extends Controller
                 'reason' => 'card_expired',
                 'message' => 'Your card has expired. Renew it to add relatives.',
             ], Response::HTTP_FORBIDDEN);
-        }
-
-        // Children are not capped (2026-11-17); every other relation counts toward the card's ceiling.
-        $counted = $membership->relatives()->where('approval_status', '!=', ApprovalStatusEnum::REJECTED->value)
-            ->whereNotIn('relationship', RelativeRules::CHILD)->count();
-
-        if (! in_array($relationship, RelativeRules::CHILD, true) && $counted >= MembershipPlan::MAX_RELATIVES) {
-            return response()->json([
-                'success' => false,
-                'reason' => 'limit_reached',
-                'message' => 'A card carries up to '.MembershipPlan::MAX_RELATIVES.' relatives. Please contact customer service.',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return null;

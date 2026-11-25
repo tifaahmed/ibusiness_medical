@@ -59,7 +59,7 @@
                 :counter-max="NATIONAL_ID_LENGTH"
                 :error="memberStore.validationErrors?.national_id || nationalIdCheck.message.value"
                 :placeholder="t.member?.national_id_placeholder || 'Enter 14-digit National ID number'"
-                required
+                :required="!memberStore.form.is_trial"
               />
               <div v-if="nationalIdCheck.status.value === 'checking' || nationalIdCheck.status.value === 'ok' || nationalIdCheck.canRecheck.value" class="mt-1 flex items-center gap-2 text-xs">
                 <span v-if="nationalIdCheck.status.value === 'checking'" class="text-muted-foreground">{{ t.member?.checking || 'Checking…' }}</span>
@@ -267,7 +267,7 @@
                 :options="governorateSelectOptions"
                 :error="memberStore.validationErrors?.governorate_id"
                 :placeholder="t.member?.governorate_select || 'Select a governorate'"
-                required
+                :required="!memberStore.form.is_trial"
                 @update:modelValue="onGovernorateChange"
               />
               <FormSelect
@@ -277,7 +277,7 @@
                 :error="memberStore.validationErrors?.city_id"
                 :placeholder="memberStore.form.governorate_id ? (t.member?.city_placeholder_required || 'Select a city') : (t.member?.city_select_governorate_first || 'Select a governorate first')"
                 :disabled="!memberStore.form.governorate_id"
-                required
+                :required="!memberStore.form.is_trial"
               />
             </div>
           </div>
@@ -348,12 +348,14 @@
                 class="chip chip-neutral min-w-[3.5rem] justify-center cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                 @click="memberStore.form.expiration_date = addMonths(memberStore.form.registration_date, p.months)"
               >{{ p.label }}</button>
+              <!-- Unlimited = no end date (the column stays empty). Selected while the date is empty; press it to clear a date. -->
               <button
-                v-if="memberStore.form.expiration_date"
                 type="button"
-                class="chip chip-neutral min-w-[3.5rem] justify-center cursor-pointer"
+                data-testid="expiration-unlimited"
+                :aria-pressed="!memberStore.form.expiration_date"
+                :class="['chip min-w-[3.5rem] justify-center cursor-pointer', memberStore.form.expiration_date ? 'chip-neutral' : 'chip-accent']"
                 @click="memberStore.form.expiration_date = ''"
-              >{{ t.member?.expiration_clear || 'Clear' }}</button>
+              >∞ {{ t.member?.expiration_unlimited || 'Unlimited' }}</button>
             </div>
             <p
               v-if="expirationSummary"
@@ -644,6 +646,12 @@ const paymentTypeOptions = computed(() => {
     { value: 'half_yearly', label: t.value.member?.payment_type_half_yearly || 'Half-yearly' },
     { value: 'yearly', label: t.value.member?.payment_type_yearly || 'Yearly' },
   ];
+});
+
+// A NEW company member gets "Unlimited" at once (the end date is cleared). The admin can still pick a date by hand.
+// Editing an existing member never touches its date.
+watch(() => memberStore.form.member_kind, (kind) => {
+  if (kind === 'company' && !editingMembershipId.value) memberStore.form.expiration_date = '';
 });
 
 // Switching to a company locks the plan to monthly.

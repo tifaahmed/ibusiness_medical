@@ -28,9 +28,6 @@
       >
         {{ paying ? '…' : text.buy }}<span v-if="status.price > 0" dir="ltr"> — {{ status.price }} EGP</span>
       </button>
-      <a v-if="phone" :href="`tel:${phone}`" class="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white px-5 py-3 text-base font-bold hover:bg-white/10">
-        📞 {{ text.call }} <span dir="ltr">{{ status.contact.phone || phone }}</span>
-      </a>
       <a v-if="whatsapp" :href="whatsappLink" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white px-5 py-3 text-base font-bold hover:bg-white/10">
         💬 {{ text.message }}
       </a>
@@ -45,7 +42,7 @@
     <span class="text-sm font-semibold">
       {{ text.trial }} — {{ status.days_left }} {{ text.days_left }}<span v-if="status.expires_on" dir="ltr"> ({{ status.expires_on }})</span>
     </span>
-    <a v-if="phone" :href="`tel:${phone}`" class="text-xs font-bold underline">{{ text.call }} {{ status.contact.phone || phone }}</a>
+    <a v-if="whatsapp" :href="whatsappLink" target="_blank" rel="noopener" class="text-xs font-bold underline">💬 {{ text.message }}</a>
   </div>
 </template>
 
@@ -87,7 +84,6 @@ const dictionary = {
 };
 
 const text = computed(() => dictionary[props.locale] || dictionary.en);
-const phone = computed(() => props.status?.contact?.phone_international || props.status?.contact?.phone || "");
 const whatsapp = computed(() => (props.status?.contact?.whatsapp || "").replace(/\D/g, ""));
 const whatsappLink = computed(() => `https://wa.me/${whatsapp.value}?text=${encodeURIComponent(`${text.value.wa_text} ${props.slug}`)}`);
 

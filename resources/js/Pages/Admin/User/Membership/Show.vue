@@ -685,7 +685,7 @@
               <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <div><span class="text-xs text-muted-foreground block">{{ t.member?.phone || 'Phone' }}</span><a v-if="referral.referrer.phone" :href="`tel:${referral.referrer.phone}`" class="tabular-nums value-info" dir="ltr">{{ referral.referrer.phone }}</a><span v-else>—</span></div>
                 <div><span class="text-xs text-muted-foreground block">{{ t.member?.email || 'Email' }}</span><span class="break-all">{{ referral.referrer.email || '—' }}</span></div>
-                <div><span class="text-xs text-muted-foreground block">{{ t.member?.expiration_date || 'Expires' }}</span><span class="tabular-nums" dir="ltr">{{ referral.referrer.expiration_date || '—' }}</span></div>
+                <div><span class="text-xs text-muted-foreground block">{{ t.member?.expiration_date || 'Expires' }}</span><span class="tabular-nums" dir="ltr">{{ referral.referrer.expiration_date || '' }}</span></div>
                 <div><span class="text-xs text-muted-foreground block">{{ t.member?.joined || 'Joined' }}</span><span class="tabular-nums" dir="ltr">{{ referral.referrer.joined_at || '—' }}</span></div>
                 <div><span class="text-xs text-muted-foreground block">{{ t.member?.referral_brought || 'Members brought' }}</span><span class="tabular-nums font-semibold" dir="ltr">{{ referral.referrer.referred_count }}</span></div>
                 <div><span class="text-xs text-muted-foreground block">{{ t.member?.referral_total_earned || 'Total referral earnings' }}</span><span class="tabular-nums font-semibold value-positive" dir="ltr">{{ referral.referrer.total_earned }} EGP</span></div>

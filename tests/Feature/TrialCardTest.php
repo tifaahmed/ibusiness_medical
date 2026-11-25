@@ -114,7 +114,7 @@ class TrialCardTest extends TestCase
             ->assertJsonPath('data.valid', true)
             ->assertJsonPath('data.expired', false)
             ->assertJsonPath('data.relatives.must_contact_support', false)
-            ->assertJsonPath('data.relatives.max', 15)
+            ->assertJsonPath('data.relatives.unlimited', true)
             ->assertJsonPath('data.relatives.can_add', true);
 
         $membership = $user->memberships()->firstOrFail();
@@ -625,18 +625,22 @@ class TrialCardTest extends TestCase
         $this->addRelative(['relationship' => 'brother'])->assertUnprocessable()->assertJsonValidationErrors('relationship');
     }
 
-    public function test_a_card_carries_at_most_fifteen_relatives(): void
+    public function test_a_card_takes_any_number_of_relatives(): void
     {
         $membership = $this->paidCard();
 
-        foreach (range(1, 15) as $i) {
+        // Twenty relatives that count toward the old ceiling (no children among them), filed by an admin.
+        foreach (range(1, 20) as $i) {
             app(\App\Actions\Membership\CreateRelative::class)->handle($membership, [
-                'name' => "Rel $i", 'relationship' => 'son',
+                'name' => "Rel $i", 'relationship' => 'father',
                 'national_id' => (string) (31000000000000 + $i), 'is_active' => true,
             ], Membership::ADDED_BY_ADMIN);
         }
 
-        $this->addRelative()->assertUnprocessable()->assertJsonPath('reason', 'limit_reached');
+        // There is no ceiling any more: the card still says it may take another one.
+        $this->getJson('/api/v1/membership')->assertOk()
+            ->assertJsonPath('data.relatives.unlimited', true)
+            ->assertJsonPath('data.relatives.can_add', true);
     }
 
     public function test_an_expired_card_adds_no_relatives(): void

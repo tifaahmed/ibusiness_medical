@@ -334,6 +334,7 @@ return [
         'all_payments' => 'All Payments',
         'payments_need_membership' => 'Save the membership first, then payments can be recorded against it.',
         'expiration_one_year' => '+1 year',
+        'expiration_unlimited' => 'Unlimited',
         'expiration_one_year_hint' => 'Set to one year after the registration date',
         'expiration_needs_registration' => 'Pick a registration date first',
         'active_membership' => 'Active Membership',

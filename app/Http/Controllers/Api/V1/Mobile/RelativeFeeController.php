@@ -204,7 +204,9 @@ class RelativeFeeController extends Controller
 
         $governing = $card->governingCard();
 
-        if ($governing->isTrial()) {
+        // A primary on its free trial pays no relative fees (its family tries with it); a RELATIVE on a current trial card may pay for
+        // themself (owner decision 2026-11-24: 5 a month / 60 a year, whatever the primary's card is).
+        if ($governing->isTrial() && ! $card->isRelative()) {
             return 'trial';
         }
 

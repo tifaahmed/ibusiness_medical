@@ -345,6 +345,7 @@ return [
         'all_payments' => 'كل المدفوعات',
         'payments_need_membership' => 'احفظ العضوية أولاً، ثم يمكن تسجيل المدفوعات عليها.',
         'expiration_one_year' => '+ سنة',
+        'expiration_unlimited' => 'بلا نهاية',
         'expiration_one_year_hint' => 'تعيينه بعد سنة من تاريخ التسجيل',
         'expiration_needs_registration' => 'اختر تاريخ التسجيل أولاً',
         'active_membership' => 'العضوية النشطة',

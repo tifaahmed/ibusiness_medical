@@ -215,6 +215,12 @@ final class ArabicText
     private static function reorder(array $clusters): string
     {
         $types = array_map(fn (array $cluster): string => self::directionOf($cluster['cp']), $clusters);
+        // Rule W4: a «/», «:», «.» or «,» between two European digits belongs to the number (31/12/2027, 10:30), so a date keeps its order.
+        foreach ($clusters as $i => $cluster) {
+            if ($i > 0 && isset($types[$i + 1]) && in_array($cluster['glyph'], ['/', ':', '.', ','], true) && $types[$i - 1] === 'EN' && $types[$i + 1] === 'EN') {
+                $types[$i] = 'EN';
+            }
+        }
         $base = self::baseLevel($types);
         $levels = self::levels($types, $base);
         $count = count($levels);

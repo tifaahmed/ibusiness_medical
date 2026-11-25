@@ -88,6 +88,11 @@ class FamilyOverviewController extends Controller
             'is_active' => (bool) $m->is_active,
             'approval_status' => $m->approval_status,
             'rejection_reason' => $m->rejection_reason,
+            // The card's own state (the backend decides; `Membership::state()`): a relative on a TRIAL card shows `trial` until the trial ends,
+            // then `expired`. The date is the relative's own end date when it has one (a trial relative carries the primary's), else the card's.
+            'state' => $m->state(),
+            'is_trial' => $m->state() === Membership::STATE_TRIAL,
+            'expires_on' => ($m->expiration_date ?? $m->governingCard()->expiration_date)?->format('Y-m-d'),
             // The owner may complete / remove their relatives from the app (never themselves).
             'editable' => $ownerView && ! $isHead,
             'national_id' => $ownerView ? $m->national_id : null,
