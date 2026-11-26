@@ -31,14 +31,26 @@ class StoreController extends Controller
     /** Store categories that hold at least one store. */
     public function categories(Request $request): JsonResponse
     {
-        $data = Cache::remember('mobile:store-categories:'.app()->getLocale(), 600, fn () => StoreCategory::query()
-            ->withCount('stores')
-            ->get(['id', 'name'])
-            ->filter(fn ($c) => $c->stores_count > 0)
-            ->sortByDesc('stores_count')
-            ->map(fn ($c) => ['id' => $c->id, 'name' => (string) $c->name, 'count' => (int) $c->stores_count])
-            ->values()
-            ->all());
+        $data = Cache::remember('mobile:store-categories:v2:'.app()->getLocale(), 600, function () {
+            // Branches that can be shown on the map (they have a position), per category: a store in two categories counts in both.
+            $branches = StoreBranch::query()
+                ->whereHas('store')
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->with('store.categories:id')
+                ->get(['id', 'store_id'])
+                ->flatMap(fn (StoreBranch $b) => $b->store->categories->pluck('id'))
+                ->countBy();
+
+            return StoreCategory::query()
+                ->withCount('stores')
+                ->get(['id', 'name'])
+                ->filter(fn ($c) => $c->stores_count > 0)
+                ->sortByDesc('stores_count')
+                ->map(fn ($c) => ['id' => $c->id, 'name' => (string) $c->name, 'count' => (int) $c->stores_count, 'branches_count' => (int) ($branches[$c->id] ?? 0)])
+                ->values()
+                ->all();
+        });
 
         return $this->respond($request, ['data' => $data], 600);
     }
@@ -198,7 +210,7 @@ class StoreController extends Controller
         $rows = StoreBranch::query()
             ->select(['id', 'store_id', 'governorate_id', 'city_id', 'latitude', 'longitude'])
             ->selectRaw(self::distanceSql().' as distance_km', [(float) $v['lat'], (float) $v['lng'], (float) $v['lat']])
-            ->with('store:id,title')
+            ->with(['store:id,title,offer_percent_from,offer_percent_to', 'store.media' => fn ($q) => $q->whereIn('collection_name', ['logo', 'mobile_logo']), 'store.categories:id,name'])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->when(! empty($v['category_id']), fn ($q) => $q->whereHas('store.categories', fn ($c) => $c->where('store_categories.id', (int) $v['category_id'])))
@@ -212,6 +224,8 @@ class StoreController extends Controller
 
         $governorates = $this->governorateNames();
         $cities = $this->cityNames();
+        // Read once: asking per row for the stand-in picture would be a query for every place without a logo.
+        $noLogo = \App\Support\MobileImage::logo();
 
         return $this->respond($request, [
             'data' => $rows->take($limit)->map(fn (StoreBranch $b) => [
@@ -222,6 +236,11 @@ class StoreController extends Controller
                 'governorate' => $governorates[$b->governorate_id] ?? null,
                 'city' => $cities[$b->city_id] ?? null,
                 'name' => (string) ($b->store?->title ?? ''),
+                // The store's picture for the list under the map (the app logo when it has none).
+                'logo' => $b->store?->mobile_logo ?: ($b->store?->logo ?: $noLogo),
+                'category_names' => $b->store?->categories->map(fn ($c) => (string) $c->name)->values()->all() ?? [],
+                'offer_from' => $b->store?->offer_percent_from !== null ? (float) $b->store->offer_percent_from : null,
+                'offer_to' => $b->store?->offer_percent_to !== null ? (float) $b->store->offer_percent_to : null,
             ])->values()->all(),
             'has_more' => $rows->count() > $limit,
         ], 120);

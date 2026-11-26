@@ -733,7 +733,7 @@ function textStyle(key) {
   return {
     fontSize: `${(f.font_size || 14) * scale}px`,
     fontFamily: `${f.font_family || 'Tajawal'}, Arial, sans-serif`,
-    fontWeight: 700,
+    fontWeight: f.bold === false ? 400 : 700,
     color: f.color || '#000000',
     direction: direction === 'rtl' ? 'rtl' : 'ltr',
     justifyContent: direction === 'rtl' ? 'flex-end' : (direction === 'center' ? 'center' : 'flex-start'),

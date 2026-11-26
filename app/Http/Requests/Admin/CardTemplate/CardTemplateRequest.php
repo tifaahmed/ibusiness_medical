@@ -62,8 +62,13 @@ class CardTemplateRequest extends FormRequest
             $rules["layout.{$field}.direction"] = ['nullable', Rule::in(['ltr', 'rtl', 'center'])];
             $rules["layout.{$field}.color"] = ['nullable', 'string', 'max:20'];
             $rules["layout.{$field}.font_size"] = ['nullable', 'numeric', 'min:1', 'max:200'];
+            $rules["layout.{$field}.bold"] = ['nullable', 'boolean'];
 
             $rules["sample_data.{$field}"] = ['nullable', 'string', 'max:255'];
+        }
+
+        foreach (CardTemplateLayoutDefaults::DATE_PARTS as $part => $format) {
+            $rules["layout.expiry_date.show_{$part}"] = ['nullable', 'boolean'];
         }
 
         foreach (self::UPLOADABLE_SAMPLE_IMAGE_FIELDS as $field) {

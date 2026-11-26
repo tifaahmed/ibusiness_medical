@@ -123,7 +123,7 @@
                 v-if="isTextField(key)"
                 class="w-full h-full flex items-center overflow-hidden whitespace-pre pointer-events-none"
                 :style="textStyle(key)"
-              >{{ form.sample_data[key] }}</div>
+              >{{ stageText(key) }}</div>
               <!-- Real QR / barcode, generated from the value below the stage. -->
               <div v-else-if="key === 'qrcode' && qrDataUri" class="w-full h-full bg-white p-[7.8%] pointer-events-none">
                 <img :src="qrDataUri" alt="" class="w-full h-full object-contain" />
@@ -208,6 +208,34 @@
                   <input v-model="field.font_family" type="text" class="w-full rounded border border-border bg-background px-2 py-1 text-xs" :disabled="busy" />
                 </label>
               </div>
+              <fieldset v-if="selected === 'expiry_date'" class="rounded border border-border p-2">
+                <legend class="px-1 text-[11px] font-medium">اللي يظهر من التاريخ</legend>
+                <div class="flex flex-wrap gap-4">
+                  <label v-for="part in DATE_PARTS" :key="part.key" class="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 cursor-pointer"
+                      :data-testid="`date-${part.key}`"
+                      :checked="field[part.key] !== false"
+                      :disabled="busy || isLastDatePart(part.key)"
+                      @change="field[part.key] = $event.target.checked"
+                    />
+                    <span>{{ part.label }}</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <label class="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 cursor-pointer"
+                  data-testid="field-bold"
+                  :checked="field.bold !== false"
+                  :disabled="busy"
+                  @change="field.bold = $event.target.checked"
+                />
+                <span class="font-bold">Bold — خط عريض</span>
+              </label>
               <p class="text-[10px] text-muted-foreground">
                 Font size is pixels on a {{ defaults.editor_width }}px-wide card and scales with the render.
               </p>
@@ -357,6 +385,7 @@ import { AppLayout } from '@/Pages/Admin/Layout/Layout.js';
 import CardPreview from '@/Pages/Admin/MembershipCard/_components/CardPreview.vue';
 import { drawBarcode } from '@/Pages/Admin/MembershipCard/_components/code128.js';
 import { assetUrl } from '@/Pages/Admin/MembershipCard/_components/cardRenderer.js';
+import { applyDateParts } from '@/Pages/Admin/MembershipCard/_components/dateParts.js';
 
 // How a field's text sits in its box.
 const directionOptions = [
@@ -642,6 +671,23 @@ function clearSample() {
   sampleCleared.value = true;
 }
 
+const DATE_PARTS = [
+  { key: 'show_day', label: 'اليوم' },
+  { key: 'show_month', label: 'الشهر' },
+  { key: 'show_year', label: 'السنة' },
+];
+
+/** The only part still shown cannot be switched off: a date field prints something. */
+function isLastDatePart(key) {
+  const shown = DATE_PARTS.filter((part) => field.value?.[part.key] !== false);
+  return shown.length === 1 && shown[0].key === key;
+}
+
+function stageText(key) {
+  const text = form.sample_data[key];
+  return key === 'expiry_date' ? applyDateParts(text, form.layout[key]) : text;
+}
+
 function boxStyle(key) {
   const f = form.layout[key];
   return {
@@ -664,7 +710,7 @@ function textStyle(key) {
   return {
     fontSize: `${(f.font_size || 14) * scale}px`,
     fontFamily: `${f.font_family || 'Tajawal'}, Arial, sans-serif`,
-    fontWeight: 700,
+    fontWeight: f.bold === false ? 400 : 700,
     color: f.color || '#000000',
     direction: direction === 'rtl' ? 'rtl' : 'ltr',
     justifyContent: direction === 'rtl' ? 'flex-end' : (direction === 'center' ? 'center' : 'flex-start'),

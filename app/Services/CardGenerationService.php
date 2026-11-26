@@ -222,7 +222,7 @@ class CardGenerationService
         // The two soft-only lines: the member's full name and the day the membership ends. Blank = not drawn.
         $values['full_name'] = $soft ? trim((string) $membership->user?->name) : '';
         // «صالح إلى» sits beside the date (2026-11-24, owner), so the date on the card reads as the end of the membership.
-        $values['expiry_date'] = $soft && $membership->expiration_date ? 'صالح إلى '.$membership->expiration_date->format('d/m/Y') : '';
+        $values['expiry_date'] = $soft && $membership->expiration_date ? 'صالح إلى '.$membership->expiration_date->format(CardTemplateLayoutDefaults::dateFormat($tplLayout['expiry_date'] ?? [])) : '';
 
         // Apply per-card field value overrides (non-empty only).
         foreach ($fieldValues as $fk => $fv) {
@@ -299,7 +299,7 @@ class CardGenerationService
      *
      * @param  array<string, array<string, mixed>>  $tplLayout
      * @param  array<int, string>  $hiddenFields  flipped array of hidden field keys
-     * @return array<string, array{left: float, top: float, width: float, height: float, fontSize: float, color: string, direction: string}>
+     * @return array<string, array{left: float, top: float, width: float, height: float, fontSize: float, color: string, direction: string, bold: bool}>
      */
     private function resolveFields(array $tplLayout, array $hiddenFields, int $width, int $height): array
     {
@@ -316,6 +316,8 @@ class CardGenerationService
                 'fontSize' => ((float) ($box['font_size'] ?? 14)) * ($width / self::EDITOR_WIDTH),
                 'color' => (string) ($box['color'] ?? self::INK),
                 'direction' => (string) ($box['direction'] ?? 'ltr'),
+                // Bold unless the design says otherwise: every card made before the switch was bold.
+                'bold' => (bool) ($box['bold'] ?? true),
             ];
         }
 
@@ -590,7 +592,8 @@ class CardGenerationService
             return;
         }
 
-        $fontPath = $this->resolveFontPath('Tajawal-Bold.ttf');
+        $fontPath = (($field['bold'] ?? true) ? null : $this->resolveFontPath('Tajawal-Regular.ttf'))
+            ?? $this->resolveFontPath('Tajawal-Bold.ttf');
         if (! $fontPath) {
             return;
         }

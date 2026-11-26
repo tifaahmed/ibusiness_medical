@@ -14,6 +14,7 @@
 import QRCode from 'qrcode';
 import { publicMembershipBaseUrl, withSlugQuery } from '@/composables/usePublicMembershipUrl.js';
 import { drawBarcode } from './code128.js';
+import { applyDateParts } from './dateParts.js';
 
 /** Export size in px — the 8.5 × 5.5 cm print shape, whatever the artwork's own ratio. */
 export const CARD_W = 1579;
@@ -205,6 +206,11 @@ function resolveFields(template, overrides, width, height) {
       fontFamily: f.font_family || 'Tajawal',
       color: f.color || INK,
       direction: f.direction || 'ltr',
+      // Bold unless the design says otherwise (as the server renderer does).
+      bold: f.bold !== false,
+      show_day: f.show_day,
+      show_month: f.show_month,
+      show_year: f.show_year,
     };
   }
 
@@ -284,11 +290,12 @@ function drawTextField(ctx, field, text) {
 
   const maxWidth = field.width;
   let size = field.fontSize;
-  ctx.font = `bold ${size}px ${field.fontFamily}, Arial, sans-serif`;
+  const weight = field.bold === false ? 400 : 700;
+  ctx.font = `${weight} ${size}px ${field.fontFamily}, Arial, sans-serif`;
   const measured = ctx.measureText(text).width;
   if (measured > maxWidth && measured > 0) {
     size *= maxWidth / measured;
-    ctx.font = `bold ${size}px ${field.fontFamily}, Arial, sans-serif`;
+    ctx.font = `${weight} ${size}px ${field.fontFamily}, Arial, sans-serif`;
   }
 
   ctx.fillStyle = field.color;
@@ -504,7 +511,7 @@ export async function renderCardCanvas({
   for (const key of TEXT_FIELDS) {
     const field = fields[key];
     if (!field) continue;
-    drawTextField(ctx, field, values[key]);
+    drawTextField(ctx, field, key === 'expiry_date' ? applyDateParts(values[key], field) : values[key]);
   }
 
   return canvas;

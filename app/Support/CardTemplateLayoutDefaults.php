@@ -29,6 +29,22 @@ class CardTemplateLayoutDefaults
     /** Text fields — carry font/colour/direction on top of the box. */
     public const TEXT_FIELDS = ['slogan', 'membership_number', 'facebook', 'website', 'phone', 'full_name', 'expiry_date'];
 
+    /** The parts of the expiry date a design may switch off (`layout.expiry_date.show_{part}`), with their date format. */
+    public const DATE_PARTS = ['day' => 'd', 'month' => 'm', 'year' => 'Y'];
+
+    /**
+     * The date format an expiry-date box asks for: the parts it keeps, in day/month/year order.
+     * A part not mentioned is shown, and a box that switches everything off prints the full date.
+     *
+     * @param  array<string, mixed>  $box
+     */
+    public static function dateFormat(array $box): string
+    {
+        $kept = array_filter(self::DATE_PARTS, fn (string $part) => (bool) ($box["show_{$part}"] ?? true), ARRAY_FILTER_USE_KEY);
+
+        return implode('/', $kept ?: self::DATE_PARTS);
+    }
+
     /** Fields whose value is an image URL. */
     public const IMAGE_FIELDS = ['logo', 'partner_logo'];
 

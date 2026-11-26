@@ -15,7 +15,7 @@ class PushNotification extends Model
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
-        'title', 'body', 'url', 'audience', 'audience_phone', 'audience_filters', 'status', 'total', 'delivered', 'failed', 'removed', 'error', 'created_by', 'finished_at',
+        'title', 'body', 'url', 'audience', 'audience_phone', 'audience_filters', 'status', 'total', 'delivered', 'failed', 'removed', 'error', 'created_by', 'finished_at', 'push_schedule_id',
     ];
 
     protected function casts(): array

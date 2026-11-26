@@ -34,16 +34,27 @@ class FacilityController extends Controller
     /** Facility types that actually have facilities, with how many. */
     public function types(Request $request): JsonResponse
     {
-        $types = Cache::remember('mobile:facility-type-counts:'.app()->getLocale(), 600, function () {
+        $types = Cache::remember('mobile:facility-type-counts:v2:'.app()->getLocale(), 600, function () {
             $counts = Facility::query()
                 ->whereNotNull('facility_type_id')
                 ->selectRaw('facility_type_id, COUNT(*) as total')
                 ->groupBy('facility_type_id')
                 ->pluck('total', 'facility_type_id');
 
+            // Branches that can be shown on the map (they have a position), per kind: what the map filter prints beside each kind.
+            $branches = FacilityBranch::query()
+                ->join('facilities', 'facilities.id', '=', 'facility_branches.facility_id')
+                ->whereNull('facilities.deleted_at')
+                ->whereNotNull('facilities.facility_type_id')
+                ->whereNotNull('facility_branches.latitude')
+                ->whereNotNull('facility_branches.longitude')
+                ->selectRaw('facilities.facility_type_id as type_id, COUNT(*) as total')
+                ->groupBy('facilities.facility_type_id')
+                ->pluck('total', 'type_id');
+
             return collect($this->facilityTypeMap())
                 ->filter(fn ($type, $id) => ($counts[$id] ?? 0) > 0)
-                ->map(fn ($type, $id) => $type + ['count' => (int) $counts[$id]])
+                ->map(fn ($type, $id) => $type + ['count' => (int) $counts[$id], 'branches_count' => (int) ($branches[$id] ?? 0)])
                 ->sortByDesc('count')
                 ->values()
                 ->all();
@@ -318,7 +329,7 @@ class FacilityController extends Controller
         $query = FacilityBranch::query()
             ->select(['id', 'facility_id', 'governorate_id', 'city_id', 'latitude', 'longitude'])
             ->selectRaw(self::distanceSql().' as distance_km', $bindings)
-            ->with('facility:id,name')
+            ->with(['facility:id,name,facility_type_id,discount_percent', 'facility.media' => fn ($q) => $q->whereIn('collection_name', ['logo', 'mobile_logo'])])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->when(! empty($v['facility_type_id']), fn ($q) => $q->whereHas('facility', fn ($f) => $f->where('facility_type_id', (int) $v['facility_type_id'])))
@@ -331,6 +342,9 @@ class FacilityController extends Controller
 
         $governorates = $this->governorateNames();
         $cities = $this->cityNames();
+        // Read once: asking per row for the stand-in picture would be a query for every place without a logo.
+        $noLogo = \App\Support\MobileImage::logo();
+        $types = $this->facilityTypeMap();
 
         return $this->respond($request, [
             'data' => $rows->take($limit)->map(fn (FacilityBranch $b) => [
@@ -341,6 +355,10 @@ class FacilityController extends Controller
                 'governorate' => $governorates[$b->governorate_id] ?? null,
                 'city' => $cities[$b->city_id] ?? null,
                 'name' => (string) ($b->facility?->name ?? ''),
+                // The place's picture for the list under the map (the app logo when it has none).
+                'logo' => $b->facility?->mobile_logo ?: ($b->facility?->logo ?: $noLogo),
+                'type_name' => $types[$b->facility?->facility_type_id]['name'] ?? null,
+                'discount' => $b->facility?->discount_percent !== null ? (float) $b->facility->discount_percent : null,
             ])->values()->all(),
             'has_more' => $rows->count() > $limit,
         ], 120);

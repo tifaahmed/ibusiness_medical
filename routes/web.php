@@ -232,9 +232,9 @@ use App\Http\Controllers\Admin\Setting\Create\AdminSettingCreateController;
 use App\Http\Controllers\Admin\Setting\Delete\AdminSettingDeleteController;
 use App\Http\Controllers\Admin\Setting\Edit\AdminSettingEditController;
 use App\Http\Controllers\Admin\Setting\List\AdminSettingListController;
+use App\Http\Controllers\Admin\Setting\Logo\AdminSettingLogoController;
 use App\Http\Controllers\Admin\Setting\Show\AdminSettingShowController;
 use App\Http\Controllers\Admin\Setting\Store\AdminSettingStoreController;
-use App\Http\Controllers\Admin\Setting\Logo\AdminSettingLogoController;
 use App\Http\Controllers\Admin\Setting\Update\AdminSettingUpdateController;
 use App\Http\Controllers\Admin\Store\Create\AdminStoreCreateController;
 use App\Http\Controllers\Admin\Store\Delete\AdminStoreDeleteController;
@@ -952,6 +952,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified',
             ->middleware('throttle:10,1,admin.push.store')->name('admin.push.store');
         Route::get('/admin/push/count', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'count'])
             ->middleware('throttle:60,1,admin.push.count')->name('admin.push.count');
+        Route::patch('/admin/push/schedules/{schedule}', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'toggleSchedule'])
+            ->middleware('throttle:30,1,admin.push.schedules.toggle')->name('admin.push.schedules.toggle');
+        Route::delete('/admin/push/schedules/{schedule}', [\App\Http\Controllers\Admin\Push\PushNotificationController::class, 'destroySchedule'])
+            ->middleware('throttle:30,1,admin.push.schedules.destroy')->name('admin.push.schedules.destroy');
     });
 
     // ---- Visitors: who opened the website / apps, and which products they looked at ----

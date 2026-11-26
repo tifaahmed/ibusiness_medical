@@ -31,3 +31,8 @@ Schedule::command('loyalty:expire-points')
     ->monthlyOn(1, '04:00')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping();
+
+// Scheduled push notifications (/admin/push): once on a date, weekly or monthly. Needs the server cron `schedule:run`.
+Schedule::command('push:send-scheduled')
+    ->everyMinute()
+    ->withoutOverlapping(30);

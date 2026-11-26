@@ -79,13 +79,77 @@
             </div>
           </fieldset>
 
+          <fieldset class="space-y-2" data-testid="push-when">
+            <legend class="text-xs font-medium">{{ pt('when', 'When to send') }}</legend>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="w in ['now', 'once', 'weekly', 'monthly']" :key="w" type="button" class="h-9 min-w-[8rem] rounded-md border px-3 text-sm" :class="form.when === w ? 'chip-positive border-transparent' : 'border-border'" @click="form.when = w">
+                {{ pt('when_' + w, w) }}
+              </button>
+            </div>
+            <div v-if="form.when !== 'now'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label v-if="form.when === 'once'" class="block space-y-1">
+                <span class="text-xs font-medium">{{ pt('run_date', 'Date') }}</span>
+                <input v-model="form.run_date" type="date" required class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm" />
+                <span v-if="errors.run_date" class="block text-xs value-negative">{{ errors.run_date }}</span>
+              </label>
+              <label v-if="form.when === 'weekly'" class="block space-y-1">
+                <span class="text-xs font-medium">{{ pt('weekday', 'Day of the week') }}</span>
+                <select v-model.number="form.weekday" class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  <option v-for="d in WEEK" :key="d" :value="d">{{ pt('day_' + d, d) }}</option>
+                </select>
+                <span v-if="errors.weekday" class="block text-xs value-negative">{{ errors.weekday }}</span>
+              </label>
+              <label v-if="form.when === 'monthly'" class="block space-y-1">
+                <span class="text-xs font-medium">{{ pt('month_day', 'Day of the month') }}</span>
+                <select v-model.number="form.month_day" class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  <option v-for="d in 31" :key="d" :value="d">{{ d }}</option>
+                </select>
+                <span class="block text-xs text-muted-foreground">{{ pt('month_day_hint', '') }}</span>
+                <span v-if="errors.month_day" class="block text-xs value-negative">{{ errors.month_day }}</span>
+              </label>
+              <label class="block space-y-1">
+                <span class="text-xs font-medium">{{ pt('send_time', 'Time') }}</span>
+                <input v-model="form.send_time" type="time" required class="w-full h-10 rounded-md border border-border bg-background px-3 text-sm" />
+                <span class="block text-xs text-muted-foreground">{{ pt('time_zone', 'Time zone') }}: <bdi>{{ timezone }}</bdi></span>
+                <span v-if="errors.send_time" class="block text-xs value-negative">{{ errors.send_time }}</span>
+              </label>
+            </div>
+            <p v-if="form.when !== 'now' && !schedulerRunning" class="panel-danger text-xs">{{ pt('scheduler_off', 'The server scheduler is not running.') }}</p>
+          </fieldset>
+
           <div class="flex flex-wrap items-center gap-3">
-            <button type="submit" :disabled="busy || !configured" class="h-10 min-w-[10rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50" data-testid="push-send">
-              {{ busy ? (t.push?.sending || 'Sending…') : (t.push?.send || 'Send notification') }}
+            <button type="submit" :disabled="busy || (form.when === 'now' && !configured)" class="h-10 min-w-[10rem] rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50" data-testid="push-send">
+              {{ busy ? (t.push?.sending || 'Sending…') : form.when !== 'now' ? pt('schedule_button', 'Schedule notification') : (t.push?.send || 'Send notification') }}
             </button>
             <span v-if="!configured" class="text-xs value-warning">{{ t.push?.not_configured }}</span>
           </div>
         </form>
+
+        <section class="bg-card rounded-xl border border-border shadow-sm overflow-hidden" data-testid="push-schedules">
+          <h2 class="px-4 pt-4 text-sm font-semibold">{{ pt('schedules', 'Scheduled notifications') }}</h2>
+          <p v-if="!schedulerRunning && schedules.some(s => s.is_active)" class="panel-danger text-xs mx-4 mt-3">{{ pt('scheduler_off', 'The server scheduler is not running.') }}</p>
+          <div v-if="!schedules.length" class="p-6 text-center text-sm text-muted-foreground">{{ pt('schedules_empty', 'Nothing is scheduled.') }}</div>
+          <div v-else class="divide-y divide-border">
+            <div v-for="s in schedules" :key="s.id" class="px-4 py-3 text-sm space-y-1" data-testid="push-schedule-row">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="chip" :class="s.is_active ? 'chip-positive' : isDone(s) ? 'chip-neutral' : 'chip-warning'">{{ s.is_active ? pt('active', 'Active') : isDone(s) ? pt('done', 'Finished') : pt('paused', 'Paused') }}</span>
+                <span class="chip chip-info">{{ describe(s) }} · <bdi>{{ s.send_time }}</bdi></span>
+                <span class="chip chip-neutral">{{ s.audience === 'all' ? (t.push?.to_all || 'Everyone') : s.audience === 'group' ? (t.push?.to_group || 'Group') : (t.push?.audience_member || 'Specific members') }}</span>
+                <span v-if="s.next_run_at" class="chip chip-neutral">{{ pt('next_run', 'Next send') }}: <bdi class="ms-1">{{ s.next_run_at }}</bdi></span>
+                <span class="chip chip-neutral tabular-nums">{{ s.runs_count }} {{ pt('runs', 'times sent') }}</span>
+                <span v-if="s.by" class="chip chip-neutral">{{ s.by }}</span>
+                <span class="ms-auto flex flex-wrap gap-2">
+                  <button v-if="!isDone(s)" type="button" class="h-8 min-w-[5rem] rounded-md border border-border px-3 text-xs" @click="toggle(s)">{{ s.is_active ? pt('pause', 'Pause') : pt('resume', 'Resume') }}</button>
+                  <button type="button" class="chip-negative h-8 min-w-[5rem] rounded-md px-3 text-xs" @click="remove(s)">{{ pt('delete', 'Delete') }}</button>
+                </span>
+              </div>
+              <p class="font-medium break-words" dir="auto">{{ s.title }}</p>
+              <p class="whitespace-pre-line break-words text-foreground/80" dir="auto">{{ s.body }}</p>
+              <p v-if="s.url" class="text-xs text-muted-foreground" dir="ltr">{{ s.url }}</p>
+              <p v-if="s.last_error" class="text-xs value-negative">{{ s.last_error }}</p>
+            </div>
+          </div>
+        </section>
 
         <section class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
           <h2 class="px-4 pt-4 text-sm font-semibold">{{ t.push?.history || 'Sent notifications' }}</h2>
@@ -98,6 +162,7 @@
                 <span class="chip chip-positive tabular-nums">{{ r.delivered }} {{ t.push?.delivered || 'delivered' }}</span>
                 <span v-if="r.failed" class="chip chip-negative tabular-nums">{{ r.failed }} {{ t.push?.failed || 'failed' }}</span>
                 <span v-if="r.removed" class="chip chip-neutral tabular-nums">{{ r.removed }} {{ t.push?.removed || 'removed' }}</span>
+                <span v-if="r.scheduled" class="chip chip-info">{{ pt('from_schedule', 'Scheduled') }}</span>
                 <span v-if="r.by" class="chip chip-neutral">{{ r.by }}</span>
                 <span class="text-xs text-foreground/80" dir="ltr">{{ r.created_at }}</span>
               </div>
@@ -124,13 +189,18 @@ const props = defineProps({
   configured: { type: Boolean, default: false },
   devices: { type: Object, default: () => ({ total: 0, android: 0, ios: 0, members: 0 }) },
   rows: { type: Array, default: () => [] },
+  schedules: { type: Array, default: () => [] },
+  schedulerRunning: { type: Boolean, default: false },
+  timezone: { type: String, default: 'Africa/Cairo' },
 });
 
 const page = usePage();
 const t = computed(() => page.props.translations?.admin || {});
 const errors = computed(() => page.props.errors || {});
 const busy = ref(false);
-const form = reactive({ title: '', body: '', url: '', audience: 'all', audience_phone: '', filters: { platform: 'any', who: 'any', card: 'any', kind: 'any', governorate_id: 'any', gender: 'any', locale: 'any' } });
+const form = reactive({ title: '', body: '', url: '', audience: 'all', audience_phone: '', filters: { platform: 'any', who: 'any', card: 'any', kind: 'any', governorate_id: 'any', gender: 'any', locale: 'any' }, when: 'now', run_date: '', weekday: 6, month_day: 1, send_time: '10:00' });
+/* Saturday first: the week as it is read here. */
+const WEEK = [6, 0, 1, 2, 3, 4, 5];
 const pt = (k, d) => t.value.push?.[k] || d;
 const groupFields = computed(() => [
   { key: 'platform', label: 'platform', options: [{ value: 'android', label: pt('p_android', 'Android') }, { value: 'ios', label: pt('p_ios', 'iPhone') }] },
@@ -200,8 +270,21 @@ const APP_PAGES = [
 const pagePick = ref('');
 const pickPage = () => { if (pagePick.value) form.url = pagePick.value; };
 
+const isDone = (s) => !s.is_active && s.frequency === 'once' && (s.runs_count > 0 || !!s.last_error);
+const describe = (s) => s.frequency === 'weekly'
+  ? pt('every_week', 'Every :day').replace(':day', pt('day_' + s.weekday, s.weekday))
+  : s.frequency === 'monthly'
+    ? pt('every_month', 'Every month on day :day').replace(':day', s.month_day)
+    : pt('once_on', 'Once on :date').replace(':date', s.run_date);
+const toggle = (s) => router.patch(route('admin.push.schedules.toggle', s.id), { active: !s.is_active }, { preserveScroll: true });
+const remove = (s) => {
+  if (window.confirm(pt('confirm_delete', 'Delete this schedule?'))) router.delete(route('admin.push.schedules.destroy', s.id), { preserveScroll: true });
+};
+
 const send = () => {
-  const ask = form.audience === 'all' || form.audience === 'group'
+  const ask = form.when !== 'now'
+    ? pt('confirm_schedule', 'Schedule this notification?')
+    : form.audience === 'all' || form.audience === 'group'
     ? (form.audience === 'group' ? (t.value.push?.group_count || '').replace(':devices', count.value?.devices ?? '?').replace(':members', count.value?.members ?? '?') + ' — OK?' : (t.value.push?.confirm_all || 'Send to EVERY phone that has the app?'))
     : (t.value.push?.confirm_member || 'Send this to those members only?');
   if (!window.confirm(ask)) return;
