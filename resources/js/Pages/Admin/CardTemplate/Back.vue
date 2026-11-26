@@ -10,6 +10,17 @@
       </div>
 
       <div class="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+        <div class="space-y-2 border-b border-border p-4">
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input v-model="cfg.hidden" type="checkbox" class="h-4 w-4" data-testid="back-hidden-toggle" />
+            No back side for members (front only)
+          </label>
+          <p class="text-xs text-muted-foreground">
+            On = the app, the website and the member's card page show the front only: the back and the flip button disappear.
+            Printing and the admin previews keep the back.
+          </p>
+          <span v-if="cfg.hidden" class="chip chip-warning" data-testid="back-hidden-chip">Back hidden from members</span>
+        </div>
         <div class="space-y-3 border-b border-border p-4">
           <label class="flex items-center gap-2 text-sm font-medium">
             <input v-model="cfg.enabled" type="checkbox" class="h-4 w-4" />
@@ -207,6 +218,7 @@ const snapshot = ref(JSON.stringify(cfg));
 const files = reactive({ back_image: null, back_logo: null, back_qr: null });
 const removed = reactive({ back_image: false, back_logo: false, back_qr: false });
 if (!cfg.qrcode.mode) cfg.qrcode.mode = 'url';
+cfg.hidden = !!cfg.hidden;
 const saving = ref(false);
 const saved = ref(false);
 const flipped = ref(false);
@@ -303,7 +315,7 @@ const resetElement = (key) => {
 const resetToDefaults = () => {
   if (!window.confirm('Reset the texts, colours and visibility to the defaults? Uploads are kept.')) return;
   const enabled = cfg.enabled;
-  Object.assign(cfg, clone(props.backDefaults), { enabled });
+  Object.assign(cfg, clone(props.backDefaults), { enabled, hidden: cfg.hidden });
 };
 
 const save = async ({ stay = false } = {}) => {

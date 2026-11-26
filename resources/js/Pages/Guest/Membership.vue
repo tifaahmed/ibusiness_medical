@@ -87,6 +87,7 @@
             :card-layout="minimalCardLayout"
             :card-template="minimalCardTemplate"
             :field-values="minimalCardFieldValues"
+            :has-back="cardHasBack"
             mode="minimal"
             :translations="t"
           />
@@ -458,6 +459,11 @@ const props = defineProps({
   cardTemplates: {
     type: Object,
     default: () => ({}),
+  },
+  // False = the admin switched the card's back off: front only, no flip.
+  cardHasBack: {
+    type: Boolean,
+    default: true,
   },
 });
 

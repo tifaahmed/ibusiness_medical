@@ -97,7 +97,7 @@ class CardTemplate extends Model
         'sample_data',
     ];
 
-    protected $appends = ['card_empty_url', 'sample_card_url', 'hidden_fields', 'back_url', 'back_config', 'back_image_url', 'back_logo_url'];
+    protected $appends = ['card_empty_url', 'sample_card_url', 'hidden_fields', 'has_back', 'back_url', 'back_config', 'back_image_url', 'back_logo_url'];
 
     /**
      * What the back shows until an admin says otherwise. Every piece can be
@@ -105,6 +105,8 @@ class CardTemplate extends Model
      */
     public const BACK_DEFAULTS = [
         'enabled' => false,
+        // true = members see the FRONT only (app, website, the card page): no back is served and the card does not flip.
+        'hidden' => false,
         // x/y/width/height are fractions of the card, like the front layout;
         // font_size is pixels on a 700px-wide card (CardTemplateLayoutDefaults::EDITOR_WIDTH).
         'logo' => ['visible' => true, 'x' => 0.30, 'y' => 0.08, 'width' => 0.40, 'height' => 0.46],
@@ -158,6 +160,21 @@ class CardTemplate extends Model
     public function hasCustomBack(): bool
     {
         return (bool) ($this->resolvedBackConfig()['enabled'] ?? false);
+    }
+
+    /**
+     * Whether members are shown a back at all. False = front only: the app, the website and the card page
+     * draw no flip. Printing and the admin previews still have the back (`back_url`).
+     */
+    public function showsBack(): bool
+    {
+        return ! filter_var($this->resolvedBackConfig()['hidden'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** `has_back` in every payload a client reads. */
+    protected function hasBack(): Attribute
+    {
+        return Attribute::make(get: fn () => $this->showsBack());
     }
 
     protected function backConfig(): Attribute
@@ -219,7 +236,22 @@ class CardTemplate extends Model
     }
 
     /**
-     * layout/sample_data field keys the admin form should hide, driven by
+     * Fields the admin switched off in the template editor (`layout.<field>.hidden = true`). The box keeps
+     * its position, so switching it back on puts it where it was.
+     *
+     * @return array<int, string>
+     */
+    public function adminHiddenFields(): array
+    {
+        return array_keys(array_filter(
+            (array) ($this->layout ?? []),
+            fn ($box) => is_array($box) && filter_var($box['hidden'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        ));
+    }
+
+    /**
+     * layout/sample_data field keys nothing draws: what the status and the kind hide, plus what the admin
+     * hid by hand in the editor. The status part is driven by
      * CardTemplateStatusEnum::hiddenFields() so this stays a single source of
      * truth.
      */
@@ -229,6 +261,7 @@ class CardTemplate extends Model
             get: fn () => array_values(array_unique(array_merge(
                 $this->status?->hiddenFields() ?? [],
                 $this->isSoft() ? self::SOFT_HIDDEN_FIELDS : self::SOFT_ONLY_FIELDS,
+                $this->adminHiddenFields(),
             ))),
         );
     }

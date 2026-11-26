@@ -110,6 +110,11 @@ class MembershipCardController extends Controller
         // A member whose card has a SOFT design is shown that one for the usual `full` request.
         $mode = CardGenerationService::customerMode($membershipModel, $mode);
 
+        // The admin switched the back off for this design: there is no back to serve, and clients draw no flip.
+        if (! (CardGenerationService::backTemplateFor($membershipModel, $mode)?->showsBack() ?? true)) {
+            return response()->json(['error' => 'no_back', 'has_back' => false], 404);
+        }
+
         $service = new CardGenerationService;
         $url = $service->generateBack($membershipModel, $mode);
 
@@ -163,6 +168,7 @@ class MembershipCardController extends Controller
                 return response()->json([
                     'card_url' => Storage::disk('public')->url($layout->generated_image_path),
                     'mode' => $mode,
+                    'has_back' => CardGenerationService::hasBackFor($membershipModel, $mode),
                 ]);
             }
         }
@@ -177,6 +183,7 @@ class MembershipCardController extends Controller
         return response()->json([
             'card_url' => $cardUrl,
             'mode' => $mode,
+            'has_back' => CardGenerationService::hasBackFor($membershipModel, $mode),
         ]);
     }
 }

@@ -17,7 +17,7 @@
             class="guest-card-canvas"
           ></canvas>
         </div>
-        <div class="card-face card-back">
+        <div v-if="hasBack" class="card-face card-back">
           <img
             :src="backSideSrc"
             alt="Card Back Side"
@@ -36,6 +36,7 @@
       </div>
     </div>
     <button
+      v-if="hasBack"
       type="button"
       class="card-flip-btn"
       @click.stop="toggleFlip"
@@ -95,7 +96,7 @@
                   class="guest-card-canvas"
                 ></canvas>
               </div>
-              <div class="card-face card-back">
+              <div v-if="hasBack" class="card-face card-back">
                 <img
                   :src="backSideSrc"
                   alt="Card Back Side"
@@ -107,7 +108,7 @@
         </div>
 
         <div class="card-fs-controls">
-          <button type="button" class="card-fs-flip-btn" @click="toggleFlip">
+          <button v-if="hasBack" type="button" class="card-fs-flip-btn" @click="toggleFlip">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flip-icon" :class="{ 'rotated': isFlipped }">
               <polyline points="17 1 21 5 17 9"></polyline>
               <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
@@ -197,6 +198,8 @@ const props = defineProps({
   cardTemplate: { type: Object, default: null },
   fieldValues: { type: Object, default: null },
   mode: { type: String, required: true, validator: (v) => ["full", "minimal"].includes(v) },
+  // False = the admin switched the back off for this design: front only, no flip.
+  hasBack: { type: Boolean, default: true },
   translations: { type: Object, default: () => ({}) },
 });
 
@@ -275,6 +278,7 @@ const isLandscapeOrientation = computed(() => {
 });
 
 function toggleFlip() {
+  if (!props.hasBack) { isFlipped.value = false; return; }
   isFlipped.value = !isFlipped.value;
 }
 

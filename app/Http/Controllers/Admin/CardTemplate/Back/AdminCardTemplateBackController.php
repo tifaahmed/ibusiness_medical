@@ -26,6 +26,8 @@ class AdminCardTemplateBackController extends Controller
 
         $rules = [
             'enabled' => ['required', 'boolean'],
+            // "Front only": members are shown no back at all.
+            'hidden' => ['nullable', 'boolean'],
             'back_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
             'back_logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
             'back_qr' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp'],
@@ -60,6 +62,7 @@ class AdminCardTemplateBackController extends Controller
 
             // The QR image path is never taken from the client: it is the one
             // already stored, a fresh upload, or nothing.
+            $clean['hidden'] = (bool) ($clean['hidden'] ?? false);
             $clean['qrcode']['mode'] = $clean['qrcode']['mode'] ?? 'url';
             $clean['qrcode']['image'] = $cardTemplate->back_settings['qrcode']['image'] ?? null;
             if ($request->hasFile('back_qr')) {

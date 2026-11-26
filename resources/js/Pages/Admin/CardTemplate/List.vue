@@ -81,7 +81,7 @@
 
             <div class="text-[11px] text-muted-foreground">
               {{ Object.keys(tpl.layout || {}).length }} fields
-              <span v-if="tpl.hidden_fields?.length"> · {{ tpl.hidden_fields.length }} hidden by status</span>
+              <span v-if="tpl.hidden_fields?.length"> · {{ tpl.hidden_fields.length }} hidden</span>
             </div>
 
             <div class="flex flex-wrap gap-1.5 pt-1 mt-auto">

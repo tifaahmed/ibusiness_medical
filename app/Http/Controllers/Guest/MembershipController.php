@@ -65,6 +65,8 @@ class MembershipController extends BaseController
         return Inertia::render('Guest/Membership', [
             'membership' => (new MembershipResource($membershipModel))->toArray($request),
             'cardTemplates' => $this->cardTemplatesByStatus(),
+            // False = the admin switched the back off on this member's design: the page shows the front only.
+            'cardHasBack' => \App\Services\CardGenerationService::hasBackFor($membershipModel),
         ]);
     }
 
