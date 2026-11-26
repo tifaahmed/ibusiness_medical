@@ -789,6 +789,24 @@ class CardGenerationService
         ];
     }
 
+    /** The design whose back a member's card shows: the soft one for a soft card, else the card's own, else the default for its status. */
+    public static function backTemplateFor(Membership $membership, string $mode = 'full'): ?CardTemplate
+    {
+        $own = $mode === self::MODE_SOFT
+            ? CardTemplate::softFor($membership)
+            : $membership->cardLayouts()->where('mode', $mode)->first()?->cardTemplate;
+
+        return $own ?? CardTemplate::physical()->where('status', $membership->partner_id
+            ? CardTemplateStatusEnum::WITH_PARTNER
+            : CardTemplateStatusEnum::NO_PARTNER)->first();
+    }
+
+    /** False when the admin switched the back off on the member's design ("front only"): clients then draw no flip. */
+    public static function hasBackFor(Membership $membership, string $mode = 'full'): bool
+    {
+        return self::backTemplateFor($membership, self::customerMode($membership, $mode))?->showsBack() ?? true;
+    }
+
     /**
      * Generate (or serve cached) the back side of a membership card.
      *
@@ -802,10 +820,13 @@ class CardGenerationService
 
         // A template with its own back wins: it is drawn from the template's
         // settings, and the layout just points at the current render.
-        $template = ($mode === self::MODE_SOFT ? CardTemplate::softFor($membership) : $layout?->cardTemplate)
-            ?? CardTemplate::physical()->where('status', $membership->partner_id
-                ? CardTemplateStatusEnum::WITH_PARTNER
-                : CardTemplateStatusEnum::NO_PARTNER)->first();
+        $template = self::backTemplateFor($membership, $mode);
+
+        // The admin switched the back off for this design: members get the front only.
+        if ($template && ! $template->showsBack()) {
+            return null;
+        }
+
         if ($template && $template->hasCustomBack()) {
             $renderer = app(CardBackRenderer::class);
             if ($renderer->ensure($template)) {

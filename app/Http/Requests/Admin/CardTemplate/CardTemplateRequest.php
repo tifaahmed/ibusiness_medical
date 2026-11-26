@@ -55,6 +55,8 @@ class CardTemplateRequest extends FormRequest
             $rules["layout.{$field}.y"] = ['required_with:layout', 'numeric', 'min:-1', 'max:2'];
             $rules["layout.{$field}.width"] = ['required_with:layout', 'numeric', 'min:0', 'max:2'];
             $rules["layout.{$field}.height"] = ['required_with:layout', 'numeric', 'min:0', 'max:2'];
+            // The admin's "hide this field" switch. It must be a rule of its own: only validated keys are saved.
+            $rules["layout.{$field}.hidden"] = ['nullable', 'boolean'];
         }
 
         foreach (CardTemplateLayoutDefaults::TEXT_FIELDS as $field) {

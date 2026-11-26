@@ -57,6 +57,8 @@ final class MembershipStatus
             /* Which online buttons to draw: `card`, `wallet` or both (empty when it cannot be sold online). */
             'online_channels' => MembershipPlan::canPayOnline($kind) ? PaymentMethods::onlineChannels(PaymentMethods::CONTEXT_MEMBERSHIP) : [],
             'contact' => ShopContact::current(),
+            /* False = the admin switched the card's back off: show the FRONT only, draw no flip and never ask for `/card/back` (it answers 404). */
+            'card_has_back' => $membership === null ? true : \App\Services\CardGenerationService::hasBackFor($membership),
         ];
     }
 

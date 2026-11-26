@@ -27,8 +27,8 @@
               v-model="form.status"
               :options="statuses"
             />
-            <p v-if="hiddenFields.length" class="mt-1 text-[11px] text-muted-foreground">
-              Hides: {{ hiddenFields.join(', ') }}
+            <p v-if="forcedHidden.length" class="mt-1 text-[11px] text-muted-foreground">
+              Hides: {{ forcedHidden.join(', ') }}
             </p>
           </div>
           <div>
@@ -96,7 +96,8 @@
 
           <p class="text-[11px] text-muted-foreground">
             Drag a field to move it, or drag its bottom-right corner to resize. Positions are stored as
-            fractions of the card, so the layout holds at any print size.
+            fractions of the card, so the layout holds at any print size. Any field can be hidden from the
+            card with the switch in its panel; a hidden field keeps its place.
           </p>
 
           <div
@@ -154,16 +155,30 @@
 
           <div class="flex flex-wrap gap-1.5">
             <button
-              v-for="key in visibleFields"
+              v-for="key in availableFields"
               :key="key"
               type="button"
-              class="rounded-md px-2 py-1 text-[11px] font-medium cursor-pointer"
-              :class="key === selected ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70'"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium cursor-pointer"
+              :class="[
+                key === selected ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70',
+                isHidden(key) ? 'line-through opacity-70' : '',
+              ]"
+              :title="isHidden(key) ? 'Hidden from the card' : ''"
+              :data-testid="`field-chip-${key}`"
               @click="selected = key"
             >
+              <svg v-if="isHidden(key)" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                <line x1="2" x2="22" y1="2" y2="22"/>
+              </svg>
               {{ label(key) }}
             </button>
           </div>
+          <p v-if="adminHidden.length" class="text-[11px] value-warning" data-testid="hidden-fields-note">
+            Hidden from the card: {{ adminHidden.map(label).join(', ') }}
+          </p>
         </div>
 
         <!-- Selected field -->
@@ -171,6 +186,24 @@
           <h2 class="text-sm font-semibold">{{ label(selected) }}</h2>
 
           <template v-if="field">
+            <label class="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2 cursor-pointer">
+              <span class="min-w-0">
+                <span class="block text-xs font-medium">Show on the card</span>
+                <span class="block text-[10px] text-muted-foreground">
+                  {{ field.hidden ? 'Hidden: not drawn on any card from this template.' : 'Drawn on every card from this template.' }}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                class="h-4 w-4 shrink-0 cursor-pointer"
+                :checked="!field.hidden"
+                :disabled="busy"
+                data-testid="field-visible-toggle"
+                @change="setHidden(selected, !$event.target.checked)"
+              />
+            </label>
+            <span v-if="field.hidden" class="chip chip-warning" data-testid="field-hidden-chip">Hidden</span>
+
             <div class="grid grid-cols-2 gap-2">
               <label v-for="k in ['x', 'y', 'width', 'height']" :key="k" class="text-[10px] text-muted-foreground uppercase">
                 {{ k }} (%)
@@ -455,12 +488,26 @@ const sampleLabel = computed(() => {
   return serverTemplate.value?.sample_card || 'None yet.';
 });
 
-const hiddenFields = computed(() => [
+// Hidden by the status / kind: these fields do not exist on this card at all.
+const forcedHidden = computed(() => [
   ...(props.statuses.find((s) => s.value === form.status)?.hidden_fields ?? []),
   // The full name and expiry date exist on soft cards only; a soft card has no barcode (the expiry date takes its place).
   ...(form.kind === 'soft' ? ['barcode'] : SOFT_ONLY_FIELDS),
 ]);
-const visibleFields = computed(() => Object.keys(form.layout).filter((k) => !hiddenFields.value.includes(k)));
+// Fields this card can carry — the ones the admin may show or hide.
+const availableFields = computed(() => Object.keys(form.layout).filter((k) => !forcedHidden.value.includes(k)));
+// Hidden by the admin with the switch (`layout.<field>.hidden`): the box keeps its place.
+const isHidden = (key) => !!form.layout[key]?.hidden;
+const adminHidden = computed(() => availableFields.value.filter(isHidden));
+// Everything the renderer must skip.
+const hiddenFields = computed(() => [...forcedHidden.value, ...adminHidden.value]);
+// What the stage draws.
+const visibleFields = computed(() => availableFields.value.filter((k) => !isHidden(k)));
+
+function setHidden(key, hidden) {
+  if (!key || !form.layout[key]) return;
+  form.layout[key].hidden = !!hidden;
+}
 const field = computed(() => (selected.value ? form.layout[selected.value] : null));
 
 const isTextField = (key) => props.defaults.text_fields.includes(key);
@@ -819,5 +866,5 @@ function saveErrorMessage(e) {
   return e?.response?.data?.message || e?.message || 'Could not save the template.';
 }
 
-selected.value = visibleFields.value[0] ?? null;
+selected.value = visibleFields.value[0] ?? availableFields.value[0] ?? null;
 </script>

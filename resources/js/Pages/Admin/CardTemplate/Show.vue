@@ -29,7 +29,7 @@
                 </ShowField>
                 <ShowField label="Positioned fields" :value="layoutRows.length" />
               </div>
-              <ShowField v-if="template.hidden_fields?.length" label="Hidden by status">
+              <ShowField v-if="template.hidden_fields?.length" label="Hidden fields">
                 <div class="flex flex-wrap gap-1.5 mt-1">
                   <span
                     v-for="field in template.hidden_fields"
